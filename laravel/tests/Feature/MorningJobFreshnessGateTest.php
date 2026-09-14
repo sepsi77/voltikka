@@ -19,7 +19,6 @@ use App\Services\PriceForecasting\FixedTermPriceForecastService;
 use App\Services\RetailPremium\RetailPremiumObservationService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
@@ -361,18 +360,14 @@ class MorningJobFreshnessGateTest extends TestCase
         );
     }
 
-    public function test_forecast_ignores_eex_but_retail_premium_still_requires_it(): void
+    public function test_forecast_and_retail_premium_require_eex_checkpoint_and_recent_data(): void
     {
         $this->readyContractCheckpoint([1], []);
         $this->forecastStatistics();
         $date = CarbonImmutable::parse(self::DATE, 'Europe/Helsinki');
-        DB::enableQueryLog();
-        $this->assertTrue(app(MorningJobFreshnessService::class)->checkFixedTermForecast($date)->ready());
-        foreach (DB::getQueryLog() as $query) {
-            $this->assertStringNotContainsString('electricity_futures', $query['query']);
-            $this->assertNotContains(DataFreshnessCheckpoint::KEY_EEX_FUTURES, $query['bindings']);
-        }
-        DB::disableQueryLog();
+        $forecast = app(MorningJobFreshnessService::class)->checkFixedTermForecast($date);
+        $this->assertArrayHasKey('eex_checkpoint', $forecast->failures);
+        $this->assertArrayHasKey('futures_data', $forecast->failures);
         $retail = app(MorningJobFreshnessService::class)->checkRetailPremium($date);
         $this->assertArrayHasKey('eex_checkpoint', $retail->failures);
         $this->assertArrayHasKey('futures_data', $retail->failures);
@@ -380,7 +375,7 @@ class MorningJobFreshnessGateTest extends TestCase
             'current_run_latest_prior_fi_trade_date' => '2026-07-31',
         ]);
         $this->future('2026-07-20');
-        $this->assertTrue(app(MorningJobFreshnessService::class)->checkFixedTermForecast($date)->ready());
+        $this->assertArrayHasKey('futures_data', app(MorningJobFreshnessService::class)->checkFixedTermForecast($date)->failures);
         $this->assertArrayHasKey('futures_data', app(MorningJobFreshnessService::class)->checkRetailPremium($date)->failures);
     }
 
@@ -419,6 +414,9 @@ class MorningJobFreshnessGateTest extends TestCase
         $this->readyContractCheckpoint([1], []);
         $this->checkpoint(DataFreshnessCheckpoint::KEY_EEX_FUTURES, DataFreshnessCheckpoint::STATUS_READY);
         $this->future('2026-07-31');
+        $this->forecastStatistics();
+        $forecast = app(MorningJobFreshnessService::class)->checkFixedTermForecast(CarbonImmutable::parse(self::DATE));
+        $this->assertArrayHasKey('eex_metadata', $forecast->failures);
 
         $this->artisan('retail-premiums:collect', [
             '--as-of' => self::DATE,

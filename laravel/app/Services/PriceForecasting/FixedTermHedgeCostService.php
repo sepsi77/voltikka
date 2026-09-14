@@ -8,17 +8,25 @@ use Carbon\CarbonInterface;
 
 class FixedTermHedgeCostService
 {
-    public function calculate(CarbonInterface $asOfDate, int $durationMonths): ?array
+    public function calculate(CarbonInterface $asOfDate, int $durationMonths, ?CarbonInterface $deliveryStart = null, ?array $curves = null): ?array
     {
         $asOf = CarbonImmutable::instance($asOfDate)->startOfDay();
-        $tradeDate = $this->latestTradeDateBefore($asOf);
+        $tradeDate = $curves === null ? $this->latestTradeDateBefore($asOf) : null;
+        if ($curves !== null) {
+            foreach ($curves as $date => $curve) {
+                if ($date < $asOf->toDateString()) {
+                    $tradeDate = CarbonImmutable::parse($date);
+                    break;
+                }
+            }
+        }
 
         if ($tradeDate === null) {
             return null;
         }
 
-        $curve = $this->loadCurve($tradeDate);
-        $deliveryStart = $asOf->startOfMonth()->addMonth();
+        $curve = $curves === null ? $this->loadCurve($tradeDate) : $curves[$tradeDate->toDateString()];
+        $deliveryStart = $deliveryStart === null ? $asOf->startOfMonth()->addMonth() : CarbonImmutable::instance($deliveryStart)->startOfMonth();
         $weightedSettlementPrice = 0.0;
         $totalWeight = 0;
         $coverageCounts = [
@@ -46,7 +54,7 @@ class FixedTermHedgeCostService
                 }
             }
 
-            if ($selectedPrice === null) {
+            if ($selectedPrice === null || ! is_finite($selectedPrice)) {
                 $missingMonths[] = $deliveryMonth->format('Y-m');
 
                 continue;
@@ -71,7 +79,7 @@ class FixedTermHedgeCostService
         }
 
         $averageEurPerMwh = $weightedSettlementPrice / $totalWeight;
-        $vatMultiplier = (float) config('price_forecasting.fixed_term.vat_multiplier', 1.255);
+        $vatMultiplier = $curves === null ? (float) config('price_forecasting.fixed_term.vat_multiplier', 1.255) : 1.255;
 
         return [
             'price_cents_per_kwh' => $averageEurPerMwh / 10.0 * $vatMultiplier,
@@ -84,6 +92,26 @@ class FixedTermHedgeCostService
             'delivery_start_month' => $deliveryStart->toDateString(),
             'delivery_end_month' => $deliveryStart->addMonths($durationMonths - 1)->toDateString(),
         ];
+    }
+
+    /** One build-local snapshot; newest vintage first, including incomplete curves. */
+    public function loadCurvesBefore(CarbonInterface $asOfDate): array
+    {
+        $curves = [];
+        $prices = ElectricityFuturesEodPrice::query()
+            ->where('area', 'FI')->where('product', 'Base')
+            ->whereDate('trade_date', '<', $asOfDate->toDateString())
+            ->orderByDesc('trade_date')->orderBy('id')
+            ->get(['trade_date', 'maturity_type', 'maturity', 'settlement_price']);
+        foreach ($prices as $price) {
+            $date = $price->trade_date->toDateString();
+            $curves[$date] ??= [];
+            if (in_array($price->maturity_type, ['month', 'quarter', 'year'], true)) {
+                $curves[$date][$price->maturity_type.'|'.$price->maturity] = $price->settlement_price === null ? null : (float) $price->settlement_price;
+            }
+        }
+
+        return $curves;
     }
 
     public function latestTradeDateBefore(CarbonInterface $asOfDate): ?CarbonImmutable

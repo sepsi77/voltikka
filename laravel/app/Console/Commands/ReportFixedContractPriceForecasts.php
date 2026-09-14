@@ -40,7 +40,7 @@ class ReportFixedContractPriceForecasts extends Command
 
             return self::FAILURE;
         }
-        $version = $this->option('model-version') ?? config('price_forecasting.fixed_term.model_version', 'fixed_term_historical_change_v1');
+        $version = $this->option('model-version') ?? config('price_forecasting.fixed_term.model_version', 'fixed_term_futures_adjusted_v1');
         $query = FixedContractPriceForecast::query()
             ->where('target_quantile', 'median')
             ->whereNotNull('actual_price_cents_per_kwh')

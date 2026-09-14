@@ -96,10 +96,10 @@
                 Voltikka sähkön hintaennuste
             </p>
             <h1 class="text-3xl md:text-5xl font-extrabold text-slate-900 leading-[1.05] tracking-tight max-w-[28ch]">
-                Sähkön hintaennuste: määräaikaisten hintanäkymä
+                Sähkön hintaennuste: mihin määräaikaisten hinnat ovat menossa?
             </h1>
             <p class="mt-5 max-w-[62ch] text-lg text-slate-600 leading-relaxed">
-                Voltikan sähkön hintaennuste seuraa päivittäin määräaikaisten sähkösopimusten hintakehitystä. Ennuste perustuu tämänhetkisiin sopimushintoihin ja aiempien päivien hintatilastoihin. Nykyhintaan lisätään aiemmin toteutuneiden, ennustejakson pituisten hintamuutosten keskiarvo. Malli arvioi hintojen suuntaa alla ilmoitetulle ennustejaksolle. Suuntaa antava arvio, ei varma hintakehitys.
+                Katso, miten 6, 12 ja 24 kuukauden sähkösopimusten hintojen ennustetaan muuttuvan seuraavien {{ $horizonDays }} päivän aikana. Ennuste perustuu sähkösopimusten hintakehitykseen ja sähkön tukkumarkkinoiden hintoihin. Ennuste voi muuttua markkinatilanteen mukana.
             </p>
 
             {{-- Meta strip --}}
@@ -197,7 +197,7 @@
                         Vertailu sopimuspituuksittain
                     </h2>
                     <p class="mt-1.5 text-sm text-slate-500 max-w-[68ch]">
-                        Mediaanihinta tarkoittaa tyypillistä markkinoilla olevaa tarjousta. Ennustettu muutos kertoo, miten mediaanin odotetaan liikkuvan seuraavan {{ $horizonDays }}&nbsp;päivän aikana.
+                        Vertaa tyypillistä sopimushintaa nyt ja {{ $horizonDays }} päivän kuluttua.
                     </p>
                 </div>
 
@@ -206,10 +206,10 @@
                         <thead>
                             <tr class="text-left {{ $colEyebrow }} text-slate-500 border-b border-slate-300">
                                 <th class="py-3 pr-3 pl-4 sm:pl-0 font-semibold">Sopimuspituus</th>
-                                <th class="py-3 px-3 font-semibold text-right">Mediaanihinta nyt</th>
+                                <th class="py-3 px-3 font-semibold text-right">Tyypillinen hinta nyt</th>
                                 <th class="py-3 px-3 font-semibold text-right">Ennuste {{ $horizonDays }}&nbsp;pv</th>
                                 <th class="py-3 px-3 font-semibold text-right">Muutos</th>
-                                <th class="py-3 pl-3 pr-4 sm:pr-0 font-semibold">Suositus</th>
+                                <th class="py-3 pl-3 pr-4 sm:pr-0 font-semibold">Hintojen suunta</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
@@ -274,7 +274,7 @@
                     Sopimuspituudet tarkemmin
                 </h2>
                 <p class="text-sm text-slate-500 max-w-[60ch] mb-7">
-                    Ennuste lisää nykyhintaan aiemmin toteutuneiden hintamuutosten keskiarvon. Jokainen sopimuspituus ja hintataso lasketaan erikseen. Todellinen muutos voi olla ennustetta suurempi tai vastakkaissuuntainen.
+                    Valitse sopimuspituus ja katso edullisten, tyypillisten ja kalliimpien sopimusten hintaennuste.
                 </p>
 
                 {{-- TOC chips, matching /sahkosopimus/tilastot deep-dive nav. --}}
@@ -349,7 +349,6 @@
                                         <p class="text-base text-slate-700 leading-relaxed">
                                             {{ $signal['body'] }}
                                         </p>
-                                        <p class="mt-2 text-sm text-slate-600">Suuntaa antava arvio, ei varma hintakehitys.</p>
                                     </div>
                                 @endif
 
@@ -401,7 +400,7 @@
                                 </div>
 
                                 @if ($payload['quantiles_crossed'])
-                                    <p class="mt-4 text-sm text-amber-800">Hintatasojen ennusteet menevät ristiin. Ne on laskettu erikseen, eikä niitä voi tulkita järjestetyksi hintajakaumaksi. Lukuja ei ole järjestetty uudelleen.</p>
+                                    <p class="mt-4 text-sm text-amber-800">Hintatasojen ennusteet menevät ristiin. Ne on laskettu erikseen, joten niitä ei voi lukea yhtenä hintahaarukkana.</p>
                                 @endif
 
                                 {{-- Footnote strip --}}
@@ -523,22 +522,16 @@
                     <h2 class="text-2xl font-bold text-slate-900 tracking-tight mb-4">Miten ennuste lasketaan</h2>
                     <div class="space-y-4 text-base text-slate-600 leading-relaxed max-w-[58ch]">
                         <p>
-                            Malli arvioi määräaikaisten sopimusten tarjottujen energiahintojen suuntaa. Se ei ennusta yksittäisen tarjouksen hintaa eikä neuvo sopimuksen ajoituksessa.
+                            Ennuste yhdistää aiemman sopimushintojen kehityksen ja sähköfutuurien viimeaikaiset hintamuutokset. Sähköfutuurien hinnat kuvaavat tulevien kuukausien sähkön tukkuhintaa.
                         </p>
                         <p>
-                            Nykyinen hintataso lasketaan tämän päivän määräaikaisista sopimuksista. Malli tarkastelee tyypillisen hinnan lisäksi markkinoiden edullisempaa ja kalliimpaa hintatasoa. Historiallinen vertailuaineisto koostuu aiempina päivinä myyjiltä havaituista hinnoista.
+                            Laskemme ennusteen erikseen 6, 12 ja 24 kuukauden sopimuksille. Tyypillisen hinnan lisäksi näet edullisempien ja kalliimpien sopimusten hintatason.
                         </p>
                         <p>
-                            Malli etsii koko saatavilla olevasta historiasta täsmälleen ennustejakson pituiset hintamuutokset, tavallisesti 30 päivää. Jakson on päätyttävä ennen ennustepäivää. Puuttuvia päiviä ei täytetä.
+                            Jos sopimushintoja tai futuurihintoja ei ole riittävästi, ennustetta ei näytetä.
                         </p>
                         <p>
-                            Jokainen hyväksytty muutos saa saman painon. Muutosten keskiarvo lisätään nykyhintaan erikseen 6, 12 ja 24 kuukauden sopimuksille sekä p20-, mediaani- ja p80-hintatasoille. Ennuste vaatii vähintään 20 eri aloituspäivää.
-                        </p>
-                        <p>
-                            Vanhempi myyjiltä havaittu hintahistoria jatkuu nykyisellä laskentatavalla tuotetuilla hinnoilla. Yhden muutosjakson molempien päiden on käytettävä samaa laskentatapaa. Laskentatapojen rajan ylittäviä muutoksia ei käytetä.
-                        </p>
-                        <p>
-                            Pienet tallennetut nousut ja laskut näytetään muodossa ”suunnilleen ennallaan”. Mallin oletusraja selvälle nousulle tai laskulle on 0,15&nbsp;c/kWh. Hintajakauman p20 ja p80 kuvaavat markkinoiden halvempia ja kalliimpia sopimuksia, eivät ennusteen epävarmuusväliä.
+                            Edullisempi hintataso (p20) tarkoittaa hintaa, jonka alle jää noin 20 % sopimuksista. Kalliimpi hintataso (p80) on vastaava 80 %:n raja. Ne kuvaavat sopimusten hintaeroja, eivät ennusteen epävarmuusväliä.
                         </p>
                     </div>
                 </div>
@@ -547,17 +540,15 @@
                     <h2 class="text-2xl font-bold text-slate-900 tracking-tight mb-4">Tärkeää huomioida</h2>
                     <div class="space-y-4 text-base text-slate-600 leading-relaxed max-w-[58ch]">
                         <p>
-                            Ennuste käyttää vain toteutuneita sopimushintoja, ei futuurihintoja. Päällekkäiset muutosjaksot eivät ole toisistaan riippumattomia havaintoja. Historiallinen keskiarvo voi reagoida käännekohtiin hitaasti, ja myyjien hinnoittelu voi muuttua eri tavalla kuin ennen.
+                            Ennuste kertoo markkinoiden hintasuunnasta, ei yksittäisen tarjouksen hinnasta. Pienet muutokset näkyvät muodossa ”suunnilleen ennallaan”.
                         </p>
                         <p>
-                            Lyhyellä aikavälillä (alle viikon) malli ei yritä ennustaa yksittäisten tarjousten muutoksia tai kampanjoita. Päätös sopimuksen tekemisestä kannattaa aina perustaa myös sopimusehtoihin, irtisanomisaikoihin ja perusmaksuun, ei vain energiahintaan.
+                            Kun vertaat sähkösopimuksia, tarkista energiahinnan lisäksi perusmaksu, sopimuksen kesto ja muut sopimusehdot.
                         </p>
                         <p>
-                            Ennusteen tietopohja kuvaa käytettävissä olevan vertailukelpoisen hintahistorian määrää, ei mitattua osumatarkkuutta tai toteutumisen todennäköisyyttä. Rajallinen hintahistoria ei tarkoita, että arvio olisi varmasti väärä. Pitkäkään historia ei takaa oikeaa ennustetta.
+                            Ennusteen tietopohja kertoo hintahistorian määrästä, ei ennusteen osumatarkkuudesta.
                         </p>
-                        <p>
-                            Voltikka ei anna sijoitus- tai sopimusneuvontaa. Tämä sivu on tarkoitettu auttamaan kuluttajaa hahmottamaan, missä määräaikaisten sopimusten hinnat liikkuvat juuri nyt.
-                        </p>
+
                     </div>
                 </div>
             </section>

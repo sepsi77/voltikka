@@ -4,24 +4,26 @@ namespace Tests\Feature;
 
 use App\Models\ContractPriceDailyStatistic;
 use App\Models\FixedContractPriceForecast;
-use App\Services\PriceForecasting\FixedTermHedgeCostService;
 use App\Services\PriceForecasting\FixedTermPriceForecastService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Tests\Concerns\SeedsFlatForecastFutures;
 use Tests\TestCase;
 
 class HistoricalChangeForecastTest extends TestCase
 {
     use RefreshDatabase;
+    use SeedsFlatForecastFutures;
 
-    private const MODEL = 'fixed_term_historical_change_v1';
+    private const MODEL = 'fixed_term_futures_adjusted_v1';
 
     protected function setUp(): void
     {
         parent::setUp();
         config(['price_forecasting.fixed_term.model_version' => self::MODEL]);
+        $this->seedFlatForecastFutures();
     }
 
     private function stat(int $day, int $term = 12, ?float $price = 0, string $basis = 'observed_seller_data', ?array $values = null): void
@@ -45,10 +47,9 @@ class HistoricalChangeForecastTest extends TestCase
         return app(FixedTermPriceForecastService::class)->buildForecasts(CarbonImmutable::parse($this->date($day)), $horizon, $terms, $quantiles);
     }
 
-    public function test_hard_floor_and_exact_independent_means_use_all_history_without_futures(): void
+    public function test_hard_floor_and_exact_independent_means_with_zero_futures_variance(): void
     {
         config(['price_forecasting.fixed_term.minimum_history_observations' => 10]);
-        $this->mock(FixedTermHedgeCostService::class)->shouldNotReceive('calculate');
         foreach ([6, 12, 24] as $term) {
             for ($day = 0; $day <= 51; $day++) {
                 $this->stat($day, $term, values: [-10 + $day * $term / 600, $day * $term / 300, 10 - $day * $term / 600]);
@@ -79,9 +80,9 @@ class HistoricalChangeForecastTest extends TestCase
             $this->assertArrayNotHasKey('monthly_futures_months', $m);
         }
         foreach (DB::getQueryLog() as $query) {
-            $this->assertStringNotContainsString('futures', $query['query']);
             $this->assertStringNotContainsString('annual_cost', $query['query']);
         }
+        $this->assertCount(1, array_filter(DB::getQueryLog(), fn ($query) => str_contains($query['query'], 'electricity_futures')));
         DB::disableQueryLog();
         $this->assertSame(21, $this->build(51)->first()['source_metadata']['pair_count']);
         config(['price_forecasting.fixed_term.minimum_history_observations' => 21]);
@@ -215,8 +216,8 @@ class HistoricalChangeForecastTest extends TestCase
         }
         $this->get('/sahkosopimus/sahkon-hintaennuste')->assertOk()
             ->assertSeeText('Hintatasojen ennusteet menevät ristiin.')
-            ->assertSeeText('Jokainen hyväksytty muutos saa saman painon.')
-            ->assertSeeText('Päällekkäiset muutosjaksot eivät ole toisistaan riippumattomia havaintoja.')
+            ->assertSeeText('Ennuste perustuu sähkösopimusten hintakehitykseen ja sähkön tukkumarkkinoiden hintoihin.')
+            ->assertSeeText('Sähköfutuurien hinnat kuvaavat tulevien kuukausien sähkön tukkuhintaa.')
             ->assertDontSeeText('Markkinatason hinta')->assertDontSeeText('Futuuripäivä');
         $this->assertEquals(18, FixedContractPriceForecast::where('target_quantile', 'p20')->value('forecast_price_cents_per_kwh'));
     }

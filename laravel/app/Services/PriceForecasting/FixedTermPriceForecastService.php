@@ -50,6 +50,9 @@ class FixedTermPriceForecastService
         $directionThreshold = (float) config('price_forecasting.fixed_term.direction_threshold_cents_per_kwh', 0.15);
 
         $forecasts = collect();
+        $hedge = new FixedTermHedgeCostService;
+        $curves = $hedge->loadCurvesBefore($asOf);
+        $features = [];
 
         foreach ($durations as $durationMonths) {
             $durationMonths = (int) $durationMonths;
@@ -69,7 +72,36 @@ class FixedTermPriceForecastService
                 }
 
                 $meanChange = array_sum($changes) / count($changes);
-                $expectedChange = $this->roundPrice($meanChange);
+                $featureKey = $durationMonths.'|'.$asOf->toDateString();
+                $features[$featureKey] ??= $this->futuresFeature($hedge, $curves, $asOf, $durationMonths);
+                $currentFeature = $features[$featureKey];
+                if ($currentFeature['value'] === null) {
+                    continue;
+                }
+                $training = [];
+                foreach ($history['pairs'] as $pair) {
+                    $key = $durationMonths.'|'.$pair['start'];
+                    $features[$key] ??= $this->futuresFeature($hedge, $curves, CarbonImmutable::parse($pair['start']), $durationMonths);
+                    if ($features[$key]['value'] !== null) {
+                        $training[] = $pair + ['feature' => $features[$key]['value']];
+                    }
+                }
+                if (count($training) < $minimumHistory) {
+                    continue;
+                }
+                $n = count($training);
+                $featureMean = array_sum(array_column($training, 'feature')) / $n;
+                $deltaMean = array_sum(array_column($training, 'change')) / $n;
+                $featureStd = sqrt(array_sum(array_map(fn ($pair) => ($pair['feature'] - $featureMean) ** 2, $training)) / $n);
+                $covariance = $variance = 0.0;
+                foreach ($training as $pair) {
+                    $z = $featureStd > 0 ? ($pair['feature'] - $featureMean) / $featureStd : 0.0;
+                    $covariance += $z * ($pair['change'] - $deltaMean) / $n;
+                    $variance += $z ** 2 / $n;
+                }
+                $slope = $covariance / ($variance + 1.0);
+                $contribution = $featureStd > 0 ? $slope * (($currentFeature['value'] - $featureMean) / $featureStd) : 0.0;
+                $expectedChange = $this->roundPrice($meanChange + $contribution);
                 $forecastPrice = $current['price'] + $expectedChange;
                 $direction = $this->directionLabel($expectedChange, $directionThreshold);
 
@@ -97,7 +129,24 @@ class FixedTermPriceForecastService
                     'contract_count' => $current['contract_count'],
                     'model_version' => $modelVersion,
                     'source_metadata' => [
-                        'model' => 'fixed_term_historical_change_v1',
+                        'model' => 'fixed_term_futures_adjusted_v1',
+                        'futures_policy' => 'fi_base_fixed_next_month_basket_7_calendar_days_ridge1_v1',
+                        'futures_lag_days' => 7,
+                        'ridge' => 1.0,
+                        'futures_vat_multiplier' => 1.255,
+                        'current_futures_feature' => $currentFeature,
+                        'feature_pair_count' => $n,
+                        'feature_unique_issue_days' => $n,
+                        'feature_pair_start_min' => $training[0]['start'],
+                        'feature_pair_start_max' => $training[$n - 1]['start'],
+                        'feature_pair_target_min' => $training[0]['target'],
+                        'feature_pair_target_max' => $training[$n - 1]['target'],
+                        'feature_pricing_basis_counts' => array_count_values(array_column($training, 'basis')),
+                        'feature_mean' => $featureMean,
+                        'feature_population_std' => $featureStd,
+                        'feature_delta_mean' => $deltaMean,
+                        'feature_standardized_slope' => $slope,
+                        'futures_contribution_cents_per_kwh' => $contribution,
                         'fitting_policy' => 'expanding_equal_weight_completed_same_basis_pairs_v1',
                         'pair_count' => count($changes),
                         'unique_issue_days' => count($changes),
@@ -135,9 +184,9 @@ class FixedTermPriceForecastService
 
     public function generationModelVersion(): string
     {
-        $modelVersion = (string) config('price_forecasting.fixed_term.model_version', 'fixed_term_historical_change_v1');
-        if ($modelVersion !== 'fixed_term_historical_change_v1') {
-            throw new \InvalidArgumentException('Generation requires fixed_term_historical_change_v1. Other model names are reserved for stored forecasts.');
+        $modelVersion = (string) config('price_forecasting.fixed_term.model_version', 'fixed_term_futures_adjusted_v1');
+        if ($modelVersion !== 'fixed_term_futures_adjusted_v1') {
+            throw new \InvalidArgumentException('Generation requires fixed_term_futures_adjusted_v1. Other model names are reserved for stored forecasts.');
         }
 
         return $modelVersion;
@@ -261,6 +310,7 @@ class FixedTermPriceForecastService
             ->values();
 
         $changes = [];
+        $pairs = [];
         $basisCounts = [];
         $sourceDates = [];
         $targetDates = [];
@@ -280,6 +330,7 @@ class FixedTermPriceForecastService
 
             $basis = (string) $stat->pricing_basis;
             $changes[] = (float) $target->{$column} - (float) $stat->{$column};
+            $pairs[] = ['start' => $stat->stat_date->toDateString(), 'target' => $targetDate, 'basis' => $basis, 'change' => (float) $target->{$column} - (float) $stat->{$column}];
             $targetDates[] = $targetDate;
             $basisCounts[$basis] = ($basisCounts[$basis] ?? 0) + 1;
             $sourceDates[] = $stat->stat_date->toDateString();
@@ -289,12 +340,30 @@ class FixedTermPriceForecastService
 
         return [
             'changes' => $changes,
+            'pairs' => $pairs,
             'target_start_date' => $targetDates[0] ?? null,
             'target_end_date' => $targetDates === [] ? null : $targetDates[array_key_last($targetDates)],
             'pricing_basis_counts' => $basisCounts,
             'source_start_date' => $sourceDates[0] ?? null,
             'source_end_date' => $sourceDates === [] ? null : $sourceDates[array_key_last($sourceDates)],
             'transition_date' => $transitionDate,
+        ];
+    }
+
+    private function futuresFeature(FixedTermHedgeCostService $hedge, array $curves, CarbonImmutable $issue, int $duration): array
+    {
+        $start = $issue->startOfMonth()->addMonth();
+        $current = $hedge->calculate($issue, $duration, $start, $curves);
+        $lag = $hedge->calculate($issue->subDays(7), $duration, $start, $curves);
+        $currentPrice = $current['price_cents_per_kwh'] ?? null;
+        $lagPrice = $lag['price_cents_per_kwh'] ?? null;
+
+        return [
+            'value' => $currentPrice !== null && $lagPrice !== null ? $currentPrice - $lagPrice : null,
+            'issue_date' => $issue->toDateString(),
+            'lag_date' => $issue->subDays(7)->toDateString(),
+            'current_basket' => $current,
+            'lag_basket' => $lag,
         ];
     }
 

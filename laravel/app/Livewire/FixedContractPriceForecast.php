@@ -39,17 +39,17 @@ class FixedContractPriceForecast extends Component
 
     /** Plain-Finnish description per duration, shown under each section heading. */
     public array $durationDescriptions = [
-        6 => 'Kuuden kuukauden sopimus lukitsee energiahinnan puoleksi vuodeksi. Ennuste käyttää vain tämän sopimuspituuden hintahistoriaa.',
-        12 => 'Vuoden sopimus lukitsee energiahinnan koko sopimuskaudeksi. Ennuste lasketaan erikseen 12 kuukauden sopimusten hintahistoriasta.',
-        24 => 'Kahden vuoden määräaikainen sopimus lukitsee energiahinnan pidemmäksi aikaa. Markkinoilla on yleensä vuoden sopimuksia harvempi valikoima.',
+        6 => 'Kuuden kuukauden sopimuksessa energiahinta pysyy samana puoli vuotta.',
+        12 => 'Vuoden sopimuksessa energiahinta pysyy samana koko sopimuskauden.',
+        24 => 'Kahden vuoden sopimuksessa energiahinta pysyy samana kaksi vuotta.',
     ];
 
     public function render()
     {
         return view('livewire.fixed-contract-price-forecast', $this->buildViewData())
             ->layout('layouts.app', [
-                'title' => 'Sähkön hintaennuste: määräaikaisten hintanäkymä | Voltikka',
-                'metaDescription' => 'Sähkön hintaennuste 6, 12 ja 24 kuukauden määräaikaisille sopimuksille: nousua, laskua vai suunnilleen ennallaan? Suuntaa antava arvio, ei varma hintakehitys.',
+                'title' => 'Sähkön hintaennuste: mihin määräaikaisten hinnat ovat menossa? | Voltikka',
+                'metaDescription' => 'Katso 6, 12 ja 24 kuukauden sähkösopimusten hintaennuste ja vertaa sitä nykyhintoihin. Ennuste yhdistää sopimushintojen kehityksen ja sähkön tukkuhinnat.',
                 'canonical' => config('app.url').'/sahkosopimus/sahkon-hintaennuste',
             ]);
     }
@@ -131,9 +131,9 @@ class FixedContractPriceForecast extends Component
         $p80 = $byQuantile->get('p80');
 
         $lanes = [
-            'p20' => $this->laneFromRow($p20, 'Halvempi 20 %', 'Edullisimpien sopimusten taso.'),
-            'median' => $this->laneFromRow($median, 'Mediaani', 'Tyypillinen tarjottu hinta.'),
-            'p80' => $this->laneFromRow($p80, 'Kalliimpi 20 %', 'Kalleimpien sopimusten taso.'),
+            'p20' => $this->laneFromRow($p20, 'Edulliset sopimukset', 'Edullisempi hintataso (p20).'),
+            'median' => $this->laneFromRow($median, 'Tyypilliset sopimukset', 'Keskimmäinen hintataso (mediaani).'),
+            'p80' => $this->laneFromRow($p80, 'Kalliimmat sopimukset', 'Kalliimpi hintataso (p80).'),
         ];
 
         $duration = (int) ($median?->duration_months ?? $rows->first()->duration_months);
@@ -192,7 +192,7 @@ class FixedContractPriceForecast extends Component
         $signal = ForecastOutlook::presentation($row->direction);
         $signal['body'] = $signal['key'] === 'unknown'
             ? 'Tallennettu suuntatieto puuttuu tai sitä ei voida tulkita.'
-            : sprintf('%d kk sopimusten hintanäkymä ajalle %s–%s (%d päivää). Malli lisää nykyhintaan samanpituisilla jaksoilla toteutuneiden hintamuutosten keskiarvon.',
+            : sprintf('%d kk sopimusten hintanäkymä ajalle %s–%s (%d päivää).',
                 $durationMonths ?? $row->duration_months,
                 $row->forecast_date->format('j.n.Y'),
                 $row->target_date->format('j.n.Y'),
@@ -223,7 +223,7 @@ class FixedContractPriceForecast extends Component
             'incomplete' => 'Hintanäkymä on saatavilla vain osalle sopimuspituuksista',
             default => $signal['headline'],
         };
-        $signal['body'] = 'Katso kunkin sopimuspituuden arvio ja kohdepäivä alta. '.ForecastOutlook::UNCERTAINTY;
+        $signal['body'] = 'Katso kunkin sopimuspituuden hinnat ja ennuste alta.';
 
         return $signal;
     }
@@ -327,7 +327,7 @@ class FixedContractPriceForecast extends Component
             '@context' => 'https://schema.org',
             '@type' => 'Dataset',
             'name' => 'Voltikka — Sähkön hintaennuste määräaikaisille sähkösopimuksille',
-            'description' => 'Päivittäin päivittyvä mallipohjainen ennuste määräaikaisten sähkösopimusten (6, 12 ja 24 kk) hintakehityksestä. Lisää nykyhintaan aiempien, kokonaan päättyneiden ennustejakson pituisten hintamuutosten keskiarvon. Jokaisella muutoksella on sama paino. Sopimuspituudet ja hintatasot lasketaan erikseen.',
+            'description' => 'Sähkön hintaennuste 6, 12 ja 24 kuukauden määräaikaisille sähkösopimuksille. Ennuste perustuu sähkösopimusten hintakehitykseen ja sähkön tukkumarkkinoiden hintoihin. Sopimuspituudet ja hintatasot lasketaan erikseen.',
             'url' => $url,
             'license' => 'https://creativecommons.org/licenses/by/4.0/',
             'isAccessibleForFree' => true,

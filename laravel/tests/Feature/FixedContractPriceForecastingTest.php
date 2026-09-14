@@ -14,11 +14,13 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
+use Tests\Concerns\SeedsFlatForecastFutures;
 use Tests\TestCase;
 
 class FixedContractPriceForecastingTest extends TestCase
 {
     use RefreshDatabase;
+    use SeedsFlatForecastFutures;
 
     public function test_hedge_cost_uses_prior_trade_date_and_fallback_order(): void
     {
@@ -137,11 +139,12 @@ class FixedContractPriceForecastingTest extends TestCase
     public function test_public_page_and_market_insight_show_current_canonical_forecast(): void
     {
         config()->set('canonical_pricing.enabled', true);
-        config()->set('price_forecasting.fixed_term.model_version', 'fixed_term_historical_change_v1');
+        config()->set('price_forecasting.fixed_term.model_version', 'fixed_term_futures_adjusted_v1');
         Cache::flush();
 
         $this->forecastRow('2026-05-24', 'fixed_term_ewma_gap_v2', 'canonical_calculation', 9.99);
-        $this->forecastRow('2026-05-23', 'fixed_term_historical_change_v1', 'canonical_calculation', 8.88);
+        $this->forecastRow('2026-05-23', 'fixed_term_futures_adjusted_v1', 'canonical_calculation', 8.88);
+        $this->forecastRow('2026-05-24', 'fixed_term_historical_change_v1', 'canonical_calculation', 9.99);
 
         $this->get('/sahkosopimus/sahkon-hintaennuste')
             ->assertOk()
@@ -149,10 +152,9 @@ class FixedContractPriceForecastingTest extends TestCase
             ->assertSee('8,88')
             ->assertDontSee('9,99')
             ->assertSeeText('Ennustejakso')
-            ->assertSeeText('Ennuste perustuu tämänhetkisiin sopimushintoihin ja aiempien päivien hintatilastoihin.')
-            ->assertDontSeeText('Lisäksi se käyttää Suomen sähkön futuurihintoja EEX-pörssistä.')
-            ->assertSeeText('Nykyinen hintataso lasketaan tämän päivän määräaikaisista sopimuksista.')
-            ->assertSeeText('Jokainen hyväksytty muutos saa saman painon.')
+            ->assertSeeText('Ennuste perustuu sähkösopimusten hintakehitykseen ja sähkön tukkumarkkinoiden hintoihin.')
+            ->assertSeeText('Sähköfutuurien hinnat kuvaavat tulevien kuukausien sähkön tukkuhintaa.')
+            ->assertDontSeeText('Jokainen hyväksytty muutos saa saman painon.')
             ->assertDontSeeText('kanonis')
             ->assertDontSeeText('Kolmas syöte')
             ->assertDontSeeText('settlement-hinta');
@@ -202,11 +204,12 @@ class FixedContractPriceForecastingTest extends TestCase
             ->assertOk()
             ->assertDontSee('Ennusteita ei ole vielä saatavilla')
             ->assertSee('7,66')
-            ->assertSeeText('Nykyinen hintataso lasketaan tämän päivän määräaikaisista sopimuksista.');
+            ->assertSeeText('Laskemme ennusteen erikseen 6, 12 ja 24 kuukauden sopimuksille.');
     }
 
     public function test_old_basis_history_cannot_upgrade_confidence_and_feature_off_ignores_canonical(): void
     {
+        $this->seedFlatForecastFutures();
         $hedge = ['price_cents_per_kwh' => 7.53, 'trade_date' => '2026-05-01', 'coverage_quality' => 'all_monthly', 'monthly_futures_months' => 12, 'quarter_futures_months' => 0, 'year_futures_months' => 0, 'missing_delivery_months' => [], 'delivery_start_month' => '202606', 'delivery_end_month' => '202705'];
         $this->mock(FixedTermHedgeCostService::class)->shouldReceive('calculate')->andReturn($hedge);
         $asOf = CarbonImmutable::parse('2026-05-23');
@@ -234,7 +237,7 @@ class FixedContractPriceForecastingTest extends TestCase
 
     public function test_reserved_model_versions_cannot_generate_or_overwrite(): void
     {
-        foreach (['fixed_term_ewma_gap_v1', 'fixed_term_ewma_gap_v2', 'fixed_term_ewma_gap_v3', 'unknown'] as $version) {
+        foreach (['fixed_term_ewma_gap_v1', 'fixed_term_ewma_gap_v2', 'fixed_term_ewma_gap_v3', 'fixed_term_historical_change_v1', 'unknown'] as $version) {
             config()->set('price_forecasting.fixed_term.model_version', $version);
             $row = $this->forecastRow('2026-05-01', $version, null);
             $before = $row->fresh()->getRawOriginal();
@@ -245,11 +248,11 @@ class FixedContractPriceForecastingTest extends TestCase
                 $this->assertStringContainsString('reserved', $exception->getMessage());
             }
             $this->artisan('forecasting:run-fixed-contracts --as-of=2026-05-01 --overwrite --require-freshness')
-                ->expectsOutput('Generation requires fixed_term_historical_change_v1. Other model names are reserved for stored forecasts.')
+                ->expectsOutput('Generation requires fixed_term_futures_adjusted_v1. Other model names are reserved for stored forecasts.')
                 ->assertExitCode(1);
             $this->assertSame($before, $row->fresh()->getRawOriginal());
         }
-        $this->assertSame(4, FixedContractPriceForecast::count());
+        $this->assertSame(5, FixedContractPriceForecast::count());
     }
 
     public function test_evaluation_uses_saved_canonical_basis_threshold_and_baseline_without_runtime_leakage(): void
@@ -379,7 +382,7 @@ class FixedContractPriceForecastingTest extends TestCase
             $row->update(['direction' => $direction, 'consumer_signal' => 'wait_if_flexible', 'confidence' => 'low']);
             Cache::flush();
             $page = Livewire::test(\App\Livewire\FixedContractPriceForecast::class);
-            $page->assertSeeText($label)->assertSeeText('Suuntaa antava arvio, ei varma hintakehitys.')
+            $page->assertSeeText($label)->assertSeeText('Ennuste voi muuttua markkinatilanteen mukana.')
                 ->assertDontSeeText('Lukitse pian')->assertDontSeeText('Kannattaa odottaa');
             $this->assertSame($direction === 'unrecognized' ? 'unknown' : app(FixedTermPriceForecastService::class)->directionCategory($direction), $page->viewData('rowsByDuration')[12]['signal']['key']);
             $insight = app(ContractMarketInsightService::class)->insight(null, 5000, true);
@@ -404,9 +407,12 @@ class FixedContractPriceForecastingTest extends TestCase
         $page = Livewire::test(\App\Livewire\FixedContractPriceForecast::class);
         $this->assertSame('Hintojen odotetaan nousevan', $page->viewData('overall')['headline']);
         $page->assertSeeText('45 päivän hintanäkymä')->assertSeeText('23.5.2026–7.7.2026')->assertDontSeeText('30 päivän');
-        $this->get('/sahkosopimus/sahkon-hintaennuste')->assertOk()
-            ->assertSee('Sähkön hintaennuste: määräaikaisten hintanäkymä')
-            ->assertDontSee('kannattaako lukita')->assertDontSee('Suositus (');
+        $response = $this->get('/sahkosopimus/sahkon-hintaennuste')->assertOk()
+            ->assertSee('Sähkön hintaennuste: mihin määräaikaisten hinnat ovat menossa?')
+            ->assertDontSee('kannattaako lukita')->assertDontSee('Suositus (')
+            ->assertDontSeeText('Suuntaa antava arvio, ei varma hintakehitys.')
+            ->assertDontSeeText('ridge')->assertDontSeeText('kohortti');
+        $this->assertSame(1, substr_count(strip_tags($response->getContent()), 'Ennuste voi muuttua markkinatilanteen mukana.'));
         $rows[2]->update(['direction' => 'falling']);
         Livewire::test(\App\Livewire\FixedContractPriceForecast::class)->assertSeeText('Hintojen suunnat eroavat sopimuspituuksittain');
         $rows[2]->update(['direction' => 'unknown']);

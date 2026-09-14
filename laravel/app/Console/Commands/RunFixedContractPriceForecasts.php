@@ -89,7 +89,7 @@ class RunFixedContractPriceForecasts extends Command
         $forecasts = $forecastService->buildForecasts($asOf, $horizon, $durations, $quantiles);
 
         if ($forecasts->isEmpty()) {
-            $this->warn('No forecasts were produced. Check current retail statistics and at least 20 completed same-basis history pairs.');
+            $this->warn('No forecasts were produced. Check current retail statistics, complete current/lag futures baskets, and at least 20 full and futures-feature history pairs.');
 
             if ((bool) $this->option('require-freshness')) {
                 return $this->defer(
@@ -126,6 +126,12 @@ class RunFixedContractPriceForecasts extends Command
                     $metadata['pair_count'], $metadata['minimum_history_observations'],
                     $metadata['mean_change_cents_per_kwh'], $metadata['pair_start_min'], $metadata['pair_start_max'],
                     $metadata['pair_target_min'], $metadata['pair_target_max'], $metadata['confidence_history_observations'],
+                ));
+                $this->line(sprintf('Futures pairs %d; feature mean %.8f, population std %.8f, ridge-1 slope %+.8f, contribution %+.8f; current/lag trades %s / %s.',
+                    $metadata['feature_pair_count'], $metadata['feature_mean'], $metadata['feature_population_std'],
+                    $metadata['feature_standardized_slope'], $metadata['futures_contribution_cents_per_kwh'],
+                    $metadata['current_futures_feature']['current_basket']['trade_date'],
+                    $metadata['current_futures_feature']['lag_basket']['trade_date'],
                 ));
 
                 continue;

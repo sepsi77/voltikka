@@ -363,7 +363,7 @@ Directory:
 - `PriceForecasting/`
 
 Purpose:
-- calculate and persist separate-term/quantile expanding equal-weight completed retail-change forecasts; current generation has no futures or hedge-cost input
+- calculate separate-term/quantile expanding completed retail-change means plus the tested fixed-basket seven-day FI futures adjustment; curves and features are reused within each build
 - evaluate matured forecasts against realized contract-price statistics so model performance can be tracked over time
 
 Read first:

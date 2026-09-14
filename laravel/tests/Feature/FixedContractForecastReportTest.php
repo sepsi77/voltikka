@@ -211,7 +211,7 @@ class FixedContractForecastReportTest extends TestCase
             'expected_change_cents_per_kwh' => 0.2, 'hedge_cost_cents_per_kwh' => 0.5, 'retail_premium_cents_per_kwh' => 0.5,
             'normal_retail_premium_cents_per_kwh' => 0.7, 'fair_price_cents_per_kwh' => 1.2, 'gap_cents_per_kwh' => 0.2,
             'direction' => 'rising', 'consumer_signal' => 'wait_if_flexible', 'confidence' => 'low', 'coverage_quality' => 'all_monthly',
-            'contract_count' => 20, 'model_version' => 'fixed_term_historical_change_v1', 'source_metadata' => $metadata,
+            'contract_count' => 20, 'model_version' => 'fixed_term_futures_adjusted_v1', 'source_metadata' => $metadata,
             'actual_price_cents_per_kwh' => $completed ? 1.3 : null, 'actual_direction' => $completed ? 'rising' : null,
             'evaluated_at' => $completed ? '2026-03-01 00:00:00' : null,
         ], $overrides));

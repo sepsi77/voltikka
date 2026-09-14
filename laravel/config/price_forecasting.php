@@ -2,7 +2,7 @@
 
 return [
     'fixed_term' => [
-        'model_version' => env('PRICE_FORECASTING_MODEL_VERSION', 'fixed_term_historical_change_v1'),
+        'model_version' => env('PRICE_FORECASTING_MODEL_VERSION', 'fixed_term_futures_adjusted_v1'),
         'area' => env('PRICE_FORECASTING_FUTURES_AREA', 'FI'),
         'vat_multiplier' => (float) env('PRICE_FORECASTING_VAT_MULTIPLIER', 1.255),
         'direction_threshold_cents_per_kwh' => (float) env('PRICE_FORECASTING_DIRECTION_THRESHOLD', 0.15),
