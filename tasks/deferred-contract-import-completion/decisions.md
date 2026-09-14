@@ -91,3 +91,26 @@ New real completed-manifest fixtures cover cache invalidation, unrelated Spot/bu
 - The initial recovery test counted a second warm job while the first job's `ShouldBeUnique` lock was still held. The fixture now models completion of the first job by releasing its real unique lock, then verifies the recovery enqueue. No application queue behavior changed. The corrected focused and full suites pass.
 - Final `git diff --check`, task JSON, new-file whitespace, six context symlink mirrors, and byte comparison of the restored morning reader with `HEAD`: **passed**. Final status contains only the intended task changes.
 - No production calls, commits, pushes, deployment, forecast-model changes or additional schedule changes occurred during review correction.
+
+## Local deterministic-rejection correction
+
+The manager supplied read-only production facts for the September 14 full import: all 405 contracts processed, but required statistics stopped with `publication_missing`. The single active offender was business Spot contract `i1badk-porvoon-energia-oy-spot-porssisahko-yrityksille`: exact target 1654 failed with validation errors and output; published pointer 1183 remained older. No further production inspection or mutation was needed or performed.
+
+Settlement now accepts an exact failed target with nonempty validation errors for active as well as inactive contracts. It does not certify publication or change any source, classification, canonical JSON, publication pointer, validation result, relational price, or activation. Pending/processing and transport failures still wait within existing bounds. Other active unpublished cases remain closed. Ownership, manifests, fences, claims, cache candidate limits and HTTP 503 behavior are unchanged. Proof retains the exact failed target in the manifest and actual older published ID plus failed status in ready evidence.
+
+Inspection found a precise related safety gap: `ContractPriceStatisticsService` called the canonical batch calculator directly on stored canonical JSON without the cache's current-publication check. Business-only contracts were already outside statistics, but an active rejected household fixed contract could contribute older prices. One existing `ContractPriceCacheEvidence` batch now filters unsafe active calculation inputs. Old same-date numeric snapshots are removed and annual rows are unavailable (`canonical_outcome_missing`), not fabricated prices. No relational fallback or general calculator change was added. Two existing query-budget assertions gain one batch; query growth is not per contract.
+
+Tests use real old publications, new pointed snapshots, failed exact targets, initial required statistics, all eight preset cache payloads and ready proof. They assert null unsafe prices, retained normal prices, removal of old same-date fixed statistics, no numeric unsafe annual totals, and byte-identical source/model/interpretation/activation/component rows. Existing forecast scope rejects the failed household fixed target but ignores business Spot; retail remains strict for both. Active pending/processing/transport, bounded expiry, unknown/missing publication, and inactive rejection are covered.
+
+`ContractImportCompletionStopped` now normalizes constructor reasons through a fixed allowlist. The aggregate reporter can expose its controlled reason instead of `unexpected`, with unknown/secret-bearing input still mapped to `unexpected`. Neither exception messages nor raw constructor input reach logs or Sentry.
+
+Earlier checks exposed one test field typo (`general_rate` instead of `general_kwh_price`) and the expected extra evidence batch in both source/interpretation query budgets. These fixture expectations were corrected; no safety rule was relaxed.
+
+### Final local correction verification
+
+- `cd laravel && php artisan test --filter='DeferredContractImportCompletionTest|DataFetchFailureReporterTest|ContractPostImportCoordinatorTest|FetchContractsCommandTest|PriceCacheConflictRecoveryTest|ContractPriceCacheLifecycleTest|MorningJobFreshnessGateTest|ContractPriceStatisticsCanonicalSourceTest|CurrentCanonical'`: **134 passed, 1,016 assertions**, 16.74 seconds. Log: `/tmp/rejection-focused-final.log`.
+- `cd laravel && php artisan test`: **2,384 passed, 12,289 assertions**, 96.99 seconds. Log: `/tmp/rejection-full-final.log`.
+- Scoped `vendor/bin/pint --test` on all seven changed PHP files: **passed**. Initial scoped Pint applied formatting only to the statistics service.
+- `php -l` on those seven files: **all passed**.
+- `cd laravel && npm run build`: **passed**, 60 modules, 904 ms. Existing Browserslist age warning remains. Log: `/tmp/rejection-build.log`.
+- Final diff review, `git diff --check`, task JSON parsing and all five changed context/CLAUDE mirrors: **passed**. No dependency, migration, flag, production call, import retry, commit or push was made. This correction remains local.

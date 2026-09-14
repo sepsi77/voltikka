@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Services\Caching\ContractPriceCacheConflict;
 use App\Services\Caching\ContractPriceCacheStorageException;
+use App\Services\ContractImport\ContractImportCompletionStopped;
 use App\Support\DataFetchFailureReporter;
 use Illuminate\Support\Facades\Log;
 use Sentry\State\Scope;
@@ -70,6 +71,24 @@ class DataFetchFailureReporterTest extends TestCase
         $this->assertSame(['evidence_changed' => 1, 'generation_changed' => 1, 'cache_write_failed' => 1, 'cache_readback_failed' => 1, 'unexpected' => 1], $context['reasons']['price_cache_refresh']);
         $this->assertStringNotContainsString('secret-token', json_encode($context));
         $this->assertStringNotContainsString('seller.test', json_encode($context));
+        Log::shouldHaveReceived('log')->once()->with('error', 'Data fetch failed: contracts', $context);
+    }
+
+    public function test_completion_stop_reasons_are_closed_and_never_expose_constructor_input(): void
+    {
+        $this->captureSentryIssues();
+        Log::spy();
+        $reporter = new DataFetchFailureReporter('contracts');
+        $reasons = ['publication_missing', 'superseded', 'ownership_changed', 'date_expired',
+            'active_set_empty', 'waiting', 'deadline_exhausted', 'checks_exhausted', 'interrupted_execution'];
+        foreach ([...$reasons, 'secret-token https://private.test/?password=secret'] as $reason) {
+            $reporter->fail('daily_statistics', new ContractImportCompletionStopped($reason));
+        }
+        $reporter->report(true);
+        $context = $this->sentryIssues[0]->getContexts()['data_fetch'];
+        $this->assertSame(array_fill_keys([...$reasons, 'unexpected'], 1), $context['reasons']['daily_statistics']);
+        $this->assertStringNotContainsString('secret', json_encode($context));
+        $this->assertStringNotContainsString('private.test', json_encode($context));
         Log::shouldHaveReceived('log')->once()->with('error', 'Data fetch failed: contracts', $context);
     }
 

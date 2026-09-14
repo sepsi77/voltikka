@@ -199,7 +199,107 @@ class DeferredContractImportCompletionTest extends TestCase
         ActiveContract::create(['id' => 'rejected']);
         $this->assertFalse(app(ContractImportCompletion::class)->readyCurrent($this->checkpoint()->metadata));
         $this->checkpoint()->update(['status' => ContractImportCompletion::PENDING]);
-        $this->assertSame('failed:publication_missing', app(ContractImportCompletion::class)->tick());
+        $this->assertSame('ready', app(ContractImportCompletion::class)->tick());
+        $this->assertSame('failed', $fixture[2]->fresh()->status);
+        $this->assertNull($fixture[0]->fresh()->published_interpretation_id);
+    }
+
+    public function test_active_business_spot_rejection_completes_without_old_prices_or_blocking_fixed_forecasts(): void
+    {
+        $this->assertRejectedImportSafety(true);
+    }
+
+    public function test_active_fixed_rejection_completes_but_forecast_publication_gate_stays_closed(): void
+    {
+        $this->assertRejectedImportSafety(false);
+    }
+
+    private function assertRejectedImportSafety(bool $business): void
+    {
+        $normal = $this->fixture('normal-fixed', true);
+        $rejected = $this->fixture('rejected-active', true);
+        if ($business) {
+            $rejected[0]->update(['target_group' => 'Company', 'pricing_model' => 'Spot', 'contract_type' => 'OpenEnded']);
+        }
+        $this->publish($normal);
+        $this->publish($rejected);
+        $this->begin([$normal, $rejected], false);
+        if (! $business) {
+            $this->assertDatabaseHas('contract_price_snapshots', ['contract_id' => 'rejected-active', 'energy_price_cents_per_kwh' => 10]);
+        }
+        $old = $rejected[2]->fresh();
+        $snapshot = $rejected[1]->sourceSnapshot->replicate();
+        $snapshot->source_fingerprint = hash('sha256', 'changed-rejected');
+        $snapshot->source_payload = ['Id' => $rejected[0]->id, 'changed' => true];
+        $snapshot->save();
+        $observation = ContractSourceObservation::create([
+            'contract_id' => $rejected[0]->id, 'source_snapshot_id' => $snapshot->id,
+            'first_observed_at' => now(), 'last_observed_at' => now(),
+        ]);
+        $rejected[0]->update(['current_source_observation_id' => $observation->id]);
+        $target = $old->replicate();
+        $target->fill([
+            'source_snapshot_id' => $snapshot->id, 'analysis_source_observation_id' => $observation->id,
+            'analysis_fingerprint' => hash('sha256', 'failed-rejected'), 'status' => 'failed',
+            'validation_errors' => ['deterministic rejection'], 'published_at' => null,
+        ])->save();
+        $rejected = [$rejected[0], $observation, $target];
+        $tables = ['electricity_contracts', 'active_contracts', 'contract_source_snapshots',
+            'contract_source_observations', 'contract_interpretations', 'price_components'];
+        $before = [];
+        foreach ($tables as $table) {
+            $before[$table] = json_encode(DB::table($table)->orderBy('id')->get());
+        }
+        $this->begin([$normal, $rejected], false);
+        $facts = $this->checkpoint()->metadata;
+        $this->assertTrue(app(ContractImportCompletion::class)->readyCurrent($facts));
+        $episode = collect($facts['episodes'])->firstWhere('contract_id', $rejected[0]->id);
+        $this->assertSame($target->id, $episode['interpretation_id']);
+        $proof = collect($facts['ready_evidence'][1])->first(fn ($row) => $row[0] === $rejected[0]->id);
+        $this->assertSame([$rejected[0]->id, $observation->id, $snapshot->id, $old->id, 'failed', null,
+            $target->updated_at->toIso8601String()], $proof);
+        foreach (ContractListCacheService::PRESET_CONSUMPTIONS as $consumption) {
+            $payload = Cache::get(app(ContractListCacheService::class)->getCacheKey($consumption));
+            $unsafe = $payload['contracts'][$rejected[0]->id];
+            $this->assertFalse($unsafe['is_listed']);
+            foreach (['total_cost', 'base_total_cost', 'monthly_fixed_fee', 'spot_price_margin', 'general_kwh_price'] as $key) {
+                $this->assertNull($unsafe['calculated_cost'][$key], $key);
+            }
+            $this->assertSame(['normal-fixed'], $payload['sorted_ids']);
+        }
+        $this->assertDatabaseMissing('contract_price_snapshots', ['contract_id' => $rejected[0]->id]);
+        $this->assertDatabaseHas('contract_price_snapshots', ['contract_id' => 'normal-fixed', 'energy_price_cents_per_kwh' => 10]);
+        $this->assertSame(0, DB::table('contract_price_annual_costs')->where('contract_id', $rejected[0]->id)->whereNotNull('total_cost')->count());
+        foreach ($tables as $table) {
+            $this->assertSame($before[$table], json_encode(DB::table($table)->orderBy('id')->get()), $table);
+        }
+        $this->readyEexInputs();
+        $this->assertSame($business ? [] : ['contract_interpretations'], array_keys($this->forecastFreshness()->failures));
+        $this->assertArrayHasKey('contract_interpretations', app(MorningJobFreshnessService::class)
+            ->checkRetailPremium(CarbonImmutable::parse(self::DATE))->failures);
+    }
+
+    public function test_active_unsettled_targets_wait_to_the_bound_and_unknown_or_missing_targets_fail_closed(): void
+    {
+        $fixture = $this->fixture('unsettled-active', true);
+        $this->begin([$fixture]);
+        $completion = app(ContractImportCompletion::class);
+        foreach (['pending', 'processing', 'failed'] as $status) {
+            $fixture[2]->update(['status' => $status, 'validation_errors' => []]);
+            $before = $fixture[2]->fresh()->getRawOriginal();
+            $this->assertSame('waiting', $completion->tick());
+            $this->assertSame($before, $fixture[2]->fresh()->getRawOriginal());
+        }
+        $facts = $this->checkpoint()->metadata;
+        $fixture[2]->update(['status' => 'validated']);
+        $this->assertSame('publication_missing', $completion->inspect($facts)['reason']);
+        $facts['episodes'][0]['interpretation_id'] = null;
+        $this->assertSame('publication_missing', $completion->inspect($facts)['reason']);
+        $fixture[2]->update(['status' => 'failed']);
+        $this->travel(121)->minutes();
+        $this->assertSame('failed:deadline_exhausted', $completion->tick());
+        $this->assertSame('failed', $fixture[2]->fresh()->status);
+        $this->assertNull($fixture[0]->fresh()->published_interpretation_id);
     }
 
     public function test_pointer_change_or_date_scoped_target_mismatch_supersedes_manifest(): void
@@ -729,7 +829,7 @@ class DeferredContractImportCompletionTest extends TestCase
                     'label' => 'current', 'phase_kind' => 'current_structured',
                     'starts' => ['kind' => 'contract_start', 'value' => null], 'ends' => ['kind' => 'none', 'value' => null],
                     'components' => [[
-                        'component_type' => 'energy_general', 'amount' => 10, 'normal_amount' => null,
+                        'component_type' => $fixture[0]->pricing_model === 'Spot' ? 'spot_margin' : 'energy_general', 'amount' => 10, 'normal_amount' => null,
                         'unit' => 'cents_per_kwh', 'vat_status' => 'included', 'price_role' => 'current', 'source_kind' => 'both', 'evidence' => [],
                     ]], 'evidence' => [],
                 ]],

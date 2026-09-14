@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Services\Caching\ContractPriceCacheConflict;
 use App\Services\Caching\ContractPriceCacheStorageException;
+use App\Services\ContractImport\ContractImportCompletionStopped;
 use Illuminate\Support\Facades\Log;
 use Sentry\Severity;
 use Sentry\State\Scope;
@@ -32,6 +33,7 @@ class DataFetchFailureReporter
         if ($exception !== null) {
             $this->exceptionClasses[$exception::class] = true;
             $reason = $exception instanceof ContractPriceCacheConflict || $exception instanceof ContractPriceCacheStorageException
+                || $exception instanceof ContractImportCompletionStopped
                 ? $exception->reason
                 : 'unexpected';
             $this->reasons[$stage][$reason] = ($this->reasons[$stage][$reason] ?? 0) + 1;

@@ -256,13 +256,14 @@ class ContractImportCompletion
             $published = $target !== null && $target->status === ContractInterpretation::STATUS_PUBLISHED
                 && $contract->published_interpretation_id === $target->id
                 && $target->published_at !== null && (bool) $target->has_output && empty($target->validation_errors);
+            $rejected = $target !== null && $target->status === 'failed' && ! empty($target->validation_errors);
             if ($facts['interpretation_enabled']) {
                 if ($target !== null && (in_array($target->status, ['pending', 'processing'], true)
                     || ($target->status === 'failed' && empty($target->validation_errors)))) {
                     $waiting = true;
                 } elseif ($target !== null && $target->status === 'superseded') {
                     return ['reason' => 'superseded'];
-                } elseif (in_array($contract->id, $active, true) && ! $published) {
+                } elseif (in_array($contract->id, $active, true) && ! $published && ! $rejected) {
                     return ['reason' => 'publication_missing'];
                 } elseif (isset($episode['interpretation_id']) && $target === null) {
                     return ['reason' => 'superseded'];

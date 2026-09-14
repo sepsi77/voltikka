@@ -234,7 +234,7 @@ energy slot. Focused tests: `php artisan test --filter='AsOfAnnualCostCalculator
 `calculateForDate()` takes `?bool $useCanonical` (defaults to the config flag). When true, all numeric
 snapshot price fields and `has_discount` come from `CanonicalPricingOutcome`; no relational component
 query is allowed. `outcomesForContractsAtConsumptions()` is the batch boundary and parses canonical
-JSON once per contract. **`BackfillContractPriceStatistics` always passes `useCanonical: false`**:
+JSON once per contract. Before calculation, one batch of `ContractPriceCacheEvidence` applies the existing cache currentness rule to active contracts. A stale published pointer must not turn old canonical JSON into today's unit or annual statistics when the new exact target is rejected or pending. Unsafe active contracts have no numeric snapshot and produce missing-outcome annual exclusions; replacement removes prior same-date prices. Pointer-free legacy fixtures keep their existing behavior. No relational fallback is added. This guard is local to current canonical statistics; calculator semantics and historical observed collection are unchanged. **`BackfillContractPriceStatistics` always passes `useCanonical: false`**:
 today's interpretation must never be applied retroactively to a historical seller observation.
 
 ## Segment classification

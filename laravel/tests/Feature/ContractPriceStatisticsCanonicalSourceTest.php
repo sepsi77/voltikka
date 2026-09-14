@@ -526,12 +526,14 @@ class ContractPriceStatisticsCanonicalSourceTest extends TestCase
             'Current snapshot and source-pointer provenance must load in one batch.',
         );
         $this->assertLessThanOrEqual(
-            2,
+            3,
             $queries->filter(fn (string $query) => str_contains($query, 'contract_source_observations'))->count(),
+            'One additional active publication-evidence batch guards stale canonical prices.',
         );
         $this->assertLessThanOrEqual(
-            2,
+            3,
             $queries->filter(fn (string $query) => str_contains($query, 'contract_interpretations'))->count(),
+            'Publication currentness adds one batch, not one query per contract.',
         );
     }
 

@@ -10,6 +10,7 @@ use App\Models\ElectricityContract;
 use App\Models\PriceComponent;
 use App\Models\SpotPriceAverage;
 use App\Models\SpotPriceHour;
+use App\Services\Caching\ContractPriceCacheEvidence;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\CanonicalPricing\DTO\CanonicalPricingOutcome;
 use App\Services\CanonicalPricing\DTO\SpotAssumptions;
@@ -32,6 +33,7 @@ class ContractPriceStatisticsService
         private readonly CurrentCanonicalAnnualCostResultFactory $currentAnnualCostResultFactory,
         private readonly AnnualCostStatisticsWriter $annualCostStatisticsWriter,
         private readonly SellerSetEnergyPriceIndexService $sellerSetEnergyPriceIndex,
+        private readonly ContractPriceCacheEvidence $priceEvidence,
     ) {}
 
     /**
@@ -82,6 +84,7 @@ class ContractPriceStatisticsService
             $spotPrices = $this->spotPricesForDate($dateString);
             $snapshotCount = 0;
             $currentCanonicalOutcomes = [];
+            $evidence = $useCanonical ? $this->priceEvidence->current() : [];
 
             ElectricityContract::query()
                 ->whereIn('id', $contractIds)
@@ -90,10 +93,12 @@ class ContractPriceStatisticsService
                         ->orWhereNull('target_group');
                 })
                 ->orderBy('id')
-                ->chunkById(200, function (Collection $contracts) use ($date, $dateString, $spotPrices, $useCanonical, &$snapshotCount, &$currentCanonicalOutcomes) {
+                ->chunkById(200, function (Collection $contracts) use ($date, $dateString, $spotPrices, $useCanonical, $evidence, &$snapshotCount, &$currentCanonicalOutcomes) {
+                    // Use the cache's current-publication rule before calculating active prices.
+                    $safeContracts = $useCanonical ? $contracts->filter(fn ($contract) => ! isset($evidence[$contract->id]) || $this->priceEvidence->isCurrent($evidence[$contract->id])) : $contracts;
                     $canonicalOutcomes = $useCanonical
                         ? $this->canonicalPricing->outcomesForContractsAtConsumptions(
-                            $contracts,
+                            $safeContracts,
                             self::CONSUMPTION_LEVELS,
                             $this->canonicalSpotAssumptions($dateString),
                             $date,
