@@ -32,6 +32,12 @@ Schedule::command('contracts:cleanup-price-cache')
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/contract-price-cache-cleanup.log'));
 
+// Local file payloads need cleanup on each instance, not just one server.
+Schedule::command('cache:reclaim-expired-files --apply --scheduled')
+    ->everyMinute()
+    ->withoutOverlapping(2)
+    ->appendOutputTo(storage_path('logs/expired-file-cache-cleanup.log'));
+
 // Schedule the spot:fetch command to run hourly
 Schedule::command('spot:fetch')
     ->hourly()

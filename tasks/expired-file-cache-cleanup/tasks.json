@@ -1,0 +1,5 @@
+[
+  {"name":"Implement safe cleanup command and schedule","status":"completed"},
+  {"name":"Test file safety and schedule; update context","status":"completed"},
+  {"name":"Run local release checks and prepare approved local commit","status":"completed"}
+]

@@ -190,6 +190,10 @@ php artisan test
 php artisan test --filter="ContractsFilterTest"
 ```
 
+## Expired file cache disk reclamation
+
+`cache:reclaim-expired-files` is dry-run by default. The per-instance minute schedule uses `--apply --scheduled` to reclaim expired array/object payload bytes from the default FileStore with rotating hash shards and a 30-second budget. Non-file stores are no-ops. Locked truncation keeps file inodes for waiting writers; it does not restore broad import cache flushing or change tracked generation retirement. See `laravel/app/Services/Caching/AGENTS.md` for safety limits and manual full-scan catch-up. This local implementation does not authorize a production release or manual production apply.
+
 ## Price-cache conflict recovery
 
 Verified source-evidence or generation conflicts permit at most two cold-read attempts or two full private refresh candidates. Each retry clears request-local pricing state; failed candidates require durable retirement. Persistent HTTP conflicts return a plain Finnish, non-cacheable 503 instead of an automatic exception Issue. Proven complete full contract imports can defer post-import completion on exhaustion; other required failures send one safe class/reason aggregate. Immediate interpretation/EEX invalidations, current-evidence exclusions, and atomic promotion remain authoritative. See `laravel/app/Services/Caching/AGENTS.md` and `laravel/app/Support/AGENTS.md`.
