@@ -57,7 +57,6 @@ A push to `origin/main` is a production mutation because it starts an automatic 
 Safe-operation rules for agents:
 
 - **Never run destructive or production-mutating Railway commands without explicit user confirmation.** This includes Git pushes that trigger deploys, direct deploys, restarts, redeploys, rollbacks, service/domain changes, variable writes/deletes, database writes, migrations, queue restarts, SSH commands that mutate state, and any command that could affect production traffic or data.
-- Before any production mutation, state the exact project, environment, service, command, and expected effect, then wait for an affirmative confirmation from the user.
 - Read-only commands are allowed for investigation: listing projects/services, checking status, reading bounded logs, viewing variables metadata, checking domains, and inspecting deployment status.
 - Do not paste or expose secrets from Railway variables or database connection strings in chat. If a secret must be changed, describe the variable name and action without revealing values.
 - Prefer bounded log reads and targeted diagnostics over streaming or broad dumps.
