@@ -137,7 +137,7 @@ class ContractPricingIntegrityServiceTest extends TestCase
         $this->assertSame(IntegrityReasonFamily::None, $result->reasonFamily);
     }
 
-    public function test_listed_unknown_future_estimate_keeps_detail_caveat_without_claiming_an_increase(): void
+    public function test_excluded_unknown_promotion_keeps_detail_caveat_without_claiming_an_estimate_or_increase(): void
     {
         $pricing = $this->pricing([
             $this->phase('introductory', ['kind' => 'contract_start', 'value' => null], ['kind' => 'date', 'value' => '2026-07-31'], [
@@ -152,7 +152,8 @@ class ContractPricingIntegrityServiceTest extends TestCase
         $this->assertNull($result->normalRateCents);
         $this->assertNull($result->firstYearImpactEur);
         $facts = implode(' ', $result->detailFacts);
-        $this->assertStringContainsString('kustannus on arvioitu', $facts);
+        $this->assertStringNotContainsString('kustannus on arvioitu', $facts);
+        $this->assertStringContainsString('hintaa ei ole ilmoitettu selkeästi', $facts);
         $this->assertStringNotContainsString('Hinta nousee', $facts);
         $this->assertStringNotContainsString('€ korkeampi', $facts);
         $this->assertStringNotContainsString('Sen jälkeen energian hinta on', $facts);

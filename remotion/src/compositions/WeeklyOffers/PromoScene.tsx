@@ -27,66 +27,50 @@ export const PromoScene: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  // Frame 0 shows final state for thumbnail
-  const isThumbnailFrame = frame === 0;
   const animationFrame = frame > 0 ? frame - 1 : 0;
 
   // Animation sequence: staggered entrance
-  const bgSpring = isThumbnailFrame
-    ? 1
-    : spring({
-        frame: animationFrame,
-        fps,
-        config: SPRING_FLOW,
-      });
+  const bgSpring = spring({
+    frame: animationFrame,
+    fps,
+    config: SPRING_FLOW,
+  });
 
-  const headlineSpring = isThumbnailFrame
-    ? 1
-    : spring({
-        frame: animationFrame - 0.2 * fps,
-        fps,
-        config: SPRING_FLOW,
-      });
+  const headlineSpring = spring({
+    frame: animationFrame - 0.2 * fps,
+    fps,
+    config: SPRING_FLOW,
+  });
 
-  const ctaSpring = isThumbnailFrame
-    ? 1
-    : spring({
-        frame: animationFrame - 0.5 * fps,
-        fps,
-        config: SPRING_POP,
-      });
+  const ctaSpring = spring({
+    frame: animationFrame - 0.5 * fps,
+    fps,
+    config: SPRING_POP,
+  });
 
-  const bullet1Spring = isThumbnailFrame
-    ? 1
-    : spring({
-        frame: animationFrame - 0.8 * fps,
-        fps,
-        config: SPRING_FLOW,
-      });
+  const bullet1Spring = spring({
+    frame: animationFrame - 0.8 * fps,
+    fps,
+    config: SPRING_FLOW,
+  });
 
-  const bullet2Spring = isThumbnailFrame
-    ? 1
-    : spring({
-        frame: animationFrame - 0.95 * fps,
-        fps,
-        config: SPRING_FLOW,
-      });
+  const bullet2Spring = spring({
+    frame: animationFrame - 0.95 * fps,
+    fps,
+    config: SPRING_FLOW,
+  });
 
-  const bullet3Spring = isThumbnailFrame
-    ? 1
-    : spring({
-        frame: animationFrame - 1.1 * fps,
-        fps,
-        config: SPRING_FLOW,
-      });
+  const bullet3Spring = spring({
+    frame: animationFrame - 1.1 * fps,
+    fps,
+    config: SPRING_FLOW,
+  });
 
-  const lowerThirdSpring = isThumbnailFrame
-    ? 1
-    : spring({
-        frame: animationFrame - 1.2 * fps,
-        fps,
-        config: SPRING_FLOW,
-      });
+  const lowerThirdSpring = spring({
+    frame: animationFrame - 1.2 * fps,
+    fps,
+    config: SPRING_FLOW,
+  });
 
   const bullets = [
     { text: "Vertaile helposti", spring: bullet1Spring },

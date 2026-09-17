@@ -18,16 +18,29 @@ use App\Services\CanonicalPricing\SupplierAdjusted\DTO\SupplierAdjustedCandidate
 /** Eligibility for one ordinary adjustable open-ended tariff. */
 class SupplierAdjustedEligibility
 {
-    public function candidate(string $contractId, CanonicalContractData $data, ContractContext $context): ?SupplierAdjustedCandidate
+    public static function isBaseHybrid(CanonicalContractData $data, ContractContext $context): bool
     {
+        return in_array(PricingModel::fromSource($context->pricingModel), [PricingModel::FixedPrice, PricingModel::Hybrid], true)
+            && $data->consumptionEffect->present
+            && $data->consumptionEffect->appliesTo === 'base_contract';
+    }
+
+    /** This option is only for an independently proved current adjustable normal map. */
+    public function __construct(private readonly bool $currentNormalEvidence = false) {}
+
+    public function candidate(string $contractId, CanonicalContractData $data, ContractContext $context, bool $currentBaseHybrid = false): ?SupplierAdjustedCandidate
+    {
+        $baseHybrid = $currentBaseHybrid && self::isBaseHybrid($data, $context);
         $metering = MeteringType::fromSource($context->metering);
         if (ContractType::fromSource($context->contractType) !== ContractType::OpenEnded
-            || PricingModel::fromSource($context->pricingModel) !== PricingModel::FixedPrice
+            || (! $baseHybrid && PricingModel::fromSource($context->pricingModel) !== PricingModel::FixedPrice)
             || ! in_array($metering, [MeteringType::General, MeteringType::Time, MeteringType::Season], true)
-            || $data->calculationStatus !== CalculationStatus::Exact
+            || ($data->calculationStatus !== CalculationStatus::Exact
+                && ! ($this->currentNormalEvidence && $data->calculationStatus === CalculationStatus::EstimateRequired)
+                && ! ($baseHybrid && $data->calculationStatus === CalculationStatus::Unsupported))
             || $data->structuredPricingStatus !== 'complete'
             || $data->recurringSchedule->present
-            || $data->consumptionEffect->present
+            || ($data->consumptionEffect->present && ! $baseHybrid)
             || count($data->phases) !== 1) {
             return null;
         }
@@ -107,7 +120,15 @@ class SupplierAdjustedEligibility
             ) / 12,
         };
 
-        return new SupplierAdjustedCandidate($contractId, $representativeRate, $monthlyFee);
+        return new SupplierAdjustedCandidate(
+            $contractId,
+            $representativeRate,
+            $monthlyFee,
+            energyRates: $energyRates,
+            metering: $metering->value,
+            includesVat: $context->includesVat(),
+            pricingMechanism: $baseHybrid ? PricingModel::Hybrid->value : $context->pricingModel,
+        );
     }
 
     /** @param list<float> $values */

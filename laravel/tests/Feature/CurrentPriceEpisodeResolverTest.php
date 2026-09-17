@@ -24,7 +24,7 @@ class CurrentPriceEpisodeResolverTest extends TestCase
         Company::create(['name' => 'Episode Energy Oy', 'name_slug' => 'episode-energy-oy']);
     }
 
-    public function test_snapshot_runs_for_many_candidates_resolve_in_one_batched_query(): void
+    public function test_snapshot_runs_for_many_candidates_resolve_in_constant_batched_queries(): void
     {
         $this->contract('episode-a');
         $this->contract('episode-b');
@@ -52,14 +52,15 @@ class CurrentPriceEpisodeResolverTest extends TestCase
             'episode-b' => new SupplierAdjustedCandidate('episode-b', 8.0, 3.0),
         ]);
 
-        $this->assertCount(1, $queries, implode("\n", $queries));
-        $this->assertSame('2026-06-05', $anchors['episode-a']->startedAt?->toDateString());
+        $this->assertCount(4, $queries, implode("\n", $queries));
+        $this->assertSame('2026-06-02', $anchors['episode-a']->startedAt?->toDateString());
+        $this->assertContains('price_episode_observation_gap', $anchors['episode-a']->flags);
         $this->assertSame(PriceEpisodeEvidenceBasis::ObservedSellerSnapshotRun, $anchors['episode-a']->evidenceBasis);
         $this->assertSame('2026-07-01', $anchors['episode-b']->startedAt?->toDateString());
         $this->assertSame(PriceEpisodeEvidenceBasis::CanonicalSnapshotRun, $anchors['episode-b']->evidenceBasis);
     }
 
-    public function test_weighted_time_and_season_representatives_match_snapshot_metrics(): void
+    public function test_weighted_time_and_season_representatives_cannot_prove_full_rates(): void
     {
         $this->contract('time-rate');
         $this->contract('season-rate');
@@ -67,17 +68,17 @@ class CurrentPriceEpisodeResolverTest extends TestCase
         $this->snapshot('season-rate', '2026-05-01', 'observed_seller_data', (12 * 5 + 4 * 7) / 12, 4.65);
 
         $anchors = (new CurrentPriceEpisodeResolver)->resolve([
-            'time-rate' => new SupplierAdjustedCandidate('time-rate', 6.5, 4.65),
-            'season-rate' => new SupplierAdjustedCandidate('season-rate', 22 / 3, 4.65),
+            'time-rate' => new SupplierAdjustedCandidate('time-rate', 6.5, 4.65, metering: 'Time'),
+            'season-rate' => new SupplierAdjustedCandidate('season-rate', 22 / 3, 4.65, metering: 'Season'),
         ]);
 
-        $this->assertSame('2026-06-01', $anchors['time-rate']->startedAt?->toDateString());
-        $this->assertSame('2026-05-01', $anchors['season-rate']->startedAt?->toDateString());
-        $this->assertSame(PriceEpisodeEvidenceBasis::ObservedSellerSnapshotRun, $anchors['time-rate']->evidenceBasis);
-        $this->assertSame(PriceEpisodeEvidenceBasis::ObservedSellerSnapshotRun, $anchors['season-rate']->evidenceBasis);
+        foreach ($anchors as $anchor) {
+            $this->assertNull($anchor->startedAt);
+            $this->assertContains('full_energy_signature_not_proven', $anchor->flags);
+        }
     }
 
-    public function test_source_observation_fallback_requires_the_published_snapshot_to_match(): void
+    public function test_source_pointer_match_alone_cannot_prove_an_energy_signature(): void
     {
         $matching = $this->contract('source-match');
         $missing = $this->contract('source-mismatch');
@@ -104,8 +105,8 @@ class CurrentPriceEpisodeResolverTest extends TestCase
             'source-mismatch' => new SupplierAdjustedCandidate('source-mismatch', 8.0, 3.0),
         ]);
 
-        $this->assertSame('2026-06-01', $anchors['source-match']->startedAt?->toDateString());
-        $this->assertSame(PriceEpisodeEvidenceBasis::CurrentSourceObservation, $anchors['source-match']->evidenceBasis);
+        $this->assertNull($anchors['source-match']->startedAt);
+        $this->assertSame(PriceEpisodeEvidenceBasis::Missing, $anchors['source-match']->evidenceBasis);
         $this->assertSame(PriceEpisodeEvidenceBasis::Missing, $anchors['source-mismatch']->evidenceBasis);
         $this->assertNull($anchors['source-mismatch']->startedAt);
 

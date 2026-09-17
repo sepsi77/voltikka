@@ -157,7 +157,7 @@
                          this label and is the page's single estimate marker. The eyebrow,
                          the pill, the verdict small print and the qualifier between them
                          used to say "arvio" four times inside one screen. --}}
-                    <p class="text-sm font-semibold text-slate-300">Hinta seuraavalle 12 kuukaudelle</p>
+                    <p class="text-sm font-semibold text-slate-300">{{ ($calculatedCost['contract_term'] ?? null) !== null ? 'Vuositasolle laskettu vertailuhinta' : 'Hinta seuraavalle 12 kuukaudelle' }}</p>
                     <div class="mt-1.5 flex flex-wrap items-baseline gap-x-4 gap-y-3">
                         <span class="font-extrabold leading-none tracking-tight text-white tabular-nums">
                             <span class="text-[44px] sm:text-[56px]">{{ $heroInt }}</span><span class="text-2xl text-slate-400 sm:text-3xl">,{{ $heroDec }}</span><span class="ml-1 text-lg font-bold text-slate-300 sm:text-[22px]">€/kk</span>
@@ -571,7 +571,13 @@
             {{-- Pricing-integrity notice: shown only for validated deceptive/conflicting
                  pricing. Coral, not amber: warnings are coral on this site and amber is an
                  emissions tier. --}}
-            @if (($pricingIntegrity['detected'] ?? false) && ! empty($pricingIntegrity['detail_facts']))
+            @if ($card->offerDescription !== null)
+                <p class="mt-4 text-sm text-slate-600">{{ $card->offerDescription }}</p>
+            @endif
+
+            @if ($card->promotionEndNotice !== null)
+                <p class="mt-5 rounded-xl border border-coral-200 bg-coral-50 px-5 py-4 text-sm text-coral-800">{{ $card->promotionEndNotice }}</p>
+            @elseif (($pricingIntegrity['detected'] ?? false) && ! empty($pricingIntegrity['detail_facts']) && ! $card->suppressPriceChangeNotice)
                 <div class="mt-5 rounded-xl border border-coral-200 bg-coral-50 px-5 py-4">
                     <p class="text-sm font-bold text-coral-800">{{ $pricingIntegrity['detail_heading'] ?? 'Huomio hinnoittelusta' }}</p>
                     <ul class="mt-1.5 list-inside list-disc space-y-1 text-sm text-coral-800">
@@ -641,7 +647,7 @@
                         </tbody>
                     </table>
                     <p class="mt-2 text-sm text-slate-500">
-                        12 kuukauden arvio ilman siirtomaksuja, {{ $contract->target_group === 'Company' ? 'hinnat ilman ALV:tä' : 'hinnat sisältävät ALV:n' }}. Valittu kulutus on korostettu.
+                        {{ ($calculatedCost['contract_term'] ?? null) !== null ? 'Vuositasolle laskettu vertailuhinta' : '12 kuukauden arvio' }} ilman siirtomaksuja, {{ $contract->target_group === 'Company' ? 'hinnat ilman ALV:tä' : 'hinnat sisältävät ALV:n' }}. Valittu kulutus on korostettu.
                     </p>
                 </div>
             @endif
@@ -1460,7 +1466,7 @@
                     {{ number_format(($calculatedCost['total_cost'] ?? 0) / 12, 2, ',', ' ') }} €/kk
                 </span>
                 <span class="block text-[13px] font-semibold text-slate-500">
-                    12 kk {{ $isEstimatePricing ? 'arvio' : 'hinta' }} · {{ number_format($consumption, 0, ',', ' ') }} kWh
+                    {{ ($calculatedCost['contract_term'] ?? null) !== null ? 'Vuositasolle laskettu vertailuhinta' : '12 kk '.($isEstimatePricing ? 'arvio' : 'hinta') }} · {{ number_format($consumption, 0, ',', ' ') }} kWh
                 </span>
             </span>
             <a

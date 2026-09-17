@@ -78,10 +78,10 @@ class ContractPriceStatisticsCanonicalSourceTest extends TestCase
         $this->assertSame('canonical_calculation', $snapshot->pricing_basis);
     }
 
-    public function test_unknown_continuation_keeps_a_useful_canonical_annual_estimate(): void
+    public function test_a_promotion_with_unknown_normal_continuation_is_excluded(): void
     {
-        // The future rate is unknown, but the disclosed current price supports an
-        // explicit held-price estimate. It must not become a zero-cost tail.
+        // A finite promotion cannot supply an annual estimate without its normal
+        // continuation. Relational intro pricing cannot repair that missing fact.
         $contract = $this->createContract('incomplete-1', [
             $this->phase('Alennettu hinnasto', 'introductory', 5.0, $this->boundary('contract_start'), $this->boundary('after_months', '3')),
             [
@@ -97,8 +97,8 @@ class ContractPriceStatisticsCanonicalSourceTest extends TestCase
 
         $result = $this->calculate();
 
-        $this->assertSame(1, $result['snapshots']);
-        $this->assertEqualsWithDelta(250, ContractPriceSnapshot::sole()->annual_cost_5000_kwh, 0.001);
+        $this->assertSame(0, $result['snapshots']);
+        $this->assertSame(0, ContractPriceSnapshot::count());
     }
 
     public function test_legacy_calculation_still_requires_relational_components(): void
@@ -262,11 +262,12 @@ class ContractPriceStatisticsCanonicalSourceTest extends TestCase
 
     public function test_measured_canonical_offer_sets_the_snapshot_offer_flag(): void
     {
-        $this->createContract('offer-1', [
-            $this->phaseWithComponents([
-                $this->canonicalComponent('energy_general', 7.0, normalAmount: 9.0),
-            ]),
+        // A complete first-year promotion retains the disclosed 9 c/kWh normal price.
+        $offer = $this->phaseWithComponents([
+            $this->canonicalComponent('energy_general', 7.0, normalAmount: 9.0),
         ]);
+        $offer['ends'] = $this->boundary('after_months', '12');
+        $this->createContract('offer-1', [$offer]);
 
         $this->calculate();
 

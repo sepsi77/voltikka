@@ -2,10 +2,13 @@
 
 namespace App\Services\CanonicalPricing\MarketReset;
 
+use App\Services\CanonicalPricing\Enums\ComparisonPolicy;
+use App\Services\CanonicalPricing\ForwardPremium\PremiumFamily;
 use App\Services\CanonicalPricing\MarketReset\DTO\ResetEstimate;
 use App\Services\CanonicalPricing\MarketReset\DTO\ResetEstimateRequest;
 use App\Services\CanonicalPricing\MarketReset\DTO\ResetEstimatorSettings;
 use App\Services\CanonicalPricing\MarketReset\Enums\ResetEstimateBasis;
+use App\Services\CanonicalPricing\SupplierAdjusted\DTO\SupplierAdjustedEstimate;
 use Carbon\CarbonImmutable;
 
 /**
@@ -29,9 +32,8 @@ class MarketResetPriceEstimator
 {
     public function __construct(
         private readonly MarketReferenceCurveProvider $curve,
-        private readonly ResetEstimatorSettings $settings = new ResetEstimatorSettings(),
-    ) {
-    }
+        private readonly ResetEstimatorSettings $settings = new ResetEstimatorSettings,
+    ) {}
 
     public function enabled(): bool
     {
@@ -41,11 +43,11 @@ class MarketResetPriceEstimator
     public function estimate(ResetEstimateRequest $request): ResetEstimate
     {
         if (! $this->settings->enabled) {
-            return ResetEstimate::holdFlat($request->cadence, $request->anchorEnergyPriceCentsPerKwh, ['disabled']);
+            return ResetEstimate::holdFlat($request->cadence, $request->anchorEnergyPriceCentsPerKwh, ['disabled'], $request->policy === ComparisonPolicy::Current ? 0.0 : 1.0);
         }
 
         if ($request->tailMonthKeys === []) {
-            return ResetEstimate::holdFlat($request->cadence, $request->anchorEnergyPriceCentsPerKwh, ['no_uncovered_tail']);
+            return ResetEstimate::holdFlat($request->cadence, $request->anchorEnergyPriceCentsPerKwh, ['no_uncovered_tail'], $request->policy === ComparisonPolicy::Current ? 0.0 : 1.0);
         }
 
         $forward = $this->forwardShift($request);
@@ -71,7 +73,7 @@ class MarketResetPriceEstimator
             $flags[] = 'seasonal_index_outside_plausibility_band';
         }
 
-        return ResetEstimate::holdFlat($request->cadence, $request->anchorEnergyPriceCentsPerKwh, $flags);
+        return ResetEstimate::holdFlat($request->cadence, $request->anchorEnergyPriceCentsPerKwh, $flags, $request->policy === ComparisonPolicy::Current ? 0.0 : 1.0);
     }
 
     /**
@@ -92,7 +94,7 @@ class MarketResetPriceEstimator
     {
         $tradeDate = $this->curve->tradeDate($request->asOfDate);
 
-        if ($tradeDate === null) {
+        if ($tradeDate === null || ($request->policy === ComparisonPolicy::Current && ! $tradeDate->lt($request->asOfDate))) {
             return null;
         }
 
@@ -109,10 +111,9 @@ class MarketResetPriceEstimator
             $flags[] = 'reference_vintage_bounded_by_as_of';
         }
 
-        // A period that began before the FI curve history starts (2026-04-08) has no pricing
-        // vintage and never will: EEX serves an approximately 45-day rolling window. Fall back to
-        // today's vintage and flag it rather than dropping to the much weaker spot index.
-        if ($this->curve->tradeDate($referenceAsOf) === null) {
+        // Retained Historical replay keeps its former fallback. Current must not replace an
+        // unavailable original vintage with today's old-period reference before trying peers.
+        if ($request->policy === ComparisonPolicy::Historical && $this->curve->tradeDate($referenceAsOf) === null) {
             $referenceAsOf = $request->asOfDate;
             $flags[] = 'reference_vintage_fallback_today';
         }
@@ -123,8 +124,13 @@ class MarketResetPriceEstimator
             $request->referenceKindPreference(),
         );
 
+        if ($request->policy === ComparisonPolicy::Current && $reference !== null
+            && (! is_finite((float) $reference['price_cents_per_kwh'])
+                || ! $this->validReferenceDate($reference['trade_date'] ?? null, $referenceAsOf))) {
+            $reference = null;
+        }
         if ($reference === null) {
-            return null;
+            return $this->forwardPremium($request, $tradeDate, $flags);
         }
 
         $beta = $this->settings->beta;
@@ -134,7 +140,7 @@ class MarketResetPriceEstimator
         foreach ($request->tailMonthKeys as $monthKey) {
             $forward = $this->curve->forwardPriceForMonth($request->asOfDate, $this->monthFromKey($monthKey));
 
-            if ($forward === null) {
+            if ($forward === null || ($request->policy === ComparisonPolicy::Current && ! is_finite((float) $forward['price_cents_per_kwh']))) {
                 // A missing delivery month means the shape is incomplete for the window. Do not
                 // silently hold that month flat inside an otherwise shifted estimate.
                 return null;
@@ -146,6 +152,9 @@ class MarketResetPriceEstimator
 
             $offsets[$monthKey] = $beta * ($forward['price_cents_per_kwh'] * $request->marketPriceMultiplier
                 - $reference['price_cents_per_kwh'] * $request->marketPriceMultiplier);
+            if ($request->policy === ComparisonPolicy::Current && ! is_finite($offsets[$monthKey])) {
+                return null;
+            }
         }
 
         foreach (array_keys($fallbackKinds) as $kind) {
@@ -166,6 +175,68 @@ class MarketResetPriceEstimator
             anchorPeriodLabel: $this->anchorPeriodLabel($request),
             tailStartsMonthKey: $request->tailMonthKeys[0],
             flags: $flags,
+        );
+    }
+
+    private function forwardPremium(ResetEstimateRequest $request, CarbonImmutable $tradeDate, array $flags): ?ResetEstimate
+    {
+        if ($request->policy !== ComparisonPolicy::Current || $request->premium === null
+            || $request->energyRates === []
+            || array_keys($request->energyRates) !== array_keys($request->premium->premiumsByBucket)) {
+            return null;
+        }
+        foreach ($request->premium->observations as $observation) {
+            if ($observation->compatibility->family !== ($request->pricingMechanism === 'Hybrid' ? PremiumFamily::MarketResetHybridBase : PremiumFamily::MarketReset)
+                || $observation->compatibility->resetCadence !== $request->cadence
+                || $observation->observedAt->gt($request->asOfDate)
+                || $observation->pricingDate?->gt($request->asOfDate)
+                || ! $observation->referenceTradeDate->lt($request->asOfDate)) {
+                return null;
+            }
+        }
+        $offsets = [];
+        $flags[] = 'missing_own_reference_using_comparable_premium';
+        foreach ($request->tailMonthKeys as $key) {
+            $point = $this->curve->forwardPriceForMonth($request->asOfDate, $this->monthFromKey($key));
+            if ($point === null || ! is_finite((float) $point['price_cents_per_kwh'])) {
+                return null;
+            }
+            if ($point['kind'] !== 'month') {
+                $flags[] = 'forward_month_from_'.$point['kind'].'_contract';
+            }
+            foreach ($request->energyRates as $bucket => $rate) {
+                $offsets[$key][$bucket] = $this->settings->beta * ($point['price_cents_per_kwh'] * $request->marketPriceMultiplier
+                    + $request->premium->premiumsByBucket[$bucket] - $rate);
+            }
+        }
+        $weighted = $weights = 0.0;
+        foreach ($request->bucketMonthWeights as $key => $buckets) {
+            foreach ($buckets as $bucket => $weight) {
+                $energyBucket = SupplierAdjustedEstimate::energyBucket($bucket);
+                $rate = $request->energyRates[$energyBucket] ?? null;
+                if ($rate === null || $weight <= 0) {
+                    continue;
+                }
+                $tailWeight = $request->tailBucketMonthWeights[$key][$bucket] ?? 0.0;
+                $weighted += max(0.0, $rate) * ($weight - $tailWeight)
+                    + max(0.0, $rate + ($offsets[$key][$energyBucket] ?? 0.0)) * $tailWeight;
+                $weights += $weight;
+            }
+        }
+
+        return new ResetEstimate(
+            basis: ResetEstimateBasis::ForwardPremium,
+            offsetsByMonthKey: [],
+            beta: $this->settings->beta,
+            cadence: $request->cadence,
+            currentPeriodEnergyPriceCentsPerKwh: $request->anchorEnergyPriceCentsPerKwh,
+            annualEquivalentEnergyPriceCentsPerKwh: $weights > 0 ? $weighted / $weights : null,
+            curveTradeDate: $tradeDate->toDateString(),
+            anchorPeriodLabel: $this->anchorPeriodLabel($request),
+            tailStartsMonthKey: $request->tailMonthKeys[0],
+            flags: array_values(array_unique($flags)),
+            bucketOffsetsByMonthKey: $offsets,
+            premium: $request->premium,
         );
     }
 
@@ -312,6 +383,14 @@ class MarketResetPriceEstimator
         }
 
         return $month->format('Y').'-Q'.((int) ceil($month->month / 3));
+    }
+
+    private function validReferenceDate(mixed $date, CarbonImmutable $bound): bool
+    {
+        return is_string($date)
+            && preg_match('/^\d{4}-\d{2}-\d{2}$/D', $date) === 1
+            && checkdate((int) substr($date, 5, 2), (int) substr($date, 8, 2), (int) substr($date, 0, 4))
+            && $date < $bound->toDateString();
     }
 
     private function monthFromKey(string $monthKey): CarbonImmutable

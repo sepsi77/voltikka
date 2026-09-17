@@ -4,6 +4,7 @@ namespace App\Services\ContractCard;
 
 use App\Models\Company;
 use App\Models\ElectricityContract;
+use App\Services\CanonicalPricing\CanonicalOfferFacts;
 use App\Services\CanonicalPricing\DTO\ContractPricingIntegrity;
 use App\Services\CanonicalPricing\Enums\EstimateMethod;
 use App\Services\CanonicalPricing\PricingMode;
@@ -85,7 +86,8 @@ class ContractCardPresenter
         // A fixed contract with a pre-published later price keeps a truthful fixed band; the
         // increase is a footer warning and two dated receipt rows, never a band warning.
         $hasScheduledChange = $integrity?->cardLabel !== null
-            && $integrity->normalRateCents !== null;
+            && $integrity->normalRateCents !== null
+            && ! ContractCardCopy::suppressSourcePriceChange($pricing, $integrity);
 
         $footer = $this->footerItems->build($contract, $publicPricing ? $pricing : null, $integrity, $facts, $exceeds, $useCanonical);
         $discount = $this->discountDisplay($publicPricing ? $pricing : null);
@@ -100,7 +102,7 @@ class ContractCardPresenter
                 $contract->fixed_time_range,
                 $hasScheduledChange,
                 $publicPricing && $pricing?->supplierAdjustedEstimate() !== null,
-                $publicPricing && ($pricing?->estimateMethod() === EstimateMethod::HoldLastKnownPrice
+                $publicPricing && (in_array($pricing?->estimateMethod(), [EstimateMethod::HoldLastKnownPrice, EstimateMethod::SourceEnergyRules], true)
                     || in_array('unknown_periods_use_latest_applicable_price_or_disclosed_normal', $pricing?->assumptions() ?? [], true)),
             ),
             detailUrl: $this->detailUrl($contract, $consumption, $detailConsumption),
@@ -125,10 +127,16 @@ class ContractCardPresenter
                 ? ($discount['term_months'] !== null ? $discount['term_months'].' kk' : '12 kk')
                 : null,
             discountExplanation: $discount['saving'] !== null
-                ? $this->discountExplanation($discount['term_months'])
+                ? ($pricing?->benefitIsEstimate() ? 'Arvioitu säästö verrattuna saman sopimuksen arvioituun normaalihintaan. Normaalihinta voi muuttua. Säästö ei ole taattu.' : $this->discountExplanation($discount['term_months']))
                 : null,
             exceedsConsumptionLimit: $exceeds,
             sellerCta: $this->sellerCta($contract, $company),
+            benefitIsEstimate: $pricing?->benefitIsEstimate() ?? false,
+            offerDescription: $pricing !== null ? (CanonicalOfferFacts::fromPricing($pricing)['description'] ?? null) : null,
+            normalPriceIsEstimated: $pricing?->energyRuleComparison()?->boolean('normal_estimated') ?? false,
+            promotionEndNotice: ContractCardCopy::suppressSourcePriceChange($pricing, $integrity) && $integrity?->detected
+                ? ContractCardCopy::promotionEndNotice($pricing) : null,
+            suppressPriceChangeNotice: ContractCardCopy::suppressSourcePriceChange($pricing, $integrity),
         );
     }
 

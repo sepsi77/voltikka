@@ -65,7 +65,9 @@ final class CanonicalOfferFacts
             'benefit_text' => $benefitText,
             'basis_months' => $months,
             'basis_label' => $basisLabel,
-            'description' => $label.'. Säästö '.$benefitText.' '.$basisLabel.'.',
+            'benefit_is_estimate' => $pricing->benefitIsEstimate(),
+            'description' => $label.'. '.($pricing->benefitIsEstimate() ? 'Arvioitu säästö ' : 'Säästö ').$benefitText.' '.$basisLabel.'.'
+                .($pricing->benefitIsEstimate() ? ' Normaalihinta voi muuttua. Säästö ei ole taattu.' : ''),
         ];
     }
 
@@ -113,6 +115,8 @@ final class CanonicalOfferFacts
             $unit = ComponentUnit::tryFrom($component->string('unit') ?? '');
             $amount = $component->number('amount');
             $normalAmount = $component->number('normal_amount');
+            $rule = $component->string('rule_kind');
+            $formula = in_array($rule, ['absolute_discount', 'percentage_discount'], true);
 
             if ($amount === null || $normalAmount === null) {
                 return null;
@@ -122,7 +126,7 @@ final class CanonicalOfferFacts
                 || $unit === null
                 || ! is_finite($amount)
                 || ! is_finite($normalAmount)
-                || $normalAmount <= $amount
+                || (! $formula && $normalAmount <= $amount)
                 || isset($seenTypes[$type->value])) {
                 return null;
             }
@@ -148,7 +152,19 @@ final class CanonicalOfferFacts
                 ? self::formatMonthlyPrice($amount).' €/kk'
                 : number_format($amount, 2, ',', ' ').' c/kWh';
 
-            $phrases[] = $name.' '.$price;
+            if ($formula) {
+                $operand = $component->number('discount_value');
+                if ($operand === null || $operand <= 0) {
+                    return null;
+                }
+                $discount = $rule === 'percentage_discount'
+                    ? rtrim(rtrim(number_format($operand, 6, ',', ' '), '0'), ',')
+                    : number_format($operand, 2, ',', ' ');
+                $phrases[] = $name.': alennus normaalihinnasta '.$discount.($rule === 'percentage_discount' ? ' %' : ' c/kWh')
+                    .($component->number('floor_amount') !== null ? ', energiahinta vähintään '.number_format($component->number('floor_amount'), 2, ',', ' ').' c/kWh' : '');
+            } else {
+                $phrases[] = $name.' '.$price.($rule === 'fixed_price' ? ' kiinteänä' : '');
+            }
         }
 
         return $phrases;

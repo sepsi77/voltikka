@@ -2,8 +2,6 @@
 
 namespace App\Services\ContractInterpretation;
 
-use App\Services\CanonicalPricing\CanonicalPricingParser;
-
 class HistoricalInterpretationFingerprint
 {
     public function evidence(array $analysisInput, array $manifest): string
@@ -51,14 +49,16 @@ class HistoricalInterpretationFingerprint
 
     public function analysis(string $episodeFingerprint): string
     {
+        $profile = ContractInterpretationProfile::historical();
+
         return $this->hash([
             'episode_fingerprint' => $episodeFingerprint,
-            'schema_version' => config('contract_interpretation.schema_version'),
-            'prompt_version' => config('contract_interpretation.prompt_version'),
+            'schema_version' => $profile->schemaVersion,
+            'prompt_version' => $profile->promptVersion,
             'historical_addendum_version' => config('contract_interpretation.historical.addendum_version'),
             'historical_backcast_validator_version' => HistoricalInterpretationBackcastValidator::VERSION,
-            'validator_version' => config('contract_interpretation.validator_version'),
-            'parser_version' => CanonicalPricingParser::VERSION,
+            'validator_version' => $profile->validatorVersion,
+            'parser_version' => $profile->parserVersion,
             'provider' => config('contract_interpretation.provider'),
             'model' => config('contract_interpretation.model'),
             'reasoning_effort' => config('contract_interpretation.reasoning_effort'),

@@ -42,6 +42,11 @@ When `CANONICAL_PRICING_ENABLED=true`:
   attributes are assigned. Do not evaluate each row through a query-producing fallback.
 - `pricing_has_discounts` is derived from the canonical outcome. Package allowance pricing is not
   a promotion.
+- Source-backed results also expose `energy_rule_comparison`, `benefit_is_estimate` and the shared
+  typed `offer` facts. Actual price certainty is separate from normal-comparison certainty. The
+  current unit fields never use the annual equivalent. Actual-only estimated continuations carry
+  no invented normal tariff or savings. Projected normal comparisons omit price-bearing promotion
+  integrity claims; typed detection/reason/issue facts remain.
 
 When the feature is off, the explicit legacy branch loads and returns relational
 `price_components` and uses `ContractPriceCalculator`. Keep that compatibility path until the
@@ -99,12 +104,14 @@ produces a zero monthly distribution; no array means the calculator uses its nor
 This policy accepts partial breakdowns without losing annual consumption or silently ignoring an
 array for which the room-heating branch cannot run.
 
-The calculation API has no response cache. Annual list, company, and ranking caches include the
-Helsinki calculation date as well as their existing schemas, flags, and import/futures data versions.
-Their instance memos also cross this daily boundary. Date keys retain the existing bounded TTLs
-(48 hours for list/company, one hour for ranking); no import invalidation path is removed. Custom
-consumption still bypasses the preset list cache. `AnnualConsumerConsistencyTest` checks a dated
-promotion across Helsinki midnight through list/company/ranking, custom API, and current statistics.
+The calculation API has no response cache. Shared annual list/company payloads use non-expiring
+generation writes with schema and pricing-mode markers, not a calculation-day suffix or a 48-hour
+TTL. Rankings have a one-hour wrapper TTL but rebuild from retained annual metrics. Verified
+replacement activates one generation; retired tracked payloads receive one hour of reader grace
+before bounded cleanup. Immediate interpretation/EEX invalidation and current source/publication
+guards remain. Custom consumption bypasses the preset list cache and uses current calculation;
+this is not a site-wide frozen database snapshot. See `../Services/Caching/AGENTS.md`.
+This guidance does not change unrelated CompanyList prepared-data cache lifetimes.
 
 ## Weekly-offers video API pricing
 

@@ -392,6 +392,7 @@ class AsOfAnnualCostEvidenceResolver
                     $this->arrayValue($output, 'pricing'),
                     $this->arrayValue($output, 'calculation'),
                     $this->arrayValue($output, 'source_consistency'),
+                    withEnergyRules: false,
                 );
             } catch (CanonicalPricingParseException) {
                 $sawInvalid = true;
@@ -523,6 +524,7 @@ class AsOfAnnualCostEvidenceResolver
                 $this->arrayValue($output, 'pricing'),
                 $this->arrayValue($output, 'calculation'),
                 $this->arrayValue($output, 'source_consistency'),
+                withEnergyRules: false,
             );
         } catch (CanonicalPricingParseException) {
             return [null, $ids, [...$flags, 'historical_canonical_omitted_parser_invalid_output']];
@@ -547,11 +549,11 @@ class AsOfAnnualCostEvidenceResolver
 
     private function historicalVersionsMatch(object $row): bool
     {
-        return (string) $row->schema_version === (string) config('contract_interpretation.schema_version')
-            && (string) $row->prompt_version === (string) config('contract_interpretation.prompt_version')
+        return (string) $row->schema_version === (string) config('contract_interpretation.historical.schema_version')
+            && (string) $row->prompt_version === (string) config('contract_interpretation.historical.prompt_version')
             && (string) $row->historical_addendum_version === (string) config('contract_interpretation.historical.addendum_version')
-            && (string) $row->validator_version === (string) config('contract_interpretation.validator_version')
-            && (string) $row->parser_version === CanonicalPricingParser::VERSION
+            && (string) $row->validator_version === (string) config('contract_interpretation.historical.validator_version')
+            && (string) $row->parser_version === (string) config('contract_interpretation.historical.parser_version')
             && (string) $row->provider === (string) config('contract_interpretation.provider')
             && (string) $row->model === (string) config('contract_interpretation.model')
             && (string) $row->reasoning_effort === (string) config('contract_interpretation.reasoning_effort');

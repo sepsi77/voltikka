@@ -163,13 +163,21 @@ final class ContractDetailSeoPresenter
 
         $totalCost = $this->annualCost($input);
         $cheapestSavings = $this->cheapestSavings($input);
+        $term = $input->calculatedCost['contract_term'] ?? null;
+        $termMonths = $term['months'] ?? null;
+        $isShortTerm = is_int($termMonths) && $termMonths > 0 && $termMonths < 12
+            && is_numeric($term['total_cost'] ?? null);
+        $costPhrase = $isShortTerm
+            ? "{$termMonths} kk sopimuskaudesta vuositasolle muunnettu vertailuhinta"
+            : 'arvioitu hinta';
+        $costPeriod = $isShortTerm ? '' : ' ensimmäisen 12 kk aikana';
 
         if ($contract->pricingModelType() !== PricingModel::Spot
             && $totalCost !== null
             && $cheapestSavings !== null
             && $cheapestSavings > 0) {
             return $this->limitMetaDescription(
-                "{$intro}. Voltikan vertailussa sen arvioitu hinta on {$this->formatEuro($totalCost)} ensimmäisen 12 kk aikana {$consumption} kulutuksella, ja se on {$this->formatEuro($cheapestSavings)} kalliimpi kuin halvin vaihtoehto."
+                "{$intro}. Voltikan vertailussa sen {$costPhrase} on {$this->formatEuro($totalCost)}{$costPeriod} {$consumption} kulutuksella, ja se on {$this->formatEuro($cheapestSavings)} kalliimpi kuin halvin vaihtoehto."
             );
         }
 
@@ -181,7 +189,7 @@ final class ContractDetailSeoPresenter
 
         if ($totalCost !== null) {
             return $this->limitMetaDescription(
-                "{$intro}. Arvioitu hinta on {$this->formatEuro($totalCost)} ensimmäisen 12 kk aikana {$consumption} kulutuksella. Katso hinta, ehdot ja vaihtoehdot Voltikassa."
+                "{$intro}. Sopimuksen {$costPhrase} on {$this->formatEuro($totalCost)}{$costPeriod} {$consumption} kulutuksella. Katso hinta, ehdot ja vaihtoehdot Voltikassa."
             );
         }
 

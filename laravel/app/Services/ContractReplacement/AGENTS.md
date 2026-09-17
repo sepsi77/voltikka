@@ -142,6 +142,28 @@ Current desired behavior is to preserve prior links so future history can walk:
 - backward from current contract to predecessors
 - forward from older contracts to latest successor
 
+## Shared predecessor identity
+
+`ElectricityContract::getReplacementLineageIdsByContractIds(array $contractIds): array`
+returns an array keyed by each requested ID, with `Collection<int, string>` values.
+Existing roots include themselves; missing roots have empty collections. Duplicate
+roots collapse. Numeric string keys follow PHP array rules. Membership order is
+unspecified. An empty batch makes no query; a non-empty batch uses one parameterized
+recursive UNION over `(root_id, id)` pairs. This preserves separate root membership
+and terminates cycles and converging branches without a depth cutoff.
+
+The single-root `getReplacementLineageIds()` delegates to this method. Backward
+model chains use the same membership but exclude self, including in malformed
+cycles. The history presenter uses the same resolver. Retail-premium sorted
+membership and root hashes are unchanged. No matcher, link writer, forward chain,
+or redirect rule changed. Do not create another predecessor resolver for pricing.
+
+`ElectricityContract::getLineageIdentitiesByContractIds()` adds one adjacency read to that shared
+membership query. Each result contains sorted `contract_ids`, sorted oldest `root_ids`, and the
+unchanged SHA-256 of roots joined with `|`. Cycles use sorted members when no root exists.
+RetailPremium's wrapper and the current supplier premium evidence loader share this helper.
+There is no new matching, graph write, or persistent identity cache.
+
 ## If you work on price history features
 
 Relevant starting points:

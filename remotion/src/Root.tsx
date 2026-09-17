@@ -1,7 +1,7 @@
 import "./index.css";
 import { Composition, Folder } from "remotion";
 import { DailySpotPrice } from "./compositions/DailySpotPrice";
-import { WeeklyOffers } from "./compositions/WeeklyOffers";
+import { WeeklyOffers, WEEKLY_OFFERS_DURATION_SECONDS } from "./compositions/WeeklyOffers";
 import type {
   DailySpotPriceProps,
   DailyVideoData,
@@ -121,7 +121,7 @@ export const RemotionRoot: React.FC = () => {
         <Composition
           id="WeeklyOffers"
           component={WeeklyOffers}
-          durationInFrames={19 * 30} // 19 seconds at 30fps (570 frames)
+          durationInFrames={WEEKLY_OFFERS_DURATION_SECONDS * 30}
           fps={30}
           width={1080}
           height={1920}

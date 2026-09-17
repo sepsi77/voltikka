@@ -71,6 +71,21 @@ class AsOfHistoricalInterpretationIntegrationTest extends TestCase
         ));
     }
 
+    public function test_current_profile_change_does_not_hide_dedicated_historical_output(): void
+    {
+        $contract = $this->evidence('pinned-profile', 8.0);
+        [, $interpretation] = $this->historicalInterpretation($contract, 2.0);
+        config()->set([
+            'contract_interpretation.schema_version' => 'schema-v5',
+            'contract_interpretation.prompt_version' => 'prompt-v20',
+            'contract_interpretation.validator_version' => 'validator-v18',
+            'contract_interpretation.parser_version' => 'future-parser',
+        ]);
+        $result = $this->annualResult($contract->id, 5000);
+        $this->assertSame($interpretation->id, $result->sourceEvidenceIds['historical_interpretation_id']);
+        $this->assertEqualsWithDelta(100.0, $result->totalCost, 0.01);
+    }
+
     public function test_target_outside_episode_does_not_use_historical_output(): void
     {
         $contract = $this->evidence('outside-episode', 8.0);

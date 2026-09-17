@@ -26,7 +26,7 @@ class VatIntegrationTest extends TestCase
     {
         $curve = $this->createMock(MarketReferenceCurveProvider::class);
         $curve->method('tradeDate')->willReturn(CarbonImmutable::parse('2026-06-30'));
-        $curve->method('referencePrice')->willReturn(['kind' => 'month', 'price_cents_per_kwh' => 6.275, 'trade_date' => '2026-06-30']);
+        $curve->method('referencePrice')->willReturn(['kind' => 'month', 'price_cents_per_kwh' => 6.275, 'trade_date' => '2026-05-31']);
         $curve->method('forwardPriceForMonth')->willReturn(['kind' => 'month', 'price_cents_per_kwh' => 11.295]);
         $settings = new ResetEstimatorSettings(enabled: true);
 
@@ -44,8 +44,11 @@ class VatIntegrationTest extends TestCase
             $components[] = ['component_type' => 'flat_fee', 'unit' => 'eur_flat', 'price_role' => 'normal', 'amount' => 1, 'normal_amount' => 2, 'vat_status' => 'unknown'];
         }
 
+        // The VAT comparison uses a complete first-year offer with disclosed normal amounts.
+        $ends = $discount ? ['kind' => 'after_months', 'value' => '12'] : ['kind' => 'none'];
+
         return (new CanonicalPricingParser)->parse(['phases' => [[
-            'label' => 'Current', 'phase_kind' => 'current_structured', 'starts' => ['kind' => 'contract_start'], 'ends' => ['kind' => 'none'], 'components' => $components,
+            'label' => 'Current', 'phase_kind' => 'current_structured', 'starts' => ['kind' => 'contract_start'], 'ends' => $ends, 'components' => $components,
         ]], 'recurring_schedule' => ['present' => $reset, 'cadence' => $reset ? 'monthly' : 'none', 'future_price_known' => false]], ['status' => 'exact'], ['structured_pricing_status' => 'complete']);
     }
 

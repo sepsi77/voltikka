@@ -93,6 +93,26 @@ class AsOfAnnualCostCalculatorTest extends TestCase
         ));
     }
 
+    public function test_v1_and_v2_retain_historical_unknown_promotion_policy_without_current_source_prose(): void
+    {
+        $contract = $this->contract('historical-promotion');
+        $this->snapshot($contract);
+        $attributes = $this->fixedAttributes(4);
+        $attributes['canonical_pricing']['phases'][0]['phase_kind'] = 'introductory';
+        $attributes['canonical_pricing']['phases'][0]['ends'] = ['kind' => 'after_months', 'value' => '1'];
+        $attributes['canonical_calculation']['status'] = 'estimate_required';
+        $this->strictInterpretation($contract, $attributes, '2026-05-31 12:00:00', '2026-06-01 12:00:00');
+        $contract->update(['canonical_pricing' => null]);
+
+        foreach ([AnnualCostMethodVersion::AsOf, AnnualCostMethodVersion::AsOfV2] as $method) {
+            $results = app(AsOfAnnualCostCalculator::class)->calculate(self::DATE, $method);
+            $result = collect($results)->first(fn ($result) => $result->consumptionKwh === 5000);
+            $this->assertSame(AnnualCostCalculationBasis::CanonicalOutcome, $result->calculationBasis);
+            $this->assertEqualsWithDelta(200, $result->totalCost, 0.001);
+            $this->assertSame('hold_last_known_price', $result->estimateMethod);
+        }
+    }
+
     public function test_later_source_observation_and_interpretation_are_ignored(): void
     {
         $contract = $this->contract('chronology');

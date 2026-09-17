@@ -134,6 +134,8 @@ export const OfferCard: React.FC<OfferCardProps> = ({
   });
 
   const isCanonical = offer.pricing_basis === "canonical";
+  const benefitIsEstimate = isCanonical && offer.offer.benefit_is_estimate === true;
+  const priceIsEstimate = isCanonical && offer.consumptions.townhouse.is_estimate;
   const featuredSavings = isCanonical
     ? offer.consumptions.townhouse.customer_benefit_eur
     : offer.savings.townhouse;
@@ -146,7 +148,7 @@ export const OfferCard: React.FC<OfferCardProps> = ({
     ? { value: `${Math.round(offer.offer.benefit_eur)}`, unit: "€" }
     : formatDiscountParts(offer.discount);
   const discountSubtext = isCanonical
-    ? `mitattu etu / ${offer.offer.basis_months} kk`
+    ? `${benefitIsEstimate ? "arvioitu säästö" : "mitattu etu"} / ${offer.offer.basis_months} kk`
     : formatDiscountSubtext(offer.discount);
   const showOfferHero = isCanonical || offer.discount !== null;
   const costs = isCanonical
@@ -311,11 +313,14 @@ export const OfferCard: React.FC<OfferCardProps> = ({
                 className="text-center font-semibold"
                 style={{
                   fontSize: 36,
-                  color: "rgba(255,255,255,0.9)",
+                  color: DARK_SLATE,
                   marginTop: 16,
                 }}
               >
                 {discountSubtext}
+                {benefitIsEstimate && (
+                  <div style={{ fontSize: 36, lineHeight: 1.3, color: DARK_SLATE, marginTop: 8 }}>Normaalihinta voi muuttua. Säästö ei ole taattu.</div>
+                )}
               </div>
             )}
           </div>
@@ -348,14 +353,24 @@ export const OfferCard: React.FC<OfferCardProps> = ({
         >
           {/* Label */}
           <div
-            className="text-center font-bold tracking-widest mb-2"
+            className="text-center font-bold mb-2"
             style={{
-              fontSize: 26,
-              color: "#64748b",
+              fontSize: 36,
+              lineHeight: 1.3,
+              color: "#cbd5e1",
             }}
           >
-            {annualizedShortTerm ? "VUOSITASOLLE MUUNNETTU VERTAILUHINTA" : "ENSIMMÄISEN 12 KK HINTA"}
+            {priceIsEstimate ? "ARVIO · " : ""}{annualizedShortTerm ? "Vuositasolle laskettu vertailuhinta" : "ENSIMMÄISEN 12 KK HINTA"}
           </div>
+
+          {isCanonical && offer.comparability === "base_only_hybrid" && (
+            <div
+              className="text-center font-semibold"
+              style={{ fontSize: 36, color: "#cbd5e1", lineHeight: 1.3 }}
+            >
+              Ei sisällä kulutusvaikutusta
+            </div>
+          )}
 
           {/* All three tiers in a row */}
           <div className="flex justify-between items-end mt-6">
@@ -363,13 +378,13 @@ export const OfferCard: React.FC<OfferCardProps> = ({
             <div className="text-center flex-1">
               <div
                 className="font-semibold"
-                style={{ fontSize: 30, color: "#94a3b8" }}
+                style={{ fontSize: 36, color: "#cbd5e1" }}
               >
                 Kerrostalo
               </div>
               <div
                 className="font-medium"
-                style={{ fontSize: 24, color: "#64748b", marginTop: 4 }}
+                style={{ fontSize: 36, color: "#cbd5e1", marginTop: 4 }}
               >
                 2000 kWh
               </div>
@@ -385,13 +400,13 @@ export const OfferCard: React.FC<OfferCardProps> = ({
             <div className="text-center flex-1 mx-4">
               <div
                 className="font-bold"
-                style={{ fontSize: 34, color: CORAL }}
+                style={{ fontSize: 36, color: CORAL }}
               >
                 Rivitalo
               </div>
               <div
                 className="font-semibold"
-                style={{ fontSize: 26, color: CORAL, marginTop: 4, opacity: 0.8 }}
+                style={{ fontSize: 36, color: CORAL, marginTop: 4 }}
               >
                 5000 kWh
               </div>
@@ -413,13 +428,13 @@ export const OfferCard: React.FC<OfferCardProps> = ({
             <div className="text-center flex-1">
               <div
                 className="font-semibold"
-                style={{ fontSize: 30, color: "#94a3b8" }}
+                style={{ fontSize: 36, color: "#cbd5e1" }}
               >
                 Omakotitalo
               </div>
               <div
                 className="font-medium"
-                style={{ fontSize: 24, color: "#64748b", marginTop: 4 }}
+                style={{ fontSize: 36, color: "#cbd5e1", marginTop: 4 }}
               >
                 10000 kWh
               </div>
@@ -452,7 +467,7 @@ export const OfferCard: React.FC<OfferCardProps> = ({
               className="font-black"
               style={{ fontSize: 44, color: "white" }}
             >
-              ETU {formatEur(featuredSavings ?? 0)} / {benefitMonths ?? "?"} KK
+              {benefitIsEstimate ? "ARVIOITU ETU" : "ETU"} {formatEur(featuredSavings ?? 0)} / {benefitMonths ?? "?"} KK
             </span>
           </div>
         )}

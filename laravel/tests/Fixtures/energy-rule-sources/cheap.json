@@ -1,0 +1,166 @@
+{
+  "contract_id": "kpl3fw-cheap-energy-finland-oy-cheap-kvartaalisahko",
+  "analysis_date": "2026-08-11",
+  "source_payload": {
+    "Id": "abee46fa-bc3f-43cd-b8ce-d9b0ea00cb02",
+    "Name": "Cheap Kvartaalisähkö",
+    "Company": {
+      "Name": "Cheap Energy Finland Oy",
+      "LogoURL": "https://evshv2prodsta1.blob.core.windows.net/companyimages1/a1418e2e-76aa-43de-916c-f9b97500d60a_Cheap-Energy-logo.png",
+      "CompanyUrl": "https://www.cheapenergy.fi/",
+      "PostalCode": "00580",
+      "PostalName": "Helsinki",
+      "StreetAddress": "Hermannin Rantatie 8"
+    },
+    "Details": {
+      "Pricing": {
+        "Id": "abee46fa-bc3f-43cd-b8ce-d9b0ea00cb02",
+        "Name": "Cheap Kvartaalisähkö",
+        "Created": "2026-08-03T14:52:34.6463393",
+        "EndDate": null,
+        "Updated": "2026-08-04T00:00:03.3316613",
+        "StartDate": "2026-08-04T00:00:00",
+        "HasDiscount": true,
+        "PriceComponents": [
+          {
+            "Id": "00000000-0000-0000-0000-000000000000",
+            "Created": "0001-01-01T00:00:00",
+            "Updated": "0001-01-01T00:00:00",
+            "Discount": {
+              "NFirstKwh": 0,
+              "UntilDate": "0001-01-01T00:00:00",
+              "DiscountType": "NoDiscount",
+              "IsPercentage": false,
+              "NfirstMonths": 0,
+              "DiscountValue": 0
+            },
+            "FuseSize": "Any",
+            "HasDiscount": false,
+            "PriceVersionId": "00000000-0000-0000-0000-000000000000",
+            "OriginalPayment": {
+              "Price": 7.49,
+              "PaymentUnit": "CentPerKiwattHour"
+            },
+            "PriceComponentType": "General"
+          },
+          {
+            "Id": "00000000-0000-0000-0000-000000000000",
+            "Created": "0001-01-01T00:00:00",
+            "Updated": "0001-01-01T00:00:00",
+            "Discount": {
+              "NFirstKwh": 0,
+              "UntilDate": "0001-01-01T00:00:00",
+              "DiscountType": "NFirstMonth",
+              "IsPercentage": false,
+              "NfirstMonths": 1,
+              "DiscountValue": 4.9
+            },
+            "FuseSize": "Any",
+            "HasDiscount": true,
+            "PriceVersionId": "00000000-0000-0000-0000-000000000000",
+            "OriginalPayment": {
+              "Price": 4.9,
+              "PaymentUnit": "EurPerMonth"
+            },
+            "PriceComponentType": "Monthly"
+          }
+        ],
+        "ElectricitySupplyProductId": "abee46fa-bc3f-43cd-b8ce-d9b0ea00cb02"
+      },
+      "Metering": "General",
+      "OrderLink": "",
+      "PreBilling": false,
+      "ProductLink": "https://www.cheapenergy.fi/tilauslomake/?p=qvartaalisahko",
+      "SpotFutures": 5.602,
+      "TargetGroup": "Household",
+      "ContractType": "OpenEnded",
+      "PricingModel": "FixedPrice",
+      "FixedTimeRange": "Fixed12",
+      "MicroProduction": {
+        "Buys": true,
+        "Details": {
+          "EN": "Onko sinulla aurinkopaneelit? Voit myydä ylijäämäsähkösi meille. Hyvitämme tuotannostasi Nord Pool -sähköpörssin Suomen markkina-alueen tuntihinnan (välityspalkkio 0,30 snt/kWh, alv. 0 %).",
+          "FI": "Onko sinulla aurinkopaneelit? Voit myydä ylijäämäsähkösi meille. Hyvitämme tuotannostasi Nord Pool -sähköpörssin Suomen markkina-alueen tuntihinnan (välityspalkkio 0,30 snt/kWh, alv. 0 %).",
+          "SV": "Onko sinulla aurinkopaneelit? Voit myydä ylijäämäsähkösi meille. Hyvitämme tuotannostasi Nord Pool -sähköpörssin Suomen markkina-alueen tuntihinnan (välityspalkkio 0,30 snt/kWh, alv. 0 %).",
+          "Default": null
+        }
+      },
+      "AvailabilityArea": {
+        "Dsos": [],
+        "IsNational": true,
+        "PostalCodes": []
+      },
+      "BillingFrequency": {
+        "EN": "1 kk",
+        "FI": "1 kk",
+        "SV": "1 kk",
+        "Default": null
+      },
+      "ExtraInformation": {
+        "EN": "Cheap Kvartaalisähkö on toistaiseksi voimassa oleva sähkösopimus, jossa sähkön hinta on kilpailukykyinen ja markkinahintainen. \r\n\r\nCheap Kvartaalisähkö -sopimuksessa on kiinteä energiahinta 7,49 snt/kWh + perusmaksu 0 €/kk ensimmäisen kuukauden ajan sopimuksen aloituspäivästä eteenpäin. Tämän jälkeen sopimuksen hinta noudattelee mm. markkinahintaa Nasdaq sähköjohdannaispörssissä, johon lisätään kiinteä kuukausittainen perusmaksu. Energianhinta 9,95 snt/kWh + perusmaksu 4,90€/kk. Hinta on lukittu 30.9.2026 asti. Hinta tarkistetaan kvartaaleittain ja tulevan kvartaalin hinta ilmoitetaan verkkosivuillamme aina maalis- kesä-, syys- ja joulukuun 15. päivään mennessä.\r\n<br>\r\n<br>\r\nCheap Kvartaalisähkö <a href=\"https://www.cheapenergy.fi/tilauslomake/?p=qvartaalisahko\">TÄÄLTÄ</a>\r\n<br>\r\n<br>\r\nSopimuksen kesto: Toistaiseksi voimassaoleva.\r\n<br>\r\n<br>\r\n",
+        "FI": "Cheap Kvartaalisähkö on toistaiseksi voimassa oleva sähkösopimus, jossa sähkön hinta on kilpailukykyinen ja markkinahintainen. \r\n\r\nCheap Kvartaalisähkö -sopimuksessa on kiinteä energiahinta 7,49 snt/kWh + perusmaksu 0 €/kk ensimmäisen kuukauden ajan sopimuksen aloituspäivästä eteenpäin. Tämän jälkeen sopimuksen hinta noudattelee mm. markkinahintaa Nasdaq sähköjohdannaispörssissä, johon lisätään kiinteä kuukausittainen perusmaksu. Energianhinta 9,95 snt/kWh + perusmaksu 4,90€/kk. Hinta on lukittu 30.9.2026 asti. Hinta tarkistetaan kvartaaleittain ja tulevan kvartaalin hinta ilmoitetaan verkkosivuillamme aina maalis- kesä-, syys- ja joulukuun 15. päivään mennessä.\r\n<br>\r\n<br>\r\nCheap Kvartaalisähkö <a href=\"https://www.cheapenergy.fi/tilauslomake/?p=qvartaalisahko\">TÄÄLTÄ</a>\r\n<br>\r\n<br>\r\nSopimuksen kesto: Toistaiseksi voimassaoleva.\r\n<br>\r\n<br>\r\n",
+        "SV": "Cheap Kvartaalisähkö on toistaiseksi voimassa oleva sähkösopimus, jossa sähkön hinta on kilpailukykyinen ja markkinahintainen. \r\n\r\nCheap Kvartaalisähkö -sopimuksessa on kiinteä energiahinta 7,49 snt/kWh + perusmaksu 0 €/kk ensimmäisen kuukauden ajan sopimuksen aloituspäivästä eteenpäin. Tämän jälkeen sopimuksen hinta noudattelee mm. markkinahintaa Nasdaq sähköjohdannaispörssissä, johon lisätään kiinteä kuukausittainen perusmaksu. Energianhinta 9,95 snt/kWh + perusmaksu 4,90€/kk. Hinta on lukittu 30.9.2026 asti. Hinta tarkistetaan kvartaaleittain ja tulevan kvartaalin hinta ilmoitetaan verkkosivuillamme aina maalis- kesä-, syys- ja joulukuun 15. päivään mennessä.\r\n<br>\r\n<br>\r\nCheap Kvartaalisähkö <a href=\"https://www.cheapenergy.fi/tilauslomake/?p=qvartaalisahko\">TÄÄLTÄ</a>\r\n<br>\r\n<br>\r\nSopimuksen kesto: Toistaiseksi voimassaoleva.\r\n<br>\r\n<br>\r\n",
+        "Default": null
+      },
+      "ElectricitySource": {
+        "Fossil": {
+          "Oil": 0,
+          "Coal": 0,
+          "Peat": 0,
+          "Total": 0,
+          "NaturalGas": 0
+        },
+        "Nuclear": {
+          "Total": 0,
+          "General": 0
+        },
+        "Renewable": {
+          "Wind": 0,
+          "Hydro": 0,
+          "Solar": 0,
+          "Total": 0,
+          "BioMass": 0,
+          "General": 0
+        }
+      },
+      "TransparencyIndex": {
+        "CompanyErrors": [],
+        "HasPreBilling": false,
+        "ProductErrors": [],
+        "TotalErrorCount": 0,
+        "UsingGeneralTerms": false,
+        "IsOpenEndedWarning": true,
+        "IsPermanentProduct": false,
+        "ProductHasHadErrors": false,
+        "IsBelowWholesalePrice": false,
+        "IsOnlyForNewCustomers": false,
+        "AvailableOnlyInSingleDso": false,
+        "CompanyHasOtherErroneousProducts": false
+      },
+      "ConsumptionControl": false,
+      "SpotPriceSelection": "NasdaqMonthly",
+      "EnergySourceIconView": "None",
+      "ConsumptionLimitation": {
+        "MaxXKWhPerY": null,
+        "MinXKWhPerY": 0
+      },
+      "TimePeriodDefinitions": {
+        "DayAndNight": {
+          "EN": "",
+          "FI": "",
+          "SV": "",
+          "Default": null
+        },
+        "WinterOtherSeasons": {
+          "EN": "",
+          "FI": "",
+          "SV": "",
+          "Default": null
+        }
+      },
+      "HasCustomPricingElement": false,
+      "AvailableForExistingUsers": true,
+      "DeliveryResponsibilityProduct": false
+    }
+  }
+}

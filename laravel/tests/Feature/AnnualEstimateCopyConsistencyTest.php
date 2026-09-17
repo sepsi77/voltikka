@@ -157,7 +157,7 @@ class AnnualEstimateCopyConsistencyTest extends TestCase
         }
 
         $band = ContractCardCopy::band(new PricingCategoryFacts(PricingCategory::Fixed), 'FixedTerm', 'Fixed12');
-        $this->assertSame('Energian hinta ei muutu', $band->headline);
+        $this->assertSame('Ennalta ilmoitettu energianhinta', $band->headline);
     }
 
     private function spotEstimate(string $confidence): array

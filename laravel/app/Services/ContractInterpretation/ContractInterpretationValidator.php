@@ -7,6 +7,8 @@ use RuntimeException;
 
 class ContractInterpretationValidator
 {
+    public function __construct(private readonly ?array $customSchema = null) {}
+
     /**
      * Per-kWh ceiling (c/kWh) separating a Spot supplier margin from a genuine all-in energy
      * price. Mirrors CanonicalContractPriceCalculator::SPOT_MARGIN_CEILING_CENTS.
@@ -18,11 +20,20 @@ class ContractInterpretationValidator
      * @param  array<string, mixed>  $input
      * @return list<string>
      */
-    public function validate(array $output, array $input): array
+    public function validate(array $output, array $input, ?ContractInterpretationProfile $profile = null): array
     {
-        $schema = $this->schema();
+        $profile ??= ContractInterpretationProfile::current();
+        try {
+            ContractInterpretationProfile::stored($profile->schemaVersion, $profile->promptVersion, $profile->validatorVersion);
+        } catch (\InvalidArgumentException) {
+            return ['Unsupported contract interpretation validator profile.'];
+        }
+        $schema = $this->schema($profile);
         $errors = [];
         $this->validateValue($output, $schema, '$', $schema, $errors);
+        if ($profile->schemaVersion === 'schema-v5' && $errors !== []) {
+            return $errors;
+        }
 
         if (($output['contract_id'] ?? null) !== ($input['contract_id'] ?? null)) {
             $errors[] = '$.contract_id must match the source contract ID.';
@@ -30,21 +41,43 @@ class ContractInterpretationValidator
 
         $this->validateEvidence($output, $input, '$', $errors);
         $this->validateClassificationConsistency($output, $input, $errors);
-        $this->validatePricing($output, $input, $errors);
+        $this->validatePricing($output, $input, $errors, $profile->schemaVersion === 'schema-v5');
         $this->validateStructuredOnlyConsistency($output, $input, $errors);
         $this->validateTemporalConsistency($output, $input, $errors);
         $this->validateMechanismConsistency($output, $input, $errors);
         $this->validateWarningConsistency($output, $errors);
+        if ($profile->schemaVersion === 'schema-v5') {
+            $errors = array_merge($errors, (new EnergyRuleSourceProof)->validate($output, $input, $this));
+        }
 
         return array_values(array_unique($errors));
     }
 
     /**
+     * Keep legacy partial publication output compatible, but never accept fields
+     * outside the stored schema. This is not source-proof validation for V5.
+     *
+     * @return list<string>
+     */
+    public function validatePublicationShape(array $output, ContractInterpretationProfile $profile): array
+    {
+        $schema = $this->schema($profile);
+        $errors = [];
+        $this->validateValue($output, $schema, '$', $schema, $errors);
+
+        return array_values(array_filter($errors, fn (string $error): bool => ! str_ends_with($error, ' is required.')));
+    }
+
+    /**
      * @return array<string, mixed>
      */
-    private function schema(): array
+    private function schema(ContractInterpretationProfile $profile): array
     {
-        $contents = file_get_contents((string) config('contract_interpretation.schema_path'));
+        if ($this->customSchema !== null) {
+            return $this->customSchema;
+        }
+
+        $contents = file_get_contents($profile->schemaPath);
         if ($contents === false) {
             throw new RuntimeException('Cannot read the contract interpretation schema.');
         }
@@ -190,7 +223,7 @@ class ContractInterpretationValidator
      * @param  array<string, mixed>  $input
      * @param  list<string>  $errors
      */
-    private function validatePricing(array $output, array $input, array &$errors): void
+    private function validatePricing(array $output, array $input, array &$errors, bool $withEnergyRules = false): void
     {
         $phases = $output['pricing']['phases'] ?? [];
         $interpretedTypes = [];
@@ -244,7 +277,7 @@ class ContractInterpretationValidator
             }
         }
 
-        $this->validateStructuredDiscountCoverage($output, $input, $errors);
+        $this->validateStructuredDiscountCoverage($output, $input, $errors, $withEnergyRules);
 
         $monthlyPackageFacts = $this->monthlyExcessPackageFacts($input);
         $isFlatPackageSource = $this->isFlatPackageSource($input);
@@ -461,7 +494,7 @@ class ContractInterpretationValidator
      * @param  array<string, mixed>  $input
      * @param  list<string>  $errors
      */
-    private function validateStructuredDiscountCoverage(array $output, array $input, array &$errors): void
+    private function validateStructuredDiscountCoverage(array $output, array $input, array &$errors, bool $withEnergyRules = false): void
     {
         $analysisDateValue = $input['analysis_date'] ?? null;
         $analysisDate = is_string($analysisDateValue) && $this->isDate($analysisDateValue)
@@ -508,11 +541,14 @@ class ContractInterpretationValidator
             $normalAmount = $sourceComponent['price'] ?? null;
             $discountValue = $sourceComponent['discount_value'] ?? null;
             $isPercentage = $sourceComponent['discount_is_percentage'] ?? null;
+            $energyDiscount = $withEnergyRules
+                && str_starts_with((string) $this->canonicalComponentTypeForSource($sourceComponent['price_component_type'] ?? null, $input['pricing_model'] ?? null), 'energy_');
             if (! is_numeric($normalAmount)
                 || ! is_numeric($discountValue)
                 || ! is_bool($isPercentage)
                 || (float) $normalAmount < 0
-                || (float) $discountValue <= 0) {
+                || ($energyDiscount ? (float) $discountValue < 0 : (float) $discountValue <= 0)
+                || ($energyDiscount && $isPercentage === true && (float) $discountValue > 100)) {
                 $errors[] = "components[{$componentIndex}] has an active structured discount whose amount cannot be represented safely.";
 
                 continue;

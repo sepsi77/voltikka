@@ -23,15 +23,17 @@ class ContractInterpretationAttemptRunner
         ?string $historicalAddendumPath = null,
         ?callable $additionalValidation = null,
         ?callable $afterAttempt = null,
+        ?ContractInterpretationProfile $profile = null,
     ): array {
-        $result = $historicalAddendumPath === null
-            ? $this->client->interpret($input)
-            : $this->client->interpret($input, $historicalAddendumPath);
+        $profile ??= $historicalAddendumPath === null
+            ? ContractInterpretationProfile::current()
+            : ContractInterpretationProfile::historical();
+        $result = $this->client->interpret($input, $historicalAddendumPath, $profile);
         $attempts = [];
         $maxRepairAttempts = min(2, max(0, (int) config('contract_interpretation.max_repair_attempts')));
 
         for ($attemptNumber = 0; $attemptNumber <= $maxRepairAttempts; $attemptNumber++) {
-            $errors = $this->validator->validate($result['output'], $input);
+            $errors = $this->validator->validate($result['output'], $input, $profile);
             if ($errors === [] && $additionalValidation !== null) {
                 $errors = $additionalValidation($result['output']);
             }
@@ -50,9 +52,7 @@ class ContractInterpretationAttemptRunner
                 ];
             }
 
-            $result = $historicalAddendumPath === null
-                ? $this->client->repair($input, $result['output'], $errors)
-                : $this->client->repair($input, $result['output'], $errors, $historicalAddendumPath);
+            $result = $this->client->repair($input, $result['output'], $errors, $historicalAddendumPath, $profile);
         }
 
         throw new \LogicException('The bounded interpretation attempt loop did not return.');

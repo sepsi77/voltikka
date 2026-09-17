@@ -45,6 +45,11 @@ readonly class ContractCardView
         public bool $exceedsConsumptionLimit,
         /** The seller link. Cards link to the detail page instead; the detail page uses this. */
         public ?CardSellerCta $sellerCta = null,
+        public bool $benefitIsEstimate = false,
+        public ?string $offerDescription = null,
+        public bool $normalPriceIsEstimated = false,
+        public ?string $promotionEndNotice = null,
+        public bool $suppressPriceChangeNotice = false,
     ) {}
 
     /**

@@ -1,0 +1,166 @@
+{
+  "contract_id": "sk027a-hehku-energia-oy-hehku-jatkuva",
+  "analysis_date": "2026-08-11",
+  "source_payload": {
+    "Id": "d1524e2f-14ec-44b7-844e-f653b886a5d1",
+    "Name": "Hehku JATKUVA ",
+    "Company": {
+      "Name": "Hehku Energia Oy",
+      "LogoURL": "https://evshv2prodsta1.blob.core.windows.net/companyimages1/d3de8d41-d781-4129-99fc-efc98a61b258_Hehku_logo_oranssi.png",
+      "CompanyUrl": "https://hehkuenergia.fi/",
+      "PostalCode": "00580",
+      "PostalName": "Helsinki",
+      "StreetAddress": "Verkkosaarenkatu 5"
+    },
+    "Details": {
+      "Pricing": {
+        "Id": "d1524e2f-14ec-44b7-844e-f653b886a5d1",
+        "Name": "Hehku JATKUVA ",
+        "Created": "2026-08-03T12:51:56.2876907",
+        "EndDate": null,
+        "Updated": "2026-08-03T12:53:11.9941729",
+        "StartDate": "2026-08-03T00:00:00",
+        "HasDiscount": true,
+        "PriceComponents": [
+          {
+            "Id": "00000000-0000-0000-0000-000000000000",
+            "Created": "0001-01-01T00:00:00",
+            "Updated": "0001-01-01T00:00:00",
+            "Discount": {
+              "NFirstKwh": 0,
+              "UntilDate": "0001-01-01T00:00:00",
+              "DiscountType": "NFirstMonth",
+              "IsPercentage": false,
+              "NfirstMonths": 1,
+              "DiscountValue": 4.9
+            },
+            "FuseSize": "Any",
+            "HasDiscount": true,
+            "PriceVersionId": "00000000-0000-0000-0000-000000000000",
+            "OriginalPayment": {
+              "Price": 4.9,
+              "PaymentUnit": "EurPerMonth"
+            },
+            "PriceComponentType": "Monthly"
+          },
+          {
+            "Id": "00000000-0000-0000-0000-000000000000",
+            "Created": "0001-01-01T00:00:00",
+            "Updated": "0001-01-01T00:00:00",
+            "Discount": {
+              "NFirstKwh": 0,
+              "UntilDate": "0001-01-01T00:00:00",
+              "DiscountType": "NoDiscount",
+              "IsPercentage": false,
+              "NfirstMonths": 0,
+              "DiscountValue": 0
+            },
+            "FuseSize": "Any",
+            "HasDiscount": false,
+            "PriceVersionId": "00000000-0000-0000-0000-000000000000",
+            "OriginalPayment": {
+              "Price": 10.49,
+              "PaymentUnit": "CentPerKiwattHour"
+            },
+            "PriceComponentType": "General"
+          }
+        ],
+        "ElectricitySupplyProductId": "d1524e2f-14ec-44b7-844e-f653b886a5d1"
+      },
+      "Metering": "General",
+      "OrderLink": "",
+      "PreBilling": false,
+      "ProductLink": "https://hehkuenergia.fi/tilauslomake/?p=jatkuva",
+      "SpotFutures": 5.602,
+      "TargetGroup": "Household",
+      "ContractType": "OpenEnded",
+      "PricingModel": "FixedPrice",
+      "FixedTimeRange": "Fixed12",
+      "MicroProduction": {
+        "Buys": true,
+        "Details": {
+          "EN": "Maksamme sähkön pientuotannostasi Nord Pool -sähköpörssin Suomen markkinan ajankohtaisen pörssihinnan (spot-hinta). Voit seurata hinnan kehitystä Nord Poolin sivuilla. Vähennämme hinnasta välityspalkkiomme (0,30 snt/kWh, alv. 0 %) ja siinä kaikki – ei perusmaksuja!\r\n<br>\r\n<br>\r\nLue lisää <a href=\"https://hehkuenergia.fi/aurinkosahkon-myynti/\">TÄÄLTÄ</a>\r\n",
+          "FI": "Maksamme sähkön pientuotannostasi Nord Pool -sähköpörssin Suomen markkinan ajankohtaisen pörssihinnan (spot-hinta). Voit seurata hinnan kehitystä Nord Poolin sivuilla. Vähennämme hinnasta välityspalkkiomme (0,30 snt/kWh, alv. 0 %) ja siinä kaikki – ei perusmaksuja!\r\n<br>\r\n<br>\r\nLue lisää <a href=\"https://hehkuenergia.fi/aurinkosahkon-myynti/\">TÄÄLTÄ</a>\r\n",
+          "SV": "Maksamme sähkön pientuotannostasi Nord Pool -sähköpörssin Suomen markkinan ajankohtaisen pörssihinnan (spot-hinta). Voit seurata hinnan kehitystä Nord Poolin sivuilla. Vähennämme hinnasta välityspalkkiomme (0,30 snt/kWh, alv. 0 %) ja siinä kaikki – ei perusmaksuja!\r\n<br>\r\n<br>\r\nLue lisää <a href=\"https://hehkuenergia.fi/aurinkosahkon-myynti/\">TÄÄLTÄ</a>\r\n",
+          "Default": null
+        }
+      },
+      "AvailabilityArea": {
+        "Dsos": [],
+        "IsNational": true,
+        "PostalCodes": []
+      },
+      "BillingFrequency": {
+        "EN": "1 kk",
+        "FI": "1 kk",
+        "SV": "1 kk",
+        "Default": null
+      },
+      "ExtraInformation": {
+        "EN": "Hehku Jatkuva on toistaiseksi voimassa oleva sähkösopimus, jossa sähkön hinta on vakaa. Käytä sähköä juuri silloin, kun sinulle parhaiten sopii – hinta on sama vuorokauden ympäri. Kampanjahinta 10,49 snt/kWh + perusmaksu 0 € ensimmäisen kuukauden ajan, tämän jälkeenkin vain 4,90€/kk.\r\n<br>\r\n<br>\r\nTilaa Hehku Jatkuva <a href=\"https://hehkuenergia.fi/tilauslomake/?p=jatkuva\">TÄÄLTÄ</a>\r\n<br>\r\n<br>\r\nJatkuvalla sopimuksella et sitoudu määräaikaisuuteen, vaan voit irtisanoa sopimuksen halutessasi kahden viikon irtisanomisajalla.\r\n<br>\r\n<br>\r\nTasainen hinta tuo ennakoitavuutta sähkölaskullesi. Hinta ei voi muuttua yllättäen, vaan ilmoitamme mahdollisista hinnanmuutoksista hyvissä ajoin 30 päivää etukäteen.\r\n<br>\r\n<br>\r\nSopimuksen kesto: Toistaiseksi voimassa",
+        "FI": "Hehku Jatkuva on toistaiseksi voimassa oleva sähkösopimus, jossa sähkön hinta on vakaa. Käytä sähköä juuri silloin, kun sinulle parhaiten sopii – hinta on sama vuorokauden ympäri. Kampanjahinta 10,49 snt/kWh + perusmaksu 0 € ensimmäisen kuukauden ajan, tämän jälkeenkin vain 4,90€/kk.\r\n<br>\r\n<br>\r\nTilaa Hehku Jatkuva <a href=\"https://hehkuenergia.fi/tilauslomake/?p=jatkuva\">TÄÄLTÄ</a>\r\n<br>\r\n<br>\r\nJatkuvalla sopimuksella et sitoudu määräaikaisuuteen, vaan voit irtisanoa sopimuksen halutessasi kahden viikon irtisanomisajalla.\r\n<br>\r\n<br>\r\nTasainen hinta tuo ennakoitavuutta sähkölaskullesi. Hinta ei voi muuttua yllättäen, vaan ilmoitamme mahdollisista hinnanmuutoksista hyvissä ajoin 30 päivää etukäteen.\r\n<br>\r\n<br>\r\nSopimuksen kesto: Toistaiseksi voimassa",
+        "SV": "Hehku Jatkuva on toistaiseksi voimassa oleva sähkösopimus, jossa sähkön hinta on vakaa. Käytä sähköä juuri silloin, kun sinulle parhaiten sopii – hinta on sama vuorokauden ympäri. Kampanjahinta 10,49 snt/kWh + perusmaksu 0 € ensimmäisen kuukauden ajan, tämän jälkeenkin vain 4,90€/kk.\r\n<br>\r\n<br>\r\nTilaa Hehku Jatkuva <a href=\"https://hehkuenergia.fi/tilauslomake/?p=jatkuva\">TÄÄLTÄ</a>\r\n<br>\r\n<br>\r\nJatkuvalla sopimuksella et sitoudu määräaikaisuuteen, vaan voit irtisanoa sopimuksen halutessasi kahden viikon irtisanomisajalla.\r\n<br>\r\n<br>\r\nTasainen hinta tuo ennakoitavuutta sähkölaskullesi. Hinta ei voi muuttua yllättäen, vaan ilmoitamme mahdollisista hinnanmuutoksista hyvissä ajoin 30 päivää etukäteen.\r\n<br>\r\n<br>\r\nSopimuksen kesto: Toistaiseksi voimassa",
+        "Default": null
+      },
+      "ElectricitySource": {
+        "Fossil": {
+          "Oil": 0,
+          "Coal": 0,
+          "Peat": 0,
+          "Total": 0,
+          "NaturalGas": 0
+        },
+        "Nuclear": {
+          "Total": 0,
+          "General": 0
+        },
+        "Renewable": {
+          "Wind": 0,
+          "Hydro": 0,
+          "Solar": 0,
+          "Total": 0,
+          "BioMass": 0,
+          "General": 0
+        }
+      },
+      "TransparencyIndex": {
+        "CompanyErrors": [],
+        "HasPreBilling": false,
+        "ProductErrors": [],
+        "TotalErrorCount": 0,
+        "UsingGeneralTerms": false,
+        "IsOpenEndedWarning": true,
+        "IsPermanentProduct": false,
+        "ProductHasHadErrors": false,
+        "IsBelowWholesalePrice": false,
+        "IsOnlyForNewCustomers": false,
+        "AvailableOnlyInSingleDso": false,
+        "CompanyHasOtherErroneousProducts": false
+      },
+      "ConsumptionControl": false,
+      "SpotPriceSelection": "NasdaqMonthly",
+      "EnergySourceIconView": "None",
+      "ConsumptionLimitation": {
+        "MaxXKWhPerY": null,
+        "MinXKWhPerY": 0
+      },
+      "TimePeriodDefinitions": {
+        "DayAndNight": {
+          "EN": "",
+          "FI": "",
+          "SV": "",
+          "Default": null
+        },
+        "WinterOtherSeasons": {
+          "EN": "",
+          "FI": "",
+          "SV": "",
+          "Default": null
+        }
+      },
+      "HasCustomPricingElement": false,
+      "AvailableForExistingUsers": true,
+      "DeliveryResponsibilityProduct": false
+    }
+  }
+}

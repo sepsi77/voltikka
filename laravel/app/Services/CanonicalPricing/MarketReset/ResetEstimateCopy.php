@@ -92,7 +92,8 @@ class ResetEstimateCopy
         // "Sähköfutuurit" never appears without the plain-language gloss.
         $basis = match ($reset['basis'] ?? null) {
             'forward_curve_shift' => self::forwardBasisPhrase($reset),
-            'spot_seasonal_index' => 'pörssisähkön usean vuoden kausivaihteluun, koska tukkumarkkinan ennakkohintoja ei ollut saatavilla',
+            'forward_premium' => 'nykyisiin sähköfutuureihin eli tukkumarkkinan ennakkohintoihin sekä vertailukelpoisista sopimuksista arvioituun vähittäishinnan lisään',
+            'spot_seasonal_index' => 'pörssisähkön usean vuoden kausivaihteluun, koska riittävää futuuri- ja vertailuhintatietoa ei ollut saatavilla',
             default => 'nykyisen hintajakson hintaan',
         };
 
@@ -117,6 +118,10 @@ class ResetEstimateCopy
     {
         $tradeDate = self::dayLabel($reset['curve_trade_date'] ?? null);
 
+        if (($reset['basis'] ?? null) === 'forward_premium') {
+            return 'joka perustuu nykyisiin sähköfutuureihin ja vertailukelpoisista sopimuksista arvioituun vähittäishinnan lisään';
+        }
+
         if (($reset['basis'] ?? null) === 'forward_curve_shift') {
             $phrase = 'joka seuraa sähkön futuurihintojen kausivaihtelua';
 
@@ -124,7 +129,7 @@ class ResetEstimateCopy
         }
 
         if (($reset['basis'] ?? null) === 'spot_seasonal_index') {
-            return 'joka seuraa pörssisähkön usean vuoden kausivaihtelua (futuurihintoja ei ollut saatavilla)';
+            return 'joka seuraa pörssisähkön usean vuoden kausivaihtelua (riittävää futuuri- ja vertailuhintatietoa ei ollut saatavilla)';
         }
 
         return 'joka perustuu nykyisen jakson hintaan';

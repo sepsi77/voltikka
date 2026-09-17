@@ -6,6 +6,7 @@ use App\Enums\PricingModel;
 use App\Services\CanonicalPricing\CanonicalContractPriceCalculator;
 use App\Services\CanonicalPricing\DTO\ContractContext;
 use App\Services\CanonicalPricing\DTO\SpotAssumptions;
+use App\Services\CanonicalPricing\Enums\ComparisonPolicy;
 use App\Services\CanonicalPricing\Enums\EstimateMethod;
 use App\Services\CanonicalPricing\SpotForward\DTO\SpotEstimate;
 use App\Services\CanonicalPricing\SpotForward\SpotForwardPriceEstimator;
@@ -16,6 +17,7 @@ use App\Services\ContractStatistics\DTO\AsOfAnnualCostResult;
 use App\Services\ContractStatistics\DTO\AsOfSpotAssumptionsResult;
 use App\Services\ContractStatistics\Enums\AnnualCostCalculationBasis;
 use App\Services\ContractStatistics\Enums\AnnualCostMethodVersion;
+use App\Services\DTO\ContractPricingResult;
 use App\Services\DTO\EnergyUsage;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -60,7 +62,7 @@ class AsOfAnnualCostCalculator
         $spotResult = $this->spotAssumptionsProvider->resolve($target);
         $needsSpotEstimate = collect($evidence)->contains(function (AsOfAnnualCostEvidence $item): bool {
             return $item->canonicalData !== null
-                ? $this->canonicalCalculator->usesSpotPricing($item->canonicalData, $this->context($item))
+                ? $this->canonicalCalculator->usesSpotPricing($item->canonicalData, $this->context($item), policy: ComparisonPolicy::Historical)
                 : PricingModel::fromSource($item->pricingModel) === PricingModel::Spot;
         });
         $spot = $spotResult->assumptions ?? new SpotAssumptions(
@@ -82,6 +84,7 @@ class AsOfAnnualCostCalculator
                 $item->contractId,
                 $item->canonicalData,
                 $this->context($item),
+                policy: ComparisonPolicy::Historical,
             );
             if ($candidate !== null) {
                 $candidates[$item->contractId] = $candidate;
@@ -129,7 +132,7 @@ class AsOfAnnualCostCalculator
     ): AsOfAnnualCostResult {
         $canonical = $evidence->canonicalData !== null;
         $usesSpot = $canonical
-            ? $this->canonicalCalculator->usesSpotPricing($evidence->canonicalData, $this->context($evidence))
+            ? $this->canonicalCalculator->usesSpotPricing($evidence->canonicalData, $this->context($evidence), policy: ComparisonPolicy::Historical)
             : PricingModel::fromSource($evidence->pricingModel) === PricingModel::Spot;
         $recurringHold = $methodVersion === AnnualCostMethodVersion::AsOf
             && $canonical
@@ -254,6 +257,7 @@ class AsOfAnnualCostCalculator
                 $evidence->date,
                 $anchor,
                 $usesSpot ? $spotEstimate : null,
+                policy: ComparisonPolicy::Historical,
             );
             $estimateBasis = $this->canonicalEstimateBasis($outcome->supplierAdjustedEstimate, $outcome->spotEstimate, $outcome->resetEstimate);
             $outcomeFlags = [
@@ -363,7 +367,7 @@ class AsOfAnnualCostCalculator
         int $consumption,
         ?SpotEstimate $spotEstimate,
         AnnualCostMethodVersion $methodVersion = AnnualCostMethodVersion::AsOf,
-    ): \App\Services\DTO\ContractPricingResult {
+    ): ContractPricingResult {
         $isSpot = PricingModel::fromSource($evidence->pricingModel) === PricingModel::Spot;
 
         $calculator = $methodVersion === AnnualCostMethodVersion::AsOfV2

@@ -932,7 +932,7 @@ class ContractTypeComparison extends Component
 
     protected function totalBasisLabel(CanonicalPricingOutcome $outcome): string
     {
-        return $outcome->comparability === ContractComparability::TermPriceOnly
+        return $outcome->contractTermTotalCost !== null && $outcome->termMonths > 0 && $outcome->termMonths < 12
             ? 'Vuositasolle muunnettu '.$outcome->termMonths.' kk vertailuhinta'
             : '12 kuukauden vertailuhinta';
     }

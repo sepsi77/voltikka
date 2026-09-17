@@ -60,6 +60,7 @@ readonly class CanonicalPricingOutcome
         public ?array $supplierAdjustedEstimate = null,
         public ?array $spotEstimate = null,
         public ?string $vatBasis = null,
+        public ?EnergyRuleComparison $energyRuleComparison = null,
     ) {}
 
     public function isListed(): bool
@@ -87,7 +88,9 @@ readonly class CanonicalPricingOutcome
      */
     public function toCalculatedCostArray(): array
     {
-        $savings = $this->discountSavingsTotal();
+        $comparison = $this->energyRuleComparison;
+        $savings = $comparison === null ? $this->discountSavingsTotal() : $comparison->netDifference;
+        $benefitEligible = $comparison === null ? $savings > 0 : ($comparison->normalAvailable && $savings > 0 && $this->offerTerms !== []);
 
         return [
             // Legacy keys consumed by cards/detail/rankings.
@@ -108,8 +111,9 @@ readonly class CanonicalPricingOutcome
             'base_avg_monthly_cost' => $this->baseTotalCost !== null ? $this->baseTotalCost / 12 : null,
             'base_monthly_costs' => $this->baseMonthlyCosts,
             'discount_savings_total' => $savings,
-            'monthly_discount_savings' => $this->monthlyDiscountSavings,
-            'includes_discounts' => $savings > 0,
+            'monthly_discount_savings' => $comparison === null ? $this->monthlyDiscountSavings : $comparison->signedMonthlyDifferences,
+            'includes_discounts' => $benefitEligible,
+            'energy_rule_comparison' => $comparison?->toArray(),
 
             // Canonical additions.
             'pricing_basis' => 'canonical',
@@ -121,8 +125,6 @@ readonly class CanonicalPricingOutcome
             'energy_package' => $this->energyPackage?->toArray(),
             'contract_term' => $this->termMonths !== null
                 && $this->contractTermTotalCost !== null
-                && $this->contractTermBaseTotalCost !== null
-                && $this->contractTermDiscountSavingsTotal !== null
                     ? [
                         'months' => $this->termMonths,
                         'total_cost' => $this->contractTermTotalCost,

@@ -5,7 +5,6 @@ namespace App\Console\Commands;
 use App\Jobs\AnalyzeHistoricalContractEpisode;
 use App\Models\ContractHistoricalInterpretation;
 use App\Models\ContractHistoricalInterpretationEpisode;
-use App\Services\CanonicalPricing\CanonicalPricingParser;
 use App\Services\ContractInterpretation\HistoricalContractEpisodeBuilder;
 use App\Services\ContractInterpretation\HistoricalInterpretationFingerprint;
 use Carbon\CarbonImmutable;
@@ -221,11 +220,11 @@ class BackfillHistoricalContractInterpretations extends Command
                             'contract_id' => $episodePlan['contract_id'],
                             'analysis_fingerprint' => $episodePlan['analysis_fingerprint'],
                             'status' => ContractHistoricalInterpretation::STATUS_PENDING,
-                            'schema_version' => config('contract_interpretation.schema_version'),
-                            'prompt_version' => config('contract_interpretation.prompt_version'),
+                            'schema_version' => config('contract_interpretation.historical.schema_version'),
+                            'prompt_version' => config('contract_interpretation.historical.prompt_version'),
                             'historical_addendum_version' => config('contract_interpretation.historical.addendum_version'),
-                            'validator_version' => config('contract_interpretation.validator_version'),
-                            'parser_version' => CanonicalPricingParser::VERSION,
+                            'validator_version' => config('contract_interpretation.historical.validator_version'),
+                            'parser_version' => config('contract_interpretation.historical.parser_version'),
                             'provider' => config('contract_interpretation.provider'),
                             'model' => config('contract_interpretation.model'),
                             'reasoning_effort' => config('contract_interpretation.reasoning_effort'),

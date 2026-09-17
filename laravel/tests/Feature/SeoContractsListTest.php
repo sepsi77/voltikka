@@ -78,9 +78,9 @@ class SeoContractsListTest extends TestCase
             'pricing_model' => $pricingModel,
             'target_group' => $targetGroup,
             'availability_is_national' => true,
-            // Canonical calculation status drives the fully-fixed (kiintea-hinta) filter. Default to
-            // a realistic value per model: FixedPrice → exact (fully fixed), Spot → estimate_required,
-            // Hybrid → unsupported. A market-reset FixedPrice passes $canonicalStatus/$recurringReset.
+            // The SEO filter retains its exact-calculation constraint, not a price guarantee.
+            // Spot defaults to estimate_required and Hybrid to unsupported. A market-reset
+            // FixedPrice passes $canonicalStatus/$recurringReset.
             'canonical_calculation' => [
                 'status' => $canonicalStatus ?? match ($pricingModel) {
                     'Spot' => 'estimate_required',
@@ -131,6 +131,91 @@ class SeoContractsListTest extends TestCase
         ActiveContract::create(['id' => $id]);
 
         return $contract;
+    }
+
+    public function test_public_fixed_price_copy_allows_open_ended_and_known_phased_six_month_prices(): void
+    {
+        $this->travelTo('2026-08-01 12:00:00');
+        config()->set('canonical_pricing.enabled', true);
+
+        foreach (['open-ended', 'phased-six'] as $id) {
+            $contract = $this->createContract($id, 'Test Energia Oy', $id);
+            $pricing = $contract->canonical_pricing;
+            $pricing['phases'] = $id === 'phased-six'
+                ? [$this->seoPricePhase(6, 0, 3), $this->seoPricePhase(8, 3, 6)]
+                : [$this->seoPricePhase(9, 0, null)];
+            $contract->update([
+                'contract_type' => $id === 'phased-six' ? 'FixedTerm' : 'OpenEnded',
+                'fixed_time_range' => $id === 'phased-six' ? 'Fixed6' : null,
+                'canonical_pricing' => $pricing,
+                'canonical_source_consistency' => ['structured_pricing_status' => 'complete', 'issue_codes' => []],
+            ]);
+        }
+
+        foreach (['FixedPrice', 'GeneralElectricity'] as $type) {
+            $component = Livewire::test('seo-contracts-list', ['pricingType' => $type]);
+            $contracts = $component->viewData('contracts')->keyBy('id');
+            $this->assertCount(2, $contracts);
+            $this->assertSame(6, $contracts['phased-six']->calculated_cost['term_months']);
+            $this->assertGreaterThan(0, $contracts['phased-six']->calculated_cost['total_cost']);
+            $component->assertDontSee('täydellä varmuudella')
+                ->assertDontSee('täysi varmuus')
+                ->assertDontSee('eikä muutu')
+                ->assertDontSee('Täysin kiinteähintaiset');
+            $intro = $component->viewData('seoIntroText');
+            $this->assertStringContainsString('myyjä', $intro);
+            $this->assertStringContainsString('hintajakso', $intro);
+            if ($type === 'FixedPrice') {
+                $this->assertStringContainsString('ei lupaus laskun loppusummasta', $intro);
+                $this->assertStringContainsString('Vertaa kiinteähintaisia', $component->viewData('seoData')['title']);
+                $this->assertStringContainsString('hinnanmuutosehdot', $component->viewData('seoData')['description']);
+            } else {
+                $this->assertStringContainsString('kaikkia vuorokaudenaikoja', $intro);
+                $this->assertStringContainsString('ei takaa samaa hintaa koko vuodeksi', $intro);
+            }
+        }
+    }
+
+    public function test_offer_intro_distinguishes_real_term_annualization_only_in_canonical_mode(): void
+    {
+        foreach ([false, true] as $canonical) {
+            config()->set('canonical_pricing.enabled', $canonical);
+            app()->forgetScopedInstances();
+            $component = Livewire::test('seo-contracts-list', ['offerType' => 'promotion']);
+            $intro = $component->viewData('seoIntroText');
+            $this->assertStringNotContainsString('12 kuukauden kokonaiskustannuksen', $intro);
+            if ($canonical) {
+                $this->assertStringContainsString('vuositasolle muunnetun vertailuhinnan', $intro);
+                $this->assertStringContainsString('todelliseen sopimuskauteen, ei 12 kuukauden laskuun', $intro);
+                $this->assertStringContainsString('myös säästö on arvio eikä taattu etu', $intro);
+            } else {
+                $this->assertStringContainsString('arvioidun vuosikustannuksen', $intro);
+                $this->assertStringNotContainsString('todelliseen sopimuskauteen', $intro);
+            }
+            $this->assertStringEndsWith('/sahkosopimus/sahkotarjous', $component->viewData('seoData')['canonical']);
+        }
+    }
+
+    private function seoPricePhase(float $amount, int $start, ?int $end): array
+    {
+        return [
+            'label' => 'Known price',
+            'phase_kind' => 'normal',
+            'starts' => ['kind' => $start === 0 ? 'contract_start' : 'after_months', 'value' => $start === 0 ? null : (string) $start],
+            'ends' => ['kind' => $end === null ? 'none' : 'after_months', 'value' => $end === null ? null : (string) $end],
+            'components' => [[
+                'component_type' => 'energy_general',
+                'amount' => $amount,
+                'normal_amount' => null,
+                'unit' => 'cents_per_kwh',
+                'vat_status' => 'included',
+                'price_role' => 'current',
+                'source_kind' => 'both',
+                'evidence' => [],
+            ]],
+            'package' => null,
+            'evidence' => [],
+        ];
     }
 
     // ==================== Component Initialization Tests ====================
@@ -766,7 +851,7 @@ class SeoContractsListTest extends TestCase
         $this->createContract('fixed-1', 'Test Energia Oy', 'Kiinteä Sopimus', 5.0, 3.0, null, 'FixedPrice');
 
         Livewire::test('seo-contracts-list', ['pricingType' => 'FixedPrice'])
-            ->assertSee('Täysin kiinteähintaiset sähkösopimukset');
+            ->assertSee('Kiinteähintaiset sähkösopimukset');
     }
 
     // ==================== Consumption Effect (Kulutusvaikutus) Pricing Type Tests ====================

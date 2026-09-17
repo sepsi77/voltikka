@@ -340,23 +340,15 @@ class SeoContractsList extends ContractsList
             if ($pipeline->applySharedPricingTypeConstraint($query, $effectivePricingFilter)) {
                 // The shared pipeline owns Quarterly, TimeOfUse, and Seasonal.
             } elseif ($effectivePricingFilter === 'FixedPrice') {
-                // Fully fixed price only. pricing_model=FixedPrice is NOT sufficient: Kvartaalisähkö
-                // and monthly market-price ("markkinahintasähkö") products are FixedPrice in the
-                // source enum but reset from the market quarterly/monthly (canonical
-                // periodic_market_reset / recurring schedule) and are costed as estimates. A
-                // genuinely fully-fixed contract has every first-12-month energy price known and
-                // unchanging, which the interpretation marks as canonical_calculation.status='exact'
-                // (spot and reset products are always estimate_required, hybrids unsupported). This
-                // page promises full certainty, so restrict to exact FixedPrice.
-                // The shared category scope already excludes market resets (they are the
-                // Markkinahinta category); `status = exact` additionally drops fixed contracts
-                // whose first year is not fully priced, which this page's copy promises.
+                // Keep the existing Fixed category and exact-calculation constraint.
+                // Exact arithmetic does not prove an unchanged whole-term energy price:
+                // disclosed phases and adjustable OpenEnded tariffs can still qualify.
                 PricingCategoryResolver::scopeCategory($query, PricingCategory::Fixed);
                 $query->where('pricing_model', 'FixedPrice')
                     ->where('canonical_calculation->status', 'exact');
             } elseif ($effectivePricingFilter === 'GeneralElectricity') {
-                // Yleissähkö: fully-fixed single-tariff (General) contracts. Same fully-fixed rule
-                // as FixedPrice so a General-metered market reset cannot appear here either.
+                // General metering adds one clock-time tariff to the same category/status rule.
+                // It does not establish a whole-year price guarantee.
                 PricingCategoryResolver::scopeCategory($query, PricingCategory::Fixed);
                 $query->where('pricing_model', 'FixedPrice')
                     ->where('metering', 'General')
@@ -618,7 +610,7 @@ class SeoContractsList extends ContractsList
             // SEO-optimized titles for each pricing type (focus on comparison)
             $baseTitle = match ($this->pricingType) {
                 'Spot' => 'Vertaa pörssisähkösopimuksia',
-                'FixedPrice' => 'Vertaa täysin kiinteähintaisia sähkösopimuksia',
+                'FixedPrice' => 'Vertaa kiinteähintaisia sähkösopimuksia',
                 'Quarterly' => 'Vertaa kvartaalisähkösopimuksia',
                 'TimeOfUse' => 'Vertaa aikasähkösopimuksia',
                 'Seasonal' => 'Vertaa kausisähkösopimuksia',
@@ -670,7 +662,7 @@ class SeoContractsList extends ContractsList
         }
 
         if ($this->offerType === 'promotion') {
-            return 'Löydä parhaat sähkötarjoukset ja alennukset. Vertaile kampanjahintaisia sähkösopimuksia ja säästä sähkölaskussa.';
+            return 'Vertaile sähkötarjouksia ja kampanjahintaisia sähkösopimuksia. Katso vertailuhinnat, tarjousten kestot ja sopimusehdot.';
         }
 
         if ($this->housingType && isset($this->housingTypeNames[$this->housingType])) {
@@ -706,7 +698,7 @@ class SeoContractsList extends ContractsList
                 return 'Vertaile pörssisähkösopimuksia. Pörssisähkö seuraa tuntikohtaista sähkön pörssihintaa. Löydä paras pörssisähkösopimus.';
             }
             if ($this->pricingType === 'FixedPrice') {
-                return 'Vertaile täysin kiinteähintaisia sähkösopimuksia, joissa energian kWh-hinta on lukittu eikä muutu. Ei pörssi- tai markkinahintaseurantaa eikä kulutusvaikutusta – täysi varmuus hinnasta.';
+                return 'Vertaile kiinteähintaisia sähkösopimuksia ilman pörssihinnan seurantaa tai kulutusvaikutusta. Tarkista hintajaksot ja hinnanmuutosehdot.';
             }
             if ($this->pricingType === 'Quarterly') {
                 return 'Vertaile kvartaalisähkösopimuksia. Kvartaalisähkössä hinta päivittyy neljä kertaa vuodessa. Löydä paras kvartaalisähkösopimus kotitalouksille.';
@@ -964,7 +956,7 @@ class SeoContractsList extends ContractsList
         }
 
         if ($this->pricingType === 'FixedPrice') {
-            return 'Täysin kiinteähintaiset sähkösopimukset';
+            return 'Kiinteähintaiset sähkösopimukset';
         }
 
         if ($this->pricingType === 'GeneralElectricity') {
@@ -1016,7 +1008,11 @@ class SeoContractsList extends ContractsList
         }
 
         if ($this->offerType === 'promotion') {
-            return 'Tällä sivulla näkyvät sähkösopimukset, joissa on voimassa oleva tarjous — esimerkiksi alennettu perusmaksu ensimmäisille kuukausille tai alennettu energiahinta. Tarjoukset on järjestetty arvioidun 12 kuukauden kokonaiskustannuksen mukaan, sama laskentatapa kaikille yhtiöille, ja vuosihinta sisältää tarjouksen vaikutuksen. Sopimustiedot päivittyvät päivittäin.';
+            if (app(CanonicalContractPricingService::class)->enabled()) {
+                return 'Vertaile sähkötarjouksia vuositasolle muunnetun vertailuhinnan mukaan. Lyhyen määräaikaisen sopimuksen vertailuhinta perustuu sen todelliseen sopimuskauteen, ei 12 kuukauden laskuun. Tarjouksen vaikutus sisältyy vertailuhintaan. Jos normaalihinta on arvio, myös säästö on arvio eikä taattu etu. Tarkista tarjouksen kesto ja ehdot.';
+            }
+
+            return 'Vertaile sähkötarjouksia arvioidun vuosikustannuksen mukaan. Tarjouksen vaikutus sisältyy arvioon. Tarkista tarjouksen kesto ja ehdot.';
         }
 
         if ($this->housingType && isset($this->housingTypeNames[$this->housingType])) {
@@ -1103,13 +1099,13 @@ class SeoContractsList extends ContractsList
     {
         return match ($pricingType) {
             'Spot' => 'Pörssisähkösopimuksessa sähkön hinta vaihtelee tunneittain Nord Pool -sähköpörssin hinnan mukaan. Pörssisähkö voi olla edullinen vaihtoehto, jos pystyt ajoittamaan kulutustasi edullisempiin tunteihin. Vertaile pörssisähkösopimuksia ja löydä sopimus, jossa marginaali ja kuukausimaksu sopivat sinulle.',
-            'FixedPrice' => 'Täysin kiinteähintaisessa sähkösopimuksessa energian kWh-hinta on lukittu eikä muutu sopimuksen aikana. Hinta ei seuraa pörssisähkön tuntihintaa eikä päivity kvartaaleittain tai kuukausittain markkinahinnan mukaan. Näillä sopimuksilla ei myöskään ole kulutusvaikutusta, joten hinta ei riipu kulutuksesi määrästä tai ajoituksesta. Tiedät sähköenergian hinnan etukäteen täydellä varmuudella. Vertaile täysin kiinteähintaisia sopimuksia suoraan kWh-hinnan ja kuukausimaksun perusteella.',
+            'FixedPrice' => 'Näiden sopimusten energiahinta ei seuraa pörssin tuntihintaa tai jaksoittain markkinahintaa, eikä siihen lisätä kulutusvaikutusta. Määräaikaisen sopimuksen hinnat koskevat sovittua kautta, ja hinta voi vaihtua ennalta ilmoitettujen hintajaksojen välillä. Toistaiseksi voimassa olevan sopimuksen hintaa myyjä voi muuttaa ilmoittamalla ehtojen mukaisesti. Vuosihinta on vertailuluku, ei lupaus laskun loppusummasta. Tarkista hintajaksot, kuukausimaksu ja hinnanmuutosehdot.',
             'Quarterly' => 'Kvartaalisähkösopimuksessa sähkön hinta päivittyy neljännesvuosittain eli neljä kertaa vuodessa. Kvartaalisähkö tarjoaa kompromissin kiinteän hinnan ennustettavuuden ja pörssisähkön markkinahinnan välillä. Hinta seuraa markkinoiden kehitystä maltillisesti ilman tuntikohtaista vaihtelua.',
             'TimeOfUse' => 'Aikasähkösopimuksessa sähkön hinta vaihtelee vuorokaudenajan mukaan. Yöllä (22-07) sähkö on edullisempaa kuin päivällä. Aikasähkö sopii erityisesti niille, jotka voivat ajoittaa suurimmat kulutuspiikkinsä yöaikaan, esimerkiksi lämminvesivaraajan tai sähköauton latauksen.',
             'Seasonal' => 'Kausisähkösopimuksessa sähkön hinta vaihtelee vuodenajan mukaan. Talvikuukausina (marras-maaliskuu) hinta on korkeampi, muulloin edullisempi. Kausisähkö heijastaa sähkön tuotantokustannusten kausivaihtelua ja sopii niille, jotka haluavat ennustettavuutta ilman tuntikohtaista vaihtelua.',
             'Hybrid' => 'Joustosähkö eli hybridisähkö yhdistää kiinteähintaisen sähkösopimuksen ennustettavuuden ja pörssisähkön edut. Joustosähkösopimuksessa osa hinnasta on kiinteä ja osa seuraa sähkön markkinahintaa. Tämä tarjoaa suojaa suurilta hintapiikeiltä, mutta mahdollistaa säästöt sähkön ollessa edullista. Vertaile hybridisähkösopimuksia ja löydä sopimus, joka sopii kulutukseesi.',
-            'GeneralElectricity' => 'Yleissähkö eli perussähkö on yleisin sähkösopimustyyppi, jossa maksat saman kiinteän hinnan kilowattitunnilta vuorokauden ympäri. Yleissähkösopimus on yksinkertainen ja helppo ymmärtää – hinta ei vaihtele kellonajan tai vuodenajan mukaan. Yleissähkö sopii erityisesti kotitalouksille, joiden sähkönkulutus jakautuu tasaisesti koko vuorokaudelle. Vertaile yleissähkösopimuksia ja löydä edullisin kiinteähintainen sähkösopimus.',
-            'ConsumptionEffect' => 'Kulutusvaikutuksellisessa sähkösopimuksessa energian perushinta on kiinteä, mutta lopulliseen hintaan lisätään pieni kulutusvaikutus sen mukaan, miten oma kulutuksesi ajoittuu pörssisähkön hintoihin nähden. Jos kulutuksesi painottuu kalliisiin tunteihin, hinta nousee hieman; jos edullisiin, se laskee. Vaikutus on tyypillisesti muutaman sentin luokkaa kilowattitunnilta. Sopimustyyppi on kevyt yhdistelmä kiinteää hintaa ja pörssisähköä: ennustettavampi kuin pörssisähkö mutta ei täysin kiinteä. Sähköyhtiöt eivät useinkaan ilmoita kulutusvaikutuksen tarkkaa suuruutta etukäteen, koska se lasketaan toteutuneesta kulutuksestasi, joten Voltikka vertailee näitä sopimuksia perushinnan ja kuukausimaksun perusteella. Jos haluat täysin varman hinnan ilman kulutusvaikutusta, vertaile kiinteähintaisia sähkösopimuksia.',
+            'GeneralElectricity' => 'Yleissähkössä sama kilowattituntihinta koskee kaikkia vuorokaudenaikoja: erillistä päivä- ja yöhintaa ei ole. Tämä ei takaa samaa hintaa koko vuodeksi. Hinta voi vaihtua sovitun hintajakson päättyessä tai toistaiseksi voimassa olevassa sopimuksessa myyjän ilmoituksella ehtojen mukaisesti. Vertaile yleissähkösopimusten hintoja, kuukausimaksuja ja ehtoja.',
+            'ConsumptionEffect' => 'Kulutusvaikutuksellisessa sähkösopimuksessa energian perushinta on kiinteä, mutta lopulliseen hintaan lisätään pieni kulutusvaikutus sen mukaan, miten oma kulutuksesi ajoittuu pörssisähkön hintoihin nähden. Jos kulutuksesi painottuu kalliisiin tunteihin, hinta nousee hieman; jos edullisiin, se laskee. Vaikutus on tyypillisesti muutaman sentin luokkaa kilowattitunnilta. Sopimustyyppi on kevyt yhdistelmä kiinteää hintaa ja pörssisähköä: ennustettavampi kuin pörssisähkö mutta ei täysin kiinteä. Sähköyhtiöt eivät useinkaan ilmoita kulutusvaikutuksen tarkkaa suuruutta etukäteen, koska se lasketaan toteutuneesta kulutuksestasi, joten Voltikka vertailee näitä sopimuksia perushinnan ja kuukausimaksun perusteella. Jos haluat sopimuksen ilman kulutusvaikutusta, vertaile kiinteähintaisia sähkösopimuksia ja tarkista niiden hinnanmuutosehdot.',
             default => 'Vertaile sähkösopimuksia ja löydä edullisin vaihtoehto.',
         };
     }

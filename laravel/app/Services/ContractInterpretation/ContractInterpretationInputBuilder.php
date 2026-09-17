@@ -40,7 +40,10 @@ class ContractInterpretationInputBuilder
     public function build(
         ContractSourceSnapshot $snapshot,
         CarbonInterface|string|null $analysisDate = null,
+        ?ContractInterpretationProfile $profile = null,
     ): array {
+        $profile ??= ContractInterpretationProfile::current();
+        ContractInterpretationProfile::stored($profile->schemaVersion, $profile->promptVersion, $profile->validatorVersion);
         $source = $snapshot->source_payload;
         $analysisDate = $analysisDate instanceof CarbonInterface
             ? $analysisDate

@@ -398,29 +398,11 @@ class ElectricityContract extends Model
      */
     public function getReplacementChainBackward(): Collection
     {
-        $results = collect();
-        $frontier = collect([$this->id]);
-        $seen = [];
+        $ids = $this->getReplacementLineageIds()
+            ->reject(fn (string $id) => $id === (string) $this->id);
+        $contracts = self::query()->whereIn('id', $ids)->get()->keyBy('id');
 
-        while ($frontier->isNotEmpty()) {
-            $predecessors = self::query()
-                ->whereIn('replaced_by_contract_id', $frontier->all())
-                ->get();
-
-            $frontier = collect();
-
-            foreach ($predecessors as $current) {
-                if (isset($seen[$current->id])) {
-                    continue;
-                }
-
-                $seen[$current->id] = true;
-                $results->push($current);
-                $frontier->push($current->id);
-            }
-        }
-
-        return $results;
+        return $ids->map(fn (string $id) => $contracts->get($id))->filter()->values();
     }
 
     /**
@@ -433,27 +415,76 @@ class ElectricityContract extends Model
      */
     public function getReplacementLineageIds(): Collection
     {
-        $rows = DB::select(<<<'SQL'
-            WITH RECURSIVE replacement_lineage(id) AS (
-                SELECT id
+        return self::getReplacementLineageIdsByContractIds([(string) $this->id])[$this->id];
+    }
+
+    /**
+     * Resolve predecessor membership for all supplied roots in one query.
+     * Existing roots include themselves; missing roots have empty collections.
+     * Membership order is unspecified. Numeric string keys follow PHP array rules.
+     *
+     * @param  array<array-key, string>  $contractIds
+     * @return array<array-key, Collection<int, string>> Keyed by requested contract ID.
+     */
+    public static function getReplacementLineageIdsByContractIds(array $contractIds): array
+    {
+        $contractIds = array_values(array_unique($contractIds));
+        $lineages = [];
+        foreach ($contractIds as $id) {
+            $lineages[$id] = collect();
+        }
+
+        if ($contractIds === []) {
+            return $lineages;
+        }
+
+        $placeholders = implode(', ', array_fill(0, count($contractIds), '?'));
+        $rows = DB::select(<<<SQL
+            WITH RECURSIVE replacement_lineage(root_id, id) AS (
+                SELECT id AS root_id, id
                 FROM electricity_contracts
-                WHERE id = ?
+                WHERE id IN ({$placeholders})
 
                 UNION
 
-                SELECT contracts.id
+                SELECT lineage.root_id, contracts.id
                 FROM electricity_contracts AS contracts
                 INNER JOIN replacement_lineage AS lineage
                     ON contracts.replaced_by_contract_id = lineage.id
             )
-            SELECT id
+            SELECT root_id, id
             FROM replacement_lineage
-            SQL, [$this->id]);
+            SQL, $contractIds);
 
-        return collect($rows)
-            ->pluck('id')
-            ->map(fn ($id) => (string) $id)
-            ->values();
+        foreach ($rows as $row) {
+            $lineages[(string) $row->root_id]->push((string) $row->id);
+        }
+
+        return $lineages;
+    }
+
+    /** @return array<array-key, array{key: string, contract_ids: list<string>, root_ids: list<string>}> */
+    public static function getLineageIdentitiesByContractIds(array $contractIds): array
+    {
+        $lineages = self::getReplacementLineageIdsByContractIds($contractIds);
+        if ($lineages === []) {
+            return [];
+        }
+        $members = collect($lineages)->flatten()->unique()->all();
+        $edges = self::query()->whereIn('id', $members)->pluck('replaced_by_contract_id', 'id');
+        $result = [];
+        foreach ($lineages as $id => $lineage) {
+            $lineage = $lineage->sort()->values();
+            $targets = $lineage->map(fn ($member) => $edges->get($member))
+                ->filter(fn ($target) => $target !== null)->map(fn ($target) => (string) $target)->all();
+            $roots = $lineage->reject(fn ($member) => in_array($member, $targets, true))->values();
+            if ($roots->isEmpty()) {
+                $roots = $lineage;
+            }
+            $result[$id] = ['key' => hash('sha256', $roots->implode('|')), 'contract_ids' => $lineage->all(), 'root_ids' => $roots->all()];
+        }
+
+        return $result;
     }
 
     /**
@@ -580,7 +611,7 @@ class ElectricityContract extends Model
             ->selectRaw('ROW_NUMBER() OVER (PARTITION BY electricity_contract_id, price_component_type ORDER BY CASE WHEN price > 0 THEN 1 ELSE 0 END DESC, price_date DESC) as component_rank')
             ->whereIn('electricity_contract_id', $ids);
 
-        $rows = \Illuminate\Support\Facades\DB::query()
+        $rows = DB::query()
             ->fromSub($ranked, 'ranked_price_components')
             ->where('component_rank', 1)
             ->get();
@@ -626,7 +657,7 @@ class ElectricityContract extends Model
     /**
      * Normalize a price-component collection for ContractPriceCalculator.
      *
-     * @param  \Illuminate\Support\Collection<int, PriceComponent>  $priceComponents
+     * @param  Collection<int, PriceComponent>  $priceComponents
      * @return array<int, array<string, mixed>>
      */
     private static function normalizePriceComponentsForCalculation(Collection $priceComponents): array
@@ -689,7 +720,7 @@ class ElectricityContract extends Model
      *
      * Returns an array with discount details or null if no active discount exists.
      *
-     * @return array{value: float|null, is_percentage: bool|null, n_first_months: int|null, until_date: \Carbon\Carbon|null, price_component_type: string|null, payment_unit: string|null}|null
+     * @return array{value: float|null, is_percentage: bool|null, n_first_months: int|null, until_date: Carbon|null, price_component_type: string|null, payment_unit: string|null}|null
      */
     public function getActiveDiscountInfo(): ?array
     {

@@ -4,6 +4,7 @@ namespace App\Services\CanonicalPricing\DTO;
 
 use App\Services\CanonicalPricing\Enums\ComponentType;
 use App\Services\CanonicalPricing\Enums\ComponentUnit;
+use App\Services\CanonicalPricing\Enums\EnergyPriceRuleKind;
 
 /**
  * One exact billed component change inside a canonical offer term.
@@ -15,6 +16,9 @@ readonly class OfferComponentData
         public ComponentUnit $unit,
         public float $amount,
         public float $normalAmount,
+        public ?EnergyPriceRuleKind $ruleKind = null,
+        public ?float $discountValue = null,
+        public ?float $floorAmount = null,
     ) {}
 
     /** @return array{component_type:string,unit:string,amount:float,normal_amount:float} */
@@ -25,6 +29,11 @@ readonly class OfferComponentData
             'unit' => $this->unit->value,
             'amount' => $this->amount,
             'normal_amount' => $this->normalAmount,
+            ...($this->ruleKind === null ? [] : [
+                'rule_kind' => $this->ruleKind->value,
+                'discount_value' => $this->discountValue,
+                'floor_amount' => $this->floorAmount,
+            ]),
         ];
     }
 }

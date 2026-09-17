@@ -34,6 +34,7 @@ venv/
 
 # Node
 node_modules/
+/.cache/
 
 # Laravel-specific files are handled by laravel/.gitignore
 

@@ -200,6 +200,12 @@ class MarketResetEstimateSurfacesTest extends TestCase
                 'exchange' => 'EEX', 'commodity' => 'POWER', 'pricing' => 'F', 'product' => 'Base', 'area' => 'FI',
                 'short_code' => $type === 'month' ? 'FNBM' : 'FNBY',
                 'maturity' => $maturity, 'maturity_type' => $type,
+                'trade_date' => '2026-06-30', 'settlement_price' => $price,
+            ]);
+            ElectricityFuturesEodPrice::create([
+                'exchange' => 'EEX', 'commodity' => 'POWER', 'pricing' => 'F', 'product' => 'Base', 'area' => 'FI',
+                'short_code' => $type === 'month' ? 'FNBM' : 'FNBY',
+                'maturity' => $maturity, 'maturity_type' => $type,
                 'trade_date' => '2026-07-24', 'settlement_price' => $price,
             ]);
         }
@@ -319,7 +325,7 @@ class MarketResetEstimateSurfacesTest extends TestCase
         ]);
 
         $this->assertStringContainsString('pörssisähkön usean vuoden kausivaihteluun', $note);
-        $this->assertStringContainsString('tukkumarkkinan ennakkohintoja ei ollut saatavilla', $note);
+        $this->assertStringContainsString('riittävää futuuri- ja vertailuhintatietoa ei ollut saatavilla', $note);
     }
 
     public function test_reset_copy_is_absent_without_an_estimate(): void

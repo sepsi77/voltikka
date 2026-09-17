@@ -208,7 +208,9 @@
                             tukkuhintoja siihen markkinatilanteeseen, jossa nykyinen hintajakso hinnoiteltiin.
                             Oletamme sopimushinnan muuttuvan suunnilleen saman verran kuin tukkuhinta.
                             Myyjä voi kuitenkin hinnoitella sähkön toisin.
-                            Jos futuuritietoja ei voi käyttää, arvioimme muutosta aiempien vuosien pörssihintojen
+                            Jos omaa vertailukohtaa ei voi käyttää, yhdistämme futuureihin vertailukelpoisista saman yhtiön
+                            tai markkinan sopimuksista arvioidun vähittäishinnan lisän.
+                            Jos riittäviä futuuri- ja vertailuhintatietoja ei ole, arvioimme muutosta aiempien vuosien pörssihintojen
                             vuodenaikavaihtelun avulla. Jos sekään ei onnistu, oletamme nykyisen hinnan jatkuvan.
                         </p>
                         <p>
@@ -229,7 +231,9 @@
                             Kun sopimukselle näytetään tällainen markkinamuutoksiin perustuva arvio, nykyinen kalenterikuukausi
                             lasketaan julkaistulla hinnalla. Myöhempien kuukausien arviossa muutamme nykyistä sopimushintaa
                             futuurien osoittaman markkinamuutoksen verran. Vertailukohtana on markkinahinta nykyisen
-                            sopimushinnan alkaessa. Jos futuureja ei voi käyttää, arvioimme muutosta aiempien vuosien
+                            sopimushinnan alkaessa. Jos omaa vertailukohtaa ei voi käyttää, yhdistämme futuureihin
+                            vertailukelpoisista saman yhtiön tai markkinan sopimuksista arvioidun vähittäishinnan lisän.
+                            Jos riittäviä futuuri- ja vertailuhintatietoja ei ole, arvioimme muutosta aiempien vuosien
                             vuodenaikavaihtelun avulla tai viimeisenä vaihtoehtona oletamme nykyisen hinnan jatkuvan.
                             Näytämme nykyisen hinnan erillään 12 kuukauden keskihinta-arviosta.
                             Kuukausittainen laskenta ei tarkoita, että tietäisimme myyjän tulevat hinnanmuutospäivät.
@@ -267,6 +271,7 @@
                         <h3 class="font-bold text-slate-900 mb-2">"Säästö €/v" -merkinnät</h3>
                         <p>
                             Tarjoussäästö tarkoittaa alennusta saman sopimuksen normaalihintaan verrattuna.
+                            Jos normaalihinta voi muuttua, myös vertailu siihen on arvio. Arvioitu säästö ei ole taattu säästö.
                             Yleensä näytämme säästön 12 kuukauden vertailuajalta. Alle vuoden määräaikaisessa sopimuksessa
                             säästö koskee vain todellista sopimusaikaa, eikä sitä kerrota vuositasolle.
                             Kyse ei ole säästöstä omaan vanhaan sopimukseesi, muiden yhtiöiden hintoihin tai markkinakeskiarvoon verrattuna.

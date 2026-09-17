@@ -35,7 +35,8 @@ return [
     |
     | This is a SEPARATE flag from `enabled` above, because canonical pricing is
     | already live in production and cannot stage this change. With it off the
-    | behaviour is byte-identical to holding the current period price flat.
+    | reset path holds the current period price flat. This is not a global
+    | estimator switch; supplier estimates share numerical settings, not this flag.
     |
     | See app/Services/CanonicalPricing/MarketReset/AGENTS.md.
     |
@@ -46,8 +47,9 @@ return [
         /*
          | Pass-through coefficient. ONE global value on purpose: per-company
          | calibration is documented future work and the observed-reset sample
-         | cannot support it yet. Measured support for 1.0 (month reference):
-         | Pohjois-Karjalan Sahko 0.90 (R2 0.99) and Kokkolan Energia 1.01 (R2 0.66).
+         | cannot support it yet. The 2026-07-25 gated monthly aggregate is
+         | 0.81 VAT incl. / 0.94 VAT excl.; quarterly use remains an unverified prior.
+         | See tasks/market-reset-annualised-pricing/decisions.md for calibration limits.
          */
         'beta' => env('RESET_FORWARD_SHIFT_BETA', 1.0),
 

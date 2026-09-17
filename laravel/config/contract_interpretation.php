@@ -16,6 +16,12 @@ return [
     'max_repair_attempts' => (int) env('CONTRACT_INTERPRETATION_MAX_REPAIR_ATTEMPTS', 2),
     'queue' => env('CONTRACT_INTERPRETATION_QUEUE', 'default'),
     'historical' => [
+        'schema_version' => 'schema-v4',
+        'prompt_version' => 'prompt-v19',
+        'validator_version' => 'validator-v17',
+        'parser_version' => 'canonical-pricing-parser-v1',
+        'schema_path' => resource_path('contract-interpretation/schema-v4.json'),
+        'prompt_path' => resource_path('contract-interpretation/system-prompt-v19.md'),
         'cutoff' => '2026-07-22',
         'addendum_version' => 'historical-addendum-v3',
         'addendum_path' => resource_path('contract-interpretation/historical-system-prompt-addendum-v3.md'),

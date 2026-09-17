@@ -2,13 +2,14 @@
 
 namespace App\Services\CanonicalPricing\SupplierAdjusted\DTO;
 
+use App\Services\CanonicalPricing\ForwardPremium\PremiumEstimate;
 use App\Services\CanonicalPricing\SupplierAdjusted\Enums\SupplierAdjustedEstimateBasis;
 
 readonly class SupplierAdjustedEstimate
 {
     /**
-     * @param array<string, float> $offsetsByMonthKey
-     * @param list<string> $flags
+     * @param  array<string, float>  $offsetsByMonthKey
+     * @param  list<string>  $flags
      */
     public function __construct(
         public SupplierAdjustedEstimateBasis $basis,
@@ -24,6 +25,8 @@ readonly class SupplierAdjustedEstimate
         public ?string $tailStartsMonthKey,
         public PriceEpisodeAnchor $priceEpisodeAnchor,
         public array $flags = [],
+        public array $bucketOffsetsByMonthKey = [],
+        public ?PremiumEstimate $premium = null,
     ) {}
 
     public static function holdFlat(SupplierAdjustedEstimateRequest $request, float $beta, array $flags = []): self
@@ -45,8 +48,24 @@ readonly class SupplierAdjustedEstimate
         );
     }
 
-    public function offsetForMonthKey(string $monthKey): float
+    public static function energyBucket(string $bucket): string
     {
+        return match ($bucket) {
+            'General' => 'energy_general',
+            'DayTime' => 'energy_day',
+            'NightTime' => 'energy_night',
+            'SeasonalWinterDay' => 'energy_seasonal_winter',
+            'SeasonalOther' => 'energy_seasonal_other',
+            default => $bucket,
+        };
+    }
+
+    public function offsetForMonthKey(string $monthKey, ?string $bucket = null): float
+    {
+        if ($bucket !== null && $this->bucketOffsetsByMonthKey !== []) {
+            return $this->bucketOffsetsByMonthKey[$monthKey][self::energyBucket($bucket)] ?? 0.0;
+        }
+
         return $this->offsetsByMonthKey[$monthKey] ?? 0.0;
     }
 
@@ -54,6 +73,11 @@ readonly class SupplierAdjustedEstimate
     public function toArray(): array
     {
         return [
+            ...($this->premium === null ? [] : [
+                'premium' => $this->premium->toArray(),
+                'current_policy' => 'supplier_adjusted_forward_premium_v1',
+                'fallback_reason' => 'missing_own_reference_using_comparable_premium',
+            ]),
             'basis' => $this->basis->value,
             'beta' => $this->beta,
             'current_energy_price' => $this->currentEnergyPriceCentsPerKwh,

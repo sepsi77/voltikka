@@ -21,6 +21,20 @@ canonical passthrough, and WebPage, Product, BreadcrumbList, and FAQPage JSON-LD
 - The Livewire computed properties remain compatibility adapters over one request-local presenter
   result. The prepared detail payload keeps the same keys and v18 schema.
 
+## Real short-term comparison basis
+
+SEO descriptions use typed `contract_term` metadata for a real term under 12 months, including
+Hybrid. They call the total an annualized term comparison, not the bill for twelve actual months.
+Visible FAQ and terms use the same real-term basis; they do not infer unknown continuation from
+`term_price_only`. FAQPage copies those supplied visible answers exactly. Weekly output and cards
+retain real-term benefits while annual totals remain comparison values.
+
+Livewire owns `fixedPriceQualifier()`: short-term copy refers neutrally to published prices during
+the term. A six-month V4 term can have 6 c/kWh then 8 c/kWh; term length is not a constant-price
+guarantee. The no-explainer branch adds annualization only. Base-only Hybrid still requires the
+consumption-effect disclosure. See `tasks/source-validated-energy-rules/public-audit-repairs.md`.
+The prepared detail payload remains v18, separate from calculated-cost schema v19.
+
 ## Structured-data guardrails
 
 - Product offers use only `currentDisplayValues` supplied by Livewire. In canonical mode those facts

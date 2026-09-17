@@ -446,7 +446,7 @@ class SupplierAdjustedFakeCurve implements MarketReferenceCurveProvider
                 return [
                     'kind' => $kind,
                     'price_cents_per_kwh' => $this->reference[$kind],
-                    'trade_date' => $this->tradeDate ?? '',
+                    'trade_date' => $asOfDate->subDay()->toDateString(),
                 ];
             }
         }

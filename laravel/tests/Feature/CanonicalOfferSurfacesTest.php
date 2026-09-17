@@ -62,8 +62,13 @@ class CanonicalOfferSurfacesTest extends TestCase
         $this->assertSame(['Phase-only offer', 'Canonical conflict', 'Canonical only'], $names);
 
         $allContracts = $component->viewData('contracts')->keyBy('name');
-        $this->assertGreaterThan(0, $allContracts['Untyped offer']->calculated_cost['discount_savings_total']);
-        $this->assertSame([], $allContracts['Untyped offer']->calculated_cost['offer_terms']);
+        // A normal amount without finite promotion timing cannot establish a benefit.
+        $untypedCost = $allContracts['Untyped offer']->calculated_cost;
+        $this->assertSame('excluded_incomplete', $untypedCost['comparability']);
+        $this->assertContains('insufficient_promotion_terms', $untypedCost['assumptions']);
+        $this->assertNull($untypedCost['total_cost']);
+        $this->assertSame(0.0, $untypedCost['discount_savings_total']);
+        $this->assertSame([], $untypedCost['offer_terms']);
         $this->assertFalse($allContracts['Zero saving']->calculated_cost['includes_discounts']);
 
         $component

@@ -7,7 +7,6 @@ use App\Models\ElectricityContract;
 use App\Models\SpotPriceAverage;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\CanonicalPricing\CanonicalOfferFacts;
-use App\Services\CanonicalPricing\Enums\ContractComparability;
 use App\Services\ContractPricing\CanonicalContractMetric;
 use App\Services\ContractPricing\ContractPricingViewData;
 use App\Services\DTO\EnergyUsage;
@@ -186,13 +185,14 @@ class WeeklyOffersVideoService
         return [
             'id' => $contract->id,
             'name' => $contract->name,
-            'description' => $contract->short_description,
+            'description' => $offerFacts['description'],
             'company' => [
                 'name' => $contract->company_name,
                 'logo_url' => $contract->company?->getLogoUrl(),
             ],
             'pricing_model' => $contract->pricing_model,
             'pricing_basis' => 'canonical',
+            'benefit_is_estimate' => $selectionPricing->benefitIsEstimate(),
             'comparability' => $selectionMetric->comparability()->value,
             'offer' => [
                 ...$offerFacts,
@@ -224,7 +224,8 @@ class WeeklyOffersVideoService
         $pricing = $metric->pricing();
         $offer = CanonicalOfferFacts::fromPricing($pricing);
         $term = $pricing->contractTerm();
-        $isShortTerm = $pricing->comparability() === ContractComparability::TermPriceOnly;
+        $termMonths = $term?->integer('months');
+        $isShortTerm = $termMonths !== null && $termMonths > 0 && $termMonths < 12;
 
         return [
             'annual_consumption_kwh' => $consumption,
@@ -242,6 +243,8 @@ class WeeklyOffersVideoService
                 : 'Ensimmäisen 12 kuukauden hinta',
             'is_estimate' => $pricing->isEstimate(),
             'estimate_method' => $pricing->estimateMethod()?->value,
+            'benefit_is_estimate' => $pricing->benefitIsEstimate(),
+            'energy_rule_comparison' => $pricing->energyRuleComparison()?->toArray(),
             'customer_benefit_eur' => $offer !== null ? $this->money($offer['benefit_eur']) : null,
             'customer_benefit_basis_months' => $offer['basis_months'] ?? null,
             'customer_benefit_basis_label' => $offer['basis_label'] ?? null,

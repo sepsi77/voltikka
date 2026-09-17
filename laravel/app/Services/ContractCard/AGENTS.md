@@ -40,6 +40,34 @@ writing a Finnish sentence is how the drift happened.
 | `ContractCardPresenter.php` | Orchestrates the above into `DTO/ContractCardView`. |
 | `DTO/CardSellerCta.php` | Where "Siirry myyjän sivuille" goes, with a guaranteed destination. |
 
+## Current Hybrid-base projection copy (local, 2026-09-15)
+
+The shared estimate popover composes the supplier/reset forecast basis with both disclosures:
+future base prices are estimates, and the consumption effect is excluded. Supplier-adjusted
+Hybrid bands say `Perushinta + kulutusvaikutus`, not a guaranteed fixed price. Existing category
+precedence is unchanged, including reset over Hybrid. Published current base rates stay separate
+from the annual equivalent. Neither a forecast nor a peer premium becomes a Spot margin or profit.
+See `tasks/annualized-pricing-implementation/hybrid-projection.md` for the bounded current scope.
+
+## Source-backed energy-rule copy
+
+Both cards use `ContractCardView::benefitIsEstimate` for `Arvioitu säästö` and the qualified normal
+comparison value. An exact actual price does not receive a price-estimate marker merely because
+its savings comparison is estimated. Fee-only savings remain exact when the energy forecasts cancel;
+the normal total keeps its independent estimate label. Energy-rule receipts show actual current rates separately
+from `Vuosivertailun keskihinta, arvio`. Detail mode can show `Normaalihinta nyt, voi muuttua`.
+`CanonicalOfferFacts` owns fixed-price and absolute/percentage-discount copy, exact term timing,
+and the warning `Normaalihinta voi muuttua. Säästö ei ole taattu.` Source protection alone is not
+an offer. Formula discounts retain their operator, including a positive percentage at normal zero.
+Projected normal rates do not produce dated guaranteed-increase receipt rows or promotion warnings.
+Source-rule phase breakdowns can carry typed `energy_price_guaranteed`. Only adjacent records with
+that flag can produce dated price rows. A directional integrity notice additionally needs matching
+actual rates and the exact adjacent change date. Otherwise both cards and detail replace it with the
+supported `Tarjousjakso päättyy` date, or omit it when no supported end exists. Normal estimate state
+alone does not erase a genuinely guaranteed actual transition. Core must flag the actual billed rate,
+not merely a disclosed phase amount. Data-conflict detail warnings remain. Detail hero, verdict and
+FAQ also use the shared source-rule explanation instead of extending a current rate into a guarantee. No source quote or seller summary is used for this copy.
+
 ## The three categories
 
 | Category | Rule |
@@ -225,8 +253,8 @@ Package facts come from `energy_package`, and offer membership comes from canoni
 `includes_discounts`, so a package is never called an offer.
 The shared receipt names its three facts `Kuukausipaketti`, `Sisältää`, and `Ylittävä kulutus`;
 the excess rate is not an ordinary energy price for every kWh.
-For `term_price_only`, card benefit copy uses the unannualized `contract_term` saving and normal
-total. Top-level annualized savings remain comparison data. Both templates render the same
+For real short-term metadata, including `base_only_hybrid`, card benefit copy uses the
+unannualized `contract_term` saving and normal total. Top-level annualized savings remain comparison data. Both templates render the same
 prepared strings from `ContractCardView`; do not add offer copy to Blade.
 
 Main and local listing paths do not load latest components for cards in canonical mode. They
@@ -286,9 +314,16 @@ rewritten** — imports, the replacement matcher and the price history all key o
 ## Footer rules
 
 Warnings are coral pills in priority order, **max two**: price increase → consumption cap →
-short term with unknown continuation → consumption effect not costed (suppressed when the
-band already says Kulutusvaikutus). Facts are quiet tags: promotion, energy source with its
-real percentage.
+consumption effect not costed (suppressed when the band already says Kulutusvaikutus).
+A real short-term annualization basis is a quiet fact, not an unknown-continuation warning;
+it does not consume the warning cap. Other quiet facts include promotion and energy source
+with its real percentage. Real term metadata applies to short Hybrid results too.
+
+Term popovers describe annualization of published term prices, not an unconditional unknown
+continuation or constant-price promise. Detail SEO, FAQ and weekly output use that same basis;
+real-term benefits are not doubled. A short V4 term can contain known energy-price changes.
+Premium-reset copy names the selected premium basis instead of claiming an own historical
+reference. See `tasks/source-validated-energy-rules/public-audit-repairs.md`.
 
 **Consumption caps only warn at ≤ 30 000 kWh/v.** The largest consumption preset on the site
 is 18 000 kWh/v, so a "Max 80 000 kWh/v" cap is noise that makes every spot contract look
@@ -339,8 +374,8 @@ Two rules that must not be reverted, because both produced visible defects on a 
   company, ranking, and prepared-page cache keys all include its `cs{version}` dependency.
   Service-specific outer wrapper versions remain separate. Neither the import-driven version nor
   `PricingMode::cacheMarker()` moves on a code-only deploy, so the shared marker prevents cards from
-  reading stale calculated-cost data for up to 48 hours. Current calculated-cost schema **v15**
-  includes package and real-term fields, canonical-only current facts, exact typed offer terms,
+  reading incompatible calculated-cost data from retained annual generations (these have no 48-hour TTL). Current calculated-cost schema is **v19**. The earlier **v15** boundary
+  added package and real-term fields, canonical-only current facts, exact typed offer terms,
   short Hybrid real-term totals, listed `other`-cadence reset estimates, and the separate typed
   `supplier_adjusted_estimate` payload.
   The presenter strictly hydrates the existing Eloquent `calculated_cost` transport attribute into one `ContractPricingViewData`; receipt, footer, copy, package, Hybrid, reset, phase, term, discount, estimate, and total decisions use typed access. `pricing_integrity` is hydrated into the existing typed `ContractPricingIntegrity`. Arrays do not continue inside card derivation.
@@ -355,6 +390,23 @@ alone. Both reset copy helpers state that the estimate includes the current know
 later estimated periods. Forward, seasonal-index, and hold-current copy must not say `Loppuvuoden`.
 Schema v15 also removes fee-only phase ends from the reset energy reference selection; see
 `../CanonicalPricing/MarketReset/AGENTS.md`. Fee benefits keep their original billing dates.
+
+## Model-floor disclosure
+
+The controlled `estimated_energy_nonnegative_model_floor_applied` and
+`energy_rule_nonnegative_model_floor_applied` assumptions produce one shared estimate note,
+even when both exist. It says Voltikka's model limited an estimated negative energy rate to zero,
+not that the seller guarantees a minimum. No flag means no floor notice; retain source-price facts.
+
+## Default fixed-price band
+
+The default band says `Ennalta ilmoitettu energianhinta`, not that the energy price never
+changes. Keep the fixed category and duration. An annual phase breakdown can omit a known
+second-year price change on a 24-month contract; neither that window nor `exact` proves a
+whole-term constant price. Scheduled published-change, unknown-price, supplier-adjusted,
+reset and Hybrid branches, and source-backed guarantee notices, remain unchanged.
+`ContractDetailPresenterTest` covers a V4-compatible Fixed24 contract with 6 c/kWh in the
+first year and 8 c/kWh in the second year through the real calculator and card presenter.
 
 ## Tests
 

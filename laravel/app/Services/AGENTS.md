@@ -36,6 +36,15 @@ The grouping unit should be a cohesive feature/domain, not an individual class u
 
 Azure, ENTSO-E, and EEX acquisition methods preserve their exception/return contracts but no longer log raw failed HTTP responses. The fetch commands own aggregate Sentry Issue reporting through `App\Support\DataFetchFailureReporter`; see `../../AGENTS.md`. Azure retries exhausted connection failures under the same transient policy as server errors. ENTSO-E XML parse failures still return an empty array, but no longer log source XML or parser messages; `spot:fetch` reports the wholly empty outcome. Backfill return and retry behavior is unchanged.
 
+## Shared calculated-cost cache boundary
+
+`CalculatedCostPayloadSchema::VERSION` is 19 for the completed local source-backed financial/public
+integration. This safely regenerates calculated-cost caches, not statistics/history. Defaults remain
+V4; final LOCAL PHP and UI gates pass. The manager accepts the synthetic video/template within
+explicit limits and default-V4 technical readiness. Final static/context/hash checks passed;
+user deployment approval remains required. V5 activation and producer accuracy remain separate. See
+`CanonicalPricing/AGENTS.md` and `../../../../tasks/source-validated-energy-rules/release-plan.md`.
+
 ## Current service subtrees
 
 ### First-party analytics
@@ -99,7 +108,7 @@ Important pricing guardrails:
 - `ContractPriceCalculator::calculatePeriod()` is the one feature-off exact-period pricing path. It returns a typed result with availability, actual/base totals, measured savings, Spot facts, and display rates; bill comparison must not duplicate raw component arithmetic
 - annual and exact-period pricing share component/rate resolution, Spot margin selection, discount amount rules, and inclusive `UntilDate` semantics. Normalized `c/kWh` / `EUR/month` and upstream enum-like units are valid discount units
 - do not assume `monthly_costs` represent calendar Jan-Dec once promo timing matters; canonical bins use no-overflow contract-month anniversaries. Ordinary annual fees use those same month fractions; packages remain calendar-month scoped
-- annual list/company/ranking keys have no midnight boundary. Shared list/company prices persist until a verified replacement or explicit immediate invalidation; ranking rebuilds use those retained metrics rather than recalculating at today's date. Shared calculated-cost schema v17 still isolates pricing semantics, not historical rows
+- annual list/company/ranking keys have no midnight boundary. Shared list/company prices persist until a verified replacement or explicit immediate invalidation; ranking rebuilds use those retained metrics rather than recalculating at today's date. Shared calculated-cost schema v19 isolates pricing semantics, not historical rows
 - canonical annual estimates keep known prices exact and fill unknown periods with an explicit latest applicable price or disclosed normal continuation. No free gaps or extended promo savings; short terms retain real-term annualization and Hybrids retain base-only comparisons. Exclude unidentifiable/conflicting pricing, not uncertainty alone
 - one flat default monthly consumption profile serves all tariffs; explicit heating/cooling keeps its shape. Detailed API usage must reconcile to its total; see `../Http/AGENTS.md` for remainder and heating-weight validation
 - canonical VAT uses Household/Both/null inclusive and Company excluded. Normalize explicit component evidence and market prices once; unknown component VAT assumes the target. See `CanonicalPricing/AGENTS.md` for the calculation-copy boundary
@@ -143,6 +152,7 @@ Important pricing guardrails:
 - canonical membership requires a positive `CanonicalOfferFacts` benefit and no package at 5,000 kWh, plus a listed outcome and no detected integrity state at every requested consumption level
 - canonical order is measured customer benefit at 5,000 kWh descending, then canonical comparison total ascending, then contract ID; keep at most one contract per company after sorting
 - canonical records and prompt text consume `CanonicalContractMetric`, `ContractPricingViewData`, validated `PricingFact` records, and typed integrity; a short fixed term uses its real `contract_term` benefit while its annualized total is labelled as a comparison value
+- source-energy-rule offers share the same positive signed-net eligibility as company/card/API facts. Weekly records and prompt text carry independent `benefit_is_estimate` and `energy_rule_comparison`; exact actual prices do not make projected normal savings exact. Canonical descriptions use controlled offer copy, not seller prose. The Remotion consumer labels projected savings and states that they are not guaranteed.
 - the public `/api/video/weekly-offers` payload carries `pricing_basis`; canonical offers use `consumptions`, while the explicit feature-off branch keeps the old `discount` / `costs` / `savings` shape
 - legacy mode still reads `price_components.price` as API `OriginalPayment.Price`; use the discounted component's unit/type and do not assume an absolute discount is always `c/kWh`
 

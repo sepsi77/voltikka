@@ -60,6 +60,7 @@ Primary files:
   duplicates, off-hour values, and non-finite prices remain invalid. Day is local 07:00-21:59 and
   night is 22:00-06:59. Missing hours never pull a later stored average, a future hourly row, or other
   future data. Its memo key is target date plus region.
+- `AsOfAnnualCostCalculator` passes explicit `ComparisonPolicy::Historical` during supplier candidate preparation as well as calculation. Dates do not select policy. Current redundant/fee-only phase extraction must not widen historical candidates or read current peers.
 - `HistoricalPriceEpisodeResolver` is the strict as-of counterpart to the current-source resolver.
   It makes one batch query only to `contract_price_snapshots` through the explicit target date. A
   matching observed target row wins. Another basis is eligible only when the caller passes that
@@ -82,7 +83,11 @@ Primary files:
   errors and a fresh parser pass. A successful retrospective row records its later completion, text grade, episode ID, and
   interpretation ID; stale, pending, failed, mismatched, parser-invalid, or ambiguous states stay closed.
   The resolver never reads `active_contracts`, current contract prose/canonical JSON, publication
-  pointers, or currentness pointers.
+  pointers, or currentness pointers. Dedicated historical compatibility uses schema-v4/prompt-v19/
+  validator-v17/parser-v1 from the pinned historical interpretation config subtree. A current profile
+  change cannot hide valid old dedicated output, and the compatibility check adds no queries or writes.
+  Both immutable-source and dedicated Historical parser calls explicitly keep `withEnergyRules: false`;
+  new source-backed rule JSON cannot change their parser-v1 behavior.
 - `AsOfAnnualCostCalculator::calculate(date, methodVersion = AsOf)` produces typed results for
   2,000, 5,000, and 18,000 kWh. The API keeps its v1 default; callers select v2 explicitly. It
   resolves Spot assumptions and supplier episode candidates once per date. Strict canonical Spot
@@ -211,7 +216,7 @@ Primary files:
 - The statistics-page source fingerprint includes daily and both versions of rolling 30/365 rows.
   Coverage and price sums detect a same-second refresh even when row count and date do not change.
 - Current canonical annual outcomes use the shared flat default monthly consumption profile with explicit heating/cooling shape, no-overflow anniversary fee/bin rules, calendar package rules, and once-only inherited charges. Short-term real costs remain annualized; Hybrid totals exclude consumption effects. Reset/supplier annual equivalents use billed energy divided by costed kWh, not snapshot representative weights. Audience VAT is Household/Both/null inclusive and Company excluded; explicit source components and inclusive market curves normalize once before costing. Current collection reuses these outcomes, not a second statistics calculation.
-- Shared calculated-cost schema v17 invalidates semantic caches only. It does not run a historical rebuild, rewrite snapshots/annual statistics, or replace stored method evidence. Dated annual metric keys advance at Helsinki midnight. Existing historical method rules remain dated evidence, not current annual fallbacks.
+- Current shared calculated-cost schema v19 invalidates semantic caches only. It does not run a historical rebuild, rewrite snapshots/annual statistics, or replace stored method evidence. Dated annual metric keys advance at Helsinki midnight. Existing historical method rules remain dated evidence, not current annual fallbacks.
 - `phpunit.xml` forces the configured legacy annual-method default for test isolation from local `.env`; AsOf tests opt in through `config()->set()`. Test isolation does not change production method configuration.
 - Current canonical Spot `annual_cost` uses the same forward 12-month curve, historical intraday shape (or explicit lower-confidence zero-offset baseload), exact margin, fee, and offers as the public ranking. Historical observed rows keep the trailing-365 Spot level that was known for that date. Use `annual_cost`, not current/day-period `spot_total_energy_price`, for contract-type annual-cost comparisons.
 - On `/sahkosopimus/tilastot`, the contract-type **c/kWh** table, deep-dive Spot chart, and top Spot callout remain historical views: trailing-12-month realized daily Spot average + latest typical margin, with p20–p80 calculated from daily prices over the same window. Do not switch those historical unit-price figures to the forward estimate or latest-day Spot. The annual-cost chart and current canonical snapshot are the forward-looking surfaces.

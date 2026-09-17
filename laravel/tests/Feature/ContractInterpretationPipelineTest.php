@@ -10,8 +10,10 @@ use App\Models\ContractSourceSnapshot;
 use App\Models\ElectricityContract;
 use App\Models\PriceComponent;
 use App\Services\ContractInterpretation\CanonicalPriceComponentWriter;
+use App\Services\ContractInterpretation\ContractAnalysisFingerprint;
 use App\Services\ContractInterpretation\ContractInterpretationDispatcher;
 use App\Services\ContractInterpretation\ContractInterpretationInputBuilder;
+use App\Services\ContractInterpretation\ContractInterpretationProfile;
 use App\Services\ContractInterpretation\ContractInterpretationPublisher;
 use App\Services\ContractInterpretation\ContractInterpretationValidator;
 use App\Services\ContractInterpretation\OpenRouterContractInterpretationClient;
@@ -26,6 +28,54 @@ use Tests\TestCase;
 class ContractInterpretationPipelineTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_pending_job_uses_stored_profile_after_current_config_changes(): void
+    {
+        $snapshot = $this->createSnapshot();
+        $interpretation = $this->createInterpretation($snapshot);
+        config()->set([
+            'contract_interpretation.schema_version' => 'schema-v5',
+            'contract_interpretation.prompt_version' => 'prompt-v20',
+            'contract_interpretation.validator_version' => 'validator-v18',
+            'contract_interpretation.schema_path' => '/missing-schema',
+        ]);
+        $this->mock(OpenRouterContractInterpretationClient::class)
+            ->shouldReceive('interpret')->once()
+            ->withArgs(fn ($input, $addendum, $profile) => $profile->schemaVersion === 'schema-v4')
+            ->andReturn($this->llmResult($this->validOutput($snapshot->contract_id), 10));
+        app()->call([new AnalyzeContractSourceSnapshot($interpretation->id), 'handle']);
+        $this->assertSame('published', $interpretation->fresh()->status);
+        $this->assertSame('schema-v4', $interpretation->fresh()->schema_version);
+    }
+
+    public function test_unsupported_stored_profiles_cannot_publish_or_call_the_client(): void
+    {
+        $this->mock(OpenRouterContractInterpretationClient::class)->shouldNotReceive('interpret');
+        $snapshot = $this->createSnapshot();
+        $interpretation = $this->createInterpretation($snapshot);
+        foreach ([['schema-v5', 'prompt-v19', 'validator-v18'], ['schema-v4', 'prompt-v20', 'validator-v18']] as $tuple) {
+            $interpretation->update(array_combine(['schema_version', 'prompt_version', 'validator_version'], $tuple));
+            $this->assertFalse(app(ContractInterpretationPublisher::class)->publish($interpretation));
+            app()->call([new AnalyzeContractSourceSnapshot($interpretation->id), 'handle']);
+            $this->assertSame('failed', $interpretation->fresh()->status);
+            $this->assertSame($tuple[0], $interpretation->fresh()->schema_version);
+
+        }
+    }
+
+    public function test_v4_validation_rejects_new_energy_facts_even_when_labelled_v4(): void
+    {
+        $snapshot = $this->createSnapshot();
+        $input = app(ContractInterpretationInputBuilder::class)->build($snapshot);
+        $output = $this->validOutput($snapshot->contract_id);
+        $output['pricing']['phases'][0]['components'][0]['energy_rule'] = ['kind' => 'fixed'];
+        $errors = app(ContractInterpretationValidator::class)->validate($output, $input,
+            ContractInterpretationProfile::stored('schema-v4', 'prompt-v19', 'validator-v17'));
+        $this->assertNotEmpty($errors);
+        $interpretation = $this->createInterpretation($snapshot, $output);
+        $this->assertFalse(app(ContractInterpretationPublisher::class)->publish($interpretation));
+        $this->assertNull(ElectricityContract::findOrFail($snapshot->contract_id)->published_interpretation_id);
+    }
 
     public function test_dispatch_is_idempotent_for_the_same_analysis_fingerprint(): void
     {
@@ -126,6 +176,7 @@ class ContractInterpretationPipelineTest extends TestCase
         ]);
 
         $this->travelTo('2026-08-03 10:05:00');
+        config()->set('contract_interpretation.schema_path', '/missing-current-schema');
         $dispatcher = app(ContractInterpretationDispatcher::class);
         $dispatcher->dispatch($observationA2);
         $republishedAt = $interpretationA->fresh()->published_at->toDateTimeString();
@@ -271,7 +322,7 @@ class ContractInterpretationPipelineTest extends TestCase
         $this->assertSame(ContractInterpretation::STATUS_SUPERSEDED, $interpretationA->fresh()->status);
         $this->assertSame($output, $interpretationA->fresh()->output);
         $this->assertSame(
-            app(\App\Services\ContractInterpretation\ContractAnalysisFingerprint::class)
+            app(ContractAnalysisFingerprint::class)
                 ->forObservation($snapshotA, $observationA2),
             $first->analysis_fingerprint,
         );
@@ -302,7 +353,7 @@ class ContractInterpretationPipelineTest extends TestCase
         $this->assertNotSame($first->id, $third->id);
         $this->assertSame($observationA3->id, $third->analysis_source_observation_id);
         $this->assertSame(
-            app(\App\Services\ContractInterpretation\ContractAnalysisFingerprint::class)
+            app(ContractAnalysisFingerprint::class)
                 ->forObservation($snapshotA, $observationA3),
             $third->analysis_fingerprint,
         );
@@ -342,7 +393,7 @@ class ContractInterpretationPipelineTest extends TestCase
         $this->assertNotSame($third->id, $fourth->id);
         $this->assertSame($observationA4->id, $fourth->analysis_source_observation_id);
         $this->assertSame(
-            app(\App\Services\ContractInterpretation\ContractAnalysisFingerprint::class)
+            app(ContractAnalysisFingerprint::class)
                 ->forObservation($snapshotA, $observationA4),
             $fourth->analysis_fingerprint,
         );
@@ -2686,7 +2737,7 @@ class ContractInterpretationPipelineTest extends TestCase
         return ContractInterpretation::create([
             'contract_id' => $snapshot->contract_id,
             'source_snapshot_id' => $snapshot->id,
-            'analysis_fingerprint' => app(\App\Services\ContractInterpretation\ContractAnalysisFingerprint::class)
+            'analysis_fingerprint' => app(ContractAnalysisFingerprint::class)
                 ->forSnapshot($snapshot),
             'status' => ContractInterpretation::STATUS_PENDING,
             'schema_version' => config('contract_interpretation.schema_version'),

@@ -1,5 +1,7 @@
 # Market-reset annualised price (forward-curve shift)
 
+> **Approved target, implemented locally; release blocked:** read the [annualized comparison policy (2026-09-15)](../AGENTS.md#approved-annualized-comparison-policy-2026-09-15) first. It governs intended future changes where older routing, own-reference fallback, or calibration constraints below conflict. The implementation and dated rollout notes below do not establish deployment of the new policy. Known-period, VAT, dated-evidence, billing, and cache safeguards remain; no production mutation is authorized by this documentation.
+
 This directory annualises **market-reset** contracts — `canonical_pricing.recurring_schedule.present
 = true` with cadence `monthly`, `quarterly`, `seasonal`, or `other`. Those products publish one price
 per period and follow the wholesale market between periods. Cadence `other` means that the source
@@ -15,6 +17,66 @@ Read `../AGENTS.md` first, then `tasks/market-reset-annualised-pricing/spec.md` 
 `decisions.md`. That decisions file records several **explicitly retracted** conclusions; do not
 re-derive them.
 
+## Current missing-reference premium fallback (local, 2026-09-15)
+
+Current pricing keeps the original own reference first. It never substitutes today's vintage for
+an unavailable old-period reference. A complete, fresh current curve for the target's actual tail
+can instead use the shared `ForwardPremium/CurrentPremiumEvidenceLoader`: own trusted lineage,
+same company, then company-balanced comparable market evidence. Missing premium evidence still
+falls through to seasonal and hold pricing. The old fallback-to-today behavior is Historical only.
+`ResetEstimateRequest::policy` defaults to Historical for old direct callers; every current core
+call passes Current explicitly. Existing original-reference arithmetic and beta remain unchanged.
+
+`CanonicalContractPriceCalculator::resetPremiumCandidate` is a consumption-free typed frame. It
+reuses the core rate resolver, timeline, reset tail boundary and reference-period start. It requires
+complete named General/Time/Season energy rates, exact VAT and cadence, known initial coverage,
+and unchanged energy across known phases. Fully disclosed fee-only phases qualify. It rejects
+packages, Spot, ambiguous tariffs, energy promotions and an unknown gap before a known
+future phase. Current OpenEnded and FixedTerm explicit `base_contract` consumption effects can
+use this same proof for their known base rates when the canonical recurring reset is active.
+A fixed contract term does not lock energy prices under that explicit reset mechanism. The short
+Hybrid call passes the selected reset premium, and candidate/billing horizons clip to the real
+term before annualization. Fully locked Hybrid Fixed6/12/24 and supplier-adjusted OpenEnded-only
+eligibility remain unchanged. Raw Hybrid and canonical base-effect FixedPrice normalize to
+Hybrid. Complete canonical base evidence is still required; effects are excluded, never set to
+zero. `MarketResetHybridBase` premiums cannot mix with ordinary reset or supplier families, and
+cadence, tariff and VAT still match exactly. The candidate and request carry `pricingMechanism`.
+Known periods keep the existing tail/reference dates, not supplier episode-month dates. The real
+forecaster supplies the primary estimate method while BaseOnlyHybrid and effect flags remain.
+Fixed-term guarantees, Historical, flags and beta are unchanged. Current calculated-cost schema is 19. See
+`tasks/annualized-pricing-implementation/hybrid-projection.md` for bounded local verification. Candidate proof now shares `candidateApplicablePhases` with the supplier path:
+components and actual/normal rates use only phases already applicable at the phase's first covered
+date. A billed monthly fee is not proof of current energy, and a missing Time/Season bucket cannot
+come from a genuinely Future phase. The one exception is a fee-only typed Introductory phase with
+an adjacent typed Normal baseline. A current-structured fee phase, Future baseline or non-adjacent
+normal phase does not get this exception. An expired absolute-end phase can use its last covered
+past day for this same full-energy equality proof. That candidate-only date is never a pricing
+anchor. Different or unknown old energy still fails; future phases outside the window are not
+skipped. Fee expiry therefore cannot remove an otherwise unchanged-energy candidate.
+This guard changes candidate evidence only; the older
+billing inheritance algorithm is not repaired by this slice. It does not create an undisclosed
+normal baseline. Those wider plans remain outside this slice. Current six-month resets use only real-term tail months, then annualize real-term costs.
+Ordinary locked 6/12/24-month pricing and Historical short-term routing are unchanged.
+
+A selected premium produces `beta * (F_month * VAT + premium_bucket - anchor_bucket)` per bucket.
+The named tariff mapping is shared with the supplier estimate. Actual, normal and structured bills
+use the same offsets and exact `tailStartsOn` guard. Zero floors and the broad plausibility band
+remain. The new guard uses actual whole-window and tail bucket weights, including the known part
+of a split month. Displayed equivalents still use billed energy and actual costed kWh. For a
+mid-month six-month term, those kWh need not equal exactly half the annual profile.
+
+Method `recurring_forward_premium`, basis `forward_premium`, and policy
+`recurring_forward_premium_v1` identify the changed finance. The typed payload retains selected
+premium source, dates, counts, confidence and model intervals. Public copy states current futures
+and comparable retail-price evidence, not unavailable futures. Hold remains an explicit recurring
+estimate even when an open-ended phase appears to cover the full window. Current calculated-cost schema is 19 and the
+configured annual method is unchanged. Exact-period bills receive no projected rates.
+
+Tests and scope: `tasks/annualized-pricing-implementation/reset-premium-integration.md`.
+Real EEX tests prove reuse for repeated identical period/vintage keys. They do not prove constant
+SQL across distinct reference dates: the existing vintage reference service reads each distinct
+reference. A release performance check must measure that cost. No broad EEX refactor is included.
+
 ## Annual segment integration
 
 `ResetEstimate::tailStartsOn` carries the exact exclusive current-period boundary internally.
@@ -28,7 +90,7 @@ discounts do not create offer savings. Exact-period calculation receives no annu
 
 `EexMarketReferenceCurveProvider::resetMemoization()` clears trade dates, curves, references, seasonal indices, and the fixed-term median. The canonical orchestrator calls it on the shared provider before price-cache retries and full candidate builds, so an EEX invalidation cannot make a new generation reuse an earlier request-local curve. Normal reads still memoize within an attempt. No market formula, vintage rule, or persistent data changes. `EexMarketReferenceCurveProviderTest` verifies a previously missing curve is reloaded through the list-cache reset boundary.
 
-## The estimator
+## Original-reference estimator (unchanged financial formula)
 
 ```
 P_m = P_current_period + beta * (F_m - F_reference)
@@ -216,6 +278,13 @@ Finite positive prices use the existing yearly normalization, minimum years, and
 coverage rules. Cache entries (including null) are keyed by Helsinki target date. Missing history
 still falls through to hold flat; no Spot observations are changed.
 
+## Remaining local audit review
+
+Supplier/Reset hold-beta, floor, vintage metadata and guard review remain open. The completed
+SourceEnergyRule floor-flag repair does not prove that all estimator disclosures are correct.
+Seasonal anchor weight policy also remains unresolved. No guard, beta, flag or Spot policy change
+is authorized by these notes. See `tasks/source-validated-energy-rules/audit-fixes.md`.
+
 ## Guards
 
 - **Negative floor.** Each bucket rate is applied as `max(0, rate + offset)`, in `costSegment()` and
@@ -305,8 +374,11 @@ caller-specific state.
 `reset_forward_shift`.
 
 It is a **separate** flag from `CANONICAL_PRICING_ENABLED`, which is already true in production and
-therefore could not stage this change. With the flag off, behaviour is byte-identical to holding the
-current period price flat, and the estimator touches no market data at all.
+therefore could not stage this change. With the flag off, the reset path holds the
+current period price flat and makes no reset-estimator market-data reads. This is not a global
+estimator switch: Supplier estimates share numerical settings but not this enable flag.
+Historical deliberately retains narrower identity/reference behavior; current shared lineage
+and settings do not imply universal estimator parity.
 
 The flag participates in `PricingMode::cacheMarker()` together with canonical state:
 

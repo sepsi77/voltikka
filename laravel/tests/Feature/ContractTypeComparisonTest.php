@@ -247,6 +247,12 @@ class ContractTypeComparisonTest extends TestCase
             ->assertSee('Vuositasolle muunnettu 6 kk vertailuhinta')
             ->assertSee('Tarjousetu 24 € 6 kk sopimusajalta')
             ->assertSee('Arvio – ei sisällä kulutusvaikutusta');
+
+        $hybrid->update(['contract_type' => 'FixedTerm', 'fixed_time_range' => 'Fixed6']);
+        $projected = (new \ReflectionMethod(ContractTypeComparison::class, 'calculateProjectedCosts'))
+            ->invoke(new ContractTypeComparison, $hybrid->fresh());
+        $this->assertSame('base_only_hybrid', $projected['comparability']);
+        $this->assertSame('Vuositasolle muunnettu 6 kk vertailuhinta', $projected['totalBasisLabel']);
     }
 
     public function test_spot_article_keeps_spot_as_the_anchor_in_both_modes_with_canonical_results(): void

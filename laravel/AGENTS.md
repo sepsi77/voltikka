@@ -52,19 +52,30 @@ Important semantics:
 - page-level prepared-data caching is disabled under `app()->runningUnitTests()` to avoid cross-test cache pollution
 - contract detail redirects for inactive contracts still happen before view-data caching
 
-### Edge HTML caching vs hashed assets (known race)
+### Edge HTML caching vs hashed assets (bounded compatibility)
 
 `app/Http/Middleware/SetPublicCacheHeaders` marks the comparison/detail HTML
 `public, max-age=300, s-maxage=3600, stale-while-revalidate=86400`, so Railway's edge can serve
 that HTML for an hour and serve it **stale for a further 24 hours** while it revalidates.
 
-Vite filenames are content-hashed and the Docker image runs a clean `npm run build`, so the
-previous release's `public/build/assets/app-<hash>.css` **does not exist** on the new container
-(verified: a removed hash returns 404). For up to that stale window after a deploy, a visitor can
-receive HTML from the old release that links a CSS file the new one no longer serves, and the page
-renders with no styling at all until the HTML is revalidated. This was observed once in the July
-2026 contract-detail critique. Keep the two facts together in mind before shortening or lengthening
-either window.
+Vite filenames are content-hashed and the Docker image runs a clean `npm run build`. Without
+explicit retention, prior assets disappear and stale HTML can lose its styling (observed in July
+2026). `vite.config.js` now copies an explicit retained-asset list after the clean build through
+`closeBundle`. The source directory is internal: `resources/retained-build-assets/`. Only listed
+regular files are copied to `public/build/assets`; documentation is not copied. Existing names
+with different bytes, or symlinks, fail the build. The current manifest is not changed.
+
+The one retained file is the actual deployed `app-BE-AUgaZ.css` (110597 bytes; SHA-256
+`e27279f29da59bdfc18093c71ee05e6d08d237bd673e9b618a58f4f9e5335528`). The manager fetched
+its public URL and verified its bytes against the deployed filesystem with read-only SSH for
+release `917de212fdc4ef4862903268c3d33ba5cd886e73`. Both deployed JS files are unchanged
+in this candidate. This is bounded compatibility, not automatic coverage for future releases:
+retain any other changed prior assets and their needed files before a later release, including JS
+imports when applicable. Keep the retained CSS indefinitely; no timed cleanup or cache purge is
+part of this change. Never put new bytes behind an old immutable filename. Tests live in
+`tests/JavaScript/retained-build-assets.test.js`; build evidence is in
+`../tasks/source-validated-energy-rules/retained-assets.md`. Docker's existing `COPY laravel/ .`
+and `npm run build` include this hook and source file without an extra command.
 
 `Caddyfile` sends `Cache-Control: public, max-age=31536000, immutable` for `/build/assets/*` only.
 Those names are content-hashed so the bytes behind one URL never change; **do not widen the matcher

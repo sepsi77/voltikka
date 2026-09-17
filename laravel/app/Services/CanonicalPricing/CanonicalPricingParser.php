@@ -5,6 +5,7 @@ namespace App\Services\CanonicalPricing;
 use App\Services\CanonicalPricing\DTO\CanonicalComponent;
 use App\Services\CanonicalPricing\DTO\CanonicalContractData;
 use App\Services\CanonicalPricing\DTO\ConsumptionEffectData;
+use App\Services\CanonicalPricing\DTO\EnergyPriceRule;
 use App\Services\CanonicalPricing\DTO\IncludedEnergyPackageData;
 use App\Services\CanonicalPricing\DTO\PhaseBoundary;
 use App\Services\CanonicalPricing\DTO\PricingPhase;
@@ -14,6 +15,7 @@ use App\Services\CanonicalPricing\Enums\BoundaryKind;
 use App\Services\CanonicalPricing\Enums\CalculationStatus;
 use App\Services\CanonicalPricing\Enums\ComponentType;
 use App\Services\CanonicalPricing\Enums\ComponentUnit;
+use App\Services\CanonicalPricing\Enums\EnergyPriceRuleKind;
 use App\Services\CanonicalPricing\Enums\MisleadingState;
 use App\Services\CanonicalPricing\Enums\PhaseKind;
 use App\Services\CanonicalPricing\Enums\PriceRole;
@@ -57,12 +59,13 @@ class CanonicalPricingParser
         ?array $canonicalPricing,
         ?array $canonicalCalculation,
         ?array $canonicalSourceConsistency,
+        bool $withEnergyRules = false,
     ): CanonicalContractData {
         if (! is_array($canonicalPricing) || ! is_array($canonicalCalculation)) {
             throw new CanonicalPricingParseException('Missing canonical pricing or calculation data.');
         }
 
-        $phases = $this->parsePhases($canonicalPricing['phases'] ?? null);
+        $phases = $this->parsePhases($canonicalPricing['phases'] ?? null, $withEnergyRules);
         $recurring = $this->parseRecurringSchedule($canonicalPricing['recurring_schedule'] ?? []);
         $consumptionEffect = $this->parseConsumptionEffect($canonicalPricing['consumption_effect'] ?? []);
 
@@ -90,7 +93,7 @@ class CanonicalPricingParser
     /**
      * @return list<PricingPhase>
      */
-    private function parsePhases(mixed $raw): array
+    private function parsePhases(mixed $raw, bool $withEnergyRules): array
     {
         if (! is_array($raw)) {
             throw new CanonicalPricingParseException('Canonical pricing has no phases array.');
@@ -115,7 +118,7 @@ class CanonicalPricingParser
 
             $components = [];
             foreach ($rawComponents as $rawComponent) {
-                $components[] = $this->parseComponent($rawComponent);
+                $components[] = $this->parseComponent($rawComponent, $withEnergyRules);
             }
 
             $package = $this->parsePackage($rawPhase['package'] ?? null);
@@ -147,7 +150,7 @@ class CanonicalPricingParser
         return $phases;
     }
 
-    private function parseComponent(mixed $raw): CanonicalComponent
+    private function parseComponent(mixed $raw, bool $withEnergyRules): CanonicalComponent
     {
         if (! is_array($raw)) {
             throw new CanonicalPricingParseException('Malformed pricing component.');
@@ -169,6 +172,26 @@ class CanonicalPricingParser
         }
 
         $vatStatus = (string) ($raw['vat_status'] ?? 'unknown');
+        $energyRule = new EnergyPriceRule;
+        if ($withEnergyRules) {
+            if ((! $type->isPerKwhEnergy() || $unit !== ComponentUnit::CentsPerKwh) && ($raw['energy_rule'] ?? null) !== null) {
+                throw new CanonicalPricingParseException('Non-energy component has an energy rule.');
+            }
+            $energyRule = EnergyPriceRule::fromArray($raw['energy_rule'] ?? null);
+            foreach (['amount', 'normal_amount'] as $field) {
+                $value = $raw[$field] ?? null;
+                if ($value !== null && ((! is_int($value) && ! is_float($value)) || ! is_finite((float) $value))) {
+                    throw new CanonicalPricingParseException('Energy-rule mode requires finite component amounts.');
+                }
+            }
+            if ($energyRule->kind !== EnergyPriceRuleKind::Unknown && ($raw['amount'] ?? null) === null) {
+                throw new CanonicalPricingParseException('Known energy rule lacks a billed amount.');
+            }
+            if ($energyRule->normalBasis !== null && $energyRule->normalBasis->kind !== EnergyPriceRuleKind::Unknown
+                && (($raw['normal_amount'] ?? null) === null || $raw['normal_amount'] < 0)) {
+                throw new CanonicalPricingParseException('Known normal basis lacks a non-negative normal amount.');
+            }
+        }
 
         return new CanonicalComponent(
             type: $type,
@@ -177,6 +200,7 @@ class CanonicalPricingParser
             unit: $unit,
             priceRole: $priceRole,
             vatStatus: $vatStatus,
+            energyRule: $energyRule,
         );
     }
 

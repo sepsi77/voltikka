@@ -7,13 +7,15 @@ use App\Models\ContractSourceSnapshot;
 
 class ContractAnalysisFingerprint
 {
-    public function forSnapshot(ContractSourceSnapshot $snapshot): string
+    public function forSnapshot(ContractSourceSnapshot $snapshot, ?ContractInterpretationProfile $profile = null): string
     {
+        $profile ??= ContractInterpretationProfile::current();
+
         return hash('sha256', implode('|', [
             $snapshot->source_fingerprint,
-            (string) config('contract_interpretation.schema_version'),
-            (string) config('contract_interpretation.prompt_version'),
-            (string) config('contract_interpretation.validator_version'),
+            $profile->schemaVersion,
+            $profile->promptVersion,
+            $profile->validatorVersion,
             (string) config('contract_interpretation.provider'),
             (string) config('contract_interpretation.model'),
             (string) config('contract_interpretation.reasoning_effort'),

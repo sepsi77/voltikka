@@ -178,6 +178,23 @@ class ContractDetailSeoPresenterTest extends TestCase
         ], $overrides));
     }
 
+    public function test_short_term_meta_and_schema_use_real_term_basis_in_both_cost_branches(): void
+    {
+        foreach ([null, ['savings' => 40.0]] as $cheaper) {
+            $input = $this->input(contract: $this->contract(), calculatedCost: [
+                'total_cost' => 470.4,
+                'contract_term' => ['months' => 6, 'total_cost' => 235.2, 'base_total_cost' => null, 'discount_savings_total' => null],
+            ]);
+            $values = get_object_vars($input);
+            $values['priceRank'] = null;
+            $values['cheaperContractSummary'] = $cheaper;
+            $result = app(ContractDetailSeoPresenter::class)->present(new ContractDetailPresentationInput(...$values));
+            $this->assertStringContainsString('6 kk sopimuskaudesta vuositasolle muunnettu vertailuhinta', $result['metaDescription']);
+            $this->assertStringNotContainsString('ensimmäisen 12 kk aikana', $result['metaDescription']);
+            $this->assertStringContainsString($result['metaDescription'], json_encode($result['productSchema'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        }
+    }
+
     /**
      * @param  array{general: ?float, day: ?float, night: ?float, winter: ?float, other: ?float, margin: ?float, fee: ?float, package_included_kwh: ?float, package_excess_rate: ?float}|null  $current
      * @param  array<string, mixed>  $calculatedCost

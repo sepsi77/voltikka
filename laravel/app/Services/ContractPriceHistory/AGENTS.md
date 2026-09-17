@@ -23,8 +23,11 @@ why the section needs no "5 000 kWh:lla" scope sentence.
 `ContractHistoryPresenter::present(ElectricityContract)` owns the relational
 backward replacement chain and returns the four prepared detail-page values:
 `priceHistory`, `contractHistory`, `priceTypeLabels`, and `priceTypeOrder`.
-It uses one recursive predecessor CTE with a depth limit of 25, then one bulk
-eager load of `company`, `priceComponents`, and `activeContract`.
+It uses `ElectricityContract::getReplacementLineageIds()`, backed by the model's
+shared batch resolver, then one bulk eager load of `company`, `priceComponents`,
+and `activeContract`. Recursive UNION membership removes the old 25-level cutoff
+and terminates cycles without duplicate versions. All predecessor history remains
+available; date ordering and relational display rules are unchanged.
 
 Keep these semantics in the presenter:
 - sort contract versions by their latest observed relational price date

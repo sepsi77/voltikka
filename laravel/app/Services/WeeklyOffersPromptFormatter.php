@@ -251,11 +251,18 @@ PROMPT;
 
         if (is_numeric($fact['benefit_eur'] ?? null) && is_numeric($fact['basis_months'] ?? null)) {
             $section .= sprintf(
-                "**Mitattu tarjousetu:** %s / %d kk (%s)\n",
+                ($fact['benefit_is_estimate'] ?? false) ? "**Arvioitu tarjousetu, ei taattu säästö:** %s / %d kk (%s)\n" : "**Mitattu tarjousetu:** %s / %d kk (%s)\n",
                 $this->euros((float) $fact['benefit_eur']),
                 (int) $fact['basis_months'],
                 $fact['basis_label'] ?? 'ilmoitettu vertailujakso',
             );
+        }
+
+        if ($fact['benefit_is_estimate'] ?? false) {
+            $section .= "Säästövertailun normaalihinnat ovat arvioita, eivät luvattuja tulevia hintoja. Älä esitä säästöä varmana.\n";
+        }
+        if (is_string($fact['label'] ?? null)) {
+            $section .= '**Tarjousehdot:** '.$fact['label']."\n";
         }
 
         $pricing = is_array($offer['pricing'] ?? null) ? $offer['pricing'] : [];
@@ -294,7 +301,7 @@ PROMPT;
             if (is_numeric($result['customer_benefit_eur'] ?? null)
                 && is_numeric($result['customer_benefit_basis_months'] ?? null)) {
                 $section .= sprintf(
-                    ', mitattu etu %s / %d kk',
+                    ($result['benefit_is_estimate'] ?? false) ? ', arvioitu etu %s / %d kk (normaalihinta voi muuttua)' : ', mitattu etu %s / %d kk',
                     $this->euros((float) $result['customer_benefit_eur']),
                     (int) $result['customer_benefit_basis_months'],
                 );

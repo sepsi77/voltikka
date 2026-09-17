@@ -1,15 +1,15 @@
-import { AbsoluteFill, Sequence, useVideoConfig } from "remotion";
+import { AbsoluteFill, Sequence } from "remotion";
+import { SceneFade } from "./SceneFade";
 import type { ContractOffer } from "../../types";
 import { OfferCard } from "./OfferCard";
 
 // Brand colors
 const BG_DARK = "#0f172a"; // slate-900
 
-// Carousel timing constants
-const CAROUSEL_DURATION_SECONDS = 12; // Total duration for all cards (14.5s - 2.5s title)
-
 type OffersCarouselProps = {
   offers: ContractOffer[];
+  totalFrames: number;
+  overlapFrames: number;
 };
 
 /**
@@ -17,15 +17,12 @@ type OffersCarouselProps = {
  *
  * Art Direction:
  * - Each card gets equal time based on total count
- * - 1 card = 12s, 5 cards = 2.4s each
- * - Cards animate in/out with spring physics
+ * - The production maximum of 3 offers gives each card 6 seconds
+ * - Incoming cards fade over retained outgoing cards
  * - Progress dots show current position
  */
-export const OffersCarousel: React.FC<OffersCarouselProps> = ({ offers }) => {
-  const { fps } = useVideoConfig();
-
-  // Calculate timing per card
-  const totalFrames = CAROUSEL_DURATION_SECONDS * fps;
+export const OffersCarousel: React.FC<OffersCarouselProps> = ({ offers, totalFrames, overlapFrames }) => {
+  // Calculate timing per card without dropping any input offers.
   const cardCount = Math.max(1, offers.length);
   const framesPerCard = Math.floor(totalFrames / cardCount);
 
@@ -64,13 +61,16 @@ export const OffersCarousel: React.FC<OffersCarouselProps> = ({ offers }) => {
         <Sequence
           key={offer.id}
           from={index * framesPerCard}
-          durationInFrames={framesPerCard}
+          durationInFrames={(index === offers.length - 1 ? totalFrames - index * framesPerCard : framesPerCard) + overlapFrames}
+          premountFor={overlapFrames}
         >
-          <OfferCard
-            offer={offer}
-            cardIndex={index}
-            totalCards={offers.length}
-          />
+          <SceneFade frames={overlapFrames} enabled={index > 0}>
+            <OfferCard
+              offer={offer}
+              cardIndex={index}
+              totalCards={offers.length}
+            />
+          </SceneFade>
         </Sequence>
       ))}
     </AbsoluteFill>

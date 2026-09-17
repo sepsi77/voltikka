@@ -10,6 +10,14 @@ class AboutPageMethodologyTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_methodology_explains_comparable_premium_and_estimated_savings(): void
+    {
+        $text = $this->methodologyText();
+        $this->assertStringContainsString('vertailukelpoisista saman yhtiön tai markkinan sopimuksista arvioidun vähittäishinnan lisän', $text);
+        $this->assertStringContainsString('Jos normaalihinta voi muuttua, myös vertailu siihen on arvio.', $text);
+        $this->assertStringContainsString('Arvioitu säästö ei ole taattu säästö.', $text);
+    }
+
     public function test_visible_estimate_note_precedes_calculation_details(): void
     {
         $response = $this->get('/tietoa')->assertOk();

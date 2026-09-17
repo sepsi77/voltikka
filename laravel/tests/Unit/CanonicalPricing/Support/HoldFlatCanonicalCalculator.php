@@ -30,7 +30,7 @@ final class HoldFlatCanonicalCalculator
 
 final class DisabledSupplierAdjustedEligibility extends SupplierAdjustedEligibility
 {
-    public function candidate(string $contractId, CanonicalContractData $data, ContractContext $context): ?SupplierAdjustedCandidate
+    public function candidate(string $contractId, CanonicalContractData $data, ContractContext $context, bool $currentBaseHybrid = false): ?SupplierAdjustedCandidate
     {
         return null;
     }

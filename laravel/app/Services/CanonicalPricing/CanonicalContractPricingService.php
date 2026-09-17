@@ -10,15 +10,20 @@ use App\Services\CanonicalPricing\DTO\CanonicalPeriodPricingRequest;
 use App\Services\CanonicalPricing\DTO\CanonicalPricingOutcome;
 use App\Services\CanonicalPricing\DTO\ContractContext;
 use App\Services\CanonicalPricing\DTO\ContractPricingIntegrity;
+use App\Services\CanonicalPricing\DTO\EnergyRulePlan;
 use App\Services\CanonicalPricing\DTO\SpotAssumptions;
 use App\Services\CanonicalPricing\Enums\ContractComparability;
 use App\Services\CanonicalPricing\Enums\EstimateMethod;
 use App\Services\CanonicalPricing\Enums\PeriodPricingUnavailableReason;
 use App\Services\CanonicalPricing\Exceptions\CanonicalPricingParseException;
+use App\Services\CanonicalPricing\ForwardPremium\CurrentPremiumEvidenceLoader;
+use App\Services\CanonicalPricing\ForwardPremium\PremiumEstimate;
+use App\Services\CanonicalPricing\MarketReset\DTO\ResetEstimatorSettings;
 use App\Services\CanonicalPricing\MarketReset\EexMarketReferenceCurveProvider;
 use App\Services\CanonicalPricing\MarketReset\MarketReferenceCurveProvider;
 use App\Services\CanonicalPricing\SpotForward\DTO\SpotEstimate;
 use App\Services\CanonicalPricing\SpotForward\SpotForwardPriceEstimator;
+use App\Services\CanonicalPricing\SupplierAdjusted\CurrentNormalCandidateExtractor;
 use App\Services\CanonicalPricing\SupplierAdjusted\CurrentPriceEpisodeResolver;
 use App\Services\CanonicalPricing\SupplierAdjusted\DTO\PriceEpisodeAnchor;
 use App\Services\ContractPricing\CanonicalContractMetric;
@@ -40,11 +45,13 @@ class CanonicalContractPricingService
 {
     private ?SpotAssumptions $spotAssumptions = null;
 
-    /** @var array<string, array{energy: float, fee: float, anchor: PriceEpisodeAnchor}> */
+    /** @var array<string, array{signature: string, anchor: PriceEpisodeAnchor}> */
     private array $priceEpisodeAnchors = [];
 
     /** @var array<string, SpotEstimate> */
     private array $spotEstimates = [];
+
+    private ?CurrentPremiumEvidenceLoader $premiumEvidence = null;
 
     public function __construct(
         private readonly CanonicalContractPriceCalculator $calculator,
@@ -55,6 +62,13 @@ class CanonicalContractPricingService
         private readonly ?SpotForwardPriceEstimator $spotEstimator = null,
         private readonly ?MarketReferenceCurveProvider $marketReference = null,
     ) {
+        if ($marketReference !== null) {
+            $this->premiumEvidence = new CurrentPremiumEvidenceLoader(
+                $calculator, $marketReference,
+                ResetEstimatorSettings::fromConfig(false),
+                (float) config('price_forecasting.fixed_term.vat_multiplier', 1.255),
+            );
+        }
         if ($calculator->resetForwardShiftEnabled() !== $mode->resetForwardShiftEnabled()) {
             throw new \InvalidArgumentException('PricingMode and the reset estimator must use the same reset-shift state.');
         }
@@ -65,6 +79,7 @@ class CanonicalContractPricingService
         $this->spotAssumptions = null;
         $this->priceEpisodeAnchors = [];
         $this->spotEstimates = [];
+        $this->premiumEvidence?->resetMemoization();
         if ($this->marketReference instanceof EexMarketReferenceCurveProvider) {
             $this->marketReference->resetMemoization();
         }
@@ -96,7 +111,7 @@ class CanonicalContractPricingService
     public function metricsForContracts(Collection $contracts, EnergyUsage $usage, ?CarbonInterface $startDate = null): array
     {
         $spot = $this->spotAssumptions();
-        [$parsed, $anchors] = $this->parseAndResolveAnchors($contracts);
+        [$parsed, $anchors, $premiums, $resetPremiums] = $this->parseAndResolveAnchors($contracts, $startDate);
         $spotEstimate = $this->spotEstimateForParsed($parsed, $spot, $startDate);
         $metrics = [];
 
@@ -113,6 +128,8 @@ class CanonicalContractPricingService
                     $startDate,
                     $anchors[$contractId] ?? null,
                     $spotEstimate,
+                    premium: $premiums[$contractId] ?? null,
+                    resetPremium: $resetPremiums[$contractId] ?? null,
                 );
                 $integrity = $this->integrityService->assess($record['data'], $outcome, $record['context']);
             }
@@ -139,7 +156,7 @@ class CanonicalContractPricingService
         ?CarbonInterface $startDate = null,
     ): array {
         $outcomes = [];
-        [$parsed, $anchors] = $this->parseAndResolveAnchors($contracts);
+        [$parsed, $anchors, $premiums, $resetPremiums] = $this->parseAndResolveAnchors($contracts, $startDate);
         $spotEstimate = $this->spotEstimateForParsed($parsed, $spot, $startDate);
 
         foreach ($parsed as $contractId => $record) {
@@ -154,6 +171,8 @@ class CanonicalContractPricingService
                         $startDate,
                         $anchors[$contractId] ?? null,
                         $spotEstimate,
+                        premium: $premiums[$contractId] ?? null,
+                        resetPremium: $resetPremiums[$contractId] ?? null,
                     );
             }
         }
@@ -176,7 +195,7 @@ class CanonicalContractPricingService
     ): array {
         $spot ??= $this->spotAssumptions();
         $evaluations = [];
-        [$parsed, $anchors] = $this->parseAndResolveAnchors($contracts);
+        [$parsed, $anchors, $premiums, $resetPremiums] = $this->parseAndResolveAnchors($contracts, $request->startDate, CarbonImmutable::now('Europe/Helsinki'));
         $spotEstimate = $this->spotEstimateForParsed($parsed, $spot, $request->startDate);
 
         foreach ($parsed as $contractId => $record) {
@@ -198,6 +217,8 @@ class CanonicalContractPricingService
                 $request->startDate,
                 $anchors[$contractId] ?? null,
                 $spotEstimate,
+                premium: $premiums[$contractId] ?? null,
+                resetPremium: $resetPremiums[$contractId] ?? null,
             );
 
             $evaluations[$contractId] = [
@@ -217,28 +238,16 @@ class CanonicalContractPricingService
     public function evaluate(ElectricityContract $contract, EnergyUsage $usage, ?SpotAssumptions $spot = null, ?CarbonInterface $startDate = null): array
     {
         $spot ??= $this->spotAssumptions();
-        $context = ContractContext::fromContract($contract);
-
-        try {
-            $data = $this->parser->parse(
-                $contract->canonical_pricing,
-                $contract->canonical_calculation,
-                $contract->canonical_source_consistency,
-            );
-        } catch (CanonicalPricingParseException $e) {
-            Log::warning('Canonical pricing parse failed', ['contract_id' => $contract->id, 'error' => $e->getMessage()]);
-
+        [$parsed, $anchors, $premiums, $resetPremiums] = $this->parseAndResolveAnchors(collect([$contract]), $startDate);
+        $context = $parsed[(string) $contract->id]['context'];
+        $data = $parsed[(string) $contract->id]['data'];
+        if ($data === null) {
             return [
                 'outcome' => $this->excludedOutcome($context),
                 'integrity' => ContractPricingIntegrity::none(),
             ];
         }
-
-        $candidate = $this->calculator->supplierAdjustedCandidate((string) $contract->id, $data, $context);
-        $anchors = $candidate !== null
-            ? $this->priceEpisodeResolver->resolve([(string) $contract->id => $candidate])
-            : [];
-        $spotEstimate = $this->calculator->usesSpotPricing($data, $context)
+        $spotEstimate = $this->calculator->usesSpotPricing($data, $context, $startDate)
             ? $this->resolveSpotEstimate($spot, $startDate)
             : null;
         $outcome = $this->calculator->calculate(
@@ -249,6 +258,8 @@ class CanonicalContractPricingService
             $startDate,
             $anchors[(string) $contract->id] ?? null,
             $spotEstimate,
+            premium: $premiums[(string) $contract->id] ?? null,
+            resetPremium: $resetPremiums[(string) $contract->id] ?? null,
         );
         $integrity = $this->integrityService->assess($data, $outcome, $context);
 
@@ -256,25 +267,43 @@ class CanonicalContractPricingService
     }
 
     /**
-     * Parse all contracts first, identify supplier-adjusted candidates, then resolve their
-     * episode anchors in one batch before any outcome is calculated.
+     * Parse all contracts first, resolve supplier episodes, and prepare both premium families
+     * in one request-local evidence flow before consumption-dependent costing.
      *
      * @param  Collection<int, ElectricityContract>  $contracts
-     * @return array{0: array<string, array{data: CanonicalContractData|null, context: ContractContext}>, 1: array<string, PriceEpisodeAnchor>}
+     * @return array{0: array<string, array{data: CanonicalContractData|null, context: ContractContext}>, 1: array<string, PriceEpisodeAnchor>, 2: array<string, PremiumEstimate|null>, 3: array<string, PremiumEstimate|null>}
      */
-    private function parseAndResolveAnchors(Collection $contracts): array
+    private function parseAndResolveAnchors(Collection $contracts, ?CarbonInterface $startDate = null, ?CarbonInterface $publicationDate = null): array
     {
+        $asOf = CarbonImmutable::parse(
+            ($startDate ?? CarbonImmutable::now('Europe/Helsinki'))->toDateString(),
+            'Europe/Helsinki',
+        )->startOfDay();
+        $contractsById = $contracts->keyBy('id');
+        $signatures = [];
         $parsed = [];
         $candidates = [];
+        $resetCandidates = [];
+        // A hypothetical past signup is not the publication cutoff for today's offers.
+        $sourceEvidence = (new CurrentSourcePromotionEvidence)->forContracts($contracts, $publicationDate ?? $asOf);
 
         foreach ($contracts as $contract) {
             $contractId = (string) $contract->id;
             $context = ContractContext::fromContract($contract);
+            $requiresRules = $sourceEvidence[$contractId]['energy_rules_required']
+                ?? CurrentSourcePromotionEvidence::requiresEnergyRuleProof($contract->canonical_pricing);
+            if ((isset($sourceEvidence[$contractId]) && ! $sourceEvidence[$contractId]['valid'])
+                || ($requiresRules && ! ($sourceEvidence[$contractId]['energy_rules_valid'] ?? false))) {
+                $parsed[$contractId] = ['data' => null, 'context' => $context];
+
+                continue;
+            }
             try {
                 $data = $this->parser->parse(
                     $contract->canonical_pricing,
                     $contract->canonical_calculation,
                     $contract->canonical_source_consistency,
+                    withEnergyRules: $sourceEvidence[$contractId]['energy_rules_valid'] ?? false,
                 );
             } catch (CanonicalPricingParseException $e) {
                 Log::warning('Canonical pricing parse failed', ['contract_id' => $contractId, 'error' => $e->getMessage()]);
@@ -283,8 +312,18 @@ class CanonicalContractPricingService
                 continue;
             }
 
+            $data = $data->withComparisonEvidence(sourceCampaignEnergyRates: $sourceEvidence[$contractId]['rates'] ?? []);
             $parsed[$contractId] = ['data' => $data, 'context' => $context];
-            $candidate = $this->calculator->supplierAdjustedCandidate($contractId, $data, $context);
+            $normalTarget = $this->calculator->normalEnergyTargetData($data, $context, $asOf);
+            $hasRules = EnergyRulePlan::hasKnownRules($data);
+            $resetCandidate = $hasRules && $normalTarget === null ? null
+                : $this->calculator->resetPremiumCandidate($contractId, $normalTarget ?? $data, $context, $asOf);
+            if ($resetCandidate !== null) {
+                $resetCandidates[$contractId] = $resetCandidate;
+            }
+            $candidate = $hasRules
+                ? $this->calculator->normalEnergyCandidate($contractId, $data, $context, $asOf)
+                : $this->calculator->supplierAdjustedCandidate($contractId, $data, $context, $asOf);
             if ($candidate !== null) {
                 $candidates[$contractId] = $candidate;
             }
@@ -293,28 +332,49 @@ class CanonicalContractPricingService
         $anchors = [];
         $unresolved = [];
         foreach ($candidates as $contractId => $candidate) {
+            $contract = $contractsById->get($contractId);
+            $signatures[$contractId] = json_encode([
+                $candidate->normalTariffEvidence,
+                $candidate->normalizedEnergyRates(),
+                $parsed[$contractId]['context'],
+                $candidate->metering,
+                $candidate->includesVat,
+                $candidate->pricingMechanism,
+                $asOf->toDateString(),
+                $contract->current_source_observation_id,
+                $contract->published_interpretation_id,
+                $candidate->normalTariffEvidence ? $contract->canonical_pricing : null,
+                $candidate->normalTariffEvidence ? $contract->canonical_calculation : null,
+                $candidate->normalTariffEvidence ? $contract->canonical_source_consistency : null,
+            ], JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION);
             $cached = $this->priceEpisodeAnchors[$contractId] ?? null;
-            if ($cached !== null
-                && abs($cached['energy'] - $candidate->currentEnergyPriceCentsPerKwh) <= 0.0001
-                && abs($cached['fee'] - $candidate->monthlyFeeEur) <= 0.0001) {
+            if ($cached !== null && $cached['signature'] === $signatures[$contractId]) {
                 $anchors[$contractId] = $cached['anchor'];
+
+                continue;
+            }
+            if ($candidate->normalTariffEvidence && (new CurrentNormalCandidateExtractor)->candidate(
+                $contractId, $parsed[$contractId]['data'], $parsed[$contractId]['context'], $asOf,
+            ) === null) {
+                // A fixed normal span is a target, not a monthly own-reference observation.
+                $anchors[$contractId] = PriceEpisodeAnchor::missing();
 
                 continue;
             }
             $unresolved[$contractId] = $candidate;
         }
 
-        foreach ($this->priceEpisodeResolver->resolve($unresolved) as $contractId => $anchor) {
-            $candidate = $unresolved[$contractId];
+        foreach ($this->priceEpisodeResolver->resolve($unresolved, $asOf) as $contractId => $anchor) {
             $this->priceEpisodeAnchors[$contractId] = [
-                'energy' => $candidate->currentEnergyPriceCentsPerKwh,
-                'fee' => $candidate->monthlyFeeEur,
+                'signature' => $signatures[$contractId],
                 'anchor' => $anchor,
             ];
             $anchors[$contractId] = $anchor;
         }
 
-        return [$parsed, $anchors];
+        $premiums = $this->premiumEvidence?->forCandidates($candidates, $contracts, $anchors, $asOf, $resetCandidates) ?? [];
+
+        return [$parsed, $anchors, array_intersect_key($premiums, $candidates), array_intersect_key($premiums, $resetCandidates)];
     }
 
     /**
@@ -323,7 +383,7 @@ class CanonicalContractPricingService
     private function spotEstimateForParsed(array $parsed, SpotAssumptions $spot, ?CarbonInterface $startDate): ?SpotEstimate
     {
         foreach ($parsed as $record) {
-            if ($record['data'] !== null && $this->calculator->usesSpotPricing($record['data'], $record['context'])) {
+            if ($record['data'] !== null && $this->calculator->usesSpotPricing($record['data'], $record['context'], $startDate)) {
                 return $this->resolveSpotEstimate($spot, $startDate);
             }
         }

@@ -7,6 +7,7 @@ use App\Services\CanonicalPricing\CanonicalPricingParser;
 use App\Services\CanonicalPricing\DTO\CanonicalPeriodPricingRequest;
 use App\Services\CanonicalPricing\DTO\ContractContext;
 use App\Services\CanonicalPricing\DTO\SpotAssumptions;
+use App\Services\CanonicalPricing\Enums\ComparisonPolicy;
 use App\Services\CanonicalPricing\Enums\ContractComparability;
 use App\Services\CanonicalPricing\Enums\EstimateMethod;
 use App\Services\CanonicalPricing\MarketReset\DTO\ResetEstimateRequest;
@@ -106,7 +107,7 @@ class MarketResetForwardShiftTest extends TestCase
         ));
     }
 
-    private function evaluate(array $pricing, MarketResetPriceEstimator $estimator, string $start = '2026-07-01', string $status = 'estimate_required', string $model = 'FixedPrice')
+    private function evaluate(array $pricing, MarketResetPriceEstimator $estimator, string $start = '2026-07-01', string $status = 'estimate_required', string $model = 'FixedPrice', ComparisonPolicy $policy = ComparisonPolicy::Current)
     {
         $data = $this->parser->parse(
             $pricing,
@@ -120,6 +121,7 @@ class MarketResetForwardShiftTest extends TestCase
             $this->usage,
             new SpotAssumptions(null, null),
             CarbonImmutable::parse($start, 'Europe/Helsinki'),
+            policy: $policy,
         );
     }
 
@@ -738,7 +740,7 @@ class MarketResetForwardShiftTest extends TestCase
         );
     }
 
-    public function test_a_period_that_began_before_the_curve_history_falls_back_to_todays_vintage(): void
+    public function test_historical_period_before_the_curve_history_keeps_todays_vintage_fallback(): void
     {
         // A quarterly period that started before 2026-04-08 has no pricing vintage and never will:
         // EEX serves an approximately 45-day rolling window. Fall back to today's vintage and flag
@@ -752,7 +754,7 @@ class MarketResetForwardShiftTest extends TestCase
             hasPricingVintage: false,
         );
 
-        $outcome = $this->evaluate($this->resetPricing(8.0, 'quarterly'), $this->estimator($curve), start: '2026-07-25');
+        $outcome = $this->evaluate($this->resetPricing(8.0, 'quarterly'), $this->estimator($curve), start: '2026-07-25', policy: ComparisonPolicy::Historical);
 
         $this->assertSame(EstimateMethod::RecurringForwardCurveShift, $outcome->estimateMethod);
         $this->assertContains('reference_vintage_fallback_today', $outcome->resetEstimate['flags']);
@@ -881,14 +883,22 @@ class MarketResetForwardShiftTest extends TestCase
             starts: ['kind' => 'contract_start', 'value' => null],
             ends: ['kind' => 'none', 'value' => null],
         );
+        $pricing['phases'][0]['ends'] = ['kind' => 'after_months', 'value' => '1'];
         $pricing['phases'][0]['components'][] = $this->component('monthly_fee', 2.0, 'eur_per_month', 'introductory', 4.0);
+        $normal = $pricing['phases'][0];
+        $normal['phase_kind'] = 'normal';
+        $normal['starts'] = ['kind' => 'after_months', 'value' => '1'];
+        $normal['ends'] = ['kind' => 'none', 'value' => null];
+        $normal['components'] = [$this->component('energy_general', 7.0, 'cents_per_kwh'), $this->component('monthly_fee', 4.0, 'eur_per_month')];
+        $pricing['phases'][] = $normal;
 
         $outcome = $this->evaluate($pricing, $this->estimator($curve));
 
-        $this->assertEqualsWithDelta(557.33, $outcome->totalCost, 0.05);
+        // The disclosed fee promotion lasts one month, not an unbounded year.
+        $this->assertEqualsWithDelta(579.33, $outcome->totalCost, 0.05);
         $this->assertEqualsWithDelta(581.33, $outcome->baseTotalCost, 0.05);
-        $this->assertEqualsWithDelta(24.0, $outcome->discountSavingsTotal(), 0.01);
-        $this->assertEqualsWithDelta(24.0, array_sum($outcome->monthlyDiscountSavings), 0.01);
+        $this->assertEqualsWithDelta(2.0, $outcome->discountSavingsTotal(), 0.01);
+        $this->assertEqualsWithDelta(2.0, array_sum($outcome->monthlyDiscountSavings), 0.01);
     }
 
     public function test_beta_scales_the_correction_linearly(): void

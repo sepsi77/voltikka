@@ -40,15 +40,19 @@ class SupplierAdjustedEstimateCopy
         }
 
         return 'Tulevia energiahintoja tai niiden muutosaikataulua ei tiedetä. Arvion myöhemmät kuukaudet perustuvat '
-            .self::basisPhrase($estimate).', ja perusmaksu on pidetty nykyisellään.';
+            .self::basisPhrase($estimate)
+            .($estimate->string('monthly_fee_assumption') === 'disclosed_phases'
+                ? '. Perusmaksussa on huomioitu ilmoitetut muutokset ja tarjoukset.'
+                : ', ja perusmaksu on pidetty nykyisellään.');
     }
 
     private static function basisPhrase(PricingFact $estimate): string
     {
         return match ($estimate->string('basis')) {
+            'forward_premium' => 'nykyisiin sähköfutuureihin ja vertailukelpoisista sopimuksista arvioituun vähittäishinnan ja tukkuhinnan erotukseen, koska sopimuksen oma historiallinen tukkuhintaviite puuttuu',
             'forward_curve_shift' => 'nykyisiin julkaistuihin hintoihin ja tukkumarkkinan ennakkohintoihin eli sähköfutuureihin',
-            'spot_seasonal_index' => 'nykyisiin julkaistuihin hintoihin ja pörssisähkön usean vuoden kausivaihteluun, koska tukkumarkkinan ennakkohintoja ei ollut saatavilla',
-            default => 'nykyisiin julkaistuihin hintoihin, koska käyttökelpoista markkinatietoa ei ollut saatavilla',
+            'spot_seasonal_index' => 'nykyisiin julkaistuihin hintoihin ja pörssisähkön usean vuoden kausivaihteluun, koska käyttökelpoista futuurihinnan ja vähittäishinnan yhdistelmää ei ollut saatavilla',
+            default => 'nykyisiin julkaistuihin hintoihin, koska tuleville kuukausille ei voitu muodostaa perusteltua hinta-arviota',
         };
     }
 

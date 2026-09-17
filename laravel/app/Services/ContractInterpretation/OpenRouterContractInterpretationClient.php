@@ -12,9 +12,9 @@ class OpenRouterContractInterpretationClient
      * @param  array<string, mixed>  $input
      * @return array{output: array<string, mixed>, usage: array<string, mixed>, provider: ?string, response_id: ?string, latency_ms: int}
      */
-    public function interpret(array $input, ?string $historicalAddendumPath = null): array
+    public function interpret(array $input, ?string $historicalAddendumPath = null, ?ContractInterpretationProfile $profile = null): array
     {
-        return $this->request($input, historicalAddendumPath: $historicalAddendumPath);
+        return $this->request($input, historicalAddendumPath: $historicalAddendumPath, profile: $profile);
     }
 
     /**
@@ -28,8 +28,9 @@ class OpenRouterContractInterpretationClient
         array $previousOutput,
         array $validationErrors,
         ?string $historicalAddendumPath = null,
+        ?ContractInterpretationProfile $profile = null,
     ): array {
-        return $this->request($input, $previousOutput, $validationErrors, $historicalAddendumPath);
+        return $this->request($input, $previousOutput, $validationErrors, $historicalAddendumPath, $profile);
     }
 
     /**
@@ -43,14 +44,18 @@ class OpenRouterContractInterpretationClient
         ?array $previousOutput = null,
         array $validationErrors = [],
         ?string $historicalAddendumPath = null,
+        ?ContractInterpretationProfile $profile = null,
     ): array {
+        $profile ??= $historicalAddendumPath === null
+            ? ContractInterpretationProfile::current()
+            : ContractInterpretationProfile::historical();
         $apiKey = config('services.openrouter.api_key');
         if (! $apiKey) {
             throw new RuntimeException('OPENROUTER_API_KEY is not configured.');
         }
 
-        $schema = $this->readJsonFile((string) config('contract_interpretation.schema_path'));
-        $prompt = $this->readFile((string) config('contract_interpretation.prompt_path'));
+        $schema = $this->readJsonFile($profile->schemaPath);
+        $prompt = $this->readFile($profile->promptPath);
         if ($historicalAddendumPath !== null) {
             $prompt .= "\n\n".$this->readFile($historicalAddendumPath);
         }
@@ -157,9 +162,6 @@ class OpenRouterContractInterpretationClient
         ];
     }
 
-    /**
-     * @return mixed
-     */
     private function decodeContent(string $content): mixed
     {
         try {

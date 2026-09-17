@@ -59,6 +59,32 @@ class ContractInterpretationPublisher
             }
 
             $output = $lockedInterpretation->output ?? [];
+            // Select from stored identity while source and interpretation rows are locked.
+            try {
+                $profile = ContractInterpretationProfile::stored(
+                    $lockedInterpretation->schema_version,
+                    $lockedInterpretation->prompt_version,
+                    $lockedInterpretation->validator_version,
+                );
+            } catch (\InvalidArgumentException) {
+                return false;
+            }
+            $validator = new ContractInterpretationValidator;
+            if ($profile->schemaVersion === 'schema-v5') {
+                if ($lockedInterpretation->analysis_source_observation_id !== null
+                    && (int) $lockedInterpretation->analysis_source_observation_id !== (int) $currentObservation->id) {
+                    return false;
+                }
+                $input = (new ContractInterpretationInputBuilder)->build($currentSnapshot, $currentObservation->first_observed_at, $profile);
+                if ($validator->validate($output, $input, $profile) !== []) {
+                    return false;
+                }
+            } elseif ($validator->validatePublicationShape($output, $profile) !== []
+                || ($contract->published_interpretation_id !== $lockedInterpretation->id
+                    && $this->retainedEnergyRulePublication($contract, $currentSnapshot, $currentObservation) !== null)) {
+                return false;
+            }
+
             $updates = array_merge($this->canonicalClassification($output), [
                 'canonical_pricing' => $output['pricing'] ?? null,
                 'canonical_source_consistency' => $output['source_consistency'] ?? null,
@@ -103,6 +129,35 @@ class ContractInterpretationPublisher
         }
 
         return $published;
+    }
+
+    /** Preserve already-published V5 facts, never opt a changed source into V5. */
+    public function retainedEnergyRulePublication(
+        ElectricityContract $contract,
+        ContractSourceSnapshot $snapshot,
+        ContractSourceObservation $observation,
+    ): ?ContractInterpretation {
+        if ($contract->published_interpretation_id === null) {
+            return null;
+        }
+        $published = ContractInterpretation::find($contract->published_interpretation_id);
+        if ($published === null || $published->status !== ContractInterpretation::STATUS_PUBLISHED
+            || $published->schema_version !== 'schema-v5' || $published->prompt_version !== 'prompt-v20' || $published->validator_version !== 'validator-v18'
+            || $published->contract_id !== $contract->id || $snapshot->contract_id !== $contract->id
+            || $observation->contract_id !== $contract->id || $contract->current_source_observation_id !== $observation->id
+            || $observation->source_snapshot_id !== $snapshot->id || $published->source_snapshot_id !== $snapshot->id
+            || $published->published_at === null || $published->published_at->lt($observation->first_observed_at)
+            || ($published->analysis_source_observation_id !== null && (int) $published->analysis_source_observation_id !== (int) $observation->id)
+            || ! empty($published->validation_errors)
+            || $contract->canonical_pricing != ($published->output['pricing'] ?? null)
+            || $contract->canonical_calculation != ($published->output['calculation'] ?? null)
+            || $contract->canonical_source_consistency != ($published->output['source_consistency'] ?? null)) {
+            return null;
+        }
+        $profile = ContractInterpretationProfile::stored($published->schema_version, $published->prompt_version, $published->validator_version);
+        $input = (new ContractInterpretationInputBuilder)->build($snapshot, $observation->first_observed_at, $profile);
+
+        return (new ContractInterpretationValidator)->validate($published->output, $input, $profile) === [] ? $published : null;
     }
 
     /**

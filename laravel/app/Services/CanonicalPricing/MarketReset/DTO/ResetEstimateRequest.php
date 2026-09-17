@@ -2,6 +2,8 @@
 
 namespace App\Services\CanonicalPricing\MarketReset\DTO;
 
+use App\Services\CanonicalPricing\Enums\ComparisonPolicy;
+use App\Services\CanonicalPricing\ForwardPremium\PremiumEstimate;
 use Carbon\CarbonImmutable;
 
 /**
@@ -43,6 +45,12 @@ readonly class ResetEstimateRequest
         public array $monthWeights,
         // The provider supplies VAT-inclusive prices; the caller selects the bill basis.
         public float $marketPriceMultiplier = 1.0,
+        public ComparisonPolicy $policy = ComparisonPolicy::Historical,
+        public array $energyRates = [],
+        public ?PremiumEstimate $premium = null,
+        public array $bucketMonthWeights = [],
+        public array $tailBucketMonthWeights = [],
+        public string $pricingMechanism = 'FixedPrice',
     ) {}
 
     /**
@@ -58,7 +66,12 @@ readonly class ResetEstimateRequest
      */
     public function referenceKindPreference(): array
     {
-        return match ($this->cadence) {
+        return self::referenceKinds($this->cadence);
+    }
+
+    public static function referenceKinds(string $cadence): array
+    {
+        return match ($cadence) {
             'quarterly', 'seasonal', 'other' => ['quarter', 'quarter_month_average'],
             default => ['month'],
         };

@@ -11,6 +11,7 @@ use App\Services\WeeklyOffersPromptFormatter;
 use App\Services\WeeklyOffersVideoService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class WeeklyOffersCanonicalPricingTest extends TestCase
@@ -30,7 +31,8 @@ class WeeklyOffersCanonicalPricingTest extends TestCase
         }
     }
 
-    public function test_canonical_api_uses_only_safe_measured_offers_and_canonical_values_in_a_bounded_batch(): void
+    #[DataProvider('additionalPlainContractCounts')]
+    public function test_canonical_api_uses_only_safe_measured_offers_and_canonical_values_in_a_bounded_batch(int $additionalPlainContracts): void
     {
         config()->set('canonical_pricing.enabled', true);
         app()->forgetScopedInstances();
@@ -91,6 +93,12 @@ class WeeklyOffersCanonicalPricingTest extends TestCase
             pricingHasDiscounts: true,
         );
 
+        // Include 1, 8, or 32 ordinary supplier-price candidates with no own history.
+        // The first is relational-only above; none has a canonical promotion.
+        for ($i = 0; $i < $additionalPlainContracts; $i++) {
+            $this->createContract('plain-'.$i, 'Other Energy Oy', 'Plain '.$i, $this->plainPhase());
+        }
+
         $queries = [];
         DB::listen(function ($query) use (&$queries): void {
             $queries[] = $query->sql;
@@ -128,11 +136,23 @@ class WeeklyOffersCanonicalPricingTest extends TestCase
 
         $ids = collect($response->json('data.offers'))->pluck('id')->all();
         $this->assertSame(['canonical-conflict', 'canonical-only'], $ids);
-        $this->assertLessThanOrEqual(7, count($queries), implode("\n", $queries));
+        // Four contract/relation/Spot reads, four dated episode reads, and one
+        // shared available-futures-vintage read, for all three consumptions.
+        // This count stays constant as the supplier candidate count increases.
+        $this->assertCount(9, $queries, implode("\n", $queries));
+        $this->assertCount(1, array_filter(
+            $queries,
+            fn (string $sql): bool => str_contains($sql, 'electricity_futures_eod_prices'),
+        ));
         $this->assertSame([], array_values(array_filter(
             $queries,
             fn (string $sql): bool => str_contains($sql, 'price_components'),
         )));
+    }
+
+    public static function additionalPlainContractCounts(): array
+    {
+        return [[0], [7], [31]];
     }
 
     public function test_unknown_target_group_is_not_household_eligible(): void
@@ -154,7 +174,13 @@ class WeeklyOffersCanonicalPricingTest extends TestCase
         $this->assertSame([], $data['offers']);
     }
 
-    public function test_short_fixed_term_payload_and_prompt_use_the_real_term_benefit(): void
+    public static function shortPricingModels(): array
+    {
+        return [['FixedPrice'], ['Hybrid']];
+    }
+
+    #[DataProvider('shortPricingModels')]
+    public function test_short_fixed_term_payload_and_prompt_use_the_real_term_benefit(string $pricingModel): void
     {
         $this->travelTo('2026-08-01 12:00:00');
         config()->set('canonical_pricing.enabled', true);
@@ -171,6 +197,12 @@ class WeeklyOffersCanonicalPricingTest extends TestCase
             contractType: 'FixedTerm',
             fixedTimeRange: 'Fixed6',
         );
+        if ($pricingModel === 'Hybrid') {
+            $canonical = $contract->canonical_pricing;
+            $canonical['consumption_effect']['present'] = true;
+            $canonical['consumption_effect']['applies_to'] = 'base_contract';
+            $contract->update(['pricing_model' => 'Hybrid', 'canonical_pricing' => $canonical]);
+        }
         $this->createRelationalDiscount($contract, price: 1.0, discount: 99.0);
 
         $data = app(WeeklyOffersVideoService::class)->getWeeklyOffersData();
@@ -195,6 +227,16 @@ class WeeklyOffersCanonicalPricingTest extends TestCase
         $this->assertStringNotContainsString('60,00 € / 12 kk', $prompt);
         $this->assertStringNotContainsString('99,00', $prompt);
         $this->assertStringNotContainsString('c/kWh alennus', $prompt);
+    }
+
+    public function test_actual_only_six_month_contract_is_not_a_weekly_offer(): void
+    {
+        config()->set('canonical_pricing.enabled', true);
+        app()->forgetScopedInstances();
+        $this->createContract('actual-only-six', 'Alpha Energy Oy', 'Actual only', $this->plainPhase(),
+            contractType: 'FixedTerm', fixedTimeRange: 'Fixed6');
+        $data = app(WeeklyOffersVideoService::class)->getWeeklyOffersData();
+        $this->assertSame([], $data['offers']);
     }
 
     public function test_feature_off_keeps_the_legacy_relational_weekly_offer_payload(): void

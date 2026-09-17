@@ -11,6 +11,8 @@ enum EstimateMethod: string
     /** Every window segment came from a disclosed, dated phase. */
     case None = 'none';
 
+    case SourceEnergyRules = 'source_energy_rules_v1';
+
     /** Unknown future periods use the latest applicable billed price or disclosed normal price. */
     case HoldLastKnownPrice = 'hold_last_known_price';
 
@@ -22,6 +24,7 @@ enum EstimateMethod: string
      * shape-only shift of the FI forward curve (`P_m = P_current + beta * (F_m - F_ref)`).
      */
     case RecurringForwardCurveShift = 'recurring_forward_curve_shift';
+    case RecurringForwardPremium = 'recurring_forward_premium';
 
     /**
      * Recurring reset, lower-confidence fallback: no usable forward curve, so the tail is
@@ -31,6 +34,7 @@ enum EstimateMethod: string
 
     /** Adjustable open-ended supplier price shifted on the FI forward curve. */
     case SupplierAdjustedForwardCurveShift = 'supplier_adjusted_forward_curve_shift';
+    case SupplierAdjustedForwardPremium = 'supplier_adjusted_forward_premium';
 
     /** Adjustable supplier-price fallback shaped by the realized Spot seasonal index. */
     case SupplierAdjustedSpotSeasonalIndex = 'supplier_adjusted_spot_seasonal_index';

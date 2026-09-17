@@ -121,6 +121,7 @@ class AnalyzeHistoricalContractEpisode implements ShouldBeUnique, ShouldQueue
                             $output['pricing'] ?? null,
                             $output['calculation'] ?? null,
                             $output['source_consistency'] ?? null,
+                            withEnergyRules: false,
                         );
 
                         return [];
@@ -178,11 +179,11 @@ class AnalyzeHistoricalContractEpisode implements ShouldBeUnique, ShouldQueue
 
     private function versionsMatch(ContractHistoricalInterpretation $interpretation): bool
     {
-        return $interpretation->schema_version === config('contract_interpretation.schema_version')
-            && $interpretation->prompt_version === config('contract_interpretation.prompt_version')
+        return $interpretation->schema_version === config('contract_interpretation.historical.schema_version')
+            && $interpretation->prompt_version === config('contract_interpretation.historical.prompt_version')
             && $interpretation->historical_addendum_version === config('contract_interpretation.historical.addendum_version')
-            && $interpretation->validator_version === config('contract_interpretation.validator_version')
-            && $interpretation->parser_version === CanonicalPricingParser::VERSION
+            && $interpretation->validator_version === config('contract_interpretation.historical.validator_version')
+            && $interpretation->parser_version === config('contract_interpretation.historical.parser_version')
             && $interpretation->provider === config('contract_interpretation.provider')
             && $interpretation->model === config('contract_interpretation.model')
             && $interpretation->reasoning_effort === config('contract_interpretation.reasoning_effort');

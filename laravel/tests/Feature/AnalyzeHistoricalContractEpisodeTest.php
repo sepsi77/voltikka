@@ -18,6 +18,23 @@ class AnalyzeHistoricalContractEpisodeTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_historical_job_keeps_its_profile_after_current_config_changes(): void
+    {
+        $analysis = $this->analysis();
+        config()->set([
+            'contract_interpretation.schema_version' => 'schema-v5',
+            'contract_interpretation.prompt_version' => 'prompt-v20',
+            'contract_interpretation.validator_version' => 'validator-v18',
+            'contract_interpretation.schema_path' => '/missing-schema',
+        ]);
+        $this->mock(OpenRouterContractInterpretationClient::class)->shouldReceive('interpret')->once()
+            ->withArgs(fn ($input, $addendum, $profile) => $profile->schemaVersion === 'schema-v4'
+                && $profile->validatorVersion === 'validator-v17')
+            ->andReturn($this->llmResult($this->validOutput($analysis->contract_id), 15, 0.02));
+        app()->call([new AnalyzeHistoricalContractEpisode($analysis->id), 'handle']);
+        $this->assertSame('validated', $analysis->fresh()->status);
+    }
+
     public function test_valid_output_is_validated_with_attempt_usage_and_no_publication_side_effects(): void
     {
         $analysis = $this->analysis();

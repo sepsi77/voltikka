@@ -6,16 +6,19 @@ use App\Livewire\ContractDetail;
 use App\Models\ActiveContract;
 use App\Models\Company;
 use App\Models\ElectricityContract;
+use App\Models\ElectricityFuturesEodPrice;
 use App\Models\ElectricitySource;
 use App\Models\PriceComponent;
 use App\Models\SpotPriceAverage;
 use App\Services\Analytics\ContractOrderClickContextSigner;
 use App\Services\Caching\ContractPageCacheVersion;
 use App\Services\ContractPriceHistory\ContractHistoryPresenter;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -1378,7 +1381,7 @@ class ContractDetailPageTest extends TestCase
      */
     public function test_market_reset_contract_shows_the_current_price_and_estimate_qualifier(): void
     {
-        $this->travelTo(\Carbon\Carbon::parse('2026-07-25 09:00:00', 'Europe/Helsinki'));
+        $this->travelTo(Carbon::parse('2026-07-25 09:00:00', 'Europe/Helsinki'));
 
         config([
             'canonical_pricing.enabled' => true,
@@ -1387,13 +1390,19 @@ class ContractDetailPageTest extends TestCase
         ]);
 
         foreach ([['month', '202607', 19.53], ['month', '202608', 41.64], ['month', '202609', 87.05], ['year', '202601', 60.0], ['year', '202701', 54.12]] as [$type, $maturity, $price]) {
-            \App\Models\ElectricityFuturesEodPrice::create([
+            ElectricityFuturesEodPrice::create([
                 'exchange' => 'EEX', 'commodity' => 'POWER', 'pricing' => 'F', 'product' => 'Base', 'area' => 'FI',
                 'short_code' => $type === 'month' ? 'FNBM' : 'FNBY',
                 'maturity' => $maturity, 'maturity_type' => $type,
                 'trade_date' => '2026-07-24', 'settlement_price' => $price,
             ]);
         }
+
+        ElectricityFuturesEodPrice::create([
+            'exchange' => 'EEX', 'commodity' => 'POWER', 'pricing' => 'F', 'product' => 'Base', 'area' => 'FI',
+            'short_code' => 'FNBQ', 'maturity' => '202607', 'maturity_type' => 'quarter',
+            'trade_date' => '2026-06-30', 'settlement_price' => 50.0,
+        ]);
 
         $contract = $this->createComparisonContract('reset-qualifier-contract', 'Kvartaalisähkö', 8.0);
         $contract->update([
@@ -1441,20 +1450,20 @@ class ContractDetailPageTest extends TestCase
         $this->assertNull($component->priceQualifier, 'The qualifier must not repeat what the popover already says.');
     }
 
-    public function test_fully_fixed_contract_states_that_the_price_does_not_change(): void
+    public function test_fixed_term_contract_gives_neutral_price_condition_guidance(): void
     {
         $this->contract->update(['pricing_model' => 'FixedPrice', 'contract_type' => 'FixedTerm']);
 
         Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
-            ->assertSee('Energian hinta 5,50 c/kWh ei muutu määräaikaisen sopimuksen aikana.');
+            ->assertSee('Määräaikaisuus kertoo sopimuksen kestosta. Tarkista energian hinnat, hintajaksot ja hinnanmuutosehdot.');
     }
 
-    public function test_open_ended_fixed_contract_states_that_the_price_does_not_follow_the_market(): void
+    public function test_open_ended_fixed_contract_states_that_the_price_does_not_follow_hourly_spot(): void
     {
         $this->contract->update(['pricing_model' => 'FixedPrice', 'contract_type' => 'OpenEnded']);
 
         Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
-            ->assertSee('Energian hinta 5,50 c/kWh ei seuraa markkinahintaa, ja myyjän on ilmoitettava hinnanmuutoksesta etukäteen.');
+            ->assertSee('Energian hinta 5,50 c/kWh ei seuraa pörssin tuntihintaa, ja myyjän on ilmoitettava hinnanmuutoksesta etukäteen.');
     }
 
     /**
@@ -1790,7 +1799,7 @@ class ContractDetailPageTest extends TestCase
             'id' => $id,
             'company_name' => 'Test Energia Oy',
             'name' => $name,
-            'name_slug' => \Illuminate\Support\Str::slug($name),
+            'name_slug' => Str::slug($name),
             'contract_type' => 'OpenEnded',
             'metering' => 'General',
             'pricing_model' => $pricingModel,

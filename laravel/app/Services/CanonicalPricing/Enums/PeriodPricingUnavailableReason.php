@@ -8,6 +8,7 @@ namespace App\Services\CanonicalPricing\Enums;
 enum PeriodPricingUnavailableReason: string
 {
     case NotComparable = 'not_comparable';
+    case InsufficientPromotionTerms = 'insufficient_promotion_terms';
     case NoSpotHistory = 'no_spot_history';
     case NoPricing = 'no_pricing';
 }

@@ -243,6 +243,30 @@ class CardReceiptLines
         bool $detailed,
         bool $useCanonical,
     ): array {
+        if ($pricing?->energyRuleComparison() !== null) {
+            $scheduled = $this->canonicalScheduledChangeLines($pricing);
+            if ($scheduled !== []) {
+                return $scheduled;
+            }
+            $lines = $this->meteringLines($rates, $metering);
+            if (MeteringType::fromSource($metering) === MeteringType::General && $pricing->generalKwhPrice() !== null) {
+                $lines = [new CardReceiptLine('Energia nyt', $this->amount($pricing->generalKwhPrice()), 'c/kWh')];
+            }
+            if ($detailed) {
+                $normalRates = $pricing->energyRuleComparison()->toArray()['current_normal_rates'] ?? [];
+                $labels = ['energy_general' => 'Normaalihinta nyt', 'energy_day' => 'Normaali päivähinta nyt', 'energy_night' => 'Normaali yöhinta nyt', 'energy_seasonal_winter' => 'Normaali talvipäivähinta nyt', 'energy_seasonal_other' => 'Normaali muun ajan hinta nyt'];
+                foreach ($normalRates as $bucket => $rate) {
+                    $lines[] = new CardReceiptLine($labels[$bucket].($pricing->energyRuleComparison()->boolean('normal_estimated') ? ', voi muuttua' : ''), $this->amount($rate), 'c/kWh', soft: true);
+                }
+            }
+            $annual = $pricing->energyRuleComparison()->number('annual_equivalent_energy_price');
+            if ($annual !== null && $pricing->energyRuleComparison()->boolean('actual_estimated')) {
+                $lines[] = new CardReceiptLine('Vuosivertailun keskihinta, arvio', $this->amount($annual), 'c/kWh', soft: true);
+            }
+
+            return $lines;
+        }
+
         // A pre-published later price is the most useful thing the rows can say: both dates
         // and both prices, so the footer warning is backed by the breakdown. Canonical mode
         // reads the calculator's resolved phase record. The integrity payload stays only in
@@ -330,6 +354,10 @@ class CardReceiptLines
             $first = $phases[$index];
             $second = $phases[$index + 1];
 
+            if ($pricing?->energyRuleComparison() !== null
+                && ($first->boolean('energy_price_guaranteed') !== true || $second->boolean('energy_price_guaranteed') !== true)) {
+                continue;
+            }
             if ($first->boolean('uses_spot') !== $second->boolean('uses_spot')) {
                 continue;
             }

@@ -69,7 +69,7 @@ class CanonicalPricingListingTest extends TestCase
             ]);
     }
 
-    public function test_known_prices_and_unknown_continuations_are_listed_but_malformed_pricing_is_hidden(): void
+    public function test_known_prices_are_listed_but_incomplete_promotions_and_malformed_pricing_are_hidden(): void
     {
         // Honest single-price contract.
         $this->createContract(
@@ -134,7 +134,7 @@ class CanonicalPricingListingTest extends TestCase
             ),
         );
 
-        // A known promo with an unknown continuation remains an explicit estimate.
+        // A finite promo without a normal continuation must not improve ranking.
         $this->createContract(
             'unknown-1',
             'Viekas Piilohinta',
@@ -191,17 +191,14 @@ class CanonicalPricingListingTest extends TestCase
         $component = Livewire::test(SahkosopimusIndex::class)->set('consumption', 5000);
         $contracts = $component->viewData('contracts');
 
-        $this->assertSame(3, $contracts->total());
+        $this->assertSame(2, $contracts->total());
         $this->assertEqualsCanonicalizing(
-            ['honest-1', 'deceptive-1', 'unknown-1'],
+            ['honest-1', 'deceptive-1'],
             $contracts->pluck('id')->all(),
         );
         $component->assertSee('Reilu Perussähkö');
         $component->assertSee('Viekas Tarjoushinta');
-        $component->assertSee('Viekas Piilohinta');
-        $estimated = $contracts->firstWhere('id', 'unknown-1');
-        $this->assertSame('hold_last_known_price', $estimated->calculated_cost['estimate_method']);
-        $this->assertEqualsWithDelta(100, $estimated->calculated_cost['total_cost'], 0.001);
+        $component->assertDontSee('Viekas Piilohinta');
         // Malformed package pricing must still not appear in the listing.
         $component->assertDontSee('Viekas Virhepaketti');
         // Deceptive contract carries the price-increase warning pill.

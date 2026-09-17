@@ -753,13 +753,14 @@ Important semantics:
 - the card's type band is single-purpose: it states one of three pricing categories (Kiinteä hinta / Markkinahinta / Kulutusvaikutus) and never a warning. Warnings are coral footer pills, priority ordered and capped at two. Consumption caps only warn at ≤ 30 000 kWh/v unless the selected consumption actually exceeds the cap.
 - the percentile callouts were removed from cards (they rendered only on SEO listing pages, half the switch was unreachable, and they could contradict the sort order). `ContractsList::getPercentiles()` and `contracts:calculate-percentiles` are unchanged; the `percentiles` card prop is a retained no-op.
 - listing pages carry `<x-card.legend />` explaining the type-band tints; it replaced the emissions colour legend when the card's emissions left stripe was removed.
-- **Canonical pricing (behind `CANONICAL_PRICING_ENABLED`):** when on, `ContractListCacheService`/the listing fallback paths attach `comparability` + `pricing_integrity` to each contract (batch, like percentiles), drop non-listed contracts from `sorted_ids`, and rank by the canonical true 12-month total. Cards consume those fields through `ContractCardPresenter`: `Hinta nousee …`, `{N} kk sopimus, jatkohinta ei tiedossa` and `Ei sisällä kulutusvaikutusta` are coral footer pills, and the estimate marker is the band's `Arvio` popover rather than a footer tag. `ContractDetail` exposes `pricingIntegrity`/`pricingComparability`/`isPricingExcluded`: excluded contracts show a "Vuosihintaa ei voi laskea luotettavasti" hero and omit JSON-LD `offers`; detected contracts render the integrity notice at the top of `Hintatiedot`, in coral (it was amber until Phase 4; amber is an emissions tier). The SEO offer page filters after canonical metrics are attached, so canonical-only offers enter while relational-only, package, zero-benefit, and excluded rows do not. Its Product descriptions use `CanonicalOfferFacts`, not relational labels. Feature-off keeps the old relational candidate query and JSON-LD text. All flag-driven caches carry a `c1`/`c0` marker (incl. `ContractPageCacheVersion`) so a toggle busts them. See `../Services/CanonicalPricing/AGENTS.md`.
+- **Canonical pricing (behind `CANONICAL_PRICING_ENABLED`):** when on, `ContractListCacheService`/the listing fallback paths attach `comparability` + `pricing_integrity` to each contract (batch, like percentiles), drop non-listed contracts from `sorted_ids`, and rank by the canonical true 12-month total. Cards consume those fields through `ContractCardPresenter`: `Hinta nousee …` and `Ei sisällä kulutusvaikutusta` are coral warning pills; a real short-term annualization basis is a quiet fact and does not consume the two-warning limit. Short-term metadata does not prove unknown continuation or constant energy pricing, and the estimate marker is the band's `Arvio` popover rather than a footer tag. `ContractDetail` exposes `pricingIntegrity`/`pricingComparability`/`isPricingExcluded`: excluded contracts show a "Vuosihintaa ei voi laskea luotettavasti" hero and omit JSON-LD `offers`; detected contracts render the integrity notice at the top of `Hintatiedot`, in coral (it was amber until Phase 4; amber is an emissions tier). The SEO offer page filters after canonical metrics are attached, so canonical-only offers enter while relational-only, package, zero-benefit, and excluded rows do not. Its Product descriptions use `CanonicalOfferFacts`, not relational labels. Feature-off keeps the old relational candidate query and JSON-LD text. All flag-driven caches carry a `c1`/`c0` marker (incl. `ContractPageCacheVersion`) so a toggle busts them. See `../Services/CanonicalPricing/AGENTS.md`.
 - city-page solar potential must stay in the lazy `CitySolarEstimate` child component; `SeoContractsList` must not call `CitySolarService`/PVGIS while building initial page HTML because a cache miss can add blocking time
 - `CitySolarEstimate` must not make uncached PVGIS requests for crawler user agents (Googlebot, generic bots/spiders); bot-triggered Livewire lazy updates should render cached data only or nothing, because PVGIS can hang long enough to hit PHP's request timeout
 - `SeoContractsList` validates city slugs against `municipalities` during mount and returns 404 for unknown `/sahkosopimus/paikkakunnat/{location}` slugs so SEO pricing/duration slugs cannot become fake location pages. It still memoizes the municipality lookup because city metadata is read by contracts filtering, title/meta generation, headings, JSON-LD, and local-contract sections during one render; do not revert to direct `Municipality::where('slug', ...)` calls from those accessors
 - `ContractsList::$page` is URL-bound and intentionally typed `int|string`; `normalizePageProperty()` coerces empty, malformed, zero, or negative query values to page 1 before render/SEO pagination. Keep this tolerant because bots and browsers can request `?page=` before Livewire mount, and a strict `int` property causes typed-property hydration errors. After either the annual or bill-mode paginator is built, shared listing view-data rejects a requested page above `lastPage()` with HTTP 404 and no redirect. `CheapestContracts` remains an intentional fixed one-page compatibility paginator outside this real-pagination guard. The listing paginators are built manually and render normal anchor links, so each constructor must pass `paginationQueryParameters()` to keep non-default `consumption` and comma-separated `hintatyyppi` state while only `page` changes; default values stay absent from canonical pagination links. Valid city pages after page 1 pass exactly `noindex,follow` to the layout and do not render `LocalContractsSection`; local/regional IDs remain excluded from the main paginator on every page so pagination membership does not change.
 - `ContractsList::calculateFromInlineCalculator()` reads calculator fields through safe typed helper methods. Keep this tolerant of blank mobile number inputs and stale/partially hydrated Livewire snapshots from SEO pages so user edits do not turn into `PropertyNotFoundException` / enum errors.
 - `CheapestContracts` calls `SeoContractsList::getContractsProperty()` through inheritance. Read consumption with `ContractsList::selectedConsumptionValue()` in inherited listing paths and cheapest-page render data so stale Livewire snapshots that miss the URL-bound `consumption` property fall back to 5 000 kWh instead of throwing `PropertyNotFoundException`.
+- FixedPrice and GeneralElectricity SEO pages retain `pricing_model=FixedPrice` plus canonical `status=exact`. Neither fact proves a constant annual/whole-term price or a source guarantee. Eligible phased Fixed6 and OpenEnded contracts remain listed. FixedPrice copy explains disclosed phases and possible OpenEnded changes; GeneralElectricity describes one rate across clock times. Canonical offer copy distinguishes the real short term from an annualized comparison and says estimated-normal savings are not guaranteed; feature-off copy retains the legacy annual estimate. See `tasks/source-validated-energy-rules/seo-release-copy.md`.
 - Exact-duration SEO pages `/sahkosopimus/maaraaikainen-{6|12|24}-kk` use `contractDuration=FixedTerm` plus the closed `fixedTimeRange` values `Fixed6`, `Fixed12`, or `Fixed24`. `SeoContractsList` filters both structured columns and never product names. Each page owns its title, meta, H1, intro, canonical, breadcrumb/JSON-LD values, and a plain `Halvin N kk sähkösopimus` H2 above normal and bill-mode results. The shared "Katso myös" list links all three pages.
 - The general and three exact fixed-term pages render `partials.fixed-term-seo-guide` only on page 1, after pagination and before "Katso myös". Keep cards first. `fixedTermComparison()` stays the raw cached common-date source. `SeoContractsList` adds the selected consumption, a 12-month baseline on the general page or the exact page duration, and signed c/kWh and annual energy-cost differences. The statistic segments contain fully fixed products because the shared classifier puts Hybrid and market-reset products elsewhere. The guide states this and excludes monthly fees from those differences. Exact pages label their row "Tällä sivulla"; the general page labels 12 months "Vertailukohta".
 - The fixed-term mechanism summary is built from the complete annual-mode sorted collection before pagination. It counts `PricingCategoryResolver::resolve()` categories and reads each category minimum and monthly equivalent through `ContractPricingViewData`. Consumption-effect totals are base-price comparisons without the unknown effect. The first globally sorted contract supplies the direct cheapest-category statement. The matching 6/12/24 market-direction payload keeps trend and forecast dates separate and translates only the forecast c/kWh movement to euros. Missing trend and forecast parts hide independently. Bill mode suppresses all personalized guide payloads, and page 2 has no guide payload.
@@ -1049,9 +1050,20 @@ So the qualifier is now conditional on `$this->card?->estimate !== null`:
 | Pörssisähkö | always | `Pörssisähkössä maksat sähkön tuntihinnan, joten vuosihinta on arvio.` — mechanism only. The popover carries either the forward FI market strip plus historical day/night shape or the explicit rolling fallback, together with the exact margin. The receipt labels distinguish forward and realized bases |
 | Markkinahinta (reset) | yes | **null** |
 | Kulutusvaikutus | yes | **null** |
-| Kiinteä, term < 12 kk | yes (`termBody`) | price sentence only; the popover owns the annualisation and the unknown continuation |
+| Kiinteä, term < 12 kk | yes (`termBody`) | neutral published-term-price basis; the popover owns annualization, not an assumed unknown continuation |
 | Kiinteä, supplier-adjusted open-ended | yes | two short sentences: the seller's published current price is a fact, and the 12-month equivalent is an estimate. The popover owns the basis and uncertainty |
-| Kiinteä, 12 kk+ / other toistaiseksi | **none** — not an estimate | full sentence, sole carrier |
+| Kiinteä, 12 kk+ / other toistaiseksi | existing estimate policy unchanged | neutral term and price-condition guidance for fixed terms; other open-ended prices do not follow the hourly spot price, and advance change notice remains required |
+
+The detail estimate receipt shares the card's controlled model-floor note. Either
+`estimated_energy_nonnegative_model_floor_applied` or `energy_rule_nonnegative_model_floor_applied`
+adds one notice, not two; it describes Voltikka's estimate, not a seller minimum or guarantee.
+
+`fixedPriceQualifier()` must not infer an unchanged whole-term price from `FixedTerm`/`Fixed`,
+`exact`, or `energy_price_guaranteed`: a comparison-window guarantee does not cover a full
+24-month term, and known price phases can differ. This generic copy also applies with the
+feature off. Short-term annualization, source-rule guards, source-backed notices and estimate
+popovers remain unchanged. Fixed12/Fixed24 constant and 4→8 c/kWh phase regressions are in
+`ContractDetailPresenterTest`.
 
 **Do not make the qualifier unconditional again**, and do not delete the no-popover branches: a
 fully fixed contract has no popover to defer to, so deleting them would leave its hero with no
@@ -1198,7 +1210,10 @@ Rules to keep:
   fee come from `currentDisplayValues()`.
 - A short fixed term's receipt note uses `calculated_cost.contract_term.discount_savings_total`.
   The annualized top-level saving is ranking/comparison data and must not be called the customer's
-  actual six-month benefit.
+  actual six-month benefit. Source-energy-rule notes independently check `benefitIsEstimate()`:
+  projected normal savings say `Arvioitu säästö` and `Säästö ei ole taattu`, even when the actual
+  contract price is exact. Detail reads the shared presenter's controlled offer description; a
+  projected normal quote must not become a guaranteed future price-increase warning.
 - The `ContractCardView` travels inside the prepared view payload, so
   `contractDetailViewDataCacheKey()` was bumped to **v11** with it, to **v15** for the Phase 4
   composition keys, and to **v16** for canonical-only current values, offer notes, metadata,
@@ -1343,14 +1358,23 @@ add a second terms list anywhere on the page.
   market fact the site already states editorially, so it is derived from `contract_type` only
   (`OpenEnded` → `14 vrk`, fixed term → `Sitoo sopimuskauden loppuun`), and the grid closes with
   "Tarkista ajantasaiset ehdot myyjän sivuilta".
-- "Hinta määräajan jälkeen" appears only when `comparability === 'term_price_only'`. That is a
-  typed verdict ("the only unpriced gap is after the term"), not an absence of data.
+- A real short term adds `Vertailuhinnan peruste`: its cost is annualized from the stated term.
+  Do not infer unknown continuation from `term_price_only` or show an unconditional
+  `Hinta määräajan jälkeen` claim. FAQ and terms use real term metadata, including Hybrid.
 - A consumption cap is stated only when it could bind a household. `CAP_RELEVANCE_THRESHOLD_KWH`
   mirrors `ContractCard\CardFooterItems`, so the card warning and the terms row agree about
   which caps matter; without it every page printed "Enintään 200 000 kWh/v".
-- `termMonths()` reads `calculated_cost.term_months` first and falls back to the exact
-  `fixed_time_range` buckets. The calculator reports no term for a Hybrid (it is costed
-  base-only), so a 6 kk hybrid otherwise said "sovitun sopimuskauden ajan" with no number.
+- `termMonths()` reads `calculated_cost.term_months` first and falls back to exact
+  `fixed_time_range` buckets. Short Hybrid results now carry real-term metadata while retaining
+  the consumption-effect exclusion. Nonexact buckets must not invent exact months.
+- `fixedPriceQualifier()` uses neutral published-term-price copy for a real term under 12 months.
+  A short term does not prove a constant energy rate: a V4 six-month contract can disclose
+  6 c/kWh for three months then 8 c/kWh for three. The no-explainer branch adds annualization;
+  it does not add a price guarantee. Existing early guards and 12/24-month copy are unchanged.
+- SEO, FAQ, type comparison and weekly output describe short-term totals as annualized comparison
+  values, not a bill for twelve actual months. Benefits retain the real term. See
+  `tasks/source-validated-energy-rules/public-audit-repairs.md` for local regression evidence.
+  The prepared detail cache remains v18; calculated-cost schema is a separate v19 dependency.
 
 Tests: `tests/Feature/ContractDetailPageTest.php` (`test_verdict_paragraph_*`, `test_faq_*`,
 `test_terms_grid_*`).

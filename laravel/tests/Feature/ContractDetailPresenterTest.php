@@ -16,6 +16,7 @@ use App\Services\CanonicalPricing\Enums\MisleadingState;
 use App\Services\CanonicalPricing\Enums\PhaseKind;
 use App\Services\CanonicalPricing\Enums\PriceRole;
 use App\Services\ContractListCacheService;
+use App\Services\ContractPricing\ContractPricingViewData;
 use Carbon\Carbon;
 use Database\Factories\Support\CanonicalPricingFixture;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -281,7 +282,7 @@ class ContractDetailPresenterTest extends TestCase
     {
         $fixed = $this->contract('band-fixed');
         Livewire::test('contract-detail', ['contractId' => $fixed->id])
-            ->assertSee('Energian hinta ei muutu')
+            ->assertSee('Ennalta ilmoitettu energianhinta')
             // The fixed band is deliberately slate: certainty is the default state.
             ->assertSeeHtml('bg-slate-100 text-slate-700 border-slate-200');
 
@@ -491,7 +492,13 @@ class ContractDetailPresenterTest extends TestCase
         $this->assertSame(1.11, $offers['Energiahinta']['priceSpecification']['price']);
     }
 
-    public function test_six_month_detail_copy_uses_the_real_term_benefit_not_the_annualized_saving(): void
+    public static function continuationCases(): array
+    {
+        return [[false], [true]];
+    }
+
+    #[DataProvider('continuationCases')]
+    public function test_six_month_detail_copy_uses_the_real_term_benefit_not_the_annualized_saving(bool $publishedContinuation): void
     {
         $this->travelTo('2026-08-01 12:00:00');
         config(['canonical_pricing.enabled' => true]);
@@ -515,13 +522,212 @@ class ContractDetailPresenterTest extends TestCase
             ]),
         ), ['General' => 1.11, 'Monthly' => 0.55]);
 
+        if ($publishedContinuation) {
+            $canonical = $contract->canonical_pricing;
+            $canonical['phases'][] = $this->phase(
+                PhaseKind::Normal, BoundaryKind::AfterMonths, BoundaryKind::None,
+                [[ComponentType::EnergyGeneral, 9.0], [ComponentType::MonthlyFee, 10.0, ComponentUnit::EurPerMonth]],
+                startsValue: '6',
+            );
+            $contract->update(['canonical_pricing' => $canonical]);
+        }
+
         $component = Livewire::test('contract-detail', ['contractId' => $contract->id])->instance();
         $notes = implode(' ', $component->receiptNotes);
+        $faq = json_encode($component->faqItems, JSON_UNESCAPED_UNICODE);
+        $this->assertStringContainsString('sopimuskauden kustannus muunnettuna vuositasolle', $faq);
+        $this->assertStringNotContainsString('loppuvuoden osuus', $faq);
+        $this->assertStringNotContainsString('Myyjä ei ole julkaissut hintaa', $faq);
+        $this->assertStringNotContainsString('jatkohinta ei tiedossa', json_encode($component->card, JSON_UNESCAPED_UNICODE));
+        $this->assertStringContainsString('6 kk sopimus, vertailuhinta vuositasolla', json_encode($component->card, JSON_UNESCAPED_UNICODE));
+        $this->assertStringNotContainsString('Hinta määräajan jälkeen', json_encode($component->contractTerms, JSON_UNESCAPED_UNICODE));
+        $qualifier = (new \ReflectionMethod(ContractDetail::class, 'fixedPriceQualifier'))->invoke(
+            $component, ContractPricingViewData::fromArray($component->calculatedCost), $contract,
+        );
+        $this->assertStringContainsString('sopimuskauden kustannus muunnettuna vuositasolle', $qualifier);
+        $this->assertStringNotContainsString('myyjä ei ole kertonut', $qualifier);
 
+        Livewire::test('contract-detail', ['contractId' => $contract->id])
+            ->assertSee('Vuositasolle laskettu vertailuhinta')
+            ->assertDontSee('Hinta seuraavalle 12 kuukaudelle');
         $this->assertSame(60.0, $component->calculatedCost['discount_savings_total']);
         $this->assertSame(30.0, $component->calculatedCost['contract_term']['discount_savings_total']);
         $this->assertStringContainsString('30 € 6 kuukauden sopimuskauden aikana', $notes);
         $this->assertStringNotContainsString('60 € ensimmäisenä vuonna', $notes);
+    }
+
+    public static function shortTermEnergyPrices(): array
+    {
+        return ['constant' => [6.0], 'known price change' => [8.0]];
+    }
+
+    #[DataProvider('shortTermEnergyPrices')]
+    public function test_v4_short_term_qualifier_does_not_infer_a_constant_energy_price(float $laterPrice): void
+    {
+        $this->travelTo('2026-08-01 12:00:00');
+        config(['canonical_pricing.enabled' => true]);
+
+        $contract = $this->contract('v4-short-term-phases', [
+            'contract_type' => 'FixedTerm',
+            'fixed_time_range' => 'Fixed6',
+            ...$this->canonicalAttributes([
+                $this->phase(
+                    PhaseKind::Introductory, BoundaryKind::ContractStart, BoundaryKind::AfterMonths,
+                    [[ComponentType::EnergyGeneral, 6.0]], endsValue: '3',
+                ),
+                $this->phase(
+                    PhaseKind::Normal, BoundaryKind::AfterMonths, BoundaryKind::AfterMonths,
+                    [[ComponentType::EnergyGeneral, $laterPrice]], startsValue: '3', endsValue: '6',
+                ),
+            ]),
+        ]);
+
+        if ($laterPrice === 6.0) {
+            $contract->update($this->canonicalAttributes([
+                $this->phase(
+                    PhaseKind::CurrentStructured, BoundaryKind::ContractStart, BoundaryKind::AfterMonths,
+                    [[ComponentType::EnergyGeneral, 6.0]], endsValue: '6',
+                ),
+            ]));
+        }
+
+        $test = Livewire::test('contract-detail', ['contractId' => $contract->id]);
+        $component = $test->instance();
+        $pricing = ContractPricingViewData::fromArray($component->calculatedCost);
+        $this->assertNull($pricing->energyRuleComparison());
+        $this->assertSame(6, $pricing->termMonths());
+        $this->assertSame('term_price_only', $component->calculatedCost['comparability']);
+        $this->assertEqualsWithDelta(
+            $component->calculatedCost['contract_term']['total_cost'] * 2,
+            $component->calculatedCost['total_cost'],
+            0.01,
+        );
+        $energyRows = array_values(array_filter(
+            $component->card->receiptLines, fn ($line) => $line->unit === 'c/kWh',
+        ));
+        if ($laterPrice === 8.0) {
+            $this->assertSame(['6,00', '8,00'], array_column($energyRows, 'value'));
+            $this->assertSame(['Energia 31.10. asti', 'Energia 1.11. alkaen'], array_column($energyRows, 'label'));
+            $this->assertSame([false, false], array_column($energyRows, 'soft'));
+        } else {
+            $this->assertSame(['6,00'], array_column($energyRows, 'value'));
+        }
+        $expected = 'Vertailuhinta perustuu ilmoitettuihin hintoihin 6 kuukauden sopimuskauden aikana.';
+        $this->assertSame($expected, $component->priceQualifier);
+        $this->assertStringNotContainsString('ei muutu', $component->priceQualifier);
+        $this->assertNotNull($component->card->estimate);
+        $withoutExplainer = (new \ReflectionMethod(ContractDetail::class, 'fixedPriceQualifier'))->invoke(
+            $component, $pricing, $contract,
+        );
+        $this->assertSame($expected.' Vertailuhinta on sopimuskauden kustannus muunnettuna vuositasolle.', $withoutExplainer);
+        $test->assertSee($expected)->assertSee('Vuositasolle laskettu vertailuhinta');
+    }
+
+    public static function longTermEnergyPrices(): array
+    {
+        return [
+            'Fixed12 constant' => [12, 4.0],
+            'Fixed12 known price change' => [12, 8.0],
+            'Fixed24 constant' => [24, 4.0],
+            'Fixed24 known price change' => [24, 8.0],
+        ];
+    }
+
+    #[DataProvider('longTermEnergyPrices')]
+    public function test_long_term_qualifier_does_not_infer_a_contract_wide_price_guarantee(int $months, float $laterPrice): void
+    {
+        $this->travelTo('2026-08-01 12:00:00');
+        config(['canonical_pricing.enabled' => true]);
+
+        $phases = $laterPrice === 4.0
+            ? [$this->phase(
+                PhaseKind::CurrentStructured, BoundaryKind::ContractStart, BoundaryKind::AfterMonths,
+                [[ComponentType::EnergyGeneral, 4.0]], endsValue: (string) $months,
+            )]
+            : [
+                $this->phase(
+                    PhaseKind::Introductory, BoundaryKind::ContractStart, BoundaryKind::AfterMonths,
+                    [[ComponentType::EnergyGeneral, 4.0]], endsValue: '3',
+                ),
+                $this->phase(
+                    PhaseKind::Normal, BoundaryKind::AfterMonths, BoundaryKind::AfterMonths,
+                    [[ComponentType::EnergyGeneral, $laterPrice]], startsValue: '3', endsValue: (string) $months,
+                ),
+            ];
+        $contract = $this->contract('long-term-phases', [
+            'contract_type' => 'FixedTerm',
+            'fixed_time_range' => 'Fixed'.$months,
+            ...$this->canonicalAttributes($phases),
+        ]);
+        $storedPricing = $contract->fresh()->canonical_pricing;
+        $test = Livewire::test('contract-detail', ['contractId' => $contract->id]);
+        $component = $test->instance();
+        $payload = $component->calculatedCost;
+        $this->assertNull(ContractPricingViewData::fromArray($payload)->energyRuleComparison());
+        $energyRows = array_values(array_filter(
+            $component->card->receiptLines, fn ($line) => $line->unit === 'c/kWh',
+        ));
+        $this->assertSame($laterPrice === 4.0 ? ['4,00'] : ['4,00', '8,00'], array_column($energyRows, 'value'));
+        $this->assertSame(array_fill(0, count($energyRows), false), array_column($energyRows, 'soft'));
+        $this->assertGreaterThan(0, $payload['total_cost']);
+        $expected = 'Määräaikaisuus kertoo sopimuksen kestosta. Tarkista energian hinnat, hintajaksot ja hinnanmuutosehdot.';
+        $this->assertSame($expected, $component->priceQualifier);
+        $this->assertStringNotContainsString('ei muutu', $component->priceQualifier);
+        $this->assertSame($payload, $component->calculatedCost);
+        $this->assertSame($storedPricing, $contract->fresh()->canonical_pricing);
+        $test->assertSee($expected);
+    }
+
+    public function test_fixed24_card_does_not_extend_the_first_year_price_over_a_later_known_change(): void
+    {
+        $this->travelTo('2026-08-01 12:00:00');
+        config(['canonical_pricing.enabled' => true]);
+        $contract = $this->contract('fixed24-second-year-change', [
+            'contract_type' => 'FixedTerm',
+            'fixed_time_range' => 'Fixed24',
+            ...$this->canonicalAttributes([
+                $this->phase(
+                    PhaseKind::Introductory, BoundaryKind::ContractStart, BoundaryKind::AfterMonths,
+                    [[ComponentType::EnergyGeneral, 6.0]], endsValue: '12',
+                ),
+                $this->phase(
+                    PhaseKind::Normal, BoundaryKind::AfterMonths, BoundaryKind::AfterMonths,
+                    [[ComponentType::EnergyGeneral, 8.0]], startsValue: '12', endsValue: '24',
+                ),
+            ]),
+        ]);
+        $storedPricing = $contract->fresh()->canonical_pricing;
+        $test = Livewire::test('contract-detail', ['contractId' => $contract->id]);
+        $component = $test->instance();
+        $payload = $component->calculatedCost;
+        $this->assertNull(ContractPricingViewData::fromArray($payload)->energyRuleComparison());
+        $this->assertSame([6.0], array_column($payload['phase_breakdown'], 'energy_cents'));
+        $this->assertEqualsWithDelta($component->consumption * 0.06, $payload['total_cost'], 0.01);
+        $this->assertSame('Ennalta ilmoitettu energianhinta', $component->card->band->headline);
+        $this->assertSame('Määräaikainen 24 kk', $component->card->band->detail);
+        $this->assertSame($payload, $component->calculatedCost);
+        $this->assertSame($storedPricing, $contract->fresh()->canonical_pricing);
+        $this->assertStringNotContainsString('ei muutu', $component->card->band->headline.' '.$component->priceQualifier);
+        $test->assertSee('Ennalta ilmoitettu energianhinta');
+    }
+
+    public function test_open_ended_qualifier_names_hourly_spot_prices_and_keeps_change_notice(): void
+    {
+        config(['canonical_pricing.enabled' => false]);
+        $contract = $this->contract('open-ended-qualifier', [
+            'contract_type' => 'OpenEnded',
+            ...$this->canonicalAttributes([
+                $this->phase(
+                    PhaseKind::CurrentStructured, BoundaryKind::ContractStart, BoundaryKind::None,
+                    [[ComponentType::EnergyGeneral, 4.0]],
+                ),
+            ]),
+        ], ['General' => 4.0]);
+        $test = Livewire::test('contract-detail', ['contractId' => $contract->id]);
+        $qualifier = $test->instance()->priceQualifier;
+        $this->assertSame('Energian hinta 4,00 c/kWh ei seuraa pörssin tuntihintaa, ja myyjän on ilmoitettava hinnanmuutoksesta etukäteen.', $qualifier);
+        $this->assertStringNotContainsString('ei seuraa markkinahintaa', $qualifier);
+        $test->assertSee($qualifier);
     }
 
     public function test_a_promotional_flat_price_before_a_spot_margin_shows_two_dated_rows(): void

@@ -600,26 +600,7 @@ class RetailPremiumObservationService
      */
     public function getLineageIdentity(ElectricityContract $contract): array
     {
-        $lineageIds = $contract->getReplacementLineageIds()->sort()->values();
-        $targetIds = ElectricityContract::query()
-            ->whereIn('id', $lineageIds)
-            ->whereNotNull('replaced_by_contract_id')
-            ->pluck('replaced_by_contract_id')
-            ->map(fn ($id) => (string) $id)
-            ->all();
-        $rootIds = $lineageIds
-            ->reject(fn (string $id) => in_array($id, $targetIds, true))
-            ->values();
-
-        if ($rootIds->isEmpty()) {
-            $rootIds = $lineageIds;
-        }
-
-        return [
-            'key' => hash('sha256', $rootIds->implode('|')),
-            'contract_ids' => $lineageIds->all(),
-            'root_ids' => $rootIds->all(),
-        ];
+        return ElectricityContract::getLineageIdentitiesByContractIds([(string) $contract->id])[$contract->id];
     }
 
     private function periodBoundary(mixed $boundary): ?string

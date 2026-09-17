@@ -807,7 +807,7 @@ class DeferredContractImportCompletionTest extends TestCase
         $contract->update(['current_source_observation_id' => $observation->id]);
         $target = ContractInterpretation::create([
             'contract_id' => $id, 'source_snapshot_id' => $snapshot->id, 'analysis_fingerprint' => hash('sha256', 'target'.$id),
-            'status' => 'pending', 'schema_version' => 'test', 'prompt_version' => 'test', 'validator_version' => 'test',
+            'status' => 'pending', 'schema_version' => 'schema-v4', 'prompt_version' => 'prompt-v19', 'validator_version' => 'validator-v17',
             'provider' => 'test', 'model' => 'test',
         ]);
         if ($active) {

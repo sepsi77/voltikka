@@ -3,6 +3,8 @@
 namespace App\Services\ContractCard;
 
 use App\Enums\ContractType;
+use App\Services\CanonicalPricing\DTO\ContractPricingIntegrity;
+use App\Services\CanonicalPricing\Enums\ComponentType;
 use App\Services\CanonicalPricing\SupplierAdjusted\SupplierAdjustedEstimateCopy;
 use App\Services\ContractCard\DTO\CardEstimate;
 use App\Services\ContractCard\DTO\CardTypeBand;
@@ -64,8 +66,8 @@ class ContractCardCopy
         if ($facts->category === PricingCategory::ConsumptionEffect) {
             return new CardTypeBand(
                 category: PricingCategory::ConsumptionEffect,
-                headline: $hasEstimatedUnknownPrices ? 'Perushinta + kulutusvaikutus' : 'Kiinteä hinta + kulutusvaikutus',
-                detail: $hasEstimatedUnknownPrices
+                headline: ($hasEstimatedUnknownPrices || $hasSupplierAdjustedEstimate) ? 'Perushinta + kulutusvaikutus' : 'Kiinteä hinta + kulutusvaikutus',
+                detail: ($hasEstimatedUnknownPrices || $hasSupplierAdjustedEstimate)
                     ? 'Tuntemattomien jaksojen perushinnat on arvioitu'
                     : 'Vaikutus riippuu siitä, mihin aikaan käytät sähköä',
                 icon: 'pulse',
@@ -101,7 +103,7 @@ class ContractCardCopy
 
         return new CardTypeBand(
             category: PricingCategory::Fixed,
-            headline: 'Energian hinta ei muutu',
+            headline: 'Ennalta ilmoitettu energianhinta',
             detail: self::durationDetail($contractType, $fixedTimeRange),
             icon: 'lock',
         );
@@ -148,17 +150,12 @@ class ContractCardCopy
             $method = $pricing?->isSpotContract() === true ? 'rolling_365_spot' : null;
         }
 
-        // These reasons COMPOSE; they are not alternatives, and `estimate_method` reports only
-        // one of them. A contract that both resets quarterly and is costed base-only (Vaasan
-        // Sähkö Vaikuttaja, Korpela Kvartaali) reports `hybrid_base_only`, because the
-        // calculator's unsupported-Hybrid branch is decided before the recurring-reset branch.
-        // Keying the copy off that one value claimed the year was priced at a flat current
-        // rate while the market-reset estimator had in fact repriced the tail (6,60 -> 9,28
-        // c/kWh here, a 134 EUR/yr difference) and the receipt rows said so. Read the price
-        // LEVEL from the mechanism, and treat hybrid_base_only as what it is: an exclusion.
-        // Supplier-adjusted is also a price-level reason. Its separate payload wins before the
-        // ordinary fixed fallback because all three supplier methods are estimates.
+        // Compose the financial estimate with the separate consumption-effect exclusion.
+        // Older Hybrid payloads can report hybrid_base_only alongside a reset estimate;
+        // current forecasts report their actual financial method. Read the typed estimate
+        // first so neither form can claim that projected base prices are known fixed prices.
         $level = match (true) {
+            $method === 'source_energy_rules_v1' => self::energyRulePriceExplanation($pricing),
             $pricing?->supplierAdjustedEstimate() !== null => SupplierAdjustedEstimateCopy::popoverBody($pricing->supplierAdjustedEstimate()),
             $facts->isReset => self::resetBody($pricing, $facts),
             $method === 'forward_curve_spot' => self::forwardSpotBody($pricing),
@@ -174,20 +171,109 @@ class ContractCardCopy
         }
 
         $assumptions = $pricing?->assumptions() ?? [];
-        if ($method !== 'term_price_annualized' && in_array('term_price_annualized', $assumptions, true)) {
+        if (! in_array($method, ['term_price_annualized', 'source_energy_rules_v1'], true) && in_array('term_price_annualized', $assumptions, true)) {
             $level .= ' '.self::termBody($pricing);
         }
 
         // Append the exclusion only when the price-level sentence has not already said it.
-        if (($method === 'hybrid_base_only' || in_array('excludes_consumption_effect', $assumptions, true))
+        if ($method !== 'source_energy_rules_v1' && ($method === 'hybrid_base_only' || in_array('excludes_consumption_effect', $assumptions, true))
             && ($method !== 'hybrid_base_only' || $facts->isReset || $pricing?->supplierAdjustedEstimate() !== null)) {
+            if ($pricing?->supplierAdjustedEstimate() !== null || $pricing?->resetEstimate() !== null) {
+                $level .= ' Tulevat perushinnat ovat arvioita.';
+            }
             $level .= ' Arvio ei sisällä kulutusvaikutusta, jonka suuruutta myyjä ei julkaise etukäteen.';
+        }
+
+        $floorNote = self::modelFloorNote($pricing);
+        if ($floorNote !== null) {
+            $level .= ' '.$floorNote;
         }
 
         return new CardEstimate(
             heading: 'Miten arvio on laskettu?',
             body: $level,
         );
+    }
+
+    public static function suppressSourcePriceChange(?ContractPricingViewData $pricing, ?ContractPricingIntegrity $integrity): bool
+    {
+        if ($pricing?->energyRuleComparison() === null || $integrity?->reasonFamily->value !== 'promo') {
+            return false;
+        }
+        $phases = $pricing->phases();
+        for ($index = 0; $index < count($phases) - 1; $index++) {
+            $first = $phases[$index];
+            $second = $phases[$index + 1];
+            if ($first->boolean('energy_price_guaranteed') !== true || $second->boolean('energy_price_guaranteed') !== true) {
+                continue;
+            }
+            $from = $first->number('energy_cents');
+            $to = $second->number('energy_cents');
+            if ($from !== null && $to !== null && $to > $from
+                && $integrity->promoRateCents !== null && $integrity->normalRateCents !== null
+                && abs($from - $integrity->promoRateCents) < 0.0001 && abs($to - $integrity->normalRateCents) < 0.0001
+                && $integrity->changeDate === $second->string('window_start')
+                && CarbonImmutable::parse($first->string('window_end'))->addDay()->toDateString() === $second->string('window_start')) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public static function promotionEndNotice(?ContractPricingViewData $pricing): ?string
+    {
+        if ($pricing?->energyRuleComparison() === null) {
+            return null;
+        }
+        $ends = [];
+        foreach ($pricing->offerTerms() as $term) {
+            if ($term->boolean('starts_at_window_start') !== true) {
+                continue;
+            }
+            foreach ($term->records('components') ?? [] as $component) {
+                if (ComponentType::tryFrom($component->string('component_type') ?? '')?->isPerKwhEnergy()) {
+                    $ends[] = $term->string('ends_on');
+                    break;
+                }
+            }
+        }
+        if ($ends === []) {
+            return null;
+        }
+        sort($ends);
+
+        return (count(array_unique($ends)) === 1 ? 'Tarjousjakso päättyy ' : 'Ensimmäinen tarjousjakso päättyy ')
+            .CarbonImmutable::parse($ends[0], 'Europe/Helsinki')->format('j.n.Y');
+    }
+
+    public static function modelFloorNote(?ContractPricingViewData $pricing): ?string
+    {
+        if (array_intersect([
+            'estimated_energy_nonnegative_model_floor_applied',
+            'energy_rule_nonnegative_model_floor_applied',
+        ], $pricing?->assumptions() ?? []) === []) {
+            return null;
+        }
+
+        return 'Voltikan laskentamalli rajasi nollan alittavan arvioidun energiahinnan arvoon 0 c/kWh. Tämä ei ole myyjän asettama vähimmäishinta tai hintatakuu.';
+    }
+
+    public static function energyRulePriceExplanation(ContractPricingViewData $pricing): string
+    {
+        $copy = $pricing->energyRuleComparison()?->boolean('actual_estimated')
+            ? 'Ilmoitetut hinnat ja alennusehdot on huomioitu omilta voimassaoloajoiltaan. Tuntemattomien jaksojen energiahinnat on arvioitu. Arvio ei ole hintalupaus.'
+            : 'Vertailuhinta perustuu ilmoitettuihin kiinteisiin energiahintoihin niiden voimassaoloajoilta. Eri jaksoilla voi olla eri hinta.';
+        $months = $pricing->termMonths();
+        if ($months !== null && $months < 12) {
+            $copy .= ' Vertailuhinta on '.$months.' kuukauden sopimuskauden kustannus muunnettuna vuositasolle.';
+        }
+
+        if ($pricing->comparability()?->value === 'base_only_hybrid') {
+            $copy .= ' Vertailu ei sisällä kulutusvaikutusta.';
+        }
+
+        return $copy;
     }
 
     private static function forwardSpotBody(?ContractPricingViewData $pricing): string
@@ -253,6 +339,8 @@ class ContractCardCopy
 
         $annual = self::price($reset?->number('annual_equivalent_energy_price'));
         $body .= match ($reset?->string('basis')) {
+            'forward_premium' => ' Tulevien jaksojen arvio perustuu nykyisiin sähköfutuureihin eli tukkumarkkinan ennakkohintoihin ja vertailukelpoisista sopimuksista arvioituun vähittäishinnan lisään'
+                .($annual !== null ? ', jolloin seuraavien 12 kuukauden keskihinnaksi tulee '.$annual.' c/kWh.' : '.'),
             'forward_curve_shift' => ' Tulevien jaksojen hinnat on arvioitu sähköjohdannaisten markkinahinnoista'
                 .($annual !== null ? ', jolloin seuraavien 12 kuukauden keskihinnaksi tulee '.$annual.' c/kWh.' : '.'),
             'spot_seasonal_index' => ' Tulevien jaksojen hinnat on arvioitu pörssisähkön usean vuoden kausivaihtelusta, koska johdannaishintoja ei ollut saatavilla'

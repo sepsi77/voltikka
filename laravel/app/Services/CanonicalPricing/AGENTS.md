@@ -6,6 +6,242 @@ the deterministic deceptive-pricing label. It is gated behind `config('canonical
 (`CANONICAL_PRICING_ENABLED`, default false); when off, every consumer keeps its legacy
 `ContractPriceCalculator` behavior unchanged.
 
+## Approved annualized comparison policy (2026-09-15)
+
+**Status: implemented locally, not deployed; release remains blocked.** The original
+2026-09-15 proposal below records the approved target, not production acceptance.
+This section governs intended future changes where older estimator or ranking rules conflict,
+including the narrower routing and fallback rules in `SupplierAdjusted/` and `MarketReset/`.
+The implementation and historical notes below remain a record of current or earlier behavior;
+they are not proof that this policy is deployed. This approval does not authorize production
+mutations. Existing billing, data, VAT, cache, and historical-evidence safety rules remain in force.
+Review decisions and dated source examples: `tasks/annualized-pricing-policy/decisions.md`
+(repository-root path).
+
+### 1. One annualized comparison basis
+
+The primary metric must always be a **comparable annualized contract price**, not a promise of
+actual spending over the next 12 months. A six-month contract must always use its six-month cost
+annualized, whether or not it discloses an automatic continuation. Apply every disclosed energy,
+fee, and promotional change within those six months. Disclosure beyond the term must not switch
+the comparison basis. Apply the same horizon to Hybrid and non-Hybrid contracts; retain the
+separate disclosure that a Hybrid base price excludes the unknown consumption effect.
+
+Use the same selected annual consumption and profile basis, with consistent disclosure. Never
+label an annualized-term value as a next-year bill promise. This policy does not redesign the
+current first-year treatment of ordinary fully known 12/24-month contracts or define a new
+24-month ranking policy.
+
+### 2. One policy for unknown non-fixed-term energy prices
+
+Except for fixed-term locked pricing, preserve current or published known energy prices for their
+applicable periods, then use current FI futures to project unknown future months. Hold explicit
+Spot margins and monthly/base fees steady unless known changes or complete promotions specify
+otherwise. Redundant phases, a fee-only promotion, normal-amount metadata, or a new contract ID
+must not select a different forecast model for the same energy terms.
+
+Reuse the canonical billing and phase timeline and its validated evidence. Never fall back to raw
+relational current pricing. Known terms remain exact; projections must not replace them.
+
+### 3. Retail premium from available evidence
+
+Estimate the retail premium in this order:
+
+1. Reliable, comparable evidence from the contract's own trusted lineage.
+2. Comparable contracts from the same company.
+3. Comparable market contracts.
+
+A missing historical reference for one contract must move to the next premium source, with lower
+confidence, rather than discard otherwise usable current futures. Sparse data alone is not an
+exclusion reason: use this hierarchy and disclose uncertainty. Do not wait for future
+coefficient-calibration data to use available evidence. Exact fitting thresholds and coefficients
+were not approved in this discussion.
+
+Keep the premium separate from the market forward curve. It is a **spread over wholesale**, not
+profit and not an explicit Spot margin. At `beta = 1`, the existing
+`P_current + F_m - F_reference` already equals futures plus an inferred premium
+`P_current - F_reference`; it is not a separate source of market level. Comparable evidence must
+match mechanism/tariff, wholesale delivery period, and VAT basis. Do not give duplicate weight
+to replacement IDs or duplicate offers. Record the premium source and confidence; do not invent
+a zero premium.
+
+Check the existing `../RetailPremium/` dataset for applicability before reuse: it currently
+excludes ordinary non-reset open-ended `FixedPrice` contracts. Seasonal/historical fallback is
+permitted only when usable forward evidence or a defensible premium cannot be obtained, not
+merely because the contract's own historical vintage is missing.
+
+### 4. Incomplete promotions cannot improve ranking
+
+If a price is presented as temporary or promotional but lacks required timing (an end date or
+duration), or lacks a stated/derivable normal continuation, exclude the contract from price calculations.
+Do not extend the promotional price indefinitely. Structured price data and seller prose both
+count as evidence. Distinguish a parser omission from missing seller disclosure. Keep valid,
+complete promotions. Legitimate unknown wholesale changes and ordinary fixed-term expiry are
+not, by themselves, incomplete promotions.
+
+Use a neutral insufficient-promotion-terms reason; proof of dishonest intent is not required.
+The dated Hehku JATKUVA exclusion and Cheap Porssisahko inclusion decisions in the task file are
+source-evidence regression examples, not hardcoded ID exceptions, permanent bans, or claims of
+already changed eligibility.
+
+### 5. One canonical contract-continuity identity resolver
+
+All history, premium, and pricing consumers must use one shared lineage resolution based on the
+existing trusted `replaced_by_contract_id` chain and matcher. A new API ID often means the same
+product with a new price, not a new product history. Existing conservative replacement links
+remain authoritative. This policy does not authorize new heuristic matches or production relinking.
+
+Derive energy-price episodes **within that common lineage**. A fee-only change or ID change must
+not imply energy repricing. Compare full tariff rates, not only a representative average. Evidence
+gaps remain explicitly uncertain; never fabricate a known repricing event. Do not reuse raw
+price-history display values as canonical current rates.
+
+Prior implementation gap, now resolved locally: history had a separate predecessor CTE, while
+supplier episodes read only current IDs and included fees. Both now use the model's shared
+`ElectricityContract::getReplacementLineageIdsByContractIds()` batch API; premium identities use
+`getLineageIdentitiesByContractIds()`. See [current local status](#current-local-status).
+
+### 6. Accepted projection approximations
+
+For now, an unknown quarterly-reset tail may use monthly futures projections. Discretionary
+open-ended changes may also be projected monthly after the known/current period. A quarterly-fixed
+future step model and a seller repricing calendar are not required. Disclose these as estimates,
+not actual known seller schedules. This policy makes no promise of model accuracy.
+
+### Future implementation regression checklist
+
+This is the full-policy regression checklist. Completed LOCAL PHP acceptance and remaining release
+checks are separated in [current local status](#current-local-status).
+Redundant-phase and fully disclosed fee-only-promotion equivalence are now implemented locally for ordinary unchanged-energy supplier tariffs. Source-proved energy promotions and known future spans are now integrated locally; the fresh combined manager LOCAL PHP gate passed.
+
+- Same energy terms give the same projection with redundant phases or a fee-only promotion.
+- Six-month costs use the same annualized horizon with or without continuation, for Hybrid and
+  non-Hybrid contracts.
+- Trusted ID lineage preserves continuity; fee changes remain separate from energy-price episodes.
+- An old or missing own reference still uses usable futures with a defensible premium fallback.
+- Incomplete promotions are excluded; the complete Cheap example remains eligible. Replace the
+  old one-month 4 c/kWh hold-estimate expectation identified in the task decisions.
+- Exact known terms, exact-period bills, VAT normalization, usage conservation, fee/package rules,
+  and billed-total reconciliation remain intact. Preserve date-safe historical evidence and cache
+  safety boundaries; this policy does not authorize historical rewrites.
+
+## Current local status
+
+**Default-V4 technically ready for user deployment approval (2026-09-16):** runtime repairs, independent review and the fresh
+strict-transport replay are complete. All 27 numeric changes are accepted as policy-conformant,
+not empirically better forecasts. The fresh candidate has 366 listed outcomes; the additional
+Kerava exclusion rejects ambiguous same-phase fixed energy plus Spot margin. Final network-denied
+PHP gate passes (2812 tests / 21214 assertions), as do smoke/UI checks. The manager accepts bounded
+technical readiness. Final Pint, context/mirror and snapshot/loaded-source-hash checks all passed;
+user deployment approval remains required.
+No runtime blockers remain; no full HTTP/live-cache/ranking replay is claimed. See
+`tasks/source-validated-energy-rules/release-readiness.md` for current evidence and limits.
+Original failed reports remain dated historical evidence; no deployment or V5 activation is approved.
+
+The approved rules above are unchanged. The source-backed financial and public behavior is **implemented and accepted locally**, not deployed. Manager acceptance is complete for the bounded local slices, including unchanged-energy
+fees, reset premiums and mandatory base-effect Hybrid projections. The final Hybrid correction
+supports active FixedTerm resets, not locked prices; supplier Hybrid remains OpenEnded-only.
+The earlier 2773-test gate remains historical evidence, not verification of the final tree.
+Current estimator guards, floor disclosure and serialization repairs are complete. Full synthetic
+video/template review and final UI checks pass within their explicit limits; real-feed, physical
+phone and social-compression checks are not claimed. This is not production acceptance. Current evidence is in
+`tasks/source-validated-energy-rules/final-verification.md`; parent and earlier bounded records remain
+in `tasks/annualized-pricing-implementation/final-verification.md`. Detailed progress:
+`tasks/annualized-pricing-implementation/` (repository-root path).
+
+- Six-month comparisons annualize the actual term, regardless of continuation or Hybrid. The
+  incomplete-promotion guard uses exact source proof, including explicit Spot-margin campaigns
+  and dated expired-promotion evidence. Complete promotions remain eligible.
+- Current history and energy episodes share trusted lineage, full tariff buckets, fee-independent
+  identity, and explicit dated anchors. Historical deliberately retains narrower identity/reference
+  behavior; this is not a universal estimator or lineage parity claim. See `SupplierAdjusted/AGENTS.md`.
+- `RESET_FORWARD_SHIFT_ENABLED` controls only Reset, not Supplier. Current estimators require finite,
+  safe prior-vintage evidence and report effective hold beta 0. Supplier seasonal anchors use the full
+  selected usage profile. Only a floor applied to positive billed usage sets the controlled model-floor
+  flag; preserve existing serialized flags. This is a model limit, not a seller guarantee. Historical
+  retains its semantics; legitimate negative Spot remains allowed.
+- Current fixed-term `Below6` and `Between711` fail closed with `unknown_short_fixed_term_duration`.
+  Range, phase and offer ends cannot prove exact duration. Fee-only short terms need in-term energy
+  proof; do not borrow a post-term energy rate. Exact and known-long duration behavior is retained.
+- Public premium transport omits donor companies/lineages and private observation/publication/source
+  provenance. Controlled references retain dates, proxy/VAT facts and aggregate evidence counts.
+  The strict reader rejects private/unknown keys, flags and malformed references, including nested
+  normal/actual premiums; it does not sanitize invalid cached payloads into acceptance. Internal
+  audit evidence remains intact. See `tasks/source-validated-energy-rules/premium-public-privacy.md`.
+- Current rejects effective billed fixed energy plus Spot margin in the same applicable phase with
+  `ambiguous_energy_mechanisms`, after short-term clipping. Factual periods return `NoPricing`.
+  Non-billed references do not count. Disjoint fixed→Spot phases remain supported; Historical skips
+  this new annual guard. The strict public reader requires complete Spot proof and non-overlapping
+  phase windows for Hybrid→Spot transport, not just a compatible method label.
+- Strict single-phase supplier forward premiums are integrated: keep a valid own reference first;
+  otherwise use the pure selector's own-lineage, company, then company-balanced market evidence
+  with a usable current curve. Tail offsets are per bucket; the known current month and fees stay
+  unchanged. The new method is `supplier_adjusted_forward_premium`, basis `forward_premium`.
+  See `ForwardPremium/AGENTS.md` for loader proof and selection rules.
+- `ComparisonPolicy::Historical` keeps dedicated replay behavior and never reads current peers.
+  Exact-period bills never use annual projections. Current shared calculated-cost schema is **19**;
+  it invalidates calculated-cost caches only, not history or the configured stored annual method.
+- Current ordinary unchanged-energy General/Time/Season tariffs now share one consumption-free
+  candidate extraction across pricing, peer evidence, and immutable energy episodes. Redundant
+  phases, equal normal metadata, and fully disclosed fee-only promotions keep the same forecast.
+  Original fees and measured savings remain in billing; Historical stays strict. See
+  `SupplierAdjusted/AGENTS.md` and `tasks/annualized-pricing-implementation/phase-invariance.md`.
+- Current reset missing-reference premiums now use the same loader and pure selector. A valid
+  original reference stays first. Otherwise a complete actual-tail curve can use own-lineage,
+  company or company-balanced market premiums per tariff bucket before seasonal/hold fallback.
+  Current never uses today's old-period vintage; Historical retains that fallback. Known-period
+  boundaries and real six-month horizons remain in core billing. Method `recurring_forward_premium`
+  and policy `recurring_forward_premium_v1` identify the new calculation. See `MarketReset/AGENTS.md`
+  and `tasks/annualized-pricing-implementation/reset-premium-integration.md` for scope and evidence.
+- Supplier and reset candidates share `candidateApplicablePhases` for dated full-bucket proof.
+  A current fee-only or partial tariff cannot inherit missing energy from a genuinely Future phase.
+  Only a fee-only typed Introductory phase may use its adjacent typed Normal baseline. This is an
+  evidence guard; it does not repair the older billing inheritance path or change Historical replay.
+- Current OpenEnded base-effect Hybrids now reuse those unchanged-energy supplier and known-period
+  reset paths. An active canonical reset also permits the existing FixedTerm reset contexts: a
+  fixed term is not a locked energy guarantee under that mechanism. Short Hybrid reset calls pass
+  the selected premium and clip to the real term before annualization; locked terms are unchanged. Explicit `present=true` / `applies_to=base_contract` plus complete canonical base
+  evidence is required, including for raw FixedPrice. Premium families keep mandatory effect bases
+  separate from ordinary rates. Numeric effects never enter costs. Base-only comparability stays;
+  a real forecaster supplies the primary method. Supplier hold-only results keep HybridBaseOnly;
+  fully locked fixed-term and Historical routing stays unchanged. Known fees, expiry proof, VAT, profiles and exact-period actual bills
+  are unchanged. See `tasks/annualized-pricing-implementation/hybrid-projection.md` for local proof.
+- The user approved local source-backed component guarantees and adjustable-discount semantics,
+  not guarantees inferred from phase dates or normal amounts. Manager acceptance now also covers
+  bounded source hardening, paired kernel corrections and the earlier normal-episode evidence stage.
+  See `tasks/source-validated-energy-rules/final-verification.md` for that historical gate.
+  Normal evidence is now connected to the current service and premium loader. Strict public
+  transport supports nullable actual-only short-term facts, signed benefits and separate actual/
+  normal certainty. Schema 19 safely regenerates calculated-cost caches for this integration.
+- Current financial service integration is implemented locally. All four service paths require
+  exact batched V5 source proof; required but failed proof excludes instead of downgrading to
+  legacy fixed-price math. A hypothetical past bill start is not today's offer-publication cutoff.
+  Factual periods use published source-rule rates on their own bounds, with no annual projection.
+  They keep nullable normal facts and do not copy annual model assumptions. Default V4 and
+  Historical remain unchanged.
+- Normal targets use independently proved current rates and real current fees. Fixed normal spans
+  can be targets but cannot supply an ordinary monthly own reference. The existing Supplier/Reset
+  estimators, reference provider, premium selector and lazy peer loader retain their hierarchy.
+  Reset normal repricing follows its schedule/cadence, not the promotional guarantee end. The
+  paired kernel applies offsets once and retains the original fee timeline. Complete actual-only
+  locks need no forecast query. The public offer helper and source-rule method are connected.
+  Disjoint dated normal-price maps retain their own scopes. Source-rule phase rows mark a
+  guaranteed energy price only for an unchanged protected actual rate across all applicable
+  buckets; Hybrid base-only rows never claim an all-in guarantee. Model clipping without a sourced
+  floor adds `energy_rule_nonnegative_model_floor_applied`, not a fabricated contractual floor.
+- Later ordinary price regimes cannot revert to an old normal reference. Without dated evidence
+  for a new regime, hold its latest known quote explicitly. The real Cheap source now has a
+  priceable actual-only one-month 7.49 then announced 9.95 estimate, not a current-normal9.95
+  premium anchor or measured offer benefit. See `tasks/source-validated-energy-rules/service-integration.md`
+  and `source-language-completion.md` in that task folder. Oomi, Voima, Iin, Tyyni and Hehku
+  remain Unknown for material source limits; this is not support for every seller sentence.
+  Financial/public integration, including `energy_price_guaranteed`, is complete locally; the new
+  combined manager LOCAL PHP acceptance gate passed historically. The September 16 production-data
+  gate FAILED; repair/replay/performance review and Remotion visual checks remain open. Defaults stay V4/v19/v17/parser-v1.
+  Producer activation requires a separately approved five-key current-profile switch and
+  reinterpretation; Historical stays pinned. See that task's `current-integration-plan.md` and
+  `release-plan.md` for tests, fresh production review prerequisites and compatible rollback limits.
+
 ## Why this exists
 
 Providers game comparison sites by putting a cheap promotional price in the structured API data
@@ -179,7 +415,7 @@ not read relational `price_components` to fill missing package facts.
 |---|---|---|
 | `comparable_exact` | yes | full window covered, `calculation.status = exact` |
 | `comparable_estimate` | yes | Spot, reset, supplier-adjusted, or explicit unknown-period continuation estimate; total labelled "Arvio" |
-| `term_price_only` | yes | fixed-term < 12 mo, unknown continuation; ranked by term price annualized |
+| `term_price_only` | yes | fixed-term < 12 mo; ranked by actual term cost annualized, regardless of continuation |
 | `base_only_hybrid` | yes | Hybrid (`unsupported`); base-only total + "Ei sisällä kulutusvaikutusta" |
 | `excluded_unknown_future` | no | no applicable identifiable price can fill an annual segment; not merely an undisclosed future price |
 | `excluded_incomplete` | no | broken/ambiguous/unsupported structured pricing; detail page only |
@@ -231,9 +467,11 @@ Domain rules layered on top (each with a regression test and a documented reason
   (Hehku KIINTEÄ 6 kk −41 €/v, Cheap Määräaikainen 6 kk −29 €/v). Inheritance **inside** one mechanism is
   unchanged, so a Time phase that restates only `energy_day` still inherits `energy_night`. Regression
   tests 23 (cross-mechanism) and 24 (same-mechanism control) pin both sides.
-- **Annual Hybrid base-effect placeholders**: only `Unsupported` with typed
+- **Annual Hybrid base-effect placeholders**: `Unsupported`, or current explicit base-effect pricing, with typed
   `consumption_effect.present=true` and `applies_to=base_contract` removes `Other` / `cents_per_kwh`
   rows with amount exactly zero and normal amount null or zero from an immutable calculation copy.
+  Explicit `ConsumptionEffect` components are also omitted from that copy; they are never billed.
+  Current candidate extraction shares this removal, without changing source status or effect numbers.
   The explicit base-effect mechanism is authoritative, not the legacy pricing-model enum;
   a `FixedPrice`-labelled contract with these same facts also gets a base-only estimate.
   This keeps known base phases and fees available (Helen Valkkysähkö: €716.88; Herrfors Vakaa:
@@ -347,8 +585,14 @@ whole Helsinki day is absent. The completed map is shared by actual and normal-p
 outcome records `missing_spot_hours_filled_with_observed_average`. This keeps nearly complete factual
 bill periods available without inventing a market level when all evidence is absent. Ordinary fees use
 the existing days/30 convention. Package fee and allowance are both prorated by calendar-month
-fraction, reset separately per month, and do not create promo status. The period promotion flag is the
-measured normal-minus-actual period saving. Canonical mode loads no relational components;
+fraction, reset separately per month, and do not create promo status. For current unchanged-energy
+supplier candidates, annual and exact-period normal fees share `unchangedEnergyNormalRates`:
+explicit component normal amounts are primary, a typed introduction uses its first normal
+continuation, and ordinary fee changes stay on their own segments. A later fee increase cannot
+become an earlier period's offer saving. Actual period arithmetic, source-promotion guards,
+Historical annual policy, and broader energy-changing period rules are unchanged. No annual
+projection enters factual periods. The period promotion flag is the measured normal-minus-actual
+period saving. Canonical mode loads no relational components;
 feature-off keeps the old period calculator.
 
 `ContractTypeComparison` also uses one request-memoized typed annual outcome per candidate and
@@ -398,6 +642,13 @@ invalidates their data immediately. Shared list/company prices otherwise remain 
 verified generation until replacement; see `../Caching/AGENTS.md`.
 `ContractPricingIntegrity` gained typed `promo_rate_cents` /
 `normal_rate_cents` for the dated receipt rows; that was schema v2.
+
+Current schema **v19** adds the release boundary for source-backed financial/public integration,
+including nullable actual-only short-term facts and separate actual/normal certainty. It safely
+regenerates calculated-cost caches; it does not rewrite statistics/history, relabel retained rows,
+or change annual-v2, beta or interpretation defaults. The combined LOCAL PHP gate passed; remaining release checks do not establish production acceptance.
+Schema **v18** covered the preceding local term/promotion, dated lineage-episode and supplier-premium
+changes. Neither cache version is proof of deployment or producer activation.
 
 Schema **v17** corrects the market-reset seasonal fallback reference: monthly stays the exact
 anchor month; quarterly, seasonal, and other use the calendar-day-weighted containing quarter

@@ -4,10 +4,10 @@ namespace App\Services\ContractPriceHistory;
 
 use App\Enums\PricingModel;
 use App\Models\ElectricityContract;
+use App\Models\PriceComponent;
 use App\Support\ContractContentSanitizer;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 
 class ContractHistoryPresenter
 {
@@ -166,11 +166,7 @@ class ContractHistoryPresenter
      */
     protected function getHistoryContracts(ElectricityContract $contract): Collection
     {
-        $historyContractIds = $this->getBackwardReplacementChainIds($contract->id)
-            ->pluck('id')
-            ->push($contract->id)
-            ->unique()
-            ->values();
+        $historyContractIds = $contract->getReplacementLineageIds();
 
         return ElectricityContract::query()
             ->with(['company', 'priceComponents', 'activeContract'])
@@ -188,33 +184,6 @@ class ContractHistoryPresenter
                     : ($latestPriceDate ? Carbon::parse($latestPriceDate)->timestamp : 0);
             })
             ->values();
-    }
-
-    /**
-     * Return predecessor contract IDs for the replacement history in one
-     * recursive query instead of querying each replacement depth and then
-     * re-querying all versions. Depth is capped defensively in case bad data
-     * creates a cycle.
-     *
-     * @return Collection<int, object{id: string, depth: int}>
-     */
-    protected function getBackwardReplacementChainIds(string $contractId): Collection
-    {
-        return collect(DB::select(<<<'SQL'
-            WITH RECURSIVE replacement_chain(id, replaced_by_contract_id, depth) AS (
-                SELECT id, replaced_by_contract_id, 1
-                FROM electricity_contracts
-                WHERE replaced_by_contract_id = ?
-
-                UNION ALL
-
-                SELECT ec.id, ec.replaced_by_contract_id, replacement_chain.depth + 1
-                FROM electricity_contracts ec
-                INNER JOIN replacement_chain ON ec.replaced_by_contract_id = replacement_chain.id
-                WHERE replacement_chain.depth < 25
-            )
-            SELECT id, depth FROM replacement_chain
-        SQL, [$contractId]));
     }
 
     /**
@@ -240,7 +209,7 @@ class ContractHistoryPresenter
     }
 
     /**
-     * @param  array<string, \App\Models\PriceComponent>  $latestPriceComponents
+     * @param  array<string, PriceComponent>  $latestPriceComponents
      * @return array<int, array{type: string, label: string, price: float, unit: string}>
      */
     protected function formatContractHistoryPrices(ElectricityContract $contract, array $latestPriceComponents): array
@@ -282,7 +251,7 @@ class ContractHistoryPresenter
     }
 
     /**
-     * @param  array<string, \App\Models\PriceComponent>  $latestPriceComponents
+     * @param  array<string, PriceComponent>  $latestPriceComponents
      */
     protected function formatHistoricalPromotionText(ElectricityContract $contract, array $latestPriceComponents): ?string
     {

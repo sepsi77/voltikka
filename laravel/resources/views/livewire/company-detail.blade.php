@@ -317,7 +317,10 @@
                                 </td>
                                 <td class="px-4 py-3 text-right tabular-nums whitespace-nowrap">
                                     @if (($offerFact['benefit_text'] ?? null) !== null)
-                                        <span class="font-semibold text-slate-900">{{ $offerFact['benefit_text'] }}</span>
+                                        <span class="font-semibold text-slate-900">{{ ($offerFact['benefit_is_estimate'] ?? false) ? 'Arvio ' : '' }}{{ $offerFact['benefit_text'] }}</span>
+                                        @if ($offerFact['benefit_is_estimate'] ?? false)
+                                            <span class="block text-xs font-normal text-slate-500">Normaalihinta voi muuttua. Säästö ei ole taattu.</span>
+                                        @endif
                                         <span class="block text-xs font-normal text-slate-500">{{ $offerFact['basis_label'] }}</span>
                                     @else
                                         <span class="text-slate-400" title="Kampanjan euromääräistä vaikutusta ei voi laskea luotettavasti tästä sopimuksesta.">&ndash;</span>

@@ -2,7 +2,9 @@
 
 namespace App\Services\CanonicalPricing\MarketReset\DTO;
 
+use App\Services\CanonicalPricing\ForwardPremium\PremiumEstimate;
 use App\Services\CanonicalPricing\MarketReset\Enums\ResetEstimateBasis;
+use App\Services\CanonicalPricing\SupplierAdjusted\DTO\SupplierAdjustedEstimate;
 
 /**
  * The per-month energy-price offsets that reprice a market-reset tail, plus the basis
@@ -33,14 +35,16 @@ readonly class ResetEstimate
         public ?string $tailStartsMonthKey = null,
         public array $flags = [],
         public ?string $tailStartsOn = null,
+        public array $bucketOffsetsByMonthKey = [],
+        public ?PremiumEstimate $premium = null,
     ) {}
 
-    public static function holdFlat(string $cadence, float $currentPrice, array $flags = []): self
+    public static function holdFlat(string $cadence, float $currentPrice, array $flags = [], float $beta = 1.0): self
     {
         return new self(
             basis: ResetEstimateBasis::HoldFlat,
             offsetsByMonthKey: [],
-            beta: 1.0,
+            beta: $beta,
             cadence: $cadence,
             currentPeriodEnergyPriceCentsPerKwh: $currentPrice,
             flags: $flags,
@@ -54,11 +58,15 @@ readonly class ResetEstimate
 
     public function shiftsPrices(): bool
     {
-        return $this->offsetsByMonthKey !== [] && $this->basis->shiftsPrices();
+        return ($this->offsetsByMonthKey !== [] || $this->bucketOffsetsByMonthKey !== []) && $this->basis->shiftsPrices();
     }
 
-    public function offsetForMonthKey(string $monthKey): float
+    public function offsetForMonthKey(string $monthKey, ?string $bucket = null): float
     {
+        if ($bucket !== null && $this->bucketOffsetsByMonthKey !== []) {
+            return $this->bucketOffsetsByMonthKey[$monthKey][SupplierAdjustedEstimate::energyBucket($bucket)] ?? 0.0;
+        }
+
         return $this->offsetsByMonthKey[$monthKey] ?? 0.0;
     }
 
@@ -71,6 +79,11 @@ readonly class ResetEstimate
     public function toArray(): array
     {
         return [
+            ...($this->premium === null ? [] : [
+                'premium' => $this->premium->toArray(),
+                'current_policy' => 'recurring_forward_premium_v1',
+                'fallback_reason' => 'missing_own_reference_using_comparable_premium',
+            ]),
             'basis' => $this->basis->value,
             'beta' => $this->beta,
             'cadence' => $this->cadence,

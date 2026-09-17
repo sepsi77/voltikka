@@ -7,10 +7,19 @@ use App\Livewire\Concerns\BillComparisonInputs;
 use App\Models\ElectricityContract;
 use App\Models\SpotPriceAverage;
 use App\Services\Analytics\ContractOrderClickContextSigner;
+use App\Services\BillComparison\BillComparisonService;
 use App\Services\Caching\ContractPageCacheVersion;
+use App\Services\CanonicalPricing\CanonicalContractPricingService;
+use App\Services\CanonicalPricing\MarketReset\ResetEstimateCopy;
 use App\Services\CanonicalPricing\PricingMode;
 use App\Services\CanonicalPricing\SupplierAdjusted\SupplierAdjustedEstimateCopy;
 use App\Services\CO2EmissionsCalculator;
+use App\Services\ContractCard\ContractCardCopy;
+use App\Services\ContractCard\ContractCardPresenter;
+use App\Services\ContractCard\DTO\ContractCardView;
+use App\Services\ContractCard\DTO\PricingCategoryFacts;
+use App\Services\ContractCard\Enums\PricingBucket;
+use App\Services\ContractCard\PricingCategoryResolver;
 use App\Services\ContractDetail\ContractDetailPresentationInput;
 use App\Services\ContractDetail\ContractDetailSeoPresenter;
 use App\Services\ContractListCacheService;
@@ -23,6 +32,9 @@ use App\Services\DTO\EnergyUsage;
 use App\Support\ContractContentSanitizer;
 use App\Support\ContractInternalLinks;
 use Carbon\Carbon;
+use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
@@ -370,9 +382,9 @@ class ContractDetail extends Component
         if ($contract) {
             // Create a proper Laravel redirect response (not Livewire's redirector)
             $url = route('contract.detail', ['contractId' => $contract->id]);
-            $response = new \Illuminate\Http\RedirectResponse($url, 301);
+            $response = new RedirectResponse($url, 301);
 
-            throw new \Illuminate\Http\Exceptions\HttpResponseException($response);
+            throw new HttpResponseException($response);
         }
 
         return false;
@@ -394,9 +406,9 @@ class ContractDetail extends Component
         }
 
         $url = route('contract.detail', ['contractId' => $latestReplacement->id]);
-        $response = new \Illuminate\Http\RedirectResponse($url, 301);
+        $response = new RedirectResponse($url, 301);
 
-        throw new \Illuminate\Http\Exceptions\HttpResponseException($response);
+        throw new HttpResponseException($response);
     }
 
     /**
@@ -584,7 +596,7 @@ class ContractDetail extends Component
      * Cheaper alternatives at current consumption. Empty if the contract
      * is #1 (nothing is cheaper) or if consumption isn't cache-supported.
      */
-    public function getCheaperContractsProperty(): \Illuminate\Support\Collection
+    public function getCheaperContractsProperty(): Collection
     {
         $contract = $this->contract;
         if (! $contract) {
@@ -677,6 +689,7 @@ class ContractDetail extends Component
             $package !== null => 'Kuukausimaksu '.$this->formatEurosPerMonth((float) $package->number('monthly_fee_eur'))
                 .' sisältää '.$this->formatKwh((int) round((float) $package->number('included_kwh'))).' sähköä kalenterikuukaudessa. '
                 .'Ylittävä kulutus maksaa '.$this->formatCents((float) $package->number('excess_rate_cents_per_kwh')).' c/kWh.',
+            $pricing?->energyRuleComparison() !== null => ContractCardCopy::energyRulePriceExplanation($pricing),
             $facts->isSpot => $this->spotPriceQualifier(),
             // Market wins over the consumption effect, exactly as the card
             // category does, so a reset contract that also has an effect is
@@ -710,7 +723,7 @@ class ContractDetail extends Component
         return 'Pörssisähkössä maksat sähkön tuntihinnan, joten vuosihinta on arvio.';
     }
 
-    protected function resetPriceQualifier(?ContractPricingViewData $pricing, \App\Services\ContractCard\DTO\PricingCategoryFacts $facts): string
+    protected function resetPriceQualifier(?ContractPricingViewData $pricing, PricingCategoryFacts $facts): string
     {
         $reset = $pricing?->resetEstimate();
         $current = $this->qualifierCents($reset?->number('current_period_energy_price') ?? $pricing?->generalKwhPrice());
@@ -726,13 +739,14 @@ class ContractDetail extends Component
 
         // "Sähköfutuurit" never appears without its plain-language gloss.
         $basis = match ($reset?->string('basis')) {
+            'forward_premium' => 'nykyisistä sähköfutuureista eli tukkumarkkinan ennakkohinnoista ja vertailukelpoisista sopimuksista arvioidusta vähittäishinnan lisästä',
             'forward_curve_shift' => 'tukkumarkkinan ennakkohinnoista eli sähköfutuureista',
             'spot_seasonal_index' => 'pörssisähkön usean vuoden kausivaihtelusta',
             default => null,
         };
 
         if ($basis === null) {
-            $cadence = \App\Services\ContractCard\ContractCardCopy::cadenceAdverb($facts->cadence);
+            $cadence = ContractCardCopy::cadenceAdverb($facts->cadence);
 
             return "{$head}. Myyjä tarkistaa hinnan {$cadence}, joten koko vuoden hinta on arvio.";
         }
@@ -806,22 +820,20 @@ class ContractDetail extends Component
 
         $termMonths = $pricing?->termMonths();
 
-        // A term shorter than the compared year is fixed only for that term, so
-        // the 12-month figure is an estimate and has to say so. The popover's
-        // `termBody` already explains the annualisation and the unknown price
-        // after the term, but it carries no c/kWh figure, so the qualifier keeps
-        // the price and hands the estimate reasoning over.
+        // The comparison annualizes the real term, not a post-term continuation.
         if ($termMonths !== null && $termMonths > 0 && $termMonths < 12) {
+            $basis = "Vertailuhinta perustuu ilmoitettuihin hintoihin {$termMonths} kuukauden sopimuskauden aikana.";
+
             return $hasEstimateExplainer
-                ? "{$subject} ei muutu {$termMonths} kuukauden sopimusjakson aikana."
-                : "{$subject} ei muutu {$termMonths} kuukauden sopimusjakson aikana, mutta myyjä ei ole kertonut hintaa sen jälkeen, joten vuosihinta on arvio.";
+                ? $basis
+                : $basis.' Vertailuhinta on sopimuskauden kustannus muunnettuna vuositasolle.';
         }
 
         if (in_array($contract->contract_type, ['FixedTerm', 'Fixed'], true)) {
-            return "{$subject} ei muutu määräaikaisen sopimuksen aikana.";
+            return 'Määräaikaisuus kertoo sopimuksen kestosta. Tarkista energian hinnat, hintajaksot ja hinnanmuutosehdot.';
         }
 
-        return "{$subject} ei seuraa markkinahintaa, ja myyjän on ilmoitettava hinnanmuutoksesta etukäteen.";
+        return "{$subject} ei seuraa pörssin tuntihintaa, ja myyjän on ilmoitettava hinnanmuutoksesta etukäteen.";
     }
 
     protected function qualifierCents(mixed $value): ?string
@@ -868,7 +880,7 @@ class ContractDetail extends Component
      * the presenter reads on listings, where the batch metric cache attaches them. Neither is
      * a database column, so nothing is persisted.
      */
-    public function getCardProperty(): ?\App\Services\ContractCard\DTO\ContractCardView
+    public function getCardProperty(): ?ContractCardView
     {
         $contract = $this->contract;
 
@@ -886,7 +898,7 @@ class ContractDetail extends Component
         $contract->comparability = $this->pricingComparability;
         $contract->exceeds_consumption_limit = ! $contract->isConsumptionInRange($this->consumption);
 
-        return $this->computedValueCache[$cacheKey] = app(\App\Services\ContractCard\ContractCardPresenter::class)
+        return $this->computedValueCache[$cacheKey] = app(ContractCardPresenter::class)
             ->present(
                 contract: $contract,
                 prices: app(PricingMode::class)->enabled() ? [] : $this->latestPrices,
@@ -1050,7 +1062,7 @@ class ContractDetail extends Component
             basicLiving: $consumption,
         );
 
-        $canonicalPricing = app(\App\Services\CanonicalPricing\CanonicalContractPricingService::class);
+        $canonicalPricing = app(CanonicalContractPricingService::class);
         if ($canonicalPricing->enabled()) {
             return $this->pricingViewDataCache[$consumption] = ContractPricingViewData::fromCanonicalOutcome(
                 $canonicalPricing->evaluate($contract, $usage)['outcome'],
@@ -1084,7 +1096,7 @@ class ContractDetail extends Component
     public function getPricingIntegrityProperty(): ?array
     {
         $contract = $this->contract;
-        $canonicalPricing = app(\App\Services\CanonicalPricing\CanonicalContractPricingService::class);
+        $canonicalPricing = app(CanonicalContractPricingService::class);
 
         if (! $contract || ! $canonicalPricing->enabled()) {
             return null;
@@ -1108,7 +1120,7 @@ class ContractDetail extends Component
     public function getPricingComparabilityProperty(): ?string
     {
         $contract = $this->contract;
-        $canonicalPricing = app(\App\Services\CanonicalPricing\CanonicalContractPricingService::class);
+        $canonicalPricing = app(CanonicalContractPricingService::class);
 
         if (! $contract || ! $canonicalPricing->enabled()) {
             return null;
@@ -1220,12 +1232,12 @@ class ContractDetail extends Component
         if ($selfCost === null) {
             return null;
         }
-        $bucket = \App\Services\ContractCard\Enums\PricingBucket::fromFacts($this->pricingFacts());
-        $isSpot = $bucket === \App\Services\ContractCard\Enums\PricingBucket::Spot;
+        $bucket = PricingBucket::fromFacts($this->pricingFacts());
+        $isSpot = $bucket === PricingBucket::Spot;
 
         $reference = $isSpot
-            ? \App\Services\ContractCard\Enums\PricingBucket::Fixed
-            : \App\Services\ContractCard\Enums\PricingBucket::Spot;
+            ? PricingBucket::Fixed
+            : PricingBucket::Spot;
 
         $summary = $this->rankingService()->getBucketCostSummary($contract->id, $basis, $reference);
 
@@ -1305,7 +1317,7 @@ class ContractDetail extends Component
         }
 
         $facts = $this->pricingFacts();
-        $bucket = \App\Services\ContractCard\Enums\PricingBucket::fromFacts($facts);
+        $bucket = PricingBucket::fromFacts($facts);
         $summary = $this->rankingService()->getBucketCostSummary($contract->id, $basis, $bucket);
 
         $alternativeId = $summary['cheapest_id'] ?? null;
@@ -1497,8 +1509,12 @@ class ContractDetail extends Component
 
         $pricing = $this->pricingViewDataFor($this->consumption);
         $notes = [];
+        $floorNote = ContractCardCopy::modelFloorNote($pricing);
+        if ($floorNote !== null) {
+            $notes[] = $floorNote;
+        }
 
-        $reset = \App\Services\CanonicalPricing\MarketReset\ResetEstimateCopy::receiptNote(
+        $reset = ResetEstimateCopy::receiptNote(
             $pricing?->resetEstimate()?->toArray()
         );
 
@@ -1525,8 +1541,10 @@ class ContractDetail extends Component
         }
 
         if ($pricing?->includesDiscounts() && $savings !== null && $savings > 0) {
-            $notes[] = 'Tarjous on huomioitu arviossa vain voimassaoloajaltaan: säästät noin '
-                .$this->formatEuro($savings).' '.$period.' verrattuna normaalihintaan.';
+            $notes[] = $pricing->benefitIsEstimate()
+                ? 'Arvioitu säästö '.$this->formatEuro($savings).' '.$period.'. Normaalihinta voi muuttua. Säästö ei ole taattu.'
+                : 'Tarjous on huomioitu arviossa vain voimassaoloajaltaan: säästät noin '
+                    .$this->formatEuro($savings).' '.$period.' verrattuna normaalihintaan.';
         }
 
         return $notes;
@@ -1695,6 +1713,10 @@ class ContractDetail extends Component
 
     protected function verdictCharacterParagraph(ElectricityContract $contract): string
     {
+        $pricing = $this->pricingViewDataFor($this->consumption);
+        if ($pricing?->energyRuleComparison() !== null) {
+            return ContractCardCopy::energyRulePriceExplanation($pricing);
+        }
         $facts = $this->pricingFacts();
 
         if ($facts->isSpot) {
@@ -1704,7 +1726,7 @@ class ContractDetail extends Component
         }
 
         if ($facts->isReset) {
-            $cadence = \App\Services\ContractCard\ContractCardCopy::cadenceAdverb($facts->cadence);
+            $cadence = ContractCardCopy::cadenceAdverb($facts->cadence);
 
             return "Hinta tarkistetaan {$cadence}, joten se on pörssisähköä tasaisempi mutta seuraa markkinaa kiinteää "
                 .'hintaa nopeammin. Sopimus sopii, jos haluat pörssisähköä tasaisemman hinnan sitoutumatta kiinteään '
@@ -1769,7 +1791,7 @@ class ContractDetail extends Component
     /**
      * @return array{id: string, question: string, answer: string}|null
      */
-    protected function faqCostItem(?ContractPricingViewData $pricing, \App\Services\ContractCard\DTO\PricingCategoryFacts $facts): ?array
+    protected function faqCostItem(?ContractPricingViewData $pricing, PricingCategoryFacts $facts): ?array
     {
         if ($this->isPricingExcluded) {
             return null;
@@ -1790,8 +1812,11 @@ class ContractDetail extends Component
         ];
     }
 
-    protected function faqCostBasisSentence(?ContractPricingViewData $pricing, \App\Services\ContractCard\DTO\PricingCategoryFacts $facts): string
+    protected function faqCostBasisSentence(?ContractPricingViewData $pricing, PricingCategoryFacts $facts): string
     {
+        if ($pricing?->energyRuleComparison() !== null) {
+            return ContractCardCopy::energyRulePriceExplanation($pricing);
+        }
         if ($facts->isSpot) {
             if ($pricing?->estimateMethod()?->value === 'forward_curve_spot') {
                 return 'Arvio perustuu seuraavan 12 kuukauden tukkumarkkinan ennakkohintoihin, toteutuneiden päivä- ja '
@@ -1804,7 +1829,7 @@ class ContractDetail extends Component
         }
 
         if ($facts->isReset) {
-            $cadence = \App\Services\ContractCard\ContractCardCopy::cadenceAdverb($facts->cadence);
+            $cadence = ContractCardCopy::cadenceAdverb($facts->cadence);
 
             return 'Nykyisen hintajakson energianhinta on tiedossa, ja tulevat jaksot ovat arvio, koska myyjä tarkistaa '
                 ."hinnan {$cadence}.";
@@ -1817,7 +1842,7 @@ class ContractDetail extends Component
         $termMonths = $pricing?->termMonths();
 
         if ($termMonths !== null && $termMonths > 0 && $termMonths < 12) {
-            return "Energian hinta on kiinteä {$termMonths} kuukauden ajan, joten loppuvuoden osuus luvusta on arvio.";
+            return "Vertailuhinta on {$termMonths} kuukauden sopimuskauden kustannus muunnettuna vuositasolle. Se ei kuvaa määräajan jälkeistä hintaa.";
         }
 
         return 'Energian hinta on kiinteä, joten luku muuttuu vain jos vuosikulutuksesi poikkeaa vertailussa käytetystä.';
@@ -1833,8 +1858,15 @@ class ContractDetail extends Component
     protected function faqMechanismItem(
         ElectricityContract $contract,
         ?ContractPricingViewData $pricing,
-        \App\Services\ContractCard\DTO\PricingCategoryFacts $facts,
+        PricingCategoryFacts $facts,
     ): ?array {
+        if ($pricing?->energyRuleComparison() !== null) {
+            return [
+                'id' => 'faq-miten',
+                'question' => 'Miten tämän sopimuksen hinta määräytyy?',
+                'answer' => ContractCardCopy::energyRulePriceExplanation($pricing),
+            ];
+        }
         $margin = $this->qualifierCents($pricing?->spotPriceMargin());
         $fee = $pricing?->monthlyFixedFee();
         $feeAmount = $fee !== null && $fee > 0 ? $this->formatEurosPerMonth($fee) : null;
@@ -1867,7 +1899,7 @@ class ContractDetail extends Component
         }
 
         if ($facts->isReset) {
-            $cadence = \App\Services\ContractCard\ContractCardCopy::cadenceAdverb($facts->cadence);
+            $cadence = ContractCardCopy::cadenceAdverb($facts->cadence);
             $until = $facts->nextReset?->subDay();
             $periodPhrase = $until !== null
                 ? ' Nykyinen hintajakso päättyy '.$until->format('j.n.Y').'.'
@@ -2002,8 +2034,8 @@ class ContractDetail extends Component
         $termMonths = $this->termMonths();
         $termPhrase = $termMonths !== null ? " {$termMonths} kuukauden" : ' sovitun';
 
-        $afterTerm = $this->pricingComparability === 'term_price_only'
-            ? ' Myyjä ei ole julkaissut hintaa määräajan jälkeen, joten kysy jatkohinta myyjältä ennen kauden loppua.'
+        $afterTerm = $termMonths !== null && $termMonths > 0 && $termMonths < 12
+            ? ' Vuositasolle muunnettu vertailuhinta koskee vain tätä sopimuskautta.'
             : '';
 
         return [
@@ -2049,7 +2081,7 @@ class ContractDetail extends Component
 
         $rows = [];
 
-        $duration = \App\Services\ContractCard\ContractCardCopy::durationLabel(
+        $duration = ContractCardCopy::durationLabel(
             $contract->contract_type,
             $contract->fixed_time_range,
         );
@@ -2064,10 +2096,9 @@ class ContractDetail extends Component
             $rows[] = $cancellation;
         }
 
-        // A fixed term whose only unpriced gap is the time after the term is a
-        // typed verdict, not an absence of data, so it earns a row.
-        if ($this->pricingComparability === 'term_price_only') {
-            $rows[] = ['label' => 'Hinta määräajan jälkeen', 'value' => 'Myyjä ei ole julkaissut sitä'];
+        $termMonths = $this->pricingViewDataFor($this->consumption)?->contractTerm()?->integer('months');
+        if ($termMonths !== null && $termMonths > 0 && $termMonths < 12) {
+            $rows[] = ['label' => 'Vertailuhinnan peruste', 'value' => $termMonths.' kk sopimuskausi muunnettuna vuositasolle'];
         }
 
         if ($this->billingFrequencyLabels) {
@@ -2235,7 +2266,7 @@ class ContractDetail extends Component
 
         // One-contract set through the same entry point the listing uses, so the
         // detail answer and the listing card can never disagree about the period.
-        $data = app(\App\Services\BillComparison\BillComparisonService::class)
+        $data = app(BillComparisonService::class)
             ->periodRowsForContracts([$contract], $request);
 
         $result = [
@@ -2369,9 +2400,9 @@ class ContractDetail extends Component
     /**
      * The pricing-mechanism facts for the viewed contract, resolved once.
      */
-    protected function pricingFacts(): \App\Services\ContractCard\DTO\PricingCategoryFacts
+    protected function pricingFacts(): PricingCategoryFacts
     {
-        return $this->computedValueCache['pricingFacts'] ??= app(\App\Services\ContractCard\PricingCategoryResolver::class)
+        return $this->computedValueCache['pricingFacts'] ??= app(PricingCategoryResolver::class)
             ->resolve($this->contract);
     }
 
@@ -2495,8 +2526,8 @@ class ContractDetail extends Component
      *     company: string|null,
      *     is_current: bool,
      *     is_active: bool,
-     *     latest_price_date: ?\Carbon\Carbon,
-     *     last_seen_on_sale_date: ?\Carbon\Carbon,
+     *     latest_price_date: ?Carbon,
+     *     last_seen_on_sale_date: ?Carbon,
      *     prices: array<int, array{type: string, label: string, price: float, unit: string}>,
      *     promotion: ?string
      * }>
@@ -2600,9 +2631,9 @@ class ContractDetail extends Component
     /**
      * Return forward replacement IDs in chain order using one recursive query.
      *
-     * @return \Illuminate\Support\Collection<int, object{id: string, depth: int}>
+     * @return Collection<int, object{id: string, depth: int}>
      */
-    protected function getForwardReplacementChainIds(string $contractId): \Illuminate\Support\Collection
+    protected function getForwardReplacementChainIds(string $contractId): Collection
     {
         return collect(DB::select(<<<'SQL'
             WITH RECURSIVE replacement_chain(id, replaced_by_contract_id, depth) AS (

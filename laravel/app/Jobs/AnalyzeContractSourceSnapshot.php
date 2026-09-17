@@ -7,6 +7,7 @@ use App\Models\ContractSourceObservation;
 use App\Models\ElectricityContract;
 use App\Services\ContractInterpretation\ContractInterpretationAttemptRunner;
 use App\Services\ContractInterpretation\ContractInterpretationInputBuilder;
+use App\Services\ContractInterpretation\ContractInterpretationProfile;
 use App\Services\ContractInterpretation\ContractInterpretationPublisher;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -77,10 +78,27 @@ class AnalyzeContractSourceSnapshot implements ShouldBeUnique, ShouldQueue
             return;
         }
 
-        $input = $inputBuilder->build(
-            $interpretation->sourceSnapshot,
-            $observation->first_observed_at,
-        );
+        try {
+            $profile = ContractInterpretationProfile::stored(
+                $interpretation->schema_version,
+                $interpretation->prompt_version,
+                $interpretation->validator_version,
+            );
+            $input = $inputBuilder->build(
+                $interpretation->sourceSnapshot,
+                $observation->first_observed_at,
+                $profile,
+            );
+        } catch (\InvalidArgumentException $exception) {
+            $interpretation->update([
+                'status' => ContractInterpretation::STATUS_FAILED,
+                'completed_at' => now(),
+                'validation_errors' => [$exception->getMessage()],
+                'error' => $exception->getMessage(),
+            ]);
+
+            return;
+        }
 
         $interpretation->update([
             'status' => ContractInterpretation::STATUS_PROCESSING,
@@ -93,6 +111,7 @@ class AnalyzeContractSourceSnapshot implements ShouldBeUnique, ShouldQueue
         try {
             $result = $attemptRunner->run(
                 $input,
+                profile: $profile,
                 afterAttempt: function (array $attempt, array $attempts) use ($interpretation, $previousAttempts): void {
                     $allAttempts = array_merge($previousAttempts, $attempts);
                     foreach ($allAttempts as $index => &$storedAttempt) {

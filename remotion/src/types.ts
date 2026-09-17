@@ -199,6 +199,7 @@ type CanonicalConsumptionOffer = {
   total_basis_label: string;
   is_estimate: boolean;
   estimate_method: string | null;
+  benefit_is_estimate?: boolean;
   customer_benefit_eur: number | null;
   customer_benefit_basis_months: number | null;
   customer_benefit_basis_label: string | null;
@@ -210,6 +211,7 @@ export type CanonicalContractOffer = ContractOfferIdentity & {
   offer: {
     label: string;
     benefit_eur: number;
+    benefit_is_estimate?: boolean;
     benefit_text: string;
     basis_months: number;
     basis_label: string;

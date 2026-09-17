@@ -16,6 +16,8 @@ enum ResetEstimateBasis: string
      */
     case ForwardCurveShift = 'forward_curve_shift';
 
+    case ForwardPremium = 'forward_premium';
+
     /**
      * Lower-confidence fallback: multiplicative seasonal index from multi-year realized
      * spot. `P_m = P_current * s_m / s_reference`. Used when no usable curve exists.

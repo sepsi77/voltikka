@@ -232,11 +232,14 @@ class ContractHistoryPresenterTest extends TestCase
 
         $historyIds = array_column($presentation['contractHistory'], 'id');
 
-        $this->assertCount(26, $historyIds);
+        DB::disableQueryLog();
+
+        $this->assertCount(28, $historyIds);
         $this->assertContains('bounded-predecessor-25', $historyIds);
-        $this->assertNotContains('bounded-predecessor-26', $historyIds);
-        $this->assertNotContains('bounded-predecessor-27', $historyIds);
-        $this->assertSame(1, $queries->filter(fn (string $query) => str_contains($query, 'WITH RECURSIVE replacement_chain'))->count());
+        $this->assertContains('bounded-predecessor-26', $historyIds);
+        $this->assertContains('bounded-predecessor-27', $historyIds);
+        $this->assertSame($historyIds, array_column($presentation['priceHistory']['General'], 'contract_id'));
+        $this->assertSame(1, $queries->filter(fn (string $query) => str_contains($query, 'WITH RECURSIVE replacement_lineage'))->count());
         $this->assertLessThanOrEqual(1, $queries->filter(fn (string $query) => str_contains($query, 'from "price_components"'))->count());
         $this->assertLessThanOrEqual(1, $queries->filter(fn (string $query) => str_contains($query, 'from "active_contracts"'))->count());
         $this->assertLessThanOrEqual(5, $queries->count());

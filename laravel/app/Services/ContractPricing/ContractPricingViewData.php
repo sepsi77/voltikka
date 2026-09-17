@@ -7,8 +7,12 @@ use App\Services\CanonicalPricing\Enums\BoundaryKind;
 use App\Services\CanonicalPricing\Enums\ComponentType;
 use App\Services\CanonicalPricing\Enums\ComponentUnit;
 use App\Services\CanonicalPricing\Enums\ContractComparability;
+use App\Services\CanonicalPricing\Enums\EnergyPriceRuleKind;
 use App\Services\CanonicalPricing\Enums\EstimateMethod;
 use App\Services\CanonicalPricing\Enums\PhaseKind;
+use App\Services\CanonicalPricing\ForwardPremium\PremiumEstimate;
+use App\Services\CanonicalPricing\ForwardPremium\PremiumFamily;
+use App\Services\CanonicalPricing\ForwardPremium\PremiumVatBasis;
 use App\Services\CanonicalPricing\MarketReset\Enums\ResetEstimateBasis;
 use App\Services\CanonicalPricing\SpotForward\Enums\SpotEstimateBasis;
 use App\Services\CanonicalPricing\SupplierAdjusted\Enums\PriceEpisodeEvidenceBasis;
@@ -41,7 +45,7 @@ final readonly class ContractPricingViewData
         private array $monthlyCosts,
         private array $rates,
         private bool $spot,
-        private float $discountSaving,
+        private ?float $discountSaving,
         private bool $includesDiscounts,
         private ?string $pricingBasis,
         private ?ContractComparability $comparability,
@@ -55,6 +59,7 @@ final readonly class ContractPricingViewData
         private ?PricingFact $spotEstimate,
         private array $phases,
         private array $offerTerms,
+        private ?PricingFact $energyRuleComparison,
     ) {}
 
     public static function fromCanonicalOutcome(CanonicalPricingOutcome $outcome): self
@@ -87,7 +92,9 @@ final readonly class ContractPricingViewData
         if ($payload['base_monthly_costs'] !== null) {
             self::finiteNumberList($payload['base_monthly_costs'], 'calculated_cost.base_monthly_costs');
         }
-        $discountSaving = self::finiteNumber($payload['discount_savings_total'], 'calculated_cost.discount_savings_total');
+        $discountSaving = ($payload['energy_rule_comparison']['normal_available'] ?? true) === false
+            ? self::nullableFiniteNumber($payload['discount_savings_total'], 'calculated_cost.discount_savings_total')
+            : self::finiteNumber($payload['discount_savings_total'], 'calculated_cost.discount_savings_total');
         self::finiteNumberList($payload['monthly_discount_savings'], 'calculated_cost.monthly_discount_savings');
         $spot = self::boolean($payload['is_spot_contract'], 'calculated_cost.is_spot_contract');
         $includesDiscounts = self::boolean($payload['includes_discounts'], 'calculated_cost.includes_discounts');
@@ -116,6 +123,7 @@ final readonly class ContractPricingViewData
         $spotEstimate = null;
         $phases = [];
         $offerTerms = [];
+        $energyRuleComparison = null;
 
         if ($pricingBasis === 'canonical') {
             foreach ([
@@ -147,7 +155,13 @@ final readonly class ContractPricingViewData
             $contractTerm = self::optionalRecord(
                 $payload['contract_term'],
                 'calculated_cost.contract_term',
-                self::validateContractTerm(...),
+                function (array $record, string $path) use ($payload): void {
+                    self::validateContractTerm($record, $path);
+                    if (($payload['energy_rule_comparison'] ?? null) === null
+                        && ($record['base_total_cost'] === null || $record['discount_savings_total'] === null || $record['discount_savings_total'] < 0)) {
+                        throw new InvalidArgumentException($path.' requires nonnegative legacy savings and complete normal facts.');
+                    }
+                },
             );
             $consumptionEffect = self::optionalRecord(
                 $payload['consumption_effect'],
@@ -172,6 +186,13 @@ final readonly class ContractPricingViewData
             $phases = self::recordList($payload['phase_breakdown'], 'calculated_cost.phase_breakdown', self::validatePhase(...));
             $offerTerms = self::recordList($payload['offer_terms'], 'calculated_cost.offer_terms', self::validateOfferTerm(...));
 
+            $energyRuleComparison = self::optionalRecord($payload['energy_rule_comparison'] ?? null, 'calculated_cost.energy_rule_comparison', self::validateEnergyRuleComparison(...));
+            if ($energyRuleComparison !== null) {
+                self::validateEnergyRuleTotals($payload, $energyRuleComparison);
+            } elseif ($estimateMethod === EstimateMethod::SourceEnergyRules) {
+                throw new InvalidArgumentException('Source energy estimates require paired provenance.');
+            }
+
             if ($comparability === ContractComparability::TermPriceOnly) {
                 if ($contractTerm === null) {
                     throw new InvalidArgumentException('term_price_only requires calculated_cost.contract_term.');
@@ -185,12 +206,23 @@ final readonly class ContractPricingViewData
             if ($comparability === ContractComparability::BaseOnlyHybrid) {
                 $supportedHybridMethods = [
                     EstimateMethod::HybridBaseOnly,
+                    EstimateMethod::ForwardCurveSpot,
+                    EstimateMethod::Rolling365Spot,
+                    EstimateMethod::SourceEnergyRules,
+                    EstimateMethod::SupplierAdjustedForwardCurveShift,
+                    EstimateMethod::SupplierAdjustedForwardPremium,
+                    EstimateMethod::SupplierAdjustedSpotSeasonalIndex,
+                    EstimateMethod::HoldCurrentSupplierPrice,
+                    EstimateMethod::RecurringForwardPremium,
                     EstimateMethod::HoldCurrentRecurringPrice,
                     EstimateMethod::RecurringForwardCurveShift,
                     EstimateMethod::RecurringSpotSeasonalIndex,
                 ];
                 if (! $estimate || ! in_array($estimateMethod, $supportedHybridMethods, true)) {
-                    throw new InvalidArgumentException('base_only_hybrid requires a Hybrid or recurring-reset estimate method.');
+                    throw new InvalidArgumentException('base_only_hybrid requires a supported Hybrid estimate method.');
+                }
+                if (in_array($estimateMethod, [EstimateMethod::ForwardCurveSpot, EstimateMethod::Rolling365Spot], true)) {
+                    self::validateHybridSpotTimeline($payload, $estimateMethod);
                 }
                 if ($consumptionEffect !== null && $consumptionEffect->boolean('present') !== true) {
                     throw new InvalidArgumentException('A base-only Hybrid consumption-effect record must be present when supplied.');
@@ -233,6 +265,7 @@ final readonly class ContractPricingViewData
             spotEstimate: $spotEstimate,
             phases: $phases,
             offerTerms: $offerTerms,
+            energyRuleComparison: $energyRuleComparison,
         );
     }
 
@@ -332,7 +365,7 @@ final readonly class ContractPricingViewData
         return $this->spot;
     }
 
-    public function discountSaving(): float
+    public function discountSaving(): ?float
     {
         return $this->discountSaving;
     }
@@ -426,6 +459,155 @@ final readonly class ContractPricingViewData
         return $this->offerTerms;
     }
 
+    public function energyRuleComparison(): ?PricingFact
+    {
+        return $this->energyRuleComparison;
+    }
+
+    public function benefitIsEstimate(): bool
+    {
+        if ($this->energyRuleComparison === null
+            || (! $this->energyRuleComparison->boolean('actual_estimated') && ! $this->energyRuleComparison->boolean('normal_estimated'))) {
+            return false;
+        }
+        // Shared energy forecasts cancel for fee-only offers. Only a genuine energy
+        // offer exposes its benefit to that uncertainty, including model floors.
+        foreach ($this->offerTerms as $term) {
+            foreach ($term->records('components') ?? [] as $component) {
+                if (ComponentType::tryFrom($component->string('component_type') ?? '')?->isPerKwhEnergy()) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static function validateEnergyRuleComparison(array $record, string $path): void
+    {
+        $keys = ['method', 'actual_estimated', 'normal_available', 'normal_estimated', 'normal_held', 'signed_monthly_differences', 'net_difference', 'annual_equivalent_energy_price', 'current_normal_rates', 'projection', 'actual_projection'];
+        if (count($record) !== count($keys) || array_diff($keys, array_keys($record)) !== [] || $record['method'] !== 'source_energy_rules_v1') {
+            throw new InvalidArgumentException($path.' has invalid method or fields.');
+        }
+        foreach (['actual_estimated', 'normal_available', 'normal_estimated', 'normal_held'] as $key) {
+            self::boolean($record[$key], $path.'.'.$key);
+        }
+        self::nullableFiniteNumber($record['annual_equivalent_energy_price'], $path.'.annual_equivalent_energy_price');
+        $monthly = self::finiteNumberList($record['signed_monthly_differences'], $path.'.signed_monthly_differences');
+        $net = self::nullableFiniteNumber($record['net_difference'], $path.'.net_difference');
+        if ($record['actual_projection'] !== null) {
+            if (! $record['actual_estimated']) {
+                throw new InvalidArgumentException($path.' asserts an actual projection for an exact price.');
+            }
+            self::validateEnergyProjection($record['actual_projection'], $path.'.actual_projection');
+        }
+        if (! $record['normal_available']) {
+            if ($monthly !== [] || $net !== null || $record['normal_estimated'] || $record['normal_held'] || $record['projection'] !== null || $record['current_normal_rates'] !== null) {
+                throw new InvalidArgumentException($path.' asserts unavailable normal facts.');
+            }
+
+            return;
+        }
+        if (count($monthly) !== 12 || $net === null || abs(array_sum($monthly) - $net) > 0.00001 || ($record['normal_held'] && ! $record['normal_estimated'])) {
+            throw new InvalidArgumentException($path.' has inconsistent signed differences.');
+        }
+        if ($record['projection'] !== null) {
+            self::validateEnergyProjection($record['projection'], $path.'.projection');
+        }
+        $rates = $record['current_normal_rates'];
+        if ($rates === null && $record['projection'] === null) {
+            return;
+        }
+        if (! is_array($rates) || $rates === []) {
+            throw new InvalidArgumentException($path.' lacks normal rates.');
+        }
+        $buckets = array_keys($rates);
+        sort($buckets);
+        if (! in_array($buckets, [['energy_general'], ['energy_day', 'energy_night'], ['energy_seasonal_other', 'energy_seasonal_winter']], true)) {
+            throw new InvalidArgumentException($path.' has incomplete normal tariff buckets.');
+        }
+        if ($record['normal_held'] && $record['projection'] !== null && $record['projection']['estimate']['basis'] !== 'hold_flat') {
+            throw new InvalidArgumentException($path.' has inconsistent normal hold provenance.');
+        }
+        foreach ($rates as $bucket => $rate) {
+            if (! is_string($bucket) || ! (ComponentType::tryFrom($bucket)?->isPerKwhEnergy() ?? false) || self::finiteNumber($rate, $path.'.current_normal_rates') < 0) {
+                throw new InvalidArgumentException($path.' has invalid normal rates.');
+            }
+        }
+        if ($record['projection'] !== null) {
+            $projection = $record['projection'];
+            $current = $projection['estimate'][$projection['kind'] === 'reset' ? 'current_period_energy_price' : 'current_energy_price'];
+            $representative = count($rates) === 1 ? reset($rates) : null;
+            if ($projection['kind'] === 'supplier_adjusted') {
+                $representative ??= isset($rates['energy_day'])
+                    ? ($rates['energy_day'] * 15 + $rates['energy_night'] * 9) / 24
+                    : ($rates['energy_seasonal_winter'] * 5 + $rates['energy_seasonal_other'] * 7) / 12;
+            }
+            if (($representative !== null && abs($representative - $current) > 0.0001)
+                || ($representative === null && ($current < min($rates) - 0.0001 || $current > max($rates) + 0.0001))) {
+                throw new InvalidArgumentException($path.' current normal rates disagree with projection.');
+            }
+        }
+    }
+
+    private static function validateEnergyProjection(mixed $projection, string $path): void
+    {
+        if (! is_array($projection) || count($projection) !== 2 || ! in_array($projection['kind'] ?? null, ['reset', 'supplier_adjusted'], true) || ! is_array($projection['estimate'] ?? null)) {
+            throw new InvalidArgumentException($path.' has invalid projection.');
+        }
+        if ($projection['kind'] === 'reset') {
+            if (! in_array($projection['estimate']['cadence'] ?? null, ['monthly', 'quarterly', 'seasonal', 'other'], true)) {
+                throw new InvalidArgumentException($path.' has invalid reset cadence.');
+            }
+            self::validateResetEstimate($projection['estimate'], $path.'.estimate');
+        } else {
+            self::validateSupplierAdjustedEstimate($projection['estimate'], $path.'.estimate');
+        }
+    }
+
+    private static function validateEnergyRuleTotals(array $payload, PricingFact $comparison): void
+    {
+        $normal = $comparison->boolean('normal_available');
+        $net = $comparison->number('net_difference');
+        $monthly = $comparison->toArray()['signed_monthly_differences'];
+        if ($comparison->boolean('actual_estimated') !== ($payload['estimate_method'] === EstimateMethod::SourceEnergyRules->value)
+            || ($comparison->boolean('actual_estimated') && ! $payload['is_estimate'])) {
+            throw new InvalidArgumentException('Energy-rule actual certainty disagrees with method.');
+        }
+        if ($payload['total_cost'] === null || count($payload['monthly_costs']) !== 12
+            || abs(array_sum($payload['monthly_costs']) - $payload['total_cost']) > 0.00001
+            || abs($payload['avg_monthly_cost'] * 12 - $payload['total_cost']) > 0.00001) {
+            throw new InvalidArgumentException('Energy-rule actual totals do not reconcile.');
+        }
+        if ($normal) {
+            if ($payload['base_total_cost'] === null || ! is_array($payload['base_monthly_costs']) || count($payload['base_monthly_costs']) !== 12
+                || abs($payload['base_total_cost'] - $payload['total_cost'] - $net) > 0.00001
+                || abs($payload['base_avg_monthly_cost'] * 12 - $payload['base_total_cost']) > 0.00001
+                || $payload['discount_savings_total'] === null || abs($payload['discount_savings_total'] - $net) > 0.00001) {
+                throw new InvalidArgumentException('Energy-rule normal totals do not reconcile.');
+            }
+            foreach ($monthly as $index => $difference) {
+                if (abs($payload['base_monthly_costs'][$index] - $payload['monthly_costs'][$index] - $difference) > 0.00001) {
+                    throw new InvalidArgumentException('Energy-rule monthly differences do not reconcile.');
+                }
+            }
+        } elseif ($payload['base_total_cost'] !== null || $payload['base_avg_monthly_cost'] !== null || ! in_array($payload['base_monthly_costs'], [null, []], true) || $payload['discount_savings_total'] !== null || $payload['offer_terms'] !== []) {
+            throw new InvalidArgumentException('Unavailable normal comparison carries benefit facts.');
+        }
+        if ($payload['monthly_discount_savings'] != $monthly || $payload['includes_discounts'] !== ($normal && $net > 0 && $payload['offer_terms'] !== [])) {
+            throw new InvalidArgumentException('Energy-rule benefit qualification is inconsistent.');
+        }
+        $term = $payload['contract_term'];
+        if ($term !== null) {
+            $factor = 12 / $term['months'];
+            if ($payload['term_months'] !== $term['months'] || abs($term['total_cost'] * $factor - $payload['total_cost']) > 0.00001
+                || ($normal && ($term['base_total_cost'] === null || $term['discount_savings_total'] === null || abs($term['base_total_cost'] * $factor - $payload['base_total_cost']) > 0.00001 || abs($term['discount_savings_total'] * $factor - $net) > 0.00001))
+                || (! $normal && ($term['base_total_cost'] !== null || $term['discount_savings_total'] !== null))) {
+                throw new InvalidArgumentException('Energy-rule real-term totals do not reconcile.');
+            }
+        }
+    }
+
     private static function validatePackage(array $record, string $path): void
     {
         foreach (['monthly_fee_eur', 'included_kwh', 'allowance_cadence', 'excess_rate_cents_per_kwh'] as $key) {
@@ -448,9 +630,10 @@ final readonly class ContractPricingViewData
         }
         self::positiveInteger($record['months'], $path.'.months');
         self::finiteNumber($record['total_cost'], $path.'.total_cost');
-        self::finiteNumber($record['base_total_cost'], $path.'.base_total_cost');
-        if (self::finiteNumber($record['discount_savings_total'], $path.'.discount_savings_total') < 0) {
-            throw new InvalidArgumentException($path.'.discount_savings_total must not be negative.');
+        self::nullableFiniteNumber($record['base_total_cost'], $path.'.base_total_cost');
+        self::nullableFiniteNumber($record['discount_savings_total'], $path.'.discount_savings_total');
+        if (($record['base_total_cost'] === null) !== ($record['discount_savings_total'] === null)) {
+            throw new InvalidArgumentException($path.' has incomplete normal facts.');
         }
     }
 
@@ -475,6 +658,9 @@ final readonly class ContractPricingViewData
             self::requireKey($record, $key, $path);
         }
         $basis = self::nonEmptyString($record['basis'], $path.'.basis');
+        if ($basis === ResetEstimateBasis::ForwardPremium->value || array_key_exists('premium', $record)) {
+            self::validateForwardPremium($record, $path, 'recurring_forward_premium_v1');
+        }
         if (ResetEstimateBasis::tryFrom($basis) === null) {
             throw new InvalidArgumentException($path.'.basis is not supported.');
         }
@@ -574,6 +760,83 @@ final readonly class ContractPricingViewData
         foreach (['basis', 'beta', 'current_energy_price', 'monthly_fee', 'annual_equivalent_energy_price', 'reference_kind', 'reference_price', 'curve_trade_date', 'reference_trade_date', 'price_episode_started_at', 'price_episode_evidence_basis', 'tail_starts', 'monthly_fee_assumption', 'higher_confidence', 'flags'] as $key) {
             self::requireKey($record, $key, $path);
         }
+        if (($record['basis'] ?? null) === SupplierAdjustedEstimateBasis::ForwardPremium->value || array_key_exists('premium', $record)) {
+            self::validateForwardPremium($record, $path, 'supplier_adjusted_forward_premium_v1');
+        }
+        self::validateSupplierAdjustedFields($record, $path);
+    }
+
+    private static function validateForwardPremium(array $record, string $path, string $policy): void
+    {
+        self::requireKey($record, 'premium', $path);
+        $premium = $record['premium'];
+        if (! is_array($premium) || ! in_array($premium['source'] ?? null, ['own_lineage', 'same_company', 'market'], true)
+            || ($record['current_policy'] ?? null) !== $policy
+            || ! in_array($premium['confidence'] ?? null, ['higher', 'lower'], true)) {
+            throw new InvalidArgumentException($path.'.premium is not supported.');
+        }
+        if (count($premium) !== count(PremiumEstimate::PUBLIC_KEYS)
+            || array_diff(PremiumEstimate::PUBLIC_KEYS, array_keys($premium)) !== []) {
+            throw new InvalidArgumentException($path.'.premium must contain only public fields.');
+        }
+        self::stringList($premium['flags'], $path.'.premium.flags');
+        if (array_diff($premium['flags'], PremiumEstimate::PUBLIC_FLAGS) !== []) {
+            throw new InvalidArgumentException($path.'.premium.flags is not supported.');
+        }
+        if (! is_array($premium['references']) || ! array_is_list($premium['references']) || $premium['references'] === []) {
+            throw new InvalidArgumentException($path.'.premium.references must be a non-empty list.');
+        }
+        foreach ($premium['references'] as $reference) {
+            if (! is_array($reference) || count($reference) !== count(PremiumEstimate::PUBLIC_REFERENCE_KEYS)
+                || array_diff(PremiumEstimate::PUBLIC_REFERENCE_KEYS, array_keys($reference)) !== []
+                || ! is_bool($reference['reference_period_proxy'])) {
+                throw new InvalidArgumentException($path.'.premium.references must contain public reference facts.');
+            }
+            foreach (['pricing_date', 'delivery_start', 'delivery_end'] as $key) {
+                if ($key === 'pricing_date' && $reference[$key] === null) {
+                    continue;
+                }
+                self::date(self::nonEmptyString($reference[$key], $path.'.premium.references.'.$key), $path.'.premium.references.'.$key);
+            }
+            $provenances = [];
+            foreach (PremiumFamily::cases() as $family) {
+                foreach (PremiumVatBasis::cases() as $vat) {
+                    $provenances[] = PremiumEstimate::publicProvenance($family, $reference['reference_period_proxy'], $vat);
+                }
+            }
+            if (! in_array($reference['provenance'], $provenances, true)) {
+                throw new InvalidArgumentException($path.'.premium.references.provenance is not supported.');
+            }
+        }
+        foreach (['lineage_count', 'company_count', 'observation_count', 'independent_variant_count'] as $key) {
+            if (! is_int($premium[$key] ?? null) || $premium[$key] < 1) {
+                throw new InvalidArgumentException($path.'.premium.'.$key.' must be positive.');
+            }
+        }
+        if (! is_array($premium['premiums_by_bucket'] ?? null) || $premium['premiums_by_bucket'] === []) {
+            throw new InvalidArgumentException($path.'.premium requires energy buckets.');
+        }
+        foreach ($premium['premiums_by_bucket'] as $bucket => $rate) {
+            if (! (ComponentType::tryFrom($bucket)?->isPerKwhEnergy() ?? false)) {
+                throw new InvalidArgumentException($path.'.premium contains a non-energy bucket.');
+            }
+            self::finiteNumber($rate, $path.'.premium.premiums_by_bucket.'.$bucket);
+        }
+        self::date(self::nonEmptyString($record['curve_trade_date'], $path.'.curve_trade_date'), $path.'.curve_trade_date');
+        foreach (['evidence_from', 'evidence_through'] as $key) {
+            self::date(self::nonEmptyString($premium[$key] ?? null, $path.'.premium.'.$key), $path.'.premium.'.$key);
+        }
+        self::stringList($premium['reference_trade_dates'] ?? null, $path.'.premium.reference_trade_dates');
+        if ($premium['reference_trade_dates'] === []) {
+            throw new InvalidArgumentException($path.'.premium requires a reference trade date.');
+        }
+        foreach ($premium['reference_trade_dates'] as $date) {
+            self::date($date, $path.'.premium.reference_trade_dates');
+        }
+    }
+
+    private static function validateSupplierAdjustedFields(array $record, string $path): void
+    {
         if (SupplierAdjustedEstimateBasis::tryFrom(self::nonEmptyString($record['basis'], $path.'.basis')) === null) {
             throw new InvalidArgumentException($path.'.basis is not supported.');
         }
@@ -596,11 +859,40 @@ final readonly class ContractPricingViewData
             throw new InvalidArgumentException($path.'.price_episode_evidence_basis is not supported.');
         }
         self::nullableNonEmptyString($record['tail_starts'], $path.'.tail_starts');
-        if (self::nonEmptyString($record['monthly_fee_assumption'], $path.'.monthly_fee_assumption') !== 'held_flat') {
+        if (! in_array(self::nonEmptyString($record['monthly_fee_assumption'], $path.'.monthly_fee_assumption'), ['held_flat', 'disclosed_phases'], true)) {
             throw new InvalidArgumentException($path.'.monthly_fee_assumption is not supported.');
         }
         self::boolean($record['higher_confidence'], $path.'.higher_confidence');
         self::stringList($record['flags'], $path.'.flags');
+    }
+
+    private static function validateHybridSpotTimeline(array $payload, EstimateMethod $method): void
+    {
+        $basis = $method === EstimateMethod::ForwardCurveSpot
+            ? SpotEstimateBasis::ForwardCurve : SpotEstimateBasis::Rolling365Fallback;
+        if (($payload['spot_estimate']['basis'] ?? null) !== $basis->value) {
+            throw new InvalidArgumentException('Hybrid Spot pricing requires matching Spot estimate provenance.');
+        }
+        $phases = $payload['phase_breakdown'];
+        usort($phases, static fn (array $a, array $b) => strcmp($a['window_start'], $b['window_start']));
+        $lastEnd = null;
+        $hasBase = false;
+        $hasSpot = false;
+        foreach ($phases as $phase) {
+            // Resolved window ends are inclusive. A Spot display rate must not hide a fixed base.
+            if (($lastEnd !== null && $phase['window_start'] <= $lastEnd)
+                || $phase['energy_package'] !== null
+                || ($phase['uses_spot'] && ($phase['energy_cents'] !== null || $phase['spot_margin_cents'] === null))
+                || (! $phase['uses_spot'] && $phase['spot_margin_cents'] !== null)) {
+                throw new InvalidArgumentException('Hybrid Spot pricing requires distinct non-conflicting phase usage.');
+            }
+            $lastEnd = $phase['window_end'];
+            $hasSpot = $hasSpot || $phase['uses_spot'];
+            $hasBase = $hasBase || (! $phase['uses_spot'] && $phase['energy_cents'] !== null);
+        }
+        if (! $hasBase || ! $hasSpot) {
+            throw new InvalidArgumentException('Hybrid Spot pricing requires both base and Spot phases.');
+        }
     }
 
     private static function validatePhase(array $record, string $path): void
@@ -625,6 +917,9 @@ final readonly class ContractPricingViewData
             throw new InvalidArgumentException($path.' has a window end before its start.');
         }
         self::boolean($record['uses_spot'], $path.'.uses_spot');
+        if (array_key_exists('energy_price_guaranteed', $record)) {
+            self::boolean($record['energy_price_guaranteed'], $path.'.energy_price_guaranteed');
+        }
         foreach (['energy_cents', 'spot_margin_cents', 'monthly_fee'] as $key) {
             self::nullableFiniteNumber($record[$key], $path.'.'.$key);
         }
@@ -672,6 +967,26 @@ final readonly class ContractPricingViewData
             }
             self::finiteNumber($component['amount'], $path.'.components.'.$index.'.amount');
             self::finiteNumber($component['normal_amount'], $path.'.components.'.$index.'.normal_amount');
+            if (array_key_exists('rule_kind', $component)) {
+                $kind = is_string($component['rule_kind']) ? EnergyPriceRuleKind::tryFrom($component['rule_kind']) : null;
+                if ($kind === null || (! $kind->isDiscount() && $kind !== EnergyPriceRuleKind::FixedPrice)
+                    || ! ComponentType::from($component['component_type'])->isPerKwhEnergy()
+                    || $component['unit'] !== ComponentUnit::CentsPerKwh->value
+                    || $component['amount'] < 0 || $component['normal_amount'] < 0) {
+                    throw new InvalidArgumentException($path.' has unsupported offer rule.');
+                }
+                foreach (['discount_value', 'floor_amount'] as $key) {
+                    self::requireKey($component, $key, $path);
+                    self::nullableFiniteNumber($component[$key], $path.'.'.$key);
+                }
+                if ($kind->isDiscount()) {
+                    if ($component['discount_value'] === null || $component['discount_value'] <= 0 || ($kind->value === 'percentage_discount' && $component['discount_value'] > 100) || ($component['floor_amount'] !== null && $component['floor_amount'] < 0)) {
+                        throw new InvalidArgumentException($path.' has invalid offer operands.');
+                    }
+                } elseif ($component['discount_value'] !== null || $component['floor_amount'] !== null || $component['normal_amount'] <= $component['amount']) {
+                    throw new InvalidArgumentException($path.' has invalid fixed offer facts.');
+                }
+            }
         }
     }
 

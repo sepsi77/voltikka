@@ -7,6 +7,8 @@ use App\Http\Resources\ContractCollection;
 use App\Http\Resources\ContractResource;
 use App\Models\ElectricityContract;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
+use App\Services\CanonicalPricing\CanonicalOfferFacts;
+use App\Services\ContractCard\ContractCardCopy;
 use App\Services\ContractPriceCalculator;
 use App\Services\ContractPricing\CanonicalContractMetric;
 use App\Services\ContractPricing\ContractPricingViewData;
@@ -219,7 +221,10 @@ class ContractController extends Controller
             'reset_estimate' => $isAvailable ? $pricing->resetEstimate()?->toArray() : null,
             'supplier_adjusted_estimate' => $isAvailable ? $pricing->supplierAdjustedEstimate()?->toArray() : null,
             'spot_estimate' => $isAvailable ? $pricing->spotEstimate()?->toArray() : null,
-            'integrity' => $isAvailable ? $integrity->toArray() : [
+            'energy_rule_comparison' => $isAvailable ? $pricing->energyRuleComparison()?->toArray() : null,
+            'benefit_is_estimate' => $isAvailable && $pricing->benefitIsEstimate(),
+            'offer' => $isAvailable ? CanonicalOfferFacts::fromPricing($pricing) : null,
+            'integrity' => $isAvailable && ! ContractCardCopy::suppressSourcePriceChange($pricing, $integrity) ? $integrity->toArray() : [
                 'detected' => $integrity->detected,
                 'reason_family' => $integrity->reasonFamily->value,
                 'issue_codes' => $integrity->issueCodes,

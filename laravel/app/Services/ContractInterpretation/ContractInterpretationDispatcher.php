@@ -46,6 +46,11 @@ class ContractInterpretationDispatcher
 
         $analysisFingerprint = $this->fingerprints->forSnapshot($snapshot);
         $interpretation = $this->findByFingerprint($analysisFingerprint);
+        if (config('contract_interpretation.schema_version') !== 'schema-v5'
+            && $contract->published_interpretation_id !== $interpretation?->id
+            && ($retained = $this->publisher->retainedEnergyRulePublication($contract, $snapshot, $observation)) !== null) {
+            return $retained;
+        }
         $validatedForEpisode = false;
         $dateScopedFallback = false;
 
@@ -210,9 +215,18 @@ class ContractInterpretationDispatcher
         ContractSourceSnapshot $snapshot,
         ContractSourceObservation $observation,
     ): bool {
-        $input = $this->inputBuilder->build($snapshot, $observation->first_observed_at);
+        try {
+            $profile = ContractInterpretationProfile::stored(
+                $interpretation->schema_version,
+                $interpretation->prompt_version,
+                $interpretation->validator_version,
+            );
+            $input = $this->inputBuilder->build($snapshot, $observation->first_observed_at, $profile);
+        } catch (\InvalidArgumentException) {
+            return false;
+        }
 
-        return $this->validator->validate($interpretation->output ?? [], $input) === [];
+        return $this->validator->validate($interpretation->output ?? [], $input, $profile) === [];
     }
 
     private function supersedeInvalidReuse(ContractInterpretation $interpretation): void

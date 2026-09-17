@@ -3,6 +3,7 @@
 namespace App\Services\ContractCard;
 
 use App\Models\ElectricityContract;
+use App\Services\CanonicalPricing\CanonicalOfferFacts;
 use App\Services\CanonicalPricing\DTO\ContractPricingIntegrity;
 use App\Services\ContractCard\DTO\CardFooterItem;
 use App\Services\ContractCard\DTO\PricingCategoryFacts;
@@ -66,6 +67,10 @@ class CardFooterItems
 
         // 1. The price rises during the compared year.
         $label = $integrity?->cardLabel;
+        if (ContractCardCopy::suppressSourcePriceChange($pricing, $integrity)) {
+            $label = $integrity?->detected && $integrity->reasonFamily->value === 'promo'
+                ? ContractCardCopy::promotionEndNotice($pricing) : null;
+        }
         if (is_string($label) && $label !== '') {
             $warnings[] = CardFooterItem::warning($label);
         }
@@ -76,14 +81,9 @@ class CardFooterItems
             $warnings[] = CardFooterItem::warning($cap);
         }
 
-        // 3. A fixed term shorter than the compared year, with no published continuation.
         $comparability = $pricing?->comparability()?->value ?? $contract->comparability ?? null;
-        $termMonths = $pricing?->termMonths();
-        if ($comparability === 'term_price_only' && $termMonths !== null) {
-            $warnings[] = CardFooterItem::warning($termMonths.' kk sopimus, jatkohinta ei tiedossa');
-        }
 
-        // 4. The total excludes the consumption effect. Redundant when the band already
+        // 3. The total excludes the consumption effect. Redundant when the band already
         //    says the contract is a consumption-effect product, so it is suppressed there.
         if ($comparability === 'base_only_hybrid' && $facts->category !== PricingCategory::ConsumptionEffect) {
             $warnings[] = CardFooterItem::warning('Ei sisällä kulutusvaikutusta');
@@ -120,9 +120,17 @@ class CardFooterItems
     {
         $facts = [];
 
+        $termMonths = $pricing?->contractTerm()?->integer('months');
+        if ($termMonths !== null && $termMonths > 0 && $termMonths < 12) {
+            $facts[] = CardFooterItem::fact($termMonths.' kk sopimus, vertailuhinta vuositasolla', 'tag');
+        }
+
         $discount = $useCanonical
             ? ($pricing?->includesDiscounts() === true ? 'Tarjous' : null)
             : $this->legacyDiscountText($contract);
+        if ($discount !== null && $useCanonical && $pricing?->energyRuleComparison() !== null) {
+            $discount = CanonicalOfferFacts::fromPricing($pricing)['label'] ?? null;
+        }
         if ($discount !== null) {
             $facts[] = CardFooterItem::fact($discount, 'tag');
         }

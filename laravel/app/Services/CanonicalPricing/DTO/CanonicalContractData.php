@@ -13,9 +13,10 @@ use App\Services\CanonicalPricing\Enums\MisleadingState;
 readonly class CanonicalContractData
 {
     /**
-     * @param list<PricingPhase> $phases
-     * @param list<string> $issueCodes Known canonical issue codes only; unknown codes are dropped.
-     * @param list<string> $missingFacts
+     * @param  list<PricingPhase>  $phases
+     * @param  list<string>  $issueCodes  Known canonical issue codes only; unknown codes are dropped.
+     * @param  list<string>  $missingFacts
+     * @param  list<float>  $sourceCampaignEnergyRates  Source-scope evidence only, never a price fallback.
      */
     public function __construct(
         public array $phases,
@@ -26,8 +27,8 @@ readonly class CanonicalContractData
         public MisleadingState $misleadingState,
         public string $structuredPricingStatus,
         public array $issueCodes,
-    ) {
-    }
+        public array $sourceCampaignEnergyRates = [],
+    ) {}
 
     /** Normalize a calculation copy; packages and effect disclosures assume the target basis. */
     public function withVatBasis(bool $includeVat, float $vatMultiplier): self
@@ -51,6 +52,22 @@ readonly class CanonicalContractData
             misleadingState: $this->misleadingState,
             structuredPricingStatus: $this->structuredPricingStatus,
             issueCodes: $this->issueCodes,
+            sourceCampaignEnergyRates: $this->sourceCampaignEnergyRates,
+        );
+    }
+
+    public function withComparisonEvidence(?array $phases = null, ?array $sourceCampaignEnergyRates = null): self
+    {
+        return new self(
+            $phases ?? $this->phases,
+            $this->recurringSchedule,
+            $this->consumptionEffect,
+            $this->calculationStatus,
+            $this->missingFacts,
+            $this->misleadingState,
+            $this->structuredPricingStatus,
+            $this->issueCodes,
+            $sourceCampaignEnergyRates ?? $this->sourceCampaignEnergyRates,
         );
     }
 

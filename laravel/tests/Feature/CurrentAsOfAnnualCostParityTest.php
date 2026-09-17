@@ -10,9 +10,12 @@ use App\Models\ContractSourceObservation;
 use App\Models\ContractSourceSnapshot;
 use App\Models\ElectricityContract;
 use App\Models\SpotPriceAverage;
+use App\Services\CanonicalPricing\CanonicalContractPricingService;
+use App\Services\CanonicalPricing\DTO\SpotAssumptions;
 use App\Services\CanonicalPricing\MarketReset\MarketReferenceCurveProvider;
 use App\Services\ContractStatistics\AsOfAnnualCostCalculator;
 use App\Services\ContractStatistics\ContractPriceStatisticsService;
+use App\Services\ContractStatistics\Enums\AnnualCostMethodVersion;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Database\Factories\Support\CanonicalPricingFixture;
@@ -80,7 +83,7 @@ class CurrentAsOfAnnualCostParityTest extends TestCase
         $this->sourceEvidence($hybrid, CanonicalPricingFixture::hybridAttributes());
 
         $shapeEnd = CarbonImmutable::parse(self::DATE, 'Europe/Helsinki');
-        $shape = new \App\Services\CanonicalPricing\DTO\SpotAssumptions(
+        $shape = new SpotAssumptions(
             6.0,
             4.0,
             5.0,
@@ -96,14 +99,18 @@ class CurrentAsOfAnnualCostParityTest extends TestCase
             $package->fresh(),
             $hybrid->fresh(),
         ]);
-        $currentOutcomes = app(\App\Services\CanonicalPricing\CanonicalContractPricingService::class)
+        $currentOutcomes = app(CanonicalContractPricingService::class)
             ->outcomesForContractsAtConsumptions($contracts, [2000, 5000, 18000], $shape, $shapeEnd);
         $this->assertSame(
-            'current_source_observation',
+            'canonical_source_observation_run',
             $currentOutcomes[$supplier->id][5000]->supplierAdjustedEstimate['price_episode_evidence_basis'],
-            'The supplier anchor must come only from the safe current source pointer.',
+            'The supplier anchor requires source identity and the complete canonical energy signature.',
         );
-        $this->mock(\App\Services\CanonicalPricing\CanonicalContractPricingService::class, function ($mock) use ($currentOutcomes): void {
+        $supplierEstimate = $currentOutcomes[$supplier->id][5000]->supplierAdjustedEstimate;
+        $this->assertSame(self::DATE, $supplierEstimate['price_episode_started_at']);
+        $this->assertContains('price_episode_observed_proxy', $supplierEstimate['flags']);
+        $this->assertContains('price_episode_left_censored', $supplierEstimate['flags']);
+        $this->mock(CanonicalContractPricingService::class, function ($mock) use ($currentOutcomes): void {
             $mock->shouldReceive('outcomesForContractsAtConsumptions')->once()->andReturn($currentOutcomes);
         });
 
@@ -142,7 +149,7 @@ class CurrentAsOfAnnualCostParityTest extends TestCase
             }
         }
 
-        $historicalResults = collect(app(AsOfAnnualCostCalculator::class)->calculate(self::DATE, \App\Services\ContractStatistics\Enums\AnnualCostMethodVersion::AsOfV2))
+        $historicalResults = collect(app(AsOfAnnualCostCalculator::class)->calculate(self::DATE, AnnualCostMethodVersion::AsOfV2))
             ->keyBy(fn ($result): string => $result->contractId.'|'.$result->consumptionKwh);
         foreach ([$fixed, $short, $spot, $hybrid, $package, $reset] as $equivalentContract) {
             foreach ([2000, 5000, 18000] as $consumption) {
@@ -207,7 +214,15 @@ class CurrentAsOfAnnualCostParityTest extends TestCase
         $source = ContractSourceSnapshot::create([
             'contract_id' => $contract->id,
             'source_fingerprint' => hash('sha256', 'current-parity-'.$contract->id),
-            'source_payload' => ['id' => $contract->id],
+            'source_payload' => [
+                'id' => $contract->id,
+                'Details' => [
+                    'PricingModel' => $contract->pricing_model,
+                    'ContractType' => $contract->contract_type,
+                    'Metering' => $contract->metering,
+                    'TargetGroup' => $contract->target_group,
+                ],
+            ],
             'first_observed_at' => self::DATE.' 00:00:00',
             'last_observed_at' => self::DATE.' 23:00:00',
         ]);

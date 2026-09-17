@@ -384,7 +384,7 @@ class HistoricalContractEpisodeBuilder
             $snapshot = $snapshots->get($contractId);
             if ($snapshot instanceof ContractSourceSnapshot) {
                 $result[$contractId] = [
-                    'base_input' => $this->inputBuilder->build($snapshot),
+                    'base_input' => $this->inputBuilder->build($snapshot, profile: ContractInterpretationProfile::historical()),
                     'grade' => HistoricalEvidenceGrade::FirstImmutableTextBackcast->value,
                     'provenance' => [
                         'source_kind' => 'first_immutable_source_snapshot',

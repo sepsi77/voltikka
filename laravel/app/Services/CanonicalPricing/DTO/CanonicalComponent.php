@@ -4,10 +4,11 @@ namespace App\Services\CanonicalPricing\DTO;
 
 use App\Services\CanonicalPricing\Enums\ComponentType;
 use App\Services\CanonicalPricing\Enums\ComponentUnit;
+use App\Services\CanonicalPricing\Enums\EnergyPriceRuleKind;
 use App\Services\CanonicalPricing\Enums\PriceRole;
 
 /**
- * One priced component inside a canonical pricing phase (schema-v4 `$defs.component`).
+ * One priced component, with optional source-backed V5 facts. Legacy rules remain Unknown.
  */
 readonly class CanonicalComponent
 {
@@ -18,6 +19,7 @@ readonly class CanonicalComponent
         public ComponentUnit $unit,
         public PriceRole $priceRole,
         public string $vatStatus = 'unknown',
+        public EnergyPriceRule $energyRule = new EnergyPriceRule,
     ) {}
 
     public function withVatBasis(bool $includeVat, float $vatMultiplier): self
@@ -41,7 +43,25 @@ readonly class CanonicalComponent
             unit: $this->unit,
             priceRole: $this->priceRole,
             vatStatus: $target,
+            energyRule: $this->energyRule->withMonetaryMultiplier($multiplier),
         );
+    }
+
+    /** Remove only a genuine sourced energy offer, never transfer its lock to the normal price. */
+    public function withoutEnergyOffer(): self
+    {
+        $rule = $this->energyRule;
+        $basis = $rule->normalBasis;
+        $genuine = $rule->kind->isDiscount()
+            ? $rule->discountValue > 0
+            : ($this->priceRole === PriceRole::Introductory && $this->normalAmount !== null && $this->normalAmount > $this->amount);
+        if (! $this->type->isPerKwhEnergy() || ! $genuine || $this->normalAmount === null
+            || $basis === null || $basis->kind === EnergyPriceRuleKind::Unknown) {
+            return $this;
+        }
+
+        return new self($this->type, $this->normalAmount, null, $this->unit, PriceRole::Normal, $this->vatStatus,
+            new EnergyPriceRule($basis->kind, $basis->starts, $basis->ends));
     }
 
     /**

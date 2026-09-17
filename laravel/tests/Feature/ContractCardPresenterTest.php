@@ -2,11 +2,20 @@
 
 namespace Tests\Feature;
 
+use App\Livewire\ContractDetail;
+use App\Livewire\ContractsList;
+use App\Models\Company;
 use App\Models\ElectricityContract;
+use App\Models\ElectricitySource;
+use App\Services\CanonicalPricing\ForwardPremium\PremiumEstimate;
+use App\Services\CanonicalPricing\ForwardPremium\PremiumFamily;
+use App\Services\CanonicalPricing\ForwardPremium\PremiumVatBasis;
 use App\Services\ContractCard\ContractCardPresenter;
+use App\Services\ContractCard\DTO\ContractCardView;
 use App\Services\ContractCard\Enums\PricingBucket;
 use App\Services\ContractCard\Enums\PricingCategory;
 use App\Services\ContractCard\PricingCategoryResolver;
+use App\Services\ContractPricing\ContractPricingViewData;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -25,7 +34,7 @@ class ContractCardPresenterTest extends TestCase
 
     private const TODAY = '2026-07-26';
 
-    private function present(ElectricityContract $contract, array $prices = [], bool $billMode = false, bool $detailed = false): \App\Services\ContractCard\DTO\ContractCardView
+    private function present(ElectricityContract $contract, array $prices = [], bool $billMode = false, bool $detailed = false): ContractCardView
     {
         return app(ContractCardPresenter::class)->present(
             contract: $contract,
@@ -339,11 +348,12 @@ class ContractCardPresenterTest extends TestCase
     {
         $openEnded = $this->present($this->contract());
         $this->assertSame(PricingCategory::Fixed, $openEnded->category);
-        $this->assertSame('Energian hinta ei muutu', $openEnded->band->headline);
+        $this->assertSame('Ennalta ilmoitettu energianhinta', $openEnded->band->headline);
         $this->assertSame('Voimassa toistaiseksi', $openEnded->band->detail);
 
         $fixedTerm = $this->present($this->contract(['contract_type' => 'FixedTerm', 'fixed_time_range' => 'Fixed24']));
         $this->assertSame('Määräaikainen 24 kk', $fixedTerm->band->detail);
+        $this->assertSame('Ennalta ilmoitettu energianhinta', $fixedTerm->band->headline);
     }
 
     public function test_the_category_does_not_depend_on_the_canonical_pricing_flag(): void
@@ -867,7 +877,7 @@ class ContractCardPresenterTest extends TestCase
         $contract = $this->contract();
         $this->assertFalse($contract->relationLoaded('priceComponents'));
 
-        $this->assertSame([], (new \App\Livewire\ContractsList)->getLatestPrices($contract));
+        $this->assertSame([], (new ContractsList)->getLatestPrices($contract));
         $this->assertFalse($contract->relationLoaded('priceComponents'));
     }
 
@@ -975,6 +985,51 @@ class ContractCardPresenterTest extends TestCase
         $this->assertStringNotContainsString('kiinteällä perushinnalla', $body);
     }
 
+    public function test_premium_reset_card_and_detail_describe_futures_and_comparable_retail_premium(): void
+    {
+        $contract = $this->contract([
+            'canonical_pricing' => $this->canonicalPricing(['present' => true, 'cadence' => 'quarterly']),
+        ], [
+            'reset_estimate' => [
+                'basis' => 'forward_premium',
+                'current_policy' => 'recurring_forward_premium_v1',
+                'curve_trade_date' => '2026-07-01',
+                'premium' => [
+                    'source' => 'same_company', 'confidence' => 'lower',
+                    'lineage_count' => 2, 'company_count' => 1, 'observation_count' => 2, 'independent_variant_count' => 2,
+                    'premiums_by_bucket' => ['energy_general' => 2.0],
+                    'evidence_from' => '2026-06-01', 'evidence_through' => '2026-07-01',
+                    'reference_trade_dates' => ['2026-05-29'],
+                    'flags' => ['single_source_company', 'transferred_comparable_premium'],
+                    // Two independent same-company variants observed on these dates,
+                    // both with an exact Q3 delivery reference traded before observation.
+                    'references' => array_map(fn (string $pricingDate): array => [
+                        'pricing_date' => $pricingDate,
+                        'reference_period_proxy' => false,
+                        'delivery_start' => '2026-07-01',
+                        'delivery_end' => '2026-09-30',
+                        'provenance' => PremiumEstimate::publicProvenance(
+                            PremiumFamily::MarketReset, false, PremiumVatBasis::Included,
+                        ),
+                    ], ['2026-06-01', '2026-07-01']),
+                ],
+                'cadence' => 'quarterly',
+                'current_period_energy_price' => 6.6,
+                'annual_equivalent_energy_price' => 9.28,
+                'tail_starts' => '2026-10',
+            ],
+        ]);
+        $card = $this->present($contract);
+        $this->assertStringContainsString('vertailukelpoisista sopimuksista arvioituun vähittäishinnan lisään', $card->estimate->body);
+        $this->assertStringNotContainsString('olettaa nykyisen hinnan jatkuvan', $card->estimate->body);
+        $pricing = ContractPricingViewData::fromArray($contract->calculated_cost);
+        $facts = app(PricingCategoryResolver::class)->resolve($contract);
+        $copy = (new \ReflectionMethod(ContractDetail::class, 'resetPriceQualifier'))
+            ->invoke(new ContractDetail, $pricing, $facts);
+        $this->assertStringContainsString('nykyisistä sähköfutuureista', $copy);
+        $this->assertStringContainsString('vertailukelpoisista sopimuksista arvioidusta vähittäishinnan lisästä', $copy);
+    }
+
     public function test_the_reset_basis_is_read_from_the_payload_not_the_estimate_method(): void
     {
         // With RESET_FORWARD_SHIFT_ENABLED off there is no payload and the tail holds flat,
@@ -1068,6 +1123,30 @@ class ContractCardPresenterTest extends TestCase
         $this->assertTrue($card->exceedsConsumptionLimit);
     }
 
+    public function test_short_hybrid_term_is_a_quiet_fact_and_keeps_consumption_effect_warning(): void
+    {
+        $contract = $this->contract([
+            'pricing_model' => 'Hybrid', 'contract_type' => 'FixedTerm', 'fixed_time_range' => 'Fixed6',
+            'canonical_pricing' => $this->canonicalPricing(
+                ['present' => true, 'cadence' => 'quarterly'],
+                ['present' => true, 'applies_to' => 'base_contract'],
+            ),
+        ], [
+            'term_months' => 6,
+            'comparability' => 'base_only_hybrid',
+            'is_estimate' => true,
+            'estimate_method' => 'hybrid_base_only',
+            'contract_term' => ['months' => 6, 'total_cost' => 200.0, 'base_total_cost' => 200.0, 'discount_savings_total' => 0.0],
+        ]);
+        $payload = $contract->calculated_cost;
+        $payload['comparability'] = 'base_only_hybrid';
+        $contract->calculated_cost = $payload;
+        $card = $this->present($contract);
+        $this->assertContains('Ei sisällä kulutusvaikutusta', array_column($card->warnings, 'text'));
+        $this->assertContains('6 kk sopimus, vertailuhinta vuositasolla', array_column($card->facts, 'text'));
+        $this->assertStringNotContainsString('jatkohinta', json_encode($card, JSON_UNESCAPED_UNICODE));
+    }
+
     public function test_warnings_follow_their_priority_order_and_stop_at_two(): void
     {
         $contract = $this->contract(
@@ -1102,7 +1181,7 @@ class ContractCardPresenterTest extends TestCase
     {
         $contract = $this->contract();
         $contract->emission_factor = 120.0;
-        $contract->setRelation('electricitySource', new \App\Models\ElectricitySource(['renewable_total' => 13.0]));
+        $contract->setRelation('electricitySource', new ElectricitySource(['renewable_total' => 13.0]));
 
         $card = $this->present($contract);
 
@@ -1312,7 +1391,7 @@ class ContractCardPresenterTest extends TestCase
 
     public function test_the_seller_cta_falls_back_until_it_has_a_destination(): void
     {
-        $company = \App\Models\Company::create([
+        $company = Company::create([
             'name' => 'Testi Energia Oy',
             'name_slug' => 'testi-energia-oy',
             'company_url' => 'https://testi.fi',
@@ -1369,7 +1448,7 @@ class ContractCardPresenterTest extends TestCase
             ['id' => 'cat-optional', 'pricing_model' => 'Spot', 'canonical_pricing' => $this->canonicalPricing([], ['present' => true, 'applies_to' => 'optional_fixing'])],
         ];
 
-        \App\Models\Company::create([
+        Company::create([
             'name' => 'Testi Energia Oy',
             'name_slug' => 'testi-energia-oy',
             'company_url' => 'https://testi.fi',
@@ -1420,7 +1499,7 @@ class ContractCardPresenterTest extends TestCase
             ['id' => 'buc-fixed', 'pricing_model' => 'FixedPrice', 'canonical_pricing' => $this->canonicalPricing()],
         ];
 
-        \App\Models\Company::create([
+        Company::create([
             'name' => 'Testi Energia Oy',
             'name_slug' => 'testi-energia-oy',
             'company_url' => 'https://testi.fi',

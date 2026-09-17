@@ -20,6 +20,7 @@ use Carbon\CarbonImmutable;
 use Database\Factories\Support\CanonicalPricingFixture;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class ContractApiCanonicalPricingTest extends TestCase
@@ -382,9 +383,10 @@ class ContractApiCanonicalPricingTest extends TestCase
         $this->assertSame(13, $curve->forwardCallCount);
     }
 
-    public function test_canonical_list_uses_a_bounded_number_of_queries(): void
+    #[DataProvider('batchSizes')]
+    public function test_canonical_list_uses_a_bounded_number_of_queries(int $size): void
     {
-        for ($i = 1; $i <= 8; $i++) {
+        for ($i = 1; $i <= $size; $i++) {
             $this->createCanonicalContract('bounded-api-'.$i, [
                 CanonicalPricingFixture::phase(
                     label: 'current',
@@ -407,13 +409,21 @@ class ContractApiCanonicalPricingTest extends TestCase
             $queries[] = $query->sql;
         });
 
-        $this->getJson('/api/contracts?consumption=5000&per_page=100')->assertOk()->assertJsonCount(8, 'data');
+        $this->getJson('/api/contracts?consumption=5000&per_page=100')->assertOk()->assertJsonCount($size, 'data');
 
-        $this->assertLessThanOrEqual(7, count($queries), implode("\n", $queries));
+        // Five list/Spot reads, four dated episode reads, and one available-vintage
+        // preflight. A missing current curve must not load any peer universe.
+        $this->assertCount(10, $queries, implode("\n", $queries));
+        $this->assertCount(0, array_filter($queries, fn (string $sql): bool => str_contains($sql, 'premium_observation')));
         $this->assertSame([], array_values(array_filter(
             $queries,
             fn (string $sql): bool => str_contains($sql, 'price_components'),
         )));
+    }
+
+    public static function batchSizes(): array
+    {
+        return [[1], [8], [32]];
     }
 
     private function createRollingSpotAverage(): void

@@ -8,6 +8,7 @@ use App\Services\CanonicalPricing\CanonicalPricingParser;
 use App\Services\CanonicalPricing\DTO\CanonicalPeriodPricingRequest;
 use App\Services\CanonicalPricing\DTO\ContractContext;
 use App\Services\CanonicalPricing\DTO\SpotAssumptions;
+use App\Services\CanonicalPricing\Enums\ComparisonPolicy;
 use App\Services\CanonicalPricing\Enums\ContractComparability;
 use App\Services\CanonicalPricing\Enums\EstimateMethod;
 use App\Services\CanonicalPricing\SpotForward\DTO\SpotEstimate;
@@ -91,7 +92,7 @@ class CanonicalContractPriceCalculatorTest extends TestCase
         ];
     }
 
-    private function evaluate(array $pricing, string $status, array $sourceConsistency, ContractContext $context, ?SpotAssumptions $spot = null, ?CarbonImmutable $start = null, ?EnergyUsage $usage = null, ?SpotEstimate $spotEstimate = null)
+    private function evaluate(array $pricing, string $status, array $sourceConsistency, ContractContext $context, ?SpotAssumptions $spot = null, ?CarbonImmutable $start = null, ?EnergyUsage $usage = null, ?SpotEstimate $spotEstimate = null, ComparisonPolicy $policy = ComparisonPolicy::Current)
     {
         $data = $this->parser->parse($pricing, ['status' => $status, 'missing_facts' => [], 'required_assumptions' => []], $sourceConsistency);
 
@@ -102,6 +103,7 @@ class CanonicalContractPriceCalculatorTest extends TestCase
             $spot ?? new SpotAssumptions(null, null),
             $start ?? $this->start,
             spotEstimate: $spotEstimate,
+            policy: $policy,
         );
     }
 
@@ -117,6 +119,108 @@ class CanonicalContractPriceCalculatorTest extends TestCase
             'structured_pricing_status' => 'complete',
             'issue_codes' => $issues,
         ];
+    }
+
+    public function test_short_term_comparison_ignores_absent_fixed_and_spot_continuations(): void
+    {
+        $firstSix = [
+            $this->phase('introductory', ['kind' => 'contract_start', 'value' => null], ['kind' => 'after_months', 'value' => '1'], [
+                $this->component('energy_general', 5, normalAmount: 10),
+                $this->component('monthly_fee', 0, 'eur_per_month', normalAmount: 5),
+                $this->component('flat_fee', 20, 'eur_flat'),
+            ]),
+            $this->phase('normal', ['kind' => 'after_months', 'value' => '1'], ['kind' => 'after_months', 'value' => '6'], [
+                $this->component('energy_general', 10), $this->component('monthly_fee', 5, 'eur_per_month'),
+            ]),
+        ];
+        $tails = [[], [$this->phase('continuation', ['kind' => 'after_months', 'value' => '6'], ['kind' => 'none', 'value' => null], [
+            $this->component('energy_general', 99), $this->component('monthly_fee', 99, 'eur_per_month'),
+        ])], [$this->phase('continuation', ['kind' => 'after_months', 'value' => '6'], ['kind' => 'none', 'value' => null], [
+            $this->component('spot_margin', 0.3), $this->component('monthly_fee', 99, 'eur_per_month'),
+        ])]];
+        foreach (['FixedPrice' => 'exact', 'Hybrid' => 'unsupported'] as $model => $status) {
+            foreach ([new EnergyUsage(total: 12000, basicLiving: 12000), new EnergyUsage(total: 12000, roomHeating: 12000)] as $usage) {
+                $baseline = null;
+                foreach ($tails as $tail) {
+                    $data = $this->parser->parse($this->pricing([...$firstSix, ...$tail]), ['status' => $status], $this->cs());
+                    $this->assertFalse($this->calculator->usesSpotPricing($data, $this->context($model, 'FixedTerm', 'Fixed6'), CarbonImmutable::parse('2024-01-31')));
+                    $outcome = $this->evaluate($this->pricing([...$firstSix, ...$tail]), $status, $this->cs(),
+                        $this->context($model, 'FixedTerm', 'Fixed6'), start: CarbonImmutable::parse('2024-01-31', 'Europe/Helsinki'), usage: $usage);
+                    $this->assertTrue($outcome->isListed());
+                    $this->assertEqualsWithDelta($outcome->contractTermTotalCost * 2, $outcome->totalCost, 0.0001);
+                    $this->assertGreaterThan(0, $outcome->contractTermDiscountSavingsTotal);
+                    $this->assertNull($outcome->spotEstimate);
+                    $this->assertFalse($outcome->isSpotContract);
+                    $this->assertSame('2024-07-30', $outcome->phaseBreakdown[1]['window_end']);
+                    if ($baseline !== null) {
+                        $this->assertEquals($baseline->toCalculatedCostArray(), $outcome->toCalculatedCostArray());
+                    }
+                    $baseline = $outcome;
+                }
+            }
+        }
+    }
+
+    public function test_short_term_preserves_real_seasonal_usage_and_annualizes_cost_once(): void
+    {
+        $pricing = $this->pricing([$this->phase('current_structured', ['kind' => 'contract_start', 'value' => null], ['kind' => 'none', 'value' => null], [
+            $this->component('energy_general', 10), $this->component('monthly_fee', 5, 'eur_per_month'),
+        ])]);
+        $usage = new EnergyUsage(total: 12000, roomHeating: 12000, heatingElectricityUseByMonth: [2000, 2000, 1500, 1500, 1000, 1000, 500, 500, 500, 500, 500, 500]);
+        $outcome = $this->evaluate($pricing, 'exact', $this->cs(), $this->context('FixedPrice', 'FixedTerm', 'Fixed6'),
+            start: CarbonImmutable::parse('2026-01-01', 'Europe/Helsinki'), usage: $usage);
+        $this->assertEqualsWithDelta(930, $outcome->contractTermTotalCost, 0.0001);
+        $this->assertEqualsWithDelta(1860, $outcome->totalCost, 0.0001);
+    }
+
+    public function test_short_package_term_ignores_post_term_package_and_keeps_calendar_allowances(): void
+    {
+        $phase = $this->phase('current_structured', ['kind' => 'contract_start', 'value' => null], ['kind' => 'after_months', 'value' => '6'], [], $this->package(30, 500, 10));
+        $tail = $this->phase('continuation', ['kind' => 'after_months', 'value' => '6'], ['kind' => 'none', 'value' => null], [], $this->package(100, 1, 99));
+        foreach ([[$phase], [$phase, $tail]] as $phases) {
+            $outcome = $this->evaluate($this->pricing($phases), 'exact', $this->cs(), $this->context('FixedPrice', 'FixedTerm', 'Fixed6'),
+                start: CarbonImmutable::parse('2026-01-01', 'Europe/Helsinki'), usage: new EnergyUsage(total: 12000, basicLiving: 12000));
+            $this->assertEqualsWithDelta(480, $outcome->contractTermTotalCost, 0.0001);
+            $this->assertEqualsWithDelta(960, $outcome->totalCost, 0.0001);
+            $this->assertEqualsWithDelta(0, $outcome->discountSavingsTotal(), 0.0001);
+        }
+    }
+
+    public function test_current_incomplete_promotions_fail_before_hybrid_and_short_term_exceptions(): void
+    {
+        foreach ([['kind' => 'unknown', 'value' => null], ['kind' => 'none', 'value' => null], ['kind' => 'after_months', 'value' => '1']] as $end) {
+            foreach ([null, 10.0] as $normal) {
+                if ($end['kind'] === 'after_months' && $normal !== null) {
+                    continue;
+                }
+                $pricing = $this->pricing([$this->phase('introductory', ['kind' => 'contract_start', 'value' => null], $end, [
+                    $this->component('energy_general', 4, normalAmount: $normal),
+                ])]);
+                foreach (['FixedPrice' => 'incomplete', 'Hybrid' => 'unsupported'] as $model => $status) {
+                    $outcome = $this->evaluate($pricing, $status, $this->cs('uncertain'), $this->context($model, 'FixedTerm', 'Fixed6'));
+                    $this->assertFalse($outcome->isListed());
+                    $this->assertSame(['insufficient_promotion_terms'], $outcome->assumptions);
+                }
+            }
+        }
+    }
+
+    public function test_historical_complete_short_term_retains_first_year_with_continuation(): void
+    {
+        $pricing = $this->pricing([
+            $this->phase('current_structured', ['kind' => 'contract_start', 'value' => null], ['kind' => 'after_months', 'value' => '6'], [$this->component('energy_general', 10)]),
+            $this->phase('continuation', ['kind' => 'after_months', 'value' => '6'], ['kind' => 'none', 'value' => null], [$this->component('energy_general', 20)]),
+        ]);
+        $historical = $this->evaluate($pricing, 'exact', $this->cs(), $this->context('FixedPrice', 'FixedTerm', 'Fixed6'),
+            start: CarbonImmutable::parse('2026-01-01', 'Europe/Helsinki'), policy: ComparisonPolicy::Historical);
+        $this->assertEqualsWithDelta(750, $historical->totalCost, 0.0001);
+        $this->assertNull($historical->contractTermTotalCost);
+        foreach (['Fixed12', 'Fixed24'] as $term) {
+            $current = $this->evaluate($pricing, 'exact', $this->cs(), $this->context('FixedPrice', 'FixedTerm', $term),
+                start: CarbonImmutable::parse('2026-01-01', 'Europe/Helsinki'));
+            $this->assertEqualsWithDelta(750, $current->totalCost, 0.0001);
+            $this->assertNull($current->contractTermTotalCost);
+        }
     }
 
     public function test_short_term_missing_months_are_estimated_before_annualization(): void
@@ -136,7 +240,7 @@ class CanonicalContractPriceCalculatorTest extends TestCase
         $this->assertContains('held_current_price_forward', $outcome->assumptions);
     }
 
-    public function test_hybrid_and_ordinary_gaps_keep_each_disclosed_phase_without_borrowing_future_rates(): void
+    public function test_historical_hybrid_and_ordinary_gaps_keep_each_disclosed_phase_without_borrowing_future_rates(): void
     {
         $pricing = $this->pricing([
             $this->phase('introductory', ['kind' => 'contract_start', 'value' => null], ['kind' => 'after_months', 'value' => '1'], [$this->component('energy_general', 5)]),
@@ -144,7 +248,7 @@ class CanonicalContractPriceCalculatorTest extends TestCase
         ]);
         foreach (['unsupported' => 'Hybrid', 'incomplete' => 'FixedPrice'] as $status => $model) {
             $outcome = $this->evaluate($pricing, $status, $this->cs(), $this->context($model),
-                start: CarbonImmutable::parse('2026-01-01', 'Europe/Helsinki'), usage: new EnergyUsage(total: 12000, basicLiving: 12000));
+                start: CarbonImmutable::parse('2026-01-01', 'Europe/Helsinki'), usage: new EnergyUsage(total: 12000, basicLiving: 12000), policy: ComparisonPolicy::Historical);
             $this->assertEqualsWithDelta(1050, $outcome->totalCost, 0.0001);
             $this->assertEquals([50, 50, 50, 100, 100, 100, 100, 100, 100, 100, 100, 100], $outcome->monthlyCosts);
             $this->assertSame('2026-01-31', $outcome->phaseBreakdown[0]['window_end']);
@@ -297,7 +401,7 @@ class CanonicalContractPriceCalculatorTest extends TestCase
         $this->assertEqualsWithDelta(5.49, $outcome->generalKwhPrice, 0.001);
     }
 
-    public function test_spot_unknown_margin_continuation_discloses_the_gap_without_holding_wholesale(): void
+    public function test_spot_unknown_promotional_margin_continuation_is_excluded(): void
     {
         $pricing = $this->pricing([
             $this->phase('introductory', ['kind' => 'contract_start', 'value' => null], ['kind' => 'after_months', 'value' => '1'], [
@@ -306,12 +410,11 @@ class CanonicalContractPriceCalculatorTest extends TestCase
         ]);
         $outcome = $this->evaluate($pricing, 'estimate_required', $this->cs('detected', ['future_price_unknown', 'structured_matches_description', 'optional_fixing_not_in_base_price']), $this->context('Spot'), new SpotAssumptions(6.0, 4.0));
 
-        $this->assertEqualsWithDelta(310.0, $outcome->totalCost, 0.01);
-        $this->assertContains('unknown_periods_use_latest_applicable_price_or_disclosed_normal', $outcome->assumptions);
-        $this->assertNotContains('held_current_price_forward', $outcome->assumptions);
+        $this->assertNull($outcome->totalCost);
+        $this->assertContains('insufficient_promotion_terms', $outcome->assumptions);
     }
 
-    public function test_2_open_ended_promo_with_unknown_later_price_is_an_explicit_estimate(): void
+    public function test_2_open_ended_promo_with_unknown_later_price_is_excluded_but_historical_policy_is_retained(): void
     {
         $pricing = $this->pricing([
             $this->phase('introductory', ['kind' => 'contract_start', 'value' => null], ['kind' => 'after_months', 'value' => '1'], [
@@ -321,12 +424,14 @@ class CanonicalContractPriceCalculatorTest extends TestCase
 
         $outcome = $this->evaluate($pricing, 'estimate_required', $this->cs('detected', ['promotion_metadata_missing', 'structured_matches_intro_only', 'future_price_unknown']), $this->context());
 
-        $this->assertSame(ContractComparability::ComparableEstimate, $outcome->comparability);
-        $this->assertSame(EstimateMethod::HoldLastKnownPrice, $outcome->estimateMethod);
-        $this->assertEqualsWithDelta(200, $outcome->totalCost, 0.001);
-        $this->assertNull($outcome->toCalculatedCostArray()['contract_term']);
-        $this->assertTrue($outcome->isListed());
-        $this->assertContains('unknown_periods_use_latest_applicable_price_or_disclosed_normal', $outcome->assumptions);
+        $this->assertSame(ContractComparability::ExcludedIncomplete, $outcome->comparability);
+        $this->assertNull($outcome->totalCost);
+        $this->assertFalse($outcome->isListed());
+        $this->assertContains('insufficient_promotion_terms', $outcome->assumptions);
+
+        $historical = $this->evaluate($pricing, 'estimate_required', $this->cs(), $this->context(), policy: ComparisonPolicy::Historical);
+        $this->assertEqualsWithDelta(200, $historical->totalCost, 0.001);
+        $this->assertSame(EstimateMethod::HoldLastKnownPrice, $historical->estimateMethod);
     }
 
     public function test_3_correct_single_price_contract_is_comparable_exact(): void
@@ -631,7 +736,10 @@ class CanonicalContractPriceCalculatorTest extends TestCase
 
     public function test_hybrid_zero_base_effect_exception_rejects_opaque_or_unproven_prices(): void
     {
-        foreach (['missing', 'nonzero', 'normal', 'unit', 'absent_effect', 'wrong_scope', 'fixed_without_effect', 'wrong_status', 'conflicting', 'fee_only'] as $guard) {
+        $exactBase = $this->evaluate($this->zeroBaseEffectPricing(8, 4), 'exact', $this->cs(), $this->context('Hybrid'));
+        $this->assertSame(ContractComparability::BaseOnlyHybrid, $exactBase->comparability);
+        $this->assertEqualsWithDelta(448, $exactBase->totalCost, .001);
+        foreach (['missing', 'nonzero', 'normal', 'unit', 'absent_effect', 'wrong_scope', 'fixed_without_effect', 'conflicting', 'fee_only'] as $guard) {
             $pricing = $this->zeroBaseEffectPricing(8, 4);
             $status = 'unsupported';
             $model = 'Hybrid';
@@ -658,9 +766,6 @@ class CanonicalContractPriceCalculatorTest extends TestCase
                 case 'fixed_without_effect':
                     $model = 'FixedPrice';
                     $pricing['consumption_effect']['present'] = false;
-                    break;
-                case 'wrong_status':
-                    $status = 'exact';
                     break;
                 case 'conflicting':
                     $cs['structured_pricing_status'] = 'conflicting';
@@ -799,7 +904,7 @@ class CanonicalContractPriceCalculatorTest extends TestCase
     public function test_11d_hybrid_reports_discount_only_for_billed_base_components(): void
     {
         $pricing = $this->pricing(
-            [$this->phase('current_structured', ['kind' => 'contract_start', 'value' => null], ['kind' => 'none', 'value' => null], [
+            [$this->phase('current_structured', ['kind' => 'contract_start', 'value' => null], ['kind' => 'after_months', 'value' => '12'], [
                 $this->component('energy_general', 9.0),
                 $this->component('monthly_fee', 2.0, 'eur_per_month', 'introductory', 4.0),
                 $this->component('consumption_effect', null, 'unknown', 'unknown'),
@@ -863,7 +968,7 @@ class CanonicalContractPriceCalculatorTest extends TestCase
     public function test_11daa_fully_covered_short_hybrid_keeps_real_term_offer_totals(): void
     {
         $pricing = $this->pricing(
-            [$this->phase('introductory', ['kind' => 'contract_start', 'value' => null], ['kind' => 'none', 'value' => null], [
+            [$this->phase('introductory', ['kind' => 'contract_start', 'value' => null], ['kind' => 'after_months', 'value' => '12'], [
                 $this->component('energy_general', 9.0),
                 $this->component('monthly_fee', 2.0, 'eur_per_month', 'introductory', 4.0),
                 $this->component('consumption_effect', null, 'unknown', 'unknown'),
@@ -1096,7 +1201,7 @@ class CanonicalContractPriceCalculatorTest extends TestCase
     public function test_11g_spot_normal_amount_keeps_the_actual_spot_mechanism(): void
     {
         $pricing = $this->pricing([
-            $this->phase('current_structured', ['kind' => 'contract_start', 'value' => null], ['kind' => 'none', 'value' => null], [
+            $this->phase('current_structured', ['kind' => 'contract_start', 'value' => null], ['kind' => 'after_months', 'value' => '12'], [
                 // The actual amount is below the Spot safety ceiling and is therefore a margin.
                 // The higher normal amount must stay a margin too, not switch to fixed energy.
                 $this->component('energy_general', 0.5, 'cents_per_kwh', 'introductory', 3.0),
@@ -1456,7 +1561,7 @@ class CanonicalContractPriceCalculatorTest extends TestCase
     public function test_forward_spot_uses_projected_wholesale_before_exact_margin_fee_and_discount_arithmetic(): void
     {
         $pricing = $this->pricing([
-            $this->phase('current_structured', ['kind' => 'contract_start', 'value' => null], ['kind' => 'none', 'value' => null], [
+            $this->phase('current_structured', ['kind' => 'contract_start', 'value' => null], ['kind' => 'after_months', 'value' => '12'], [
                 $this->component('spot_margin', 0.4, normalAmount: 0.8),
                 $this->component('monthly_fee', 3.0, 'eur_per_month'),
             ]),

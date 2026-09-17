@@ -228,7 +228,7 @@ class BillComparisonCanonicalPricingTest extends TestCase
     public function test_promo_membership_comes_from_measured_canonical_period_savings(): void
     {
         $contract = $this->createContract('canonical-period-offer', [
-            $this->phase([$this->canonicalComponent('energy_general', 5, 'cents_per_kwh', 10)]),
+            $this->phase([$this->canonicalComponent('energy_general', 5, 'cents_per_kwh', 10)], endKind: 'after_months', endValue: '12'),
         ]);
         $this->addRelationalPrices($contract, 5, 0);
 
@@ -307,7 +307,9 @@ class BillComparisonCanonicalPricingTest extends TestCase
         $this->assertFalse(collect($queries)->contains(
             static fn (string $sql): bool => str_contains(strtolower($sql), 'price_components')
         ));
-        $this->assertLessThanOrEqual(3, count($queries), 'The canonical period batch must not add one query per contract.');
+        // Ordinary normal phases now share the current energy-episode path. Its four
+        // evidence reads are batched, including for this eight-contract period request.
+        $this->assertLessThanOrEqual(7, count($queries), 'The canonical period batch must not add one query per contract.');
     }
 
     private function request(int $annualKwh = 5000): BillComparisonRequest
