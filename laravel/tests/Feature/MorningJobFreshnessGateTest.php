@@ -12,13 +12,16 @@ use App\Models\ContractSourceSnapshot;
 use App\Models\DataFreshnessCheckpoint;
 use App\Models\ElectricityContract;
 use App\Models\ElectricityFuturesEodPrice;
+use App\Models\FixedContractPriceForecast;
 use App\Models\RetailPremiumObservation;
 use App\Services\ContractStatistics\ContractPriceStatisticsService;
+use App\Services\MorningFreshness\MorningFreshnessResult;
 use App\Services\MorningFreshness\MorningJobFreshnessService;
 use App\Services\PriceForecasting\FixedTermPriceForecastService;
 use App\Services\RetailPremium\RetailPremiumObservationService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
@@ -106,7 +109,7 @@ class MorningJobFreshnessGateTest extends TestCase
     public function test_sole_publication_order_failure_refreshes_statistics_and_builds_forecast(): void
     {
         config()->set('contract_interpretation.enabled', true);
-        CarbonImmutable::setTestNow('2026-08-01 07:00:00 Europe/Helsinki');
+        CarbonImmutable::setTestNow('2026-08-01 07:40:00 Europe/Helsinki');
         Queue::fake();
 
         [$contract, $snapshot] = $this->contractWithPublishedSnapshot(
@@ -140,10 +143,7 @@ class MorningJobFreshnessGateTest extends TestCase
             ->willReturn(collect([$this->forecastPayload()]));
         $this->app->instance(FixedTermPriceForecastService::class, $builder);
 
-        $this->artisan('forecasting:run-fixed-contracts', [
-            '--as-of' => self::DATE,
-            '--require-freshness' => true,
-        ])->assertExitCode(0);
+        $this->artisan('forecasting:run-fixed-contracts --scheduled')->assertExitCode(0);
 
         Queue::assertPushed(
             WarmContractPriceStatisticsCache::class,
@@ -488,6 +488,171 @@ class MorningJobFreshnessGateTest extends TestCase
             ->assertExitCode(1);
 
         $this->assertDatabaseCount('retail_premium_observations', 0);
+    }
+
+    public function test_scheduled_forecast_waits_silently_until_late_eex_then_completes_once(): void
+    {
+        Log::spy();
+        $this->readyContractCheckpoint([1], []);
+        $this->forecastStatistics([6]);
+        $builder = $this->createMock(FixedTermPriceForecastService::class);
+        $builder->expects($this->once())->method('buildForecasts')->willReturn(collect([$this->forecastPayload()]));
+        $this->app->instance(FixedTermPriceForecastService::class, $builder);
+        foreach (['07:30', '07:35'] as $time) {
+            CarbonImmutable::setTestNow(self::DATE." {$time} Europe/Helsinki");
+            $this->artisan('forecasting:run-fixed-contracts --scheduled')->assertSuccessful();
+        }
+        $this->assertDatabaseCount('fixed_contract_price_forecasts', 0);
+        CarbonImmutable::setTestNow(self::DATE.' 07:36 Europe/Helsinki');
+        $this->readyEexInputs();
+        CarbonImmutable::setTestNow(self::DATE.' 07:40 Europe/Helsinki');
+        $this->artisan('forecasting:run-fixed-contracts --scheduled')->assertSuccessful();
+        CarbonImmutable::setTestNow(self::DATE.' 12:00 Europe/Helsinki');
+        $this->artisan('forecasting:run-fixed-contracts --scheduled')->assertSuccessful();
+        $this->assertDatabaseCount('fixed_contract_price_forecasts', 1);
+        $this->assertTrue(DataFreshnessCheckpoint::where('key', 'morning_forecast')->sole()->metadata['scheduled_complete']);
+        Log::shouldNotHaveReceived('warning');
+        Log::shouldNotHaveReceived('error');
+    }
+
+    public function test_scheduled_invalid_model_is_rejected_before_statistics_recovery(): void
+    {
+        CarbonImmutable::setTestNow(self::DATE.' 08:00 Europe/Helsinki');
+        config()->set('price_forecasting.fixed_term.model_version', 'old-model');
+        $freshness = $this->createMock(MorningJobFreshnessService::class);
+        $freshness->method('checkFixedTermForecast')->willReturn(new MorningFreshnessResult([
+            'statistics_publication_order' => 'Publication follows statistics.',
+        ]));
+        $this->app->instance(MorningJobFreshnessService::class, $freshness);
+        $statistics = $this->createMock(ContractPriceStatisticsService::class);
+        $statistics->expects($this->never())->method('calculateForDate');
+        $this->app->instance(ContractPriceStatisticsService::class, $statistics);
+        $this->artisan('forecasting:run-fixed-contracts --scheduled')->assertSuccessful();
+        $this->assertDatabaseHas('data_freshness_checkpoints', ['key' => 'morning_forecast', 'status' => 'failed']);
+    }
+
+    public function test_scheduled_zero_output_is_terminal_for_each_consumer(): void
+    {
+        Log::spy();
+        CarbonImmutable::setTestNow(self::DATE.' 08:00 Europe/Helsinki');
+        $this->readyContractCheckpoint([1], []);
+        $this->readyEexInputs();
+        $this->forecastStatistics([6]);
+        $builder = $this->createMock(FixedTermPriceForecastService::class);
+        $builder->expects($this->once())->method('buildForecasts')->willReturn(collect());
+        $this->app->instance(FixedTermPriceForecastService::class, $builder);
+        foreach (['forecasting:run-fixed-contracts', 'retail-premiums:collect'] as $command) {
+            $this->artisan($command.' --scheduled')->assertSuccessful();
+            $this->artisan($command.' --scheduled')->assertSuccessful();
+            $this->artisan($command)->assertExitCode(1);
+        }
+        $this->assertSame(2, DataFreshnessCheckpoint::where('status', 'failed')->count());
+        Log::shouldHaveReceived('error')->twice();
+        Log::shouldNotHaveReceived('warning');
+    }
+
+    public function test_scheduled_partial_forecast_write_cannot_be_retried_or_certified(): void
+    {
+        CarbonImmutable::setTestNow(self::DATE.' 08:00 Europe/Helsinki');
+        $this->readyContractCheckpoint([1], []);
+        $this->readyEexInputs();
+        $this->forecastStatistics([6]);
+        $bad = $this->forecastPayload();
+        $bad['duration_months'] = 12;
+        $bad['target_date'] = null;
+        $builder = $this->createMock(FixedTermPriceForecastService::class);
+        $builder->expects($this->once())->method('buildForecasts')->willReturn(collect([$this->forecastPayload(), $bad]));
+        $this->app->instance(FixedTermPriceForecastService::class, $builder);
+        $this->artisan('forecasting:run-fixed-contracts --scheduled')->assertSuccessful();
+        $this->artisan('forecasting:run-fixed-contracts --scheduled')->assertSuccessful();
+        $this->artisan('forecasting:run-fixed-contracts --overwrite')->assertExitCode(1);
+        $this->assertDatabaseCount('fixed_contract_price_forecasts', 1);
+        $this->assertDatabaseHas('data_freshness_checkpoints', ['key' => 'morning_forecast', 'status' => 'failed']);
+    }
+
+    public function test_scheduled_preexisting_forecasts_require_inspection(): void
+    {
+        CarbonImmutable::setTestNow(self::DATE.' 08:00 Europe/Helsinki');
+        $this->readyContractCheckpoint([1], []);
+        $this->readyEexInputs();
+        $this->forecastStatistics([6]);
+        FixedContractPriceForecast::create($this->forecastPayload());
+        $builder = $this->createMock(FixedTermPriceForecastService::class);
+        $builder->method('buildForecasts')->willReturn(collect([$this->forecastPayload()]));
+        $this->app->instance(FixedTermPriceForecastService::class, $builder);
+        $this->artisan('forecasting:run-fixed-contracts --scheduled')->assertSuccessful();
+        $this->assertDatabaseHas('data_freshness_checkpoints', ['key' => 'morning_forecast', 'status' => 'failed']);
+        $this->assertDatabaseCount('fixed_contract_price_forecasts', 1);
+    }
+
+    public function test_scheduled_scope_rejects_all_custom_and_nonwriting_options(): void
+    {
+        foreach ([
+            'forecasting:run-fixed-contracts' => ['--as-of=today', '--horizon=30', '--duration=6', '--quantile=median', '--overwrite', '--dry-run'],
+            'retail-premiums:collect' => ['--as-of=today', '--contract=test', '--include-inactive', '--from=today', '--to=today', '--include-open', '--only=spot', '--overwrite', '--dry-run'],
+        ] as $command => $options) {
+            foreach ($options as $option) {
+                $this->artisan("{$command} --scheduled {$option}")->assertExitCode(2);
+            }
+        }
+        $this->assertDatabaseCount('data_freshness_checkpoints', 0);
+    }
+
+    public function test_manual_freshness_wait_does_not_prevent_later_scheduled_execution(): void
+    {
+        CarbonImmutable::setTestNow(self::DATE.' 08:00 Europe/Helsinki');
+        $this->artisan('forecasting:run-fixed-contracts --require-freshness')->assertExitCode(1);
+        $this->assertDatabaseHas('data_freshness_checkpoints', ['key' => 'morning_forecast', 'status' => 'waiting']);
+        $this->readyContractCheckpoint([1], []);
+        $this->readyEexInputs();
+        $this->forecastStatistics([6]);
+        $builder = $this->createMock(FixedTermPriceForecastService::class);
+        $builder->method('buildForecasts')->willReturn(collect([$this->forecastPayload()]));
+        $this->app->instance(FixedTermPriceForecastService::class, $builder);
+        $this->artisan('forecasting:run-fixed-contracts --scheduled')->assertSuccessful();
+        $this->assertDatabaseCount('fixed_contract_price_forecasts', 1);
+    }
+
+    public function test_invalid_manual_options_do_not_claim_or_block_corrected_commands(): void
+    {
+        CarbonImmutable::setTestNow(self::DATE.' 08:00 Europe/Helsinki');
+        $statistics = $this->createMock(ContractPriceStatisticsService::class);
+        $statistics->expects($this->never())->method('calculateForDate');
+        $this->app->instance(ContractPriceStatisticsService::class, $statistics);
+        foreach ([
+            'retail-premiums:collect' => [
+                '--from=2026-07-01', '--include-inactive --only=unknown',
+                '--include-inactive --from=2026-07-31 --to=2026-07-01',
+                '--as-of=invalid-date', '--include-inactive --from=invalid-date',
+                '--include-inactive --to=invalid-date', '--as-of=invalid-date --dry-run',
+            ],
+            'forecasting:run-fixed-contracts' => [
+                '--horizon=0 --require-freshness', '--horizon=-1', '--horizon=invalid',
+                '--horizon=1.5', '--duration=invalid', '--quantile=invalid',
+                '--as-of=invalid-date', '--as-of=invalid-date --dry-run',
+            ],
+        ] as $command => $options) {
+            foreach ($options as $option) {
+                $this->artisan("{$command} {$option}")->assertExitCode(2);
+                $this->assertDatabaseCount('data_freshness_checkpoints', 0);
+            }
+        }
+        $builder = $this->createMock(FixedTermPriceForecastService::class);
+        $builder->expects($this->once())->method('buildForecasts')->willReturn(collect());
+        $this->app->instance(FixedTermPriceForecastService::class, $builder);
+        $this->artisan('forecasting:run-fixed-contracts --horizon=30')->assertSuccessful();
+        $this->artisan('retail-premiums:collect --include-inactive --only=spot --from=2026-07-01 --to=2026-07-31')->assertSuccessful();
+        $this->assertSame(2, DataFreshnessCheckpoint::where('status', 'ready')->count());
+    }
+
+    public function test_manual_dry_runs_do_not_create_execution_checkpoints(): void
+    {
+        $builder = $this->createMock(FixedTermPriceForecastService::class);
+        $builder->method('buildForecasts')->willReturn(collect());
+        $this->app->instance(FixedTermPriceForecastService::class, $builder);
+        $this->artisan('forecasting:run-fixed-contracts --dry-run')->assertSuccessful();
+        $this->artisan('retail-premiums:collect --dry-run')->assertSuccessful();
+        $this->assertDatabaseCount('data_freshness_checkpoints', 0);
     }
 
     /** @return array{ElectricityContract, ContractSourceSnapshot} */

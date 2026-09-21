@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\ElectricityContract;
 use App\Models\PriceComponent;
 use App\Models\RetailPremiumObservation;
+use App\Services\MorningFreshness\MorningConsumerExecution;
 use App\Services\MorningFreshness\MorningFreshnessResult;
 use App\Services\MorningFreshness\MorningJobFreshnessService;
 use App\Services\RetailPremium\RetailPremiumHistoryBackfillService;
@@ -12,6 +13,7 @@ use App\Services\RetailPremium\RetailPremiumObservationService;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class CollectRetailPremiumObservations extends Command
 {
@@ -25,32 +27,73 @@ class CollectRetailPremiumObservations extends Command
         {--only= : Backfill one group: spot, reset, fixed-term, or hybrid.}
         {--overwrite : Replace an existing observation with the same identity.}
         {--dry-run : Build and print observations without writing to the database.}
-        {--require-freshness : Require current morning import checkpoints before collection.}';
+        {--require-freshness : Require current morning import checkpoints before collection.}
+        {--scheduled : Run the bounded current-day default morning scope.}';
 
     protected $description = 'Collect per-contract retail premium observations';
+
+    private ?\Closure $writerFence = null;
 
     public function handle(
         RetailPremiumObservationService $service,
         RetailPremiumHistoryBackfillService $historyService,
         MorningJobFreshnessService $freshness,
+        MorningConsumerExecution $execution,
     ): int {
-        $asOf = $this->option('as-of')
-            ? CarbonImmutable::parse($this->option('as-of'), 'Europe/Helsinki')->startOfDay()
-            : CarbonImmutable::now('Europe/Helsinki')->startOfDay();
-        $contractIds = collect($this->option('contract'))->filter()->values();
-        $historicalMode = (bool) $this->option('include-inactive');
-        $hasHistoricalOptions = $this->option('from') !== null
-            || $this->option('to') !== null
-            || $this->option('only') !== null
-            || (bool) $this->option('include-open');
+        $this->writerFence = null;
+        $scheduled = (bool) $this->option('scheduled');
+        if ($scheduled) {
+            foreach (['as-of', 'contract', 'include-inactive', 'from', 'to', 'include-open', 'only', 'overwrite', 'dry-run'] as $option) {
+                if ($this->option($option) !== null && $this->option($option) !== false && $this->option($option) !== []) {
+                    $this->error('Scheduled mode accepts only the current-day default scope.');
 
-        if (! $historicalMode && $hasHistoricalOptions) {
-            $this->error('The --from, --to, --only, and --include-open options require --include-inactive.');
+                    return self::INVALID;
+                }
+            }
+            $this->input->setOption('require-freshness', true);
+        }
+        try {
+            $asOf = CarbonImmutable::parse($this->option('as-of') ?: 'today', 'Europe/Helsinki')->startOfDay();
+            $history = $this->resolveHistoryRange($asOf);
+        } catch (\InvalidArgumentException $exception) {
+            $this->error($exception->getMessage());
 
             return self::INVALID;
         }
+        if ($this->option('dry-run')) {
+            return $this->executeCollection($service, $historyService, $freshness, $asOf, $history);
+        }
 
-        if (! $historicalMode && (bool) $this->option('require-freshness')) {
+        return $execution->run('retail', $asOf, $scheduled,
+            function () use ($scheduled, $freshness, $asOf): bool {
+                if ($this->option('include-inactive') || ! $this->option('require-freshness')) {
+                    return true;
+                }
+                $result = $freshness->checkRetailPremium($asOf);
+                if (! $result->ready() && ! $scheduled) {
+                    $this->defer($freshness, $asOf, $result);
+                }
+
+                return $result->ready();
+            },
+            function (\Closure $fence) use ($service, $historyService, $freshness, $asOf, $history): int {
+                $this->writerFence = $fence;
+
+                return $this->executeCollection($service, $historyService, $freshness, $asOf, $history);
+            });
+    }
+
+    private function executeCollection(
+        RetailPremiumObservationService $service,
+        RetailPremiumHistoryBackfillService $historyService,
+        MorningJobFreshnessService $freshness,
+        CarbonImmutable $asOf,
+        ?array $history,
+    ): int {
+        $contractIds = collect($this->option('contract'))->filter()->values();
+        $historicalMode = $history !== null;
+
+        if (! $historicalMode && $this->option('dry-run') && (bool) $this->option('require-freshness')) {
             $result = $freshness->checkRetailPremium($asOf);
 
             if (! $result->ready()) {
@@ -58,10 +101,10 @@ class CollectRetailPremiumObservations extends Command
             }
         }
 
-        $contracts = $this->activeLineageTips($contractIds, $historicalMode ? $this->option('only') : null);
+        $contracts = $this->activeLineageTips($contractIds, $history['only'] ?? null);
 
         if ($historicalMode) {
-            return $this->backfillHistory($contracts, $historyService, $asOf);
+            return $this->backfillHistory($contracts, $historyService, $history);
         }
 
         return $this->collectCurrent($contracts, $service, $freshness, $asOf);
@@ -192,25 +235,28 @@ class CollectRetailPremiumObservations extends Command
             $this->error("Morning job deferred: {$message}");
         }
 
-        $freshness->reportDeferred('retail-premiums:collect', $asOf, $result);
+        if (! $this->option('scheduled')) {
+            $freshness->reportDeferred('retail-premiums:collect', $asOf, $result);
+        }
 
         return self::FAILURE;
     }
 
-    /**
-     * @param  Collection<int, ElectricityContract>  $contracts
-     */
-    private function backfillHistory(
-        Collection $contracts,
-        RetailPremiumHistoryBackfillService $historyService,
-        CarbonImmutable $asOf,
-    ): int {
+    /** @return array{only: ?string, from: CarbonImmutable, to: CarbonImmutable}|null */
+    private function resolveHistoryRange(CarbonImmutable $asOf): ?array
+    {
+        if (! $this->option('include-inactive')) {
+            if ($this->option('from') !== null || $this->option('to') !== null
+                || $this->option('only') !== null || $this->option('include-open')) {
+                throw new \InvalidArgumentException('The --from, --to, --only, and --include-open options require --include-inactive.');
+            }
+
+            return null;
+        }
         $only = $this->option('only');
 
         if ($only !== null && ! in_array($only, ['spot', 'reset', 'fixed-term', 'hybrid'], true)) {
-            $this->error('The --only value must be spot, reset, fixed-term, or hybrid.');
-
-            return self::INVALID;
+            throw new \InvalidArgumentException('The --only value must be spot, reset, fixed-term, or hybrid.');
         }
 
         $firstPriceDate = PriceComponent::query()->min('price_date');
@@ -222,11 +268,19 @@ class CollectRetailPremiumObservations extends Command
             : $asOf->subDay();
 
         if ($to->lt($from)) {
-            $this->error('The historical --to date must be on or after --from.');
-
-            return self::INVALID;
+            throw new \InvalidArgumentException('The historical --to date must be on or after --from.');
         }
 
+        return ['only' => $only, 'from' => $from, 'to' => $to];
+    }
+
+    /** @param Collection<int, ElectricityContract> $contracts */
+    private function backfillHistory(
+        Collection $contracts,
+        RetailPremiumHistoryBackfillService $historyService,
+        array $history,
+    ): int {
+        ['only' => $only, 'from' => $from, 'to' => $to] = $history;
         $contracts = $contracts
             ->filter(fn (ElectricityContract $contract) => $this->matchesBackfillGroup($contract, $only))
             ->values();
@@ -305,6 +359,25 @@ class CollectRetailPremiumObservations extends Command
             return 'dry-run';
         }
 
+        return DB::transaction(function () use ($observation): string {
+            ($this->writerFence)();
+
+            $result = $this->persistOwned($observation);
+            if ($this->option('scheduled')) {
+                $stored = RetailPremiumObservation::query()->where('observation_key', $observation['observation_key'])
+                    ->where('reference_kind', $observation['reference_kind'])->where('method_version', $observation['method_version'])->firstOrFail();
+                $this->assertCompatibleObservation($stored, $observation);
+                if ($stored->last_observed_date->lt(CarbonImmutable::parse($observation['last_observed_date']))) {
+                    throw new \RuntimeException('Retail observation extension was not saved.');
+                }
+            }
+
+            return $result;
+        });
+    }
+
+    private function persistOwned(array $observation): string
+    {
         $identity = [
             'observation_key' => $observation['observation_key'],
             'reference_kind' => $observation['reference_kind'],
@@ -313,6 +386,9 @@ class CollectRetailPremiumObservations extends Command
         $existing = RetailPremiumObservation::query()->where($identity)->first();
 
         if ($existing !== null) {
+            if ($this->option('scheduled')) {
+                $this->assertCompatibleObservation($existing, $observation);
+            }
             $incomingFirstObserved = CarbonImmutable::parse($observation['first_observed_date']);
             $incomingLastObserved = CarbonImmutable::parse($observation['last_observed_date']);
             $firstObserved = $incomingFirstObserved->min($existing->first_observed_date);
@@ -344,6 +420,32 @@ class CollectRetailPremiumObservations extends Command
         RetailPremiumObservation::query()->updateOrCreate($identity, $observation);
 
         return 'saved';
+    }
+
+    private function assertCompatibleObservation(RetailPremiumObservation $existing, array $observation): void
+    {
+        $comparison = clone $existing;
+        $comparison->fill($observation);
+        foreach (array_diff(array_keys($comparison->getDirty()), ['first_observed_date', 'last_observed_date', 'source_metadata']) as $field) {
+            // Republishing the same source episode preserves immutable original provenance.
+            $episode = $observation['source_metadata']['source_observation_id'] ?? null;
+            if ($field === 'published_interpretation_id' && is_int($episode)
+                && $episode === ($existing->source_metadata['source_observation_id'] ?? null)
+                && $existing->source_snapshot_id === ($observation['source_snapshot_id'] ?? null)
+                && $existing->observation_key === $observation['observation_key']
+                && $existing->price_signature === $observation['price_signature']) {
+                continue;
+            }
+            $stored = $existing->getAttribute($field);
+            $incoming = $comparison->getAttribute($field);
+            if (is_float($stored) && is_float($incoming) && round($stored, 4) === round($incoming, 4)) {
+                continue;
+            }
+            if (is_array($stored) && is_array($incoming) && $stored == $incoming) {
+                continue;
+            }
+            throw new \RuntimeException('Existing retail observation requires inspection.');
+        }
     }
 
     /**

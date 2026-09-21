@@ -10,12 +10,14 @@ use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
+use Tests\Concerns\CapturesSentryIssues;
 use Tests\TestCase;
 
 class FetchEexFuturesCommandTest extends TestCase
 {
+    use CapturesSentryIssues;
     use RefreshDatabase;
-    use \Tests\Concerns\CapturesSentryIssues;
 
     public function test_multiple_failed_maturities_create_one_issue(): void
     {
@@ -177,6 +179,9 @@ class FetchEexFuturesCommandTest extends TestCase
         config()->set('eex_futures.retry_times', 0);
 
         Http::fake(function (Request $request) {
+            $checkpoint = DataFreshnessCheckpoint::sole();
+            $this->assertSame(DataFreshnessCheckpoint::STATUS_RUNNING, $checkpoint->status);
+            $this->assertTrue(Str::isUuid($checkpoint->metadata['run_uuid']));
             if (str_contains($request->url(), 'price-ticker')) {
                 return Http::response(['data' => [['2026-05-21T19:00:00.000Z', 47.44]]]);
             }
@@ -195,6 +200,41 @@ class FetchEexFuturesCommandTest extends TestCase
         $this->assertSame(DataFreshnessCheckpoint::KEY_EEX_FUTURES, $checkpoint->key);
         $this->assertSame(DataFreshnessCheckpoint::STATUS_READY, $checkpoint->status);
         $this->assertSame('2026-05-21', $checkpoint->metadata['current_run_latest_prior_fi_trade_date']);
+    }
+
+    public function test_unexpected_exception_marks_the_owned_full_run_failed(): void
+    {
+        config()->set('eex_futures.request_delay_seconds', 0);
+        Http::fake(function () {
+            $this->assertSame('running', DataFreshnessCheckpoint::sole()->status);
+            throw new \RuntimeException('private upstream detail');
+        });
+        $this->artisan('futures:fetch-eex')->assertExitCode(1);
+        $this->assertSame('failed', DataFreshnessCheckpoint::sole()->status);
+        $this->assertSame('unexpected', DataFreshnessCheckpoint::sole()->metadata['reason']);
+    }
+
+    public function test_old_owner_cannot_replace_newer_eex_facts(): void
+    {
+        config()->set('eex_futures.instruments', [['area' => 'FI', 'maturity_type' => 'year', 'short_code' => 'FNBY']]);
+        config()->set('eex_futures.years_ahead', 1);
+        config()->set('eex_futures.request_delay_seconds', 0);
+        Http::fake(function () {
+            DataFreshnessCheckpoint::sole()->update(['status' => 'ready', 'metadata' => ['run_uuid' => 'new-owner', 'proof' => 'new-facts']]);
+
+            return Http::response(['series' => []]);
+        });
+        $this->artisan('futures:fetch-eex')->assertExitCode(1);
+        $this->assertSame('ready', DataFreshnessCheckpoint::sole()->status);
+        $this->assertSame(['run_uuid' => 'new-owner', 'proof' => 'new-facts'], DataFreshnessCheckpoint::sole()->metadata);
+    }
+
+    public function test_dry_run_never_creates_global_eex_checkpoint(): void
+    {
+        config()->set('eex_futures.instruments', []);
+        Http::fake();
+        $this->artisan('futures:fetch-eex --dry-run')->assertSuccessful();
+        $this->assertDatabaseCount('data_freshness_checkpoints', 0);
     }
 
     public function test_full_scope_fails_when_current_run_fetches_only_non_fi_points_despite_old_fi_data(): void

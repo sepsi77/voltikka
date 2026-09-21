@@ -59,6 +59,21 @@ class DeferredContractImportCompletionTest extends TestCase
         $this->captureSentryIssues();
     }
 
+    public function test_start_records_running_and_does_not_create_resumable_completion_proof(): void
+    {
+        $service = app(ContractImportCompletion::class);
+        $first = $service->start(self::DATE);
+        $this->assertSame(DataFreshnessCheckpoint::STATUS_RUNNING, $this->checkpoint()->status);
+        $this->assertSame($first, $this->checkpoint()->metadata['run_uuid']);
+        $second = $service->start(self::DATE);
+        $this->assertNotSame($first, $second);
+        $this->assertFalse($service->record(self::DATE, $first, DataFreshnessCheckpoint::STATUS_READY, []));
+        $this->assertSame($second, $this->checkpoint()->metadata['run_uuid']);
+        $this->assertFalse(app(MorningJobFreshnessService::class)->checkRetailPremium(CarbonImmutable::today('Europe/Helsinki'))->ready());
+        $service->tick();
+        $this->assertSame(DataFreshnessCheckpoint::STATUS_RUNNING, $this->checkpoint()->fresh()->status);
+    }
+
     public function test_pending_then_real_publication_activates_new_contract_and_rebuilds_statistics_and_all_nine_payloads(): void
     {
         $first = $this->fixture('old', true);

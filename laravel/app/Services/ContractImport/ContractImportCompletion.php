@@ -47,7 +47,7 @@ class ContractImportCompletion
         $this->ensureRow($date, $uuid);
         DB::transaction(function () use ($date, $uuid): void {
             $this->query($date)->lockForUpdate()->firstOrFail()->update([
-                'status' => DataFreshnessCheckpoint::STATUS_FAILED,
+                'status' => DataFreshnessCheckpoint::STATUS_RUNNING,
                 'metadata' => ['run_uuid' => $uuid, 'stage' => 'started'],
                 'recorded_at' => now(),
             ]);
@@ -506,7 +506,7 @@ class ContractImportCompletion
     {
         DB::table('data_freshness_checkpoints')->insertOrIgnore([
             'key' => DataFreshnessCheckpoint::KEY_CONTRACT_IMPORT, 'effective_date' => $date,
-            'status' => DataFreshnessCheckpoint::STATUS_FAILED, 'metadata' => json_encode(['run_uuid' => $uuid, 'stage' => 'started']),
+            'status' => DataFreshnessCheckpoint::STATUS_RUNNING, 'metadata' => json_encode(['run_uuid' => $uuid, 'stage' => 'started']),
             'recorded_at' => now(), 'created_at' => now(), 'updated_at' => now(),
         ]);
     }

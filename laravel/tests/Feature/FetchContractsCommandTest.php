@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Tests\Concerns\CapturesSentryIssues;
 use Tests\TestCase;
 
@@ -47,6 +48,19 @@ class FetchContractsCommandTest extends TestCase
             'postcode_name' => 'Espoo',
             'municipality_code' => '049',
         ]);
+    }
+
+    public function test_full_import_is_running_during_acquisition_and_failed_after_unexpected_exception(): void
+    {
+        Http::fake(function () {
+            $checkpoint = DataFreshnessCheckpoint::sole();
+            $this->assertSame(DataFreshnessCheckpoint::STATUS_RUNNING, $checkpoint->status);
+            $this->assertTrue(Str::isUuid($checkpoint->metadata['run_uuid']));
+            throw new \RuntimeException('private upstream detail');
+        });
+        $this->artisan('contracts:fetch --skip-logos')->assertExitCode(1);
+        $this->assertSame(DataFreshnessCheckpoint::STATUS_FAILED, DataFreshnessCheckpoint::sole()->status);
+        $this->assertSame('unexpected', DataFreshnessCheckpoint::sole()->metadata['stage']);
     }
 
     /**

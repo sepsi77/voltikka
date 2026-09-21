@@ -47,16 +47,22 @@ class FetchContracts extends Command
 
     private ?string $runUuid = null;
 
+    private ?string $checkpointDate = null;
+
     public function handle(): int
     {
         $this->failureReporter = new DataFetchFailureReporter('contracts');
         $this->runUuid = null;
+        $this->checkpointDate = null;
         $exit = self::FAILURE;
         try {
             $exit = $this->fetch();
         } catch (Throwable $exception) {
             $this->failureReporter->fail('unexpected', $exception);
             $this->error('Contract import failed.');
+            if ($this->runUuid !== null && $this->checkpointDate !== null) {
+                $this->recordFullScopeCheckpoint(true, $this->checkpointDate, DataFreshnessCheckpoint::STATUS_FAILED, ['stage' => 'unexpected']);
+            }
         } finally {
             $this->failureReporter->report($exit === self::FAILURE);
         }
@@ -73,7 +79,7 @@ class FetchContracts extends Command
         if (! $this->recordFullScopeCheckpoint(
             $fullScope,
             $today,
-            DataFreshnessCheckpoint::STATUS_FAILED,
+            DataFreshnessCheckpoint::STATUS_RUNNING,
             ['stage' => 'started'],
         )) {
             return self::FAILURE;
@@ -269,6 +275,7 @@ class FetchContracts extends Command
 
         try {
             if (($metadata['stage'] ?? null) === 'started') {
+                $this->checkpointDate = $date;
                 $this->runUuid = $this->completion->start($date);
 
                 return true;

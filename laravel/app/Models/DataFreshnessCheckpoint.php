@@ -10,6 +10,8 @@ class DataFreshnessCheckpoint extends Model
 
     public const KEY_EEX_FUTURES = 'eex_futures';
 
+    public const STATUS_RUNNING = 'running';
+
     public const STATUS_READY = 'ready';
 
     public const STATUS_INCOMPLETE = 'incomplete';

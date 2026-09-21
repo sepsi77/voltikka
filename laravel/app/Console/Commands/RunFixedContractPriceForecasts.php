@@ -6,11 +6,13 @@ use App\Jobs\WarmContractPriceStatisticsCache;
 use App\Models\ActiveContract;
 use App\Models\FixedContractPriceForecast;
 use App\Services\ContractStatistics\ContractPriceStatisticsService;
+use App\Services\MorningFreshness\MorningConsumerExecution;
 use App\Services\MorningFreshness\MorningFreshnessResult;
 use App\Services\MorningFreshness\MorningJobFreshnessService;
 use App\Services\PriceForecasting\FixedTermPriceForecastService;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 
 class RunFixedContractPriceForecasts extends Command
 {
@@ -21,14 +23,98 @@ class RunFixedContractPriceForecasts extends Command
         {--quantile=* : Target quantile to forecast: median, p20, p80. Defaults to config values.}
         {--overwrite : Replace an unevaluated forecast for the same date/horizon/duration/quantile/model version.}
         {--dry-run : Calculate and print forecasts without writing to the database.}
-        {--require-freshness : Require current morning import checkpoints before forecasting.}';
+        {--require-freshness : Require current morning import checkpoints before forecasting.}
+        {--scheduled : Run the bounded current-day default morning scope.}';
 
     protected $description = 'Calculate and persist fixed-term contract price forecasts';
+
+    private ?\Closure $writerFence = null;
 
     public function handle(
         FixedTermPriceForecastService $forecastService,
         MorningJobFreshnessService $freshness,
         ContractPriceStatisticsService $statistics,
+        MorningConsumerExecution $execution,
+    ): int {
+        $this->writerFence = null;
+        $scheduled = (bool) $this->option('scheduled');
+        if ($scheduled) {
+            foreach (['as-of', 'horizon', 'duration', 'quantile', 'overwrite', 'dry-run'] as $option) {
+                if ($this->option($option) !== null && $this->option($option) !== false && $this->option($option) !== []) {
+                    $this->error('Scheduled mode accepts only the current-day default scope.');
+
+                    return self::INVALID;
+                }
+            }
+            $this->input->setOption('require-freshness', true);
+        }
+        if (! $scheduled) {
+            try {
+                $forecastService->generationModelVersion();
+            } catch (\InvalidArgumentException $exception) {
+                $this->error($exception->getMessage());
+
+                return self::FAILURE;
+            }
+        }
+        try {
+            $asOf = CarbonImmutable::parse($this->option('as-of') ?: 'today', 'Europe/Helsinki')->startOfDay();
+            $horizon = $this->option('horizon') !== null
+                ? filter_var($this->option('horizon'), FILTER_VALIDATE_INT)
+                : (int) config('price_forecasting.fixed_term.default_horizon_days', 30);
+            if (! $scheduled && ($horizon === false || $horizon < 1)) {
+                throw new \InvalidArgumentException('Forecast horizon must be a positive integer.');
+            }
+            $durations = $this->option('duration') ?: null;
+            $quantiles = $this->option('quantile') ?: null;
+            foreach ($durations ?? [] as $duration) {
+                if (filter_var($duration, FILTER_VALIDATE_INT) === false || (int) $duration < 1) {
+                    throw new \InvalidArgumentException('Forecast durations must be positive integers.');
+                }
+            }
+            foreach ($quantiles ?? [] as $quantile) {
+                if (! array_key_exists($quantile, FixedTermPriceForecastService::QUANTILE_COLUMNS)) {
+                    throw new \InvalidArgumentException('Forecast quantiles must be median, p20, or p80.');
+                }
+            }
+        } catch (\InvalidArgumentException $exception) {
+            $this->error($exception->getMessage());
+
+            return self::INVALID;
+        }
+        if ($this->option('dry-run')) {
+            return $this->executeForecasts($forecastService, $freshness, $statistics, $asOf, $horizon, $durations, $quantiles);
+        }
+
+        $preflight = null;
+
+        return $execution->run('forecast', $asOf, $scheduled, function () use ($scheduled, $freshness, $asOf, &$preflight) {
+            if (! $this->option('require-freshness')) {
+                return true;
+            }
+            $preflight = $freshness->checkFixedTermForecast($asOf);
+            $ready = $preflight->ready() || array_keys($preflight->failures) === ['statistics_publication_order'];
+            if (! $ready && ! $scheduled) {
+                $this->defer($freshness, $asOf, $preflight);
+            }
+
+            return $ready;
+        }, function (\Closure $fence) use ($forecastService, $freshness, $statistics, $asOf, $horizon, $durations, $quantiles, &$preflight): int {
+            $this->writerFence = $fence;
+
+            return $this->executeForecasts($forecastService, $freshness, $statistics, $asOf, $horizon, $durations, $quantiles, $preflight);
+        });
+    }
+
+    private function executeForecasts(
+        FixedTermPriceForecastService $forecastService,
+        MorningJobFreshnessService $freshness,
+        ContractPriceStatisticsService $statistics,
+        CarbonImmutable $asOf,
+        int $horizon,
+        ?array $durations,
+        ?array $quantiles,
+        ?MorningFreshnessResult $initialFreshness = null,
     ): int {
         // Reject historical model pins before freshness recovery can write statistics.
         try {
@@ -39,12 +125,14 @@ class RunFixedContractPriceForecasts extends Command
             return self::FAILURE;
         }
 
-        $asOf = $this->option('as-of')
-            ? CarbonImmutable::parse($this->option('as-of'), 'Europe/Helsinki')->startOfDay()
-            : CarbonImmutable::now('Europe/Helsinki')->startOfDay();
+        if ($this->option('scheduled') && FixedContractPriceForecast::query()->whereDate('forecast_date', $asOf)->exists()) {
+            $this->error('Existing forecasts require inspection before scheduled completion.');
+
+            return self::FAILURE;
+        }
 
         if ((bool) $this->option('require-freshness')) {
-            $result = $freshness->checkFixedTermForecast($asOf);
+            $result = $initialFreshness ?? $freshness->checkFixedTermForecast($asOf);
 
             if (! $result->ready()) {
                 $canRefreshStatistics = ! (bool) $this->option('dry-run')
@@ -67,7 +155,7 @@ class RunFixedContractPriceForecasts extends Command
                 }
 
                 $statisticsStartedAt = CarbonImmutable::now('Europe/Helsinki');
-                $statistics->calculateForDate($asOf, $activeContractIds, overwrite: true);
+                $statistics->calculateForDate($asOf, $activeContractIds, overwrite: true, transactionFence: $this->writerFence);
 
                 $result = $freshness->checkFixedTermForecast($asOf, $statisticsStartedAt);
 
@@ -78,13 +166,6 @@ class RunFixedContractPriceForecasts extends Command
                 WarmContractPriceStatisticsCache::dispatch('weekly', 5000);
             }
         }
-
-        $horizon = $this->option('horizon') !== null
-            ? (int) $this->option('horizon')
-            : (int) config('price_forecasting.fixed_term.default_horizon_days', 30);
-
-        $durations = $this->option('duration') ?: null;
-        $quantiles = $this->option('quantile') ?: null;
 
         $forecasts = $forecastService->buildForecasts($asOf, $horizon, $durations, $quantiles);
 
@@ -144,21 +225,32 @@ class RunFixedContractPriceForecasts extends Command
                 'model_version' => $forecast['model_version'],
             ];
 
-            $existing = FixedContractPriceForecast::query()->where($identity)
-                ->whereDate('forecast_date', $forecast['forecast_date'])->first();
+            $written = DB::transaction(function () use ($identity, $forecast): bool {
+                ($this->writerFence)();
+                $existing = FixedContractPriceForecast::query()->where($identity)
+                    ->whereDate('forecast_date', $forecast['forecast_date'])->first();
 
-            if ($existing !== null && (! $this->option('overwrite') || $existing->actual_price_cents_per_kwh !== null)) {
-                $skipped++;
+                if ($existing !== null && $this->option('scheduled')) {
+                    throw new \RuntimeException('Unexpected existing forecast requires inspection.');
+                }
+                if ($existing !== null && (! $this->option('overwrite') || $existing->actual_price_cents_per_kwh !== null)) {
+                    return false;
+                }
 
-                continue;
-            }
+                if ($existing !== null) {
+                    $existing->update($forecast);
+                } else {
+                    FixedContractPriceForecast::create($forecast);
+                }
+                if ($this->option('scheduled') && ! FixedContractPriceForecast::query()->where($identity)
+                    ->whereDate('forecast_date', $forecast['forecast_date'])->exists()) {
+                    throw new \RuntimeException('Forecast output was not saved.');
+                }
 
-            if ($existing !== null) {
-                $existing->update($forecast);
-            } else {
-                FixedContractPriceForecast::create($forecast);
-            }
-            $saved++;
+                return true;
+            });
+            $saved += $written ? 1 : 0;
+            $skipped += $written ? 0 : 1;
         }
 
         if ($this->option('dry-run')) {
@@ -181,7 +273,9 @@ class RunFixedContractPriceForecasts extends Command
             $this->error("Morning job deferred: {$message}");
         }
 
-        $freshness->reportDeferred('forecasting:run-fixed-contracts', $asOf, $result);
+        if (! $this->option('scheduled')) {
+            $freshness->reportDeferred('forecasting:run-fixed-contracts', $asOf, $result);
+        }
 
         return self::FAILURE;
     }

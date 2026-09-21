@@ -1,0 +1,6 @@
+[
+  {"name":"Inspect current commands and durable ownership constraints","status":"completed"},
+  {"name":"Implement bounded consumers and producer status with tests","status":"completed"},
+  {"name":"Run regression checks and update context","status":"completed"},
+  {"name":"Correct reviewed provenance reuse and pre-claim option validation regressions","status":"completed"}
+]

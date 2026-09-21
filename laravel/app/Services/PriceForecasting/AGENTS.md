@@ -43,6 +43,8 @@ Each full and feature cohort requires `max(20, configured minimum_history_observ
 
 ## Storage and evaluation
 
+The command resolves its date, horizon and selections once before any execution claim or statistics recovery. Invalid manual dates, nonpositive/noninteger horizons or durations, and unsupported quantiles return `INVALID` without a checkpoint. Manual model rejection also stays before the claim. Dry runs share validation but never claim.
+
 Generation skips existing date/horizon/term/quantile/model rows by default. `--overwrite` replaces only unevaluated rows. Completed rows remain intact even with overwrite. Date identity uses `whereDate`, so SQLite date casting cannot create rerun duplicates. Other model rows are never rewritten.
 
 Evaluation reads exact target-date unit evidence under each forecast's SAVED basis and method, not today's feature flag. Latest-ID ownership precedes finite validity; zero/negative finite actuals are valid. Saved direction threshold controls classification. Known gap v1 may default missing basis to observed and missing threshold to 0.15; known gap v1/v2 may default absent method to unit_statistics_v1. V2 still requires basis and threshold. Other versions, including historical-change and futures-adjusted, require all three fields explicitly. Invalid present provenance, unsupported methods and non-finite/negative thresholds skip. Unknown saved directions skip. Generation identity does not restrict evaluation of old rows.
@@ -61,9 +63,9 @@ Slight moves mean approximately unchanged; unknown means unavailable. Overall di
 
 ## Freshness and release
 
-Schedules stay 07:30 generation with `--require-freshness`, 07:45 evaluation, Europe/Helsinki. Forecast freshness again requires the same-day ready EEX checkpoint, current-run prior-date FI Base proof and recent prior-date FI Base database data. Retail-premium requirements are unchanged. Full contract checkpoint, relevant household 6/12/24 source episodes/publication, expected-basis unit statistics and publication order stay required.
+Local generation uses five-minute background `--scheduled` ticks from 07:30 through the 12:00 Europe/Helsinki deadline; evaluation stays 07:45. Scheduled mode accepts current-day default scope only and enforces freshness. The shared `MorningFreshness/MorningConsumerExecution` checkpoint claim excludes all same-date non-dry manual writers. Completed scheduled days are inert; failed or interrupted writers require inspection, with no automatic overwrite. Each output transaction and statistics recovery check durable ownership. Any pre-existing issue-date forecast rows stop scheduled completion conservatively, rather than certifying another model or a partial write. Zero output is terminal. Waiting is quiet; incomplete days have one independent deadline alert. See `../MorningFreshness/AGENTS.md`. Forecast freshness again requires the same-day ready EEX checkpoint, current-run prior-date FI Base proof and recent prior-date FI Base database data. Retail-premium requirements are unchanged. Full contract checkpoint, relevant household 6/12/24 source episodes/publication, expected-basis unit statistics and publication order stay required.
 
-Only a sole publication-order failure can trigger non-dry current-date statistics recovery from all active contracts, then a complete gate recheck. Missing EEX readiness blocks this recovery. Dry run cannot recover. No deployment-time generation or new schedule is added.
+Only a sole publication-order failure can trigger non-dry current-date statistics recovery from all active contracts, then a complete gate recheck. Missing EEX readiness blocks this recovery. Dry run cannot recover. No deployment-time generation or producer retry is added.
 
 Commands:
 ```bash

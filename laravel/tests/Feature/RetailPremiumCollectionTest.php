@@ -7,9 +7,13 @@ use App\Models\Company;
 use App\Models\ContractInterpretation;
 use App\Models\ContractSourceObservation;
 use App\Models\ContractSourceSnapshot;
+use App\Models\DataFreshnessCheckpoint;
 use App\Models\ElectricityContract;
 use App\Models\RetailPremiumObservation;
+use App\Services\MorningFreshness\MorningFreshnessResult;
+use App\Services\MorningFreshness\MorningJobFreshnessService;
 use App\Services\RetailPremium\RetailPremiumObservationService;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -154,6 +158,75 @@ class RetailPremiumCollectionTest extends TestCase
             ->assertExitCode(0);
 
         $this->assertSame(0, RetailPremiumObservation::count());
+    }
+
+    public function test_scheduled_collection_checks_existing_financial_values_and_completes_once(): void
+    {
+        CarbonImmutable::setTestNow('2026-08-01 08:00 Europe/Helsinki');
+        try {
+            $this->publishedSpotContract('scheduled-spot', margin: 0.50, monthlyFee: 3.00);
+            $this->artisan('retail-premiums:collect --as-of=2026-07-31')->assertSuccessful();
+            $freshness = $this->createMock(MorningJobFreshnessService::class);
+            $freshness->expects($this->once())->method('checkRetailPremium')
+                ->willReturn(new MorningFreshnessResult([]));
+            $this->app->instance(MorningJobFreshnessService::class, $freshness);
+            $this->artisan('retail-premiums:collect --scheduled')->assertSuccessful();
+            $this->artisan('retail-premiums:collect --scheduled')->assertSuccessful();
+            $this->assertDatabaseCount('retail_premium_observations', 1);
+            $this->assertTrue(DataFreshnessCheckpoint::where('key', 'morning_retail')
+                ->whereDate('effective_date', '2026-08-01')->sole()->metadata['scheduled_complete']);
+        } finally {
+            CarbonImmutable::setTestNow();
+        }
+    }
+
+    public function test_scheduled_collection_does_not_certify_or_overwrite_incompatible_existing_output(): void
+    {
+        CarbonImmutable::setTestNow('2026-08-01 08:00 Europe/Helsinki');
+        try {
+            $this->publishedSpotContract('incompatible-spot', margin: 0.50, monthlyFee: 3.00);
+            $this->artisan('retail-premiums:collect --as-of=2026-07-31')->assertSuccessful();
+            RetailPremiumObservation::sole()->update(['retail_premium_cents_per_kwh' => 9.99]);
+            $freshness = $this->createMock(MorningJobFreshnessService::class);
+            $freshness->method('checkRetailPremium')->willReturn(new MorningFreshnessResult([]));
+            $this->app->instance(MorningJobFreshnessService::class, $freshness);
+            $this->artisan('retail-premiums:collect --scheduled')->assertSuccessful();
+            $this->artisan('retail-premiums:collect --scheduled')->assertSuccessful();
+            $this->assertDatabaseHas('data_freshness_checkpoints', ['key' => 'morning_retail', 'effective_date' => '2026-08-01', 'status' => 'failed']);
+            $this->assertEqualsWithDelta(9.99, RetailPremiumObservation::sole()->retail_premium_cents_per_kwh, 0.0001);
+        } finally {
+            CarbonImmutable::setTestNow();
+        }
+    }
+
+    public function test_scheduled_republication_of_the_same_episode_keeps_original_interpretation_provenance(): void
+    {
+        CarbonImmutable::setTestNow('2026-07-26 08:00 Europe/Helsinki');
+        try {
+            $contract = $this->publishedSpotContract('republished-spot', margin: 0.50, monthlyFee: 3.00);
+            $this->artisan('retail-premiums:collect --as-of=2026-07-25')->assertSuccessful();
+            $original = RetailPremiumObservation::sole();
+            $interpretation = $contract->publishedInterpretation->replicate();
+            $interpretation->analysis_fingerprint = hash('sha256', 'new-analysis');
+            $interpretation->published_at = '2026-07-26 06:05:00';
+            $interpretation->save();
+            $contract->update(['published_interpretation_id' => $interpretation->id]);
+            $contract->currentSourceObservation->update(['last_observed_at' => '2026-07-26 06:00:00']);
+            $freshness = $this->createMock(MorningJobFreshnessService::class);
+            $freshness->method('checkRetailPremium')->willReturn(new MorningFreshnessResult([]));
+            $this->app->instance(MorningJobFreshnessService::class, $freshness);
+
+            $this->artisan('retail-premiums:collect --scheduled')->assertSuccessful();
+            $stored = RetailPremiumObservation::sole();
+            $this->assertSame($original->id, $stored->id);
+            $this->assertSame($original->published_interpretation_id, $stored->published_interpretation_id);
+            $this->assertNotSame($interpretation->id, $stored->published_interpretation_id);
+            $this->assertSame('2026-07-26', $stored->last_observed_date->toDateString());
+            $this->assertTrue(DataFreshnessCheckpoint::where('key', 'morning_retail')
+                ->whereDate('effective_date', '2026-07-26')->sole()->metadata['scheduled_complete']);
+        } finally {
+            CarbonImmutable::setTestNow();
+        }
     }
 
     private function publishedSpotContract(

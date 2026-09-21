@@ -12,6 +12,8 @@ use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Throwable;
 
 class FetchEexFutures extends Command
@@ -54,6 +56,8 @@ class FetchEexFutures extends Command
      */
     public function handle(): int
     {
+        $this->checkpointDate = null;
+        $this->checkpointOwner = null;
         $this->failureReporter = new DataFetchFailureReporter('eex_futures');
         $exit = Command::FAILURE;
         try {
@@ -61,6 +65,9 @@ class FetchEexFutures extends Command
         } catch (Throwable $exception) {
             $this->failureReporter->fail('unexpected', $exception);
             $this->error('EEX import failed.');
+            if ($this->checkpointDate !== null && $this->checkpointOwner !== null) {
+                $this->recordFullScopeCheckpoint(true, $this->checkpointDate, ['reason' => 'unexpected']);
+            }
         } finally {
             $this->failureReporter->report($exit === Command::FAILURE);
         }
@@ -69,6 +76,10 @@ class FetchEexFutures extends Command
     }
 
     private DataFetchFailureReporter $failureReporter;
+
+    private ?string $checkpointDate = null;
+
+    private ?string $checkpointOwner = null;
 
     private function fetch(): int
     {
@@ -246,14 +257,37 @@ class FetchEexFutures extends Command
         }
 
         try {
-            $this->freshness->record(
-                DataFreshnessCheckpoint::KEY_EEX_FUTURES,
-                $date,
-                $ready ? DataFreshnessCheckpoint::STATUS_READY : DataFreshnessCheckpoint::STATUS_FAILED,
-                $metadata,
-            );
+            $started = ($metadata['stage'] ?? null) === 'started';
+            if ($started) {
+                $this->checkpointDate = $date;
+                $this->checkpointOwner = (string) Str::uuid();
+            }
 
-            return true;
+            return DB::transaction(function () use ($date, $metadata, $ready, $started): bool {
+                if ($started && ! DataFreshnessCheckpoint::query()->where('key', DataFreshnessCheckpoint::KEY_EEX_FUTURES)->whereDate('effective_date', $date)->exists()) {
+                    DataFreshnessCheckpoint::query()->insertOrIgnore([
+                        'key' => DataFreshnessCheckpoint::KEY_EEX_FUTURES, 'effective_date' => $date,
+                        'status' => DataFreshnessCheckpoint::STATUS_RUNNING,
+                        'metadata' => json_encode(['run_uuid' => $this->checkpointOwner, 'stage' => 'started']),
+                        'recorded_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+                    ]);
+                }
+                $row = DataFreshnessCheckpoint::query()->where('key', DataFreshnessCheckpoint::KEY_EEX_FUTURES)
+                    ->whereDate('effective_date', $date)->lockForUpdate()->firstOrFail();
+                if (! $started && ($row->metadata['run_uuid'] ?? null) !== $this->checkpointOwner) {
+                    $this->failureReporter->fail('checkpoint');
+
+                    return false;
+                }
+                $this->freshness->record(
+                    DataFreshnessCheckpoint::KEY_EEX_FUTURES,
+                    $date,
+                    $started ? DataFreshnessCheckpoint::STATUS_RUNNING : ($ready ? DataFreshnessCheckpoint::STATUS_READY : DataFreshnessCheckpoint::STATUS_FAILED),
+                    ['run_uuid' => $this->checkpointOwner] + $metadata,
+                );
+
+                return true;
+            });
         } catch (Throwable $exception) {
             $this->error('Failed to record the EEX freshness checkpoint.');
             $this->failureReporter->fail('checkpoint', $exception);

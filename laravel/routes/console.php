@@ -102,10 +102,11 @@ Schedule::command('futures:fetch-eex')
     ->appendOutputTo(storage_path('logs/eex-futures-fetch.log'));
 
 // Collect per-contract retail premiums after the morning contract interpretations can publish.
-Schedule::command('retail-premiums:collect --require-freshness')
-    ->dailyAt('07:15')
+Schedule::command('retail-premiums:collect --scheduled')
+    ->everyFiveMinutes()
     ->timezone('Europe/Helsinki')
-    ->withoutOverlapping()
+    ->between('07:15', '12:01') // Include the full noon tick despite process startup seconds.
+    ->runInBackground()
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/retail-premiums.log'));
 
@@ -121,10 +122,11 @@ Schedule::command('retail-premiums:calibrate')
     ->appendOutputTo(storage_path('logs/retail-premium-calibration.log'));
 
 // Run fixed-term price forecasts after the morning contract import/statistics update.
-Schedule::command('forecasting:run-fixed-contracts --require-freshness')
-    ->dailyAt('07:30')
+Schedule::command('forecasting:run-fixed-contracts --scheduled')
+    ->everyFiveMinutes()
     ->timezone('Europe/Helsinki')
-    ->withoutOverlapping()
+    ->between('07:30', '12:01') // The five-minute cron still ends at the noon deadline tick.
+    ->runInBackground()
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/fixed-contract-forecasts.log'));
 
