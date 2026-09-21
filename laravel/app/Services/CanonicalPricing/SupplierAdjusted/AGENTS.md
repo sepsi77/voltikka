@@ -1,11 +1,12 @@
 # Supplier-adjusted open-ended annual estimate
 
 > **History policy (2026-09-21):** when this estimator's current method changes, the stored annual
-> history must be recalculated with the same method in as-of mode. Statements in this file that the
-> Historical path is "unchanged", "strict", "retained", or "never invokes" a current component
-> describe the implementation state. They are known gaps, not rules to preserve. The rule that stays
-> is no look-ahead: a past date uses only peers, premiums, interpretations, and curve vintages known
-> on that date. See "History follows the current method" in `../../ContractStatistics/AGENTS.md`.
+> history must be recalculated with the same method in as-of mode. Historical-policy statements
+> below apply to v1/v2, not explicit annual v3. V3 uses shared Current semantics with dated sources,
+> exact-contract anchors and exact-date premiums, never current pointers. It selects the latest
+> exact-source reconstruction that passes full target-date validation; completion is provenance,
+> not seller evidence. No later seller facts or future curves are allowed. Local continuity checks
+> pass within documented limits; no production activation is approved. See `../../ContractStatistics/AGENTS.md`.
 
 > **Approved target, implemented locally; release blocked:** read the [annualized comparison policy (2026-09-15)](../AGENTS.md#approved-annualized-comparison-policy-2026-09-15) first. It governs intended future changes where the strict eligibility, routing, own-anchor fallback, or fee-coupled episode rules below conflict. These notes describe current implementation, not completion of that policy. Billing, VAT, evidence, and cache safeguards remain; this documentation does not authorize deployment or production mutations.
 
@@ -40,7 +41,7 @@ Missing Lammaisten July 23 interpretations must still break continuity. Focused 
 `tasks/source-validated-energy-rules/anchor-boundary-repairs.md`. The final replay confirms repaired
 anchors; remaining amounts still require economic review.
 
-## Strict historical eligibility
+## Strict v1/v2 Historical eligibility
 
 `SupplierAdjustedEligibility::candidate` remains the historical primitive. It accepts relational `OpenEnded` + `FixedPrice` contracts with `General`, `Time`, or `Season` metering, an exact and complete canonical calculation, no recurring schedule, no consumption effect, and exactly one `current_structured` phase through `ends:none`. The phase can start at `contract_start`, `none`, `unknown`, or a date. An unknown or dated start is not a 12-month price guarantee, so the ordinary adjustable seller price stays an estimate.
 
@@ -79,7 +80,7 @@ The current calendar-month remainder keeps the exact published rate. Later compa
 
 `P_m = P_current + beta * (F_m(today) - F_reference)`
 
-`F_reference` is the FI month price for the month in which the observed current-price episode began, at the latest curve vintage before that episode start. The existing month -> quarter -> year forward ladder and reset settings supply beta, curve-age, seasonal-index, negative-floor, and absurdity rules. Current fallback order is own-reference forward shift, comparable forward premium with a usable current curve, realized Spot seasonal index, then hold the current supplier price. Historical keeps the former own-reference/seasonal/hold order. Every rung remains `comparable_estimate` and has a `supplier_adjusted_estimate` payload. The estimator does not project fee changes. Billing keeps disclosed fee phases; otherwise the fee stays flat. The payload records the applicable fee assumption.
+`F_reference` is the FI month price for the month in which the observed current-price episode began, at the latest curve vintage before that episode start. The existing month -> quarter -> year forward ladder and reset settings supply beta, curve-age, seasonal-index, negative-floor, and absurdity rules. Current fallback order is own-reference forward shift, comparable forward premium with a usable current curve, realized Spot seasonal index, then hold the current supplier price. V1/v2 Historical keep the former own-reference/seasonal/hold order; explicit annual v3 uses the Current order with dated premiums. Every rung remains `comparable_estimate` and has a `supplier_adjusted_estimate` payload. The estimator does not project fee changes. Billing keeps disclosed fee phases; otherwise the fee stays flat. The payload records the applicable fee assumption.
 
 ## Dated market inputs (2026-09-11)
 
@@ -96,9 +97,17 @@ legitimate past anchors are unchanged. Forward months use the request date, neve
 
 Before immutable chronology starts for a carrier ID, a compatible General/FixedPrice snapshot can prove an exact singleton. Time and Season use one additional batched raw historical query only before immutable coverage. A same-date observed household snapshot must prove full tariff identity and VAT; weighted averages alone cannot prove buckets. Company, unknown units, promotional energy, missing buckets, and conflicts remain unknown. Source-covered invalid evidence never falls back to raw rows. Within immutable chronology, complete parser-valid ordinary unchanged-energy interpretations supply exact normalized tariff signatures through the shared current extraction; observation-scoped analysis, current publication pointers, validation errors, completion dates, source identity, and VAT remain checked. Unsupported output stays unknown except for the proven current base-effect extension above; conflicting output stays unknown. Source intervals carry their actual first/last coverage; there is no pointer-only anchor fallback. No snapshot after the first immutable observation can reopen missing or unsafe source evidence.
 
-Matching ignores carrier ID and fees, but compares every energy bucket, metering, mechanism, and VAT basis. A→B→A stays separate. Same-date legacy observed evidence has local precedence over canonical snapshots. Missing dates between unchanged observations retain one observed proxy with explicit gap flags; they do not prove rates on missing days. Unknown/conflicting evidence clears the run with uncertainty flags. Every start is left-censored observed evidence, not a known seller repricing or hedge date. Immutable runs use `canonical_source_observation_run`; the separate historical AsOf resolver is unchanged.
+Matching ignores carrier ID and fees, but compares every energy bucket, metering, mechanism, and VAT basis. A→B→A stays separate. Same-date legacy observed evidence has local precedence over canonical snapshots. Missing dates between unchanged observations retain one observed proxy with explicit gap flags; they do not prove rates on missing days. Unknown/conflicting evidence clears the run with uncertainty flags. Every start is left-censored observed evidence, not a known seller repricing or hedge date. Immutable runs use `canonical_source_observation_run`. The separate historical AsOf resolver keeps
+v1/v2 strict. Explicit v3 now accepts dated left-censored exact-contract proxies with fee-independent
+full energy signatures, exact-source or dedicated historical evidence, and no current lineage links.
+Pre-source raw proof is limited to General singletons; Time/Season require valid dated canonical
+buckets. Missing dated snapshot identity remains unknown. Explicit v3 now uses shared Current
+candidate/calculation semantics with explicit historical dates and supplied exact-date premiums.
+V1/v2 still use Historical. The dated adapter never invokes the current episode resolver or current
+premium loader. Older absent donors and dated replacement lineage are not implemented; V5 rules
+fail closed without dated source validation. See `../../ContractStatistics/AGENTS.md`.
 
-Current immutable interpretations now use the shared current extraction for redundant and fully disclosed fee-only phases. Real energy changes and unknown energy still break the episode. Dedicated Historical replay keeps strict single-phase eligibility. Missing evidence never creates fabricated buckets. The resolver uses four batched queries for General and five for Time/Season. The General API now uses ten queries because current-curve availability adds one preflight; older nine-query results in task notes are run history. See `tasks/annualized-pricing-implementation/energy-episodes.md` for the narrow historical follow-up.
+Current immutable interpretations now use the shared current extraction for redundant and fully disclosed fee-only phases. Real energy changes and unknown energy still break the episode. V1/v2 Historical replay keeps strict single-phase eligibility; v3 dated replay uses the shared Current extractor. Missing evidence never creates fabricated buckets. The resolver uses four batched queries for General and five for Time/Season. The General API now uses ten queries because current-curve availability adds one preflight; older nine-query results in task notes are run history. See `tasks/annualized-pricing-implementation/energy-episodes.md` for the narrow historical follow-up.
 
 The current orchestrator now passes the explicit comparison date into the episode resolver for single evaluation, metric batches, multi-consumption statistics, and the period wrapper's annual comparison. Its request-local anchor key uses full sorted rates, metering, VAT, mechanism, Helsinki comparison date, and current source/publication IDs. Fees and consumption do not change energy identity. `resetMemoization()` clears the anchors before a retry. Tests use real dated snapshot evidence to reject future leakage through all four entry points, and a recording resolver to check equal-average bucket changes, fee independence, and retry clearing. The current unchanged-energy path also uses `ForwardPremium/CurrentPremiumEvidenceLoader` when its own historical reference is missing and the current curve is complete. The shared selector supplies own-lineage, company, then company-balanced market evidence without a minimum donor count. Source-proved energy-promotion/future-span eligibility and reset integration are now active locally under Current policy; V5 producer defaults remain off. See `tasks/annualized-pricing-implementation/integration.md`.
 

@@ -1,0 +1,13 @@
+stage,date,database,query_only,active,exit,annual_rows,aggregates,preview_results_identical,stored_costs_match,seconds,peak_bytes
+previous,2026-01-21,/tmp/annual-v3-repaired-apply/snapshot.sqlite,0,annual_cost_as_of_v2,0,971,30,True,True,5.222111940383911,76038144
+previous,2026-04-08,/tmp/annual-v3-repaired-apply/snapshot.sqlite,0,annual_cost_as_of_v2,0,991,30,True,True,12.853159189224243,103301120
+previous,2026-07-23,/tmp/annual-v3-repaired-apply/snapshot.sqlite,0,annual_cost_as_of_v2,0,874,30,True,True,18.596188068389893,126418944
+previous,2026-07-24,/tmp/annual-v3-repaired-apply/snapshot.sqlite,0,annual_cost_as_of_v2,0,862,30,True,True,20.551801919937134,137003008
+previous,2026-09-12,/tmp/annual-v3-repaired-apply/snapshot.sqlite,0,annual_cost_as_of_v2,0,775,30,True,True,22.204839944839478,143130624
+previous,2026-09-20,/tmp/annual-v3-repaired-apply/snapshot.sqlite,0,annual_cost_as_of_v2,0,748,30,True,True,24.18813419342041,149422080
+final,2026-01-21,/tmp/annual-v3-repaired-final-apply/snapshot.sqlite,0,annual_cost_as_of_v2,0,971,30,True,True,5.189816951751709,76038144
+final,2026-04-08,/tmp/annual-v3-repaired-final-apply/snapshot.sqlite,0,annual_cost_as_of_v2,0,991,30,True,True,12.798496007919312,103301120
+final,2026-07-23,/tmp/annual-v3-repaired-final-apply/snapshot.sqlite,0,annual_cost_as_of_v2,0,874,30,True,True,18.266005039215088,126418944
+final,2026-07-24,/tmp/annual-v3-repaired-final-apply/snapshot.sqlite,0,annual_cost_as_of_v2,0,862,30,True,True,20.189239025115967,137003008
+final,2026-09-12,/tmp/annual-v3-repaired-final-apply/snapshot.sqlite,0,annual_cost_as_of_v2,0,775,30,True,True,21.926533937454224,143130624
+final,2026-09-20,/tmp/annual-v3-repaired-final-apply/snapshot.sqlite,0,annual_cost_as_of_v2,0,748,30,True,True,22.76853084564209,149422080

@@ -1,0 +1,6 @@
+file,bytes,sha256,data_rows
+v3-continuity-repair-aggregates.csv,10248,4581c142f21012c68fcb836a6ffc76d15f0c30b8966f6958771b1a2e08fc8a32,90
+v3-continuity-repair-counts.csv,569,1b5f6dc3528e4a765627059521d281f7b9431c372d8ec7cf37f069c07e3ae8d4,3
+v3-continuity-repair-proofs.csv,1867,c06379baa8cd3b3e164a3b75341de308714cf5db6e4dd1db57bd1173a82ad438,11
+v3-continuity-repair-runs.csv,765,a0622940172d38d48b2fe5c94cae59c6ca11efaf7bafcb51a1196491dc55fd9f,3
+v3-continuity-repair-selections.csv,746314,7522025e4d80ff8c0acdabad9b2c36364b3d41ff387309f3373d564ad46c55d5,1299

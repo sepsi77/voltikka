@@ -22,6 +22,8 @@ use App\Services\ContractStatistics\Enums\AnnualCostCalculationBasis;
 use App\Services\ContractStatistics\Enums\AnnualCostMethodVersion;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -44,8 +46,15 @@ class CurrentAnnualCostStatisticsIntegrationTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_canonical_current_calculation_writes_legacy_and_as_of_annual_aggregates_and_three_contract_rows(): void
+    public static function retainedConfigurations(): array
     {
+        return [[AnnualCostMethodVersion::Legacy], [AnnualCostMethodVersion::AsOf], [AnnualCostMethodVersion::AsOfV2]];
+    }
+
+    #[DataProvider('retainedConfigurations')]
+    public function test_canonical_current_calculation_writes_legacy_and_as_of_annual_aggregates_and_three_contract_rows(AnnualCostMethodVersion $configured): void
+    {
+        config()->set('contract_statistics.annual_cost.active_method_version', $configured->value);
         $contract = $this->contract('current-canonical');
         $this->mockCanonicalOutcomes($contract);
         $this->mock(AsOfAnnualCostCalculator::class, function ($mock): void {
@@ -74,6 +83,83 @@ class CurrentAnnualCostStatisticsIntegrationTest extends TestCase
         );
         $this->assertSame(3, ContractPriceDailyStatistic::annualCostByMethod(AnnualCostMethodVersion::Legacy)->count());
         $this->assertSame(3, ContractPriceDailyStatistic::annualCostByMethod(AnnualCostMethodVersion::AsOfV2)->count());
+    }
+
+    public function test_v3_preserves_inactive_financial_rows_and_reuses_supplied_outcomes_without_component_reads(): void
+    {
+        config()->set('contract_statistics.annual_cost.active_method_version', AnnualCostMethodVersion::AsOfV3->value);
+        $contract = $this->contract('retained-versions');
+        $retained = [];
+        foreach ([AnnualCostMethodVersion::AsOf, AnnualCostMethodVersion::AsOfV2] as $method) {
+            foreach ([2000, 5000, 18000] as $consumption) {
+                $retained[] = ContractPriceAnnualCost::create([
+                    ...$this->storedAnnualAttributes($contract, $consumption), 'method_version' => $method,
+                ])->fresh();
+                $retained[] = ContractPriceDailyStatistic::create([
+                    ...$this->dailyAttributes('annual_cost', $consumption), 'method_version' => $method,
+                ])->fresh();
+            }
+        }
+        $this->mockCanonicalOutcomes($contract);
+        $queries = [];
+        DB::listen(function ($query) use (&$queries): void {
+            $queries[] = $query->sql;
+        });
+        app(ContractPriceStatisticsService::class)->calculateForDate(self::DATE, [$contract->id], overwrite: true, useCanonical: true,
+            transactionFence: function (): void {
+                // A later config change must not split factory and writer versions.
+                config()->set('contract_statistics.annual_cost.active_method_version', AnnualCostMethodVersion::AsOfV2->value);
+            });
+        foreach ($retained as $row) {
+            $this->assertSame($row->getRawOriginal(), $row->fresh()->getRawOriginal());
+        }
+        $this->assertSame([220.0, 520.0, 1820.0], ContractPriceAnnualCost::query()
+            ->where('method_version', AnnualCostMethodVersion::AsOfV3->value)->orderBy('consumption_kwh')->pluck('annual_cost')->all());
+        $this->assertSame(3, ContractPriceDailyStatistic::annualCostByMethod(AnnualCostMethodVersion::AsOfV3)->count());
+        $supplied = [$contract->id => [5000 => $this->canonicalOutcome(520.0)]];
+        $before = serialize($supplied);
+        $factory = app(CurrentCanonicalAnnualCostResultFactory::class);
+        $v2 = $factory->create(self::DATE, $supplied);
+        $v3 = $factory->create(self::DATE, $supplied, AnnualCostMethodVersion::AsOfV3);
+        $this->assertSame($before, serialize($supplied));
+        $this->assertSame(AnnualCostMethodVersion::AsOfV2, $v2[1]->methodVersion);
+        $this->assertSame(520.0, $v3[1]->totalCost);
+        $this->assertNotSame($v2[1]->compatibilityKey, $v3[1]->compatibilityKey);
+        $this->assertSame($v3[1]->compatibilityKey, ContractPriceAnnualCost::query()
+            ->where('method_version', AnnualCostMethodVersion::AsOfV3->value)->where('consumption_kwh', 5000)->value('compatibility_key'));
+        $this->assertFalse(collect($queries)->contains(fn ($sql) => str_contains($sql, 'price_components')));
+    }
+
+    public function test_factory_rejects_retired_producer_versions_even_for_empty_input(): void
+    {
+        foreach ([AnnualCostMethodVersion::Legacy, AnnualCostMethodVersion::AsOf] as $method) {
+            try {
+                app(CurrentCanonicalAnnualCostResultFactory::class)->create(self::DATE, [], $method);
+                $this->fail('Retired producer accepted.');
+            } catch (\InvalidArgumentException $exception) {
+                $this->assertSame('Current annual pricing supports only v2 and v3 producers.', $exception->getMessage());
+            }
+        }
+    }
+
+    public function test_v3_exclusions_and_nested_transaction_rollback(): void
+    {
+        config()->set('contract_statistics.annual_cost.active_method_version', AnnualCostMethodVersion::AsOfV3->value);
+        $contract = $this->contract('v3-excluded');
+        $this->seedPreviousSnapshotAndStatistics($contract);
+        $results = app(CurrentCanonicalAnnualCostResultFactory::class)->create(self::DATE, [$contract->id => []], AnnualCostMethodVersion::AsOfV3);
+        $this->assertCount(3, $results);
+        foreach ($results as $result) {
+            $this->assertSame(AnnualCostMethodVersion::AsOfV3, $result->methodVersion);
+            $this->assertSame('canonical_outcome_missing', $result->unavailableReason);
+        }
+        $this->mockCanonicalOutcomes($contract);
+        DB::unprepared("CREATE TRIGGER fail_v3_aggregate BEFORE INSERT ON contract_price_daily_statistics WHEN NEW.method_version = 'annual_cost_as_of_v3' BEGIN SELECT RAISE(ABORT, 'forced aggregate failure'); END");
+        try {
+            $this->assertCanonicalFailureRollsBack($contract);
+        } finally {
+            DB::unprepared('DROP TRIGGER fail_v3_aggregate');
+        }
     }
 
     public function test_canonical_rerun_does_not_create_nullable_unit_identity_duplicates(): void
@@ -193,14 +279,21 @@ class CurrentAnnualCostStatisticsIntegrationTest extends TestCase
         $this->assertCanonicalFailureRollsBack($contract);
     }
 
-    public function test_out_of_range_result_is_unavailable_and_removes_its_stale_row(): void
+    public static function currentMethods(): array
     {
+        return [[AnnualCostMethodVersion::AsOfV2], [AnnualCostMethodVersion::AsOfV3]];
+    }
+
+    #[DataProvider('currentMethods')]
+    public function test_out_of_range_result_is_unavailable_and_removes_its_stale_row(AnnualCostMethodVersion $method): void
+    {
+        config()->set('contract_statistics.annual_cost.active_method_version', $method->value);
         $contract = $this->contract('limited-consumption');
         $contract->update(['consumption_limitation_min_x_kwh_per_y' => 3000]);
         $this->mockCanonicalOutcomes($contract);
         ContractPriceAnnualCost::create([
             ...$this->storedAnnualAttributes($contract, 2000),
-            'method_version' => AnnualCostMethodVersion::AsOfV2,
+            'method_version' => $method,
         ]);
 
         app(ContractPriceStatisticsService::class)->calculateForDate(
@@ -261,11 +354,11 @@ class CurrentAnnualCostStatisticsIntegrationTest extends TestCase
         $contract = $this->contract('nested-rollback');
         $this->mockCanonicalOutcomes($contract);
         $this->seedPreviousSnapshotAndStatistics($contract);
-        \Illuminate\Support\Facades\DB::unprepared("CREATE TRIGGER fail_v2_aggregate BEFORE INSERT ON contract_price_daily_statistics WHEN NEW.method_version = 'annual_cost_as_of_v2' BEGIN SELECT RAISE(ABORT, 'forced aggregate failure'); END");
+        DB::unprepared("CREATE TRIGGER fail_v2_aggregate BEFORE INSERT ON contract_price_daily_statistics WHEN NEW.method_version = 'annual_cost_as_of_v2' BEGIN SELECT RAISE(ABORT, 'forced aggregate failure'); END");
         try {
             $this->assertCanonicalFailureRollsBack($contract);
         } finally {
-            \Illuminate\Support\Facades\DB::unprepared('DROP TRIGGER fail_v2_aggregate');
+            DB::unprepared('DROP TRIGGER fail_v2_aggregate');
         }
     }
 

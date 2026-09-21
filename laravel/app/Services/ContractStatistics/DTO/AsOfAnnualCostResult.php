@@ -29,6 +29,7 @@ readonly class AsOfAnnualCostResult
         public ?CarbonImmutable $priceEpisodeStartedAt,
         public array $provenanceFlags,
         public ?string $unavailableReason = null,
+        public ?SourceInterpretationProvenance $sourceInterpretationProvenance = null,
     ) {}
 
     public function isAvailable(): bool

@@ -10,6 +10,7 @@ use App\Services\ContractStatistics\DTO\AsOfAnnualCostResult;
 use App\Services\ContractStatistics\Enums\AnnualCostMethodVersion;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -129,6 +130,9 @@ class AnnualCostStatisticsWriter
                 'provenance' => json_encode([
                     'source_evidence_ids' => $result->sourceEvidenceIds,
                     'flags' => $result->provenanceFlags,
+                    ...($result->sourceInterpretationProvenance !== null ? [
+                        'source_interpretation' => $result->sourceInterpretationProvenance->toArray(),
+                    ] : []),
                 ], JSON_THROW_ON_ERROR),
                 'created_at' => $now,
                 'updated_at' => $now,
@@ -141,7 +145,7 @@ class AnnualCostStatisticsWriter
             fn (AsOfAnnualCostResult $result): string => $result->segmentKey.'|'.$result->consumptionKwh,
         );
         foreach ($groups as $group) {
-            /** @var \Illuminate\Support\Collection<int, AsOfAnnualCostResult> $group */
+            /** @var Collection<int, AsOfAnnualCostResult> $group */
             $available = $group->filter->isAvailable()->values();
             if ($available->isEmpty()) {
                 continue;

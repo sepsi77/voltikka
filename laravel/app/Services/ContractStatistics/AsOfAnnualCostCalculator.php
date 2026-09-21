@@ -8,6 +8,7 @@ use App\Services\CanonicalPricing\DTO\ContractContext;
 use App\Services\CanonicalPricing\DTO\SpotAssumptions;
 use App\Services\CanonicalPricing\Enums\ComparisonPolicy;
 use App\Services\CanonicalPricing\Enums\EstimateMethod;
+use App\Services\CanonicalPricing\ForwardPremium\PremiumEstimate;
 use App\Services\CanonicalPricing\SpotForward\DTO\SpotEstimate;
 use App\Services\CanonicalPricing\SpotForward\SpotForwardPriceEstimator;
 use App\Services\CanonicalPricing\SupplierAdjusted\DTO\PriceEpisodeAnchor;
@@ -56,13 +57,14 @@ class AsOfAnnualCostCalculator
             $date instanceof CarbonInterface ? $date->toDateString() : $date,
             'Europe/Helsinki',
         )->startOfDay();
-        $evidence = $this->evidenceResolver->resolveDate($target);
+        $evidence = $this->evidenceResolver->resolveDate($target, $methodVersion);
+        $policy = $methodVersion === AnnualCostMethodVersion::AsOfV3 ? ComparisonPolicy::Current : ComparisonPolicy::Historical;
 
         // These are date-level shared inputs. Resolve each only once before costing contracts.
         $spotResult = $this->spotAssumptionsProvider->resolve($target);
-        $needsSpotEstimate = collect($evidence)->contains(function (AsOfAnnualCostEvidence $item): bool {
+        $needsSpotEstimate = collect($evidence)->contains(function (AsOfAnnualCostEvidence $item) use ($policy): bool {
             return $item->canonicalData !== null
-                ? $this->canonicalCalculator->usesSpotPricing($item->canonicalData, $this->context($item), policy: ComparisonPolicy::Historical)
+                ? $this->canonicalCalculator->usesSpotPricing($item->canonicalData, $this->context($item), policy: $policy)
                 : PricingModel::fromSource($item->pricingModel) === PricingModel::Spot;
         });
         $spot = $spotResult->assumptions ?? new SpotAssumptions(
@@ -75,7 +77,7 @@ class AsOfAnnualCostCalculator
 
         $candidates = [];
         $candidateBases = [];
-        foreach ($evidence as $item) {
+        foreach ($methodVersion === AnnualCostMethodVersion::AsOfV3 ? [] : $evidence as $item) {
             if ($item->canonicalData === null || $item->canonicalData->recurringSchedule->isActiveReset()) {
                 continue;
             }
@@ -91,7 +93,10 @@ class AsOfAnnualCostCalculator
                 $candidateBases[$item->contractId] = $item->pricingBasis;
             }
         }
-        $anchors = $this->priceEpisodeResolver->resolve($target, $candidates, $candidateBases);
+        $prepared = $methodVersion === AnnualCostMethodVersion::AsOfV3
+            ? app(AsOfPremiumEvidenceAdapter::class)->resolve($evidence, $target)
+            : ['anchors' => $this->priceEpisodeResolver->resolve($target, $candidates, $candidateBases, $methodVersion), 'premiums' => []];
+        $anchors = $prepared['anchors'];
 
         $results = [];
         foreach ($evidence as $item) {
@@ -104,6 +109,7 @@ class AsOfAnnualCostCalculator
                     $anchors[$item->contractId] ?? null,
                     $spotResult,
                     $methodVersion,
+                    $prepared['premiums'][$item->contractId] ?? null,
                 );
                 $results[] = new AsOfAnnualCostResult(...[
                     ...get_object_vars($result),
@@ -129,10 +135,12 @@ class AsOfAnnualCostCalculator
         ?PriceEpisodeAnchor $anchor,
         AsOfSpotAssumptionsResult $spotResult,
         AnnualCostMethodVersion $methodVersion,
+        ?PremiumEstimate $premium = null,
     ): AsOfAnnualCostResult {
+        $policy = $methodVersion === AnnualCostMethodVersion::AsOfV3 ? ComparisonPolicy::Current : ComparisonPolicy::Historical;
         $canonical = $evidence->canonicalData !== null;
         $usesSpot = $canonical
-            ? $this->canonicalCalculator->usesSpotPricing($evidence->canonicalData, $this->context($evidence), policy: ComparisonPolicy::Historical)
+            ? $this->canonicalCalculator->usesSpotPricing($evidence->canonicalData, $this->context($evidence), policy: $policy)
             : PricingModel::fromSource($evidence->pricingModel) === PricingModel::Spot;
         $recurringHold = $methodVersion === AnnualCostMethodVersion::AsOf
             && $canonical
@@ -146,7 +154,7 @@ class AsOfAnnualCostCalculator
             ...$this->spotEvidenceFlags($spotResult),
         ];
 
-        if ($methodVersion === AnnualCostMethodVersion::AsOfV2 && ! $canonical) {
+        if ($methodVersion->usesReconstructionSafety() && ! $canonical) {
             $flags[] = 'observed_relational_uniform_monthly_consumption';
         }
 
@@ -165,16 +173,16 @@ class AsOfAnnualCostCalculator
         }
 
         $eligibilityReason = null;
-        if ($methodVersion === AnnualCostMethodVersion::AsOfV2 && $evidence->householdAudienceConflict) {
+        if ($methodVersion->usesReconstructionSafety() && $evidence->householdAudienceConflict) {
             $eligibilityReason = 'historical_company_only_household_conflict';
-        } elseif ($methodVersion === AnnualCostMethodVersion::AsOfV2 && $canonical && $evidence->consumptionEligibilityProven) {
+        } elseif ($methodVersion->usesReconstructionSafety() && $canonical && $evidence->consumptionEligibilityProven) {
             if (! $evidence->isWithinProvenConsumptionRange($consumption)) {
                 $eligibilityReason = 'historical_consumption_out_of_range';
             } elseif (! $evidence->isAvailableForConsumption($consumption)) {
                 $flags[] = 'legacy_null_mask_recovered_with_dated_consumption_eligibility';
             }
         } elseif (! $evidence->isAvailableForConsumption($consumption)) {
-            $eligibilityReason = $methodVersion === AnnualCostMethodVersion::AsOfV2 && $canonical
+            $eligibilityReason = $methodVersion->usesReconstructionSafety() && $canonical
                 ? 'historical_consumption_eligibility_unknown_null_mask'
                 : 'legacy_annual_cost_mask_unavailable';
         }
@@ -257,8 +265,17 @@ class AsOfAnnualCostCalculator
                 $evidence->date,
                 $anchor,
                 $usesSpot ? $spotEstimate : null,
-                policy: ComparisonPolicy::Historical,
+                policy: $policy,
+                premium: $premium,
+                resetPremium: $premium,
             );
+            if ($premium !== null) {
+                $evidence = new AsOfAnnualCostEvidence(...[
+                    ...get_object_vars($evidence),
+                    'sourceEvidenceIds' => [...$evidence->sourceEvidenceIds,
+                        'supplied_premium_observations' => array_map(fn ($observation) => get_object_vars($observation), $premium->observations)],
+                ]);
+            }
             $estimateBasis = $this->canonicalEstimateBasis($outcome->supplierAdjustedEstimate, $outcome->spotEstimate, $outcome->resetEstimate);
             $outcomeFlags = [
                 ...$flags,
@@ -326,7 +343,7 @@ class AsOfAnnualCostCalculator
             );
         }
 
-        if ($methodVersion === AnnualCostMethodVersion::AsOfV2 && ! $this->hasIdentifiableEnergy($evidence)) {
+        if ($methodVersion->usesReconstructionSafety() && ! $this->hasIdentifiableEnergy($evidence)) {
             return $this->result(
                 $evidence, $consumption, null, $calculationBasis, null, null, $anchor,
                 [...$flags, 'relational_energy_price_unidentified'],
@@ -370,7 +387,7 @@ class AsOfAnnualCostCalculator
     ): ContractPricingResult {
         $isSpot = PricingModel::fromSource($evidence->pricingModel) === PricingModel::Spot;
 
-        $calculator = $methodVersion === AnnualCostMethodVersion::AsOfV2
+        $calculator = $methodVersion->usesReconstructionSafety()
             ? $this->uniformRelationalCalculator
             : $this->relationalCalculator;
 
@@ -558,6 +575,7 @@ class AsOfAnnualCostCalculator
                 $estimateBasis,
             ),
             sourceEvidenceIds: $evidence->sourceEvidenceIds,
+            sourceInterpretationProvenance: $evidence->sourceInterpretationProvenance,
             priceEpisodeStartedAt: $anchor?->startedAt,
             provenanceFlags: array_values(array_unique($flags)),
             unavailableReason: $unavailableReason,

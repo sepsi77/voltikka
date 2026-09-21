@@ -1,0 +1,4 @@
+date,evidence,available,unavailable,v2,matched_v2,lost_v2,new_v2,changed_v2,initial_available,lost_initial,new_initial,changed_initial,canonical_interpretation_rejected_by_exact_target_validation,canonical_interpretation_rejected_by_exact_target_validation_unresolved,historical_temporal_source_validation_unavailable,historical_temporal_source_validation_unavailable_unresolved
+2026-07-22,1305,888,417,882,882,0,6,121,888,0,0,0,0,0,0,0
+2026-07-23,1317,874,443,893,871,22,3,340,861,9,22,53,47,11,22,10
+2026-07-24,1275,862,413,867,858,9,4,168,858,3,7,98,47,13,21,11

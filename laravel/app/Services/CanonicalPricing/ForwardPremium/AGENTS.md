@@ -1,11 +1,21 @@
 # Current forward premium selection
 
 > **History policy (2026-09-21):** when this estimator's current method changes, the stored annual
-> history must be recalculated with the same method in as-of mode. Statements in this file that the
-> Historical path is "unchanged", "strict", "retained", or "never invokes" a current component
-> describe the implementation state. They are known gaps, not rules to preserve. The rule that stays
-> is no look-ahead: a past date uses only peers, premiums, interpretations, and curve vintages known
-> on that date. See "History follows the current method" in `../../ContractStatistics/AGENTS.md`.
+> history must be recalculated with the same method in as-of mode. Historical-policy statements
+> below apply to v1/v2, not explicit annual v3. V3 uses this selector with exact-date evidence,
+> never current peers. Its latest exact-source reconstruction must pass full target-date validation;
+> later completion is explicit provenance, not later seller evidence. No later seller facts or
+> future curves are allowed. Local continuity checks pass within documented limits; no production
+> activation is approved. See `../../ContractStatistics/AGENTS.md`.
+
+Explicit annual AsOf v3 now calls this same pure selector through
+`ContractStatistics/AsOfPremiumEvidenceAdapter`, not `CurrentPremiumEvidenceLoader`. It uses only
+the exact-date v3 evidence universe, full normalized bucket spreads, dated historical anchors and
+strictly earlier reference trades. Exact contract IDs are conservative lineage identities; historical
+company names come from dated evidence. Dedicated historical and approved later exact-source
+interpretations are valid donors, with completion retained as private processing provenance.
+Older absent donors are not carried forward. V1/v2 still use Historical without premiums. V5 rules
+remain disabled and fail closed without full dated source validation. See the statistics context.
 
 The pure selector chooses an ephemeral retail premium for current non-fixed annual forecasts.
 `CurrentPremiumEvidenceLoader` now connects it to the strict ordinary supplier-adjusted current
@@ -168,8 +178,9 @@ uses the actual profile bucket/month weights, not an unrelated representative av
 
 `forward_premium` basis and `supplier_adjusted_forward_premium` method identify the changed current
 financial calculation. The existing supplier payload carries `current_policy`, typed premium
-source/counts/confidence/reference provenance, and a named fallback reason. Explicit Historical
-calculation ignores supplied premiums and never invokes this loader. Configured annual v2 remains
+source/counts/confidence/reference provenance, and a named fallback reason. V1/v2 Historical
+calculation ignores supplied premiums and never invokes this loader. Explicit annual v3 supplies
+dated premiums through the separate AsOf adapter, not this current-pointer loader. Configured annual v2 remains
 unchanged; retained history is not relabelled or rebuilt. Shared calculated-cost schema is now 19.
 
 ## Current reset adapter

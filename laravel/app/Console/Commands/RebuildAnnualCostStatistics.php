@@ -27,7 +27,7 @@ class RebuildAnnualCostStatistics extends Command
                             {--limit= : Deterministic contract-ID limit per date}
                             {--method=annual_cost_as_of_v2 : Candidate annual method}
                             {--baseline= : Stored baseline method; defaults to the active public method}
-                            {--apply : Replace only annual_cost_as_of_v2 rows; default is dry run}
+                            {--apply : Replace only the selected v2 or v3 method rows; default is dry run}
                             {--stop-on-error : Stop after the first failed date}';
 
     protected $description = 'Preview or rebuild versioned annual costs from date-bounded historical evidence';
@@ -45,10 +45,13 @@ class RebuildAnnualCostStatistics extends Command
 
             return self::FAILURE;
         }
-        if ($this->option('apply') && $method !== AnnualCostMethodVersion::AsOfV2) {
-            $this->error('Historical correction apply requires annual_cost_as_of_v2. Stored v1 must remain unchanged.');
+        if ($this->option('apply') && ! $method->usesReconstructionSafety()) {
+            $this->error('Historical correction apply requires annual_cost_as_of_v2 or annual_cost_as_of_v3. Stored v1 must remain unchanged.');
 
             return self::FAILURE;
+        }
+        if ($method === AnnualCostMethodVersion::AsOfV3) {
+            $this->warn('V3 is not ready for release: full-history target-evidence and continuity review, dated current-producer parity, verified backup, apply approval and active-method approval remain required.');
         }
         $selection = $this->dateSelection();
         if ($selection === null) {

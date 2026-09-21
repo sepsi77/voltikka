@@ -17,13 +17,17 @@ use App\Services\CanonicalPricing\Enums\CalculationStatus;
 use App\Services\CanonicalPricing\Enums\ComponentType;
 use App\Services\CanonicalPricing\Enums\ComponentUnit;
 use App\Services\CanonicalPricing\Enums\PhaseKind;
+use App\Services\CanonicalPricing\MarketReset\MarketReferenceCurveProvider;
+use App\Services\CanonicalPricing\SupplierAdjusted\DTO\SupplierAdjustedCandidate;
 use App\Services\ContractInterpretation\HistoricalContractEpisodeBuilder;
 use App\Services\ContractInterpretation\HistoricalInterpretationFingerprint;
 use App\Services\ContractStatistics\AnnualCostStatisticsWriter;
 use App\Services\ContractStatistics\AsOfAnnualCostCalculator;
 use App\Services\ContractStatistics\AsOfAnnualCostEvidenceResolver;
+use App\Services\ContractStatistics\AsOfPremiumEvidenceAdapter;
 use App\Services\ContractStatistics\Enums\AnnualCostCalculationBasis;
 use App\Services\ContractStatistics\Enums\AnnualCostMethodVersion;
+use App\Services\ContractStatistics\HistoricalPriceEpisodeResolver;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Database\Factories\Support\CanonicalPricingFixture;
@@ -69,6 +73,32 @@ class AsOfHistoricalInterpretationIntegrationTest extends TestCase
         $this->assertTrue(collect($result->provenanceFlags)->contains(
             fn (string $flag): bool => str_starts_with($flag, 'historical_interpretation_completed_at_'),
         ));
+    }
+
+    public function test_v3_dedicated_episodes_supply_dated_premiums_with_later_completion_in_private_audit(): void
+    {
+        $curve = \Mockery::mock(MarketReferenceCurveProvider::class);
+        $curve->shouldReceive('referencePrice')->andReturnUsing(fn ($date) => [
+            'kind' => 'month', 'price_cents_per_kwh' => 4.0, 'trade_date' => $date->subDay()->toDateString(),
+        ]);
+        $this->app->instance(MarketReferenceCurveProvider::class, $curve);
+        foreach (['2026-04-09', self::DATE, '2026-07-22'] as $date) {
+            $contract = $this->contract('dedicated-premium-'.$date);
+            $this->snapshot($contract, $date, 8);
+            $this->addComponent($contract, 8, $date);
+            [$episode, $analysis] = $this->historicalInterpretation($contract, 8, cutoff: $date);
+            $target = CarbonImmutable::parse($date, 'Europe/Helsinki');
+            $evidence = app(AsOfAnnualCostEvidenceResolver::class)->resolveDate($target, AnnualCostMethodVersion::AsOfV3);
+            $prepared = app(AsOfPremiumEvidenceAdapter::class)->resolve($evidence, $target);
+            $premium = $prepared['premiums'][$contract->id];
+            $this->assertNotNull($premium);
+            $this->assertEqualsWithDelta(4, $premium->premiumsByBucket['energy_general'], 0.00001);
+            $audit = json_decode($premium->observations[0]->provenance, true);
+            $this->assertSame($episode->id, $audit['source_evidence_ids']['historical_episode_id']);
+            $this->assertSame($analysis->id, $audit['source_evidence_ids']['historical_interpretation_id']);
+            $this->assertStringContainsString('2026-08-01', $premium->observations[0]->provenance);
+            $this->assertSame($date, $premium->evidenceThrough->toDateString());
+        }
     }
 
     public function test_current_profile_change_does_not_hide_dedicated_historical_output(): void
@@ -299,6 +329,21 @@ class AsOfHistoricalInterpretationIntegrationTest extends TestCase
             ->assertSuccessful();
         $this->assertSame(0, ContractPriceAnnualCost::count());
         $this->assertSame(AnnualCostMethodVersion::Legacy->value, config('contract_statistics.annual_cost.active_method_version'));
+    }
+
+    public function test_v3_anchor_uses_dedicated_evidence_and_does_not_reopen_invalid_manifest(): void
+    {
+        $contract = $this->evidence('dedicated-anchor', 8.0);
+        [$episode] = $this->historicalInterpretation($contract, 8.0);
+        $resolver = app(HistoricalPriceEpisodeResolver::class);
+        $candidates = [$contract->id => new SupplierAdjustedCandidate($contract->id, 8, 0)];
+        $anchor = $resolver->resolve(CarbonImmutable::parse(self::DATE, 'Europe/Helsinki'), $candidates, methodVersion: AnnualCostMethodVersion::AsOfV3)[$contract->id];
+        $this->assertSame(self::DATE, $anchor->startedAt?->toDateString());
+        $this->assertSame('canonical_snapshot_run', $anchor->evidenceBasis->value);
+        $this->assertContains('price_episode_uses_dedicated_historical_interpretation', $anchor->flags);
+        $episode->update(['manifest_fingerprint' => 'invalid']);
+        $rejected = $resolver->resolve(CarbonImmutable::parse(self::DATE, 'Europe/Helsinki'), $candidates, methodVersion: AnnualCostMethodVersion::AsOfV3)[$contract->id];
+        $this->assertNull($rejected->startedAt);
     }
 
     private function evidence(string $id, float $price): ElectricityContract

@@ -129,6 +129,27 @@ Redundant-phase and fully disclosed fee-only-promotion equivalence are now imple
   the earlier sentence "this policy does not authorize historical rewrites"). A production apply
   still needs separate approval.
 
+## Dated annual v3 integration (2026-09-21)
+
+Explicit annual AsOf v3 uses shared Current candidate and calculation semantics, with the exact
+historical date, historical anchors and date-local supplier/reset premiums. V1/v2 still use
+Historical. Neither current-pointer loader is used by historical computation. The pure
+`CurrentSourcePromotionEvidence::campaignRatesFromPayload` extraction is now shared with the dated
+evidence resolver; current source validation is unchanged. V3 passes only the exact selected source
+payload. V5/known-rule evidence fails closed until full dated validation exists; parsing remains
+disabled. This is not full V5 parity or release approval. See `../ContractStatistics/AGENTS.md` for
+exact-date donor, conservative lineage, dedicated evidence and audit limits. V3 selects the latest
+exact-source reconstruction that passes full stored-profile validation at the target date, not the
+latest timely or first later interpretation. Local validation covers 242 dates at all three
+consumptions; July's processing seam is repaired, with 11 documented real reference/membership
+transitions retained. Same-input fixtures and endpoint dominance are not full-store amount parity
+or proof of forecast improvement. Defaults/public v2 and production remain unchanged.
+
+Historical-policy statements below apply to v1/v2, not explicit annual v3. Dated release records
+remain records of those releases. V3 still lacks dated V5 validation, trusted replacement lineage
+and older absent donor carry-forward. Source-backed temporal and short-duration proof limits stay
+explicit; see the statistics context for losses, bounded preview resources and release approvals.
+
 ## Current local status
 
 **Default-V4 technically ready for user deployment approval (2026-09-16):** runtime repairs, independent review and the fresh
@@ -157,8 +178,9 @@ in `tasks/annualized-pricing-implementation/final-verification.md`. Detailed pro
   incomplete-promotion guard uses exact source proof, including explicit Spot-margin campaigns
   and dated expired-promotion evidence. Complete promotions remain eligible.
 - Current history and energy episodes share trusted lineage, full tariff buckets, fee-independent
-  identity, and explicit dated anchors. Historical deliberately retains narrower identity/reference
-  behavior; this is not a universal estimator or lineage parity claim. See `SupplierAdjusted/AGENTS.md`.
+  identity, and explicit dated anchors. V1/v2 Historical retain narrower identity/reference
+  behavior. V3 uses dated exact-contract anchors and Current semantics, not current lineage trust;
+  this is not a universal evidence or lineage parity claim. See `SupplierAdjusted/AGENTS.md`.
 - `RESET_FORWARD_SHIFT_ENABLED` controls only Reset, not Supplier. Current estimators require finite,
   safe prior-vintage evidence and report effective hold beta 0. Supplier seasonal anchors use the full
   selected usage profile. Only a floor applied to positive billed usage sets the controlled model-floor
@@ -182,12 +204,11 @@ in `tasks/annualized-pricing-implementation/final-verification.md`. Detailed pro
   with a usable current curve. Tail offsets are per bucket; the known current month and fees stay
   unchanged. The new method is `supplier_adjusted_forward_premium`, basis `forward_premium`.
   See `ForwardPremium/AGENTS.md` for loader proof and selection rules.
-- `ComparisonPolicy::Historical` keeps dedicated replay behavior and never reads current peers.
-  This is the implementation state, and it is a known gap: it caused method seams in the public
-  annual chart. The rule that must stay is "no look-ahead", not "no peers". Historical must get an
-  as-of form of each Current rule (peers, premiums, and curve vintages known on the target date)
-  and can differ only for date safety or missing evidence. See "History follows the current
-  method" in `../ContractStatistics/AGENTS.md`.
+- `ComparisonPolicy::Historical` keeps v1/v2 replay behavior without current peers. Explicit
+  annual v3 instead uses shared Current rules with dated anchors and exact-date supplier/reset
+  premiums. Neither path reads current peers for historical computation. Differences in v3 must
+  have date-safety or missing-evidence reasons. See "History follows the current method" in
+  `../ContractStatistics/AGENTS.md`.
   Exact-period bills never use annual projections. Current shared calculated-cost schema is **19**;
   it invalidates calculated-cost caches only, not history or the configured stored annual method.
 - Current ordinary unchanged-energy General/Time/Season tariffs now share one consumption-free

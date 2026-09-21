@@ -57,7 +57,11 @@ class ContractPriceStatisticsService
             return ['snapshots' => 0, 'statistics' => 0];
         }
 
-        return DB::transaction(function () use ($date, $dateString, $contractIds, $overwrite, $useCanonical, $transactionFence) {
+        $annualMethod = config('contract_statistics.annual_cost.active_method_version') === AnnualCostMethodVersion::AsOfV3->value
+            ? AnnualCostMethodVersion::AsOfV3
+            : AnnualCostMethodVersion::AsOfV2;
+
+        return DB::transaction(function () use ($date, $dateString, $contractIds, $overwrite, $useCanonical, $transactionFence, $annualMethod) {
             // Import callers fence ownership here, before any date rows are read or replaced.
             // The checkpoint row lock stays held until this existing transaction commits.
             if ($transactionFence !== null) {
@@ -152,8 +156,8 @@ class ContractPriceStatisticsService
                 // Reuse the exact canonical outcomes that built the public current snapshots.
                 // The adapter loads only current provenance after snapshot IDs exist. Keep the
                 // write in this transaction so a failure cannot leave a partial method set.
-                $asOfResults = $this->currentAnnualCostResultFactory->create($dateString, $currentCanonicalOutcomes);
-                $this->annualCostStatisticsWriter->write($dateString, $asOfResults, AnnualCostMethodVersion::AsOfV2);
+                $asOfResults = $this->currentAnnualCostResultFactory->create($dateString, $currentCanonicalOutcomes, $annualMethod);
+                $this->annualCostStatisticsWriter->write($dateString, $asOfResults, $annualMethod);
             } elseif ($dateString === Carbon::now('Europe/Helsinki')->toDateString()) {
                 // A current feature-off run owns today's index state and removes a stale
                 // canonical row. A historical observed rebuild does not own a separately

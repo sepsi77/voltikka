@@ -27,8 +27,15 @@ class CurrentCanonicalAnnualCostResultFactory
      * @param  array<string, array<int, CanonicalPricingOutcome>>  $outcomesByContract
      * @return list<AsOfAnnualCostResult>
      */
-    public function create(CarbonInterface|string $date, array $outcomesByContract): array
-    {
+    public function create(
+        CarbonInterface|string $date,
+        array $outcomesByContract,
+        AnnualCostMethodVersion $methodVersion = AnnualCostMethodVersion::AsOfV2,
+    ): array {
+        if (! in_array($methodVersion, [AnnualCostMethodVersion::AsOfV2, AnnualCostMethodVersion::AsOfV3], true)) {
+            throw new InvalidArgumentException('Current annual pricing supports only v2 and v3 producers.');
+        }
+
         $target = CarbonImmutable::parse(
             $date instanceof CarbonInterface ? $date->toDateString() : $date,
             'Europe/Helsinki',
@@ -89,7 +96,7 @@ class CurrentCanonicalAnnualCostResultFactory
                     throw new InvalidArgumentException('Current annual pricing outcomes must be CanonicalPricingOutcome values.');
                 }
 
-                $results[] = $this->result($target, $row, $consumption, $outcome);
+                $results[] = $this->result($target, $row, $consumption, $outcome, $methodVersion);
             }
         }
 
@@ -101,6 +108,7 @@ class CurrentCanonicalAnnualCostResultFactory
         ElectricityContract $row,
         int $consumption,
         ?CanonicalPricingOutcome $outcome,
+        AnnualCostMethodVersion $methodVersion,
     ): AsOfAnnualCostResult {
         $estimateMethod = $outcome?->estimateMethod->value;
         $estimateBasis = $outcome !== null ? $this->estimateBasis($outcome) : null;
@@ -119,13 +127,13 @@ class CurrentCanonicalAnnualCostResultFactory
                 ),
             consumptionKwh: $consumption,
             totalCost: $totalCost,
-            methodVersion: AnnualCostMethodVersion::AsOfV2,
+            methodVersion: $methodVersion,
             pricingBasis: ContractPriceBasis::CanonicalCalculation,
             calculationBasis: AnnualCostCalculationBasis::CanonicalOutcome,
             estimateMethod: $estimateMethod,
             estimateBasis: $estimateBasis,
             compatibilityKey: AnnualCostCompatibilityKey::make(
-                AnnualCostMethodVersion::AsOfV2,
+                $methodVersion,
                 AnnualCostCalculationBasis::CanonicalOutcome,
                 $estimateMethod,
                 $estimateBasis,

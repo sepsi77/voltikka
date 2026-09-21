@@ -8,15 +8,21 @@ use App\Models\ContractSourceObservation;
 use App\Models\ContractSourceSnapshot;
 use App\Models\ElectricityContract;
 use App\Models\SpotPriceAverage;
+use App\Services\CanonicalPricing\CanonicalContractPriceCalculator;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
+use App\Services\CanonicalPricing\DTO\ContractContext;
+use App\Services\CanonicalPricing\DTO\SpotAssumptions;
 use App\Services\CanonicalPricing\Enums\BoundaryKind;
 use App\Services\CanonicalPricing\Enums\CalculationStatus;
 use App\Services\CanonicalPricing\Enums\ComponentType;
 use App\Services\CanonicalPricing\Enums\ComponentUnit;
 use App\Services\CanonicalPricing\Enums\PhaseKind;
 use App\Services\CanonicalPricing\MarketReset\MarketReferenceCurveProvider;
+use App\Services\ContractInterpretation\ContractInterpretationValidator;
+use App\Services\ContractStatistics\AnnualCostStatisticsWriter;
 use App\Services\ContractStatistics\AsOfAnnualCostCalculator;
 use App\Services\ContractStatistics\AsOfAnnualCostEvidenceResolver;
+use App\Services\ContractStatistics\AsOfPremiumEvidenceAdapter;
 use App\Services\ContractStatistics\Enums\AnnualCostCalculationBasis;
 use App\Services\ContractStatistics\Enums\AnnualCostMethodVersion;
 use App\Services\DTO\EnergyUsage;
@@ -35,6 +41,9 @@ class AsOfAnnualCostCalculatorTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // Partial parser fixtures test calculation. The exact-source test uses real validation.
+        $this->mock(ContractInterpretationValidator::class)
+            ->shouldReceive('validate')->andReturn([]);
         Company::create(['name' => 'As Of Energy Oy', 'name_slug' => 'as-of-energy-oy']);
     }
 
@@ -111,6 +120,62 @@ class AsOfAnnualCostCalculatorTest extends TestCase
             $this->assertEqualsWithDelta(200, $result->totalCost, 0.001);
             $this->assertSame('hold_last_known_price', $result->estimateMethod);
         }
+    }
+
+    public function test_v3_source_campaign_proof_and_v5_guard_use_only_exact_historical_source(): void
+    {
+        $contract = $this->contract('v3-campaign');
+        $this->snapshot($contract);
+        $analysis = $this->strictInterpretation($contract, $this->fixedAttributes(4), '2026-05-31 12:00:00', '2026-06-01 12:00:00');
+        ContractSourceSnapshot::findOrFail($analysis->source_snapshot_id)->update(['source_payload' => ['Name' => 'Kampanjahinta 4 snt/kWh']]);
+        $v3 = app(AsOfAnnualCostCalculator::class)->calculate(self::DATE, AnnualCostMethodVersion::AsOfV3);
+        $this->assertNull($v3[0]->totalCost);
+        $this->assertContains('insufficient_promotion_terms', $v3[0]->provenanceFlags);
+        $this->assertNotNull(app(AsOfAnnualCostCalculator::class)->calculate(self::DATE, AnnualCostMethodVersion::AsOfV2)[0]->totalCost);
+        $analysis->update(['schema_version' => 'schema-v5']);
+        $v3 = app(AsOfAnnualCostCalculator::class)->calculate(self::DATE, AnnualCostMethodVersion::AsOfV3);
+        $this->assertSame('historical_energy_rule_source_validation_unavailable', $v3[0]->unavailableReason);
+        $output = $analysis->output;
+        $output['pricing']['phases'][0]['components'][0]['component_type'] = 'invalid';
+        $analysis->update(['output' => $output]);
+        $v3 = app(AsOfAnnualCostCalculator::class)->calculate(self::DATE, AnnualCostMethodVersion::AsOfV3);
+        $this->assertSame('historical_energy_rule_source_validation_unavailable', $v3[0]->unavailableReason);
+    }
+
+    public function test_v3_supplier_premium_uses_retrospective_dated_donor_not_current_company_or_pointer(): void
+    {
+        Company::create(['name' => 'Poison Current Company', 'name_slug' => 'poison-current-company']);
+        foreach (['target', 'donor'] as $id) {
+            $contract = $this->contract('premium-'.$id);
+            $this->snapshot($contract, energy: 8);
+            $analysis = $this->strictInterpretation($contract, $this->fixedAttributes(8), '2026-06-01 08:00:00', '2026-06-01 18:00:00');
+            $analysis->update(['completed_at' => '2026-08-01 12:00:00']);
+            if ($id === 'target') {
+                $this->snapshot($contract, date: '2026-05-01', energy: 8);
+            }
+            $contract->update(['company_name' => 'Poison Current Company', 'published_interpretation_id' => null, 'current_source_observation_id' => null, 'canonical_pricing' => null]);
+        }
+        $this->app->instance(MarketReferenceCurveProvider::class, new class(true) extends FakeAsOfCurve
+        {
+            public function referencePrice(CarbonImmutable $asOfDate, CarbonImmutable $anchorMonth, array $kindPreference): ?array
+            {
+                return $anchorMonth->month === 5 ? null : parent::referencePrice($asOfDate, $anchorMonth, $kindPreference);
+            }
+        });
+        $queries = [];
+        DB::listen(function ($query) use (&$queries): void {
+            $queries[] = $query->sql;
+        });
+        $results = app(AsOfAnnualCostCalculator::class)->calculate(self::DATE, AnnualCostMethodVersion::AsOfV3);
+        $target = collect($results)->first(fn ($row) => $row->contractId === 'premium-target');
+        $this->assertSame('supplier_adjusted_forward_premium', $target->estimateMethod);
+        $this->assertSameEvidenceCurrentParity();
+        $audit = $target->sourceEvidenceIds['supplied_premium_observations'];
+        $this->assertSame('premium-donor', $audit[0]['lineageId']);
+        $this->assertNotSame('Poison Current Company', $audit[0]['companyName']);
+        $this->assertStringContainsString('2026-08-01', $audit[0]['provenance']);
+        $this->assertStringContainsString('retrospective', $audit[0]['provenance']);
+        $this->assertFalse(collect($queries)->contains(fn ($sql) => str_contains($sql, 'electricity_contracts') || str_contains($sql, 'retail_premium')));
     }
 
     public function test_later_source_observation_and_interpretation_are_ignored(): void
@@ -290,6 +355,33 @@ class AsOfAnnualCostCalculatorTest extends TestCase
         $this->assertSame(self::DATE, $result->priceEpisodeStartedAt?->toDateString());
     }
 
+    public function test_v3_calculator_selects_left_censored_anchor_without_changing_v2(): void
+    {
+        $contract = $this->contract('v3-anchor');
+        $this->snapshot($contract, energy: 8.45, fee: 4.9);
+        $this->strictInterpretation($contract, CanonicalPricingFixture::fixedAttributes(), '2026-06-01 08:00:00', '2026-06-01 18:00:00');
+        $this->app->instance(MarketReferenceCurveProvider::class, new FakeAsOfCurve(true));
+        $calculator = app(AsOfAnnualCostCalculator::class);
+        $v2 = $calculator->calculate(self::DATE, AnnualCostMethodVersion::AsOfV2);
+        $v3 = $calculator->calculate(self::DATE, AnnualCostMethodVersion::AsOfV3);
+        $this->assertNull($v2[0]->priceEpisodeStartedAt);
+        $this->assertSame(self::DATE, $v3[0]->priceEpisodeStartedAt?->toDateString());
+        $this->assertSame('supplier_adjusted_forward_curve_shift', $v3[0]->estimateMethod);
+
+        app(AnnualCostStatisticsWriter::class)->write(self::DATE, $v3, AnnualCostMethodVersion::AsOfV3);
+        $stored = DB::table('contract_price_annual_costs')->where('contract_id', $contract->id)
+            ->where('method_version', AnnualCostMethodVersion::AsOfV3->value)->get();
+        $this->assertCount(3, $stored);
+        foreach ($stored as $row) {
+            $this->assertSame(self::DATE.' 00:00:00', $row->price_episode_started_at);
+            $this->assertSame('supplier_adjusted_forward_curve_shift', $row->estimate_method);
+            $flags = json_decode($row->provenance, true)['flags'];
+            $this->assertContains('price_episode_left_censored', $flags);
+            $this->assertContains('price_episode_observed_proxy', $flags);
+            $this->assertContains('historical_exact_contract_only', $flags);
+        }
+    }
+
     public function test_supplier_seasonal_fallback_is_replaced_by_exact_date_hold_flat(): void
     {
         $contract = $this->contract('supplier-seasonal');
@@ -439,6 +531,7 @@ class AsOfAnnualCostCalculatorTest extends TestCase
         $this->assertSame('historical_consumption_out_of_range', $v2['bounded|18000']->unavailableReason);
         $this->assertSame('historical_consumption_eligibility_unknown_null_mask', $v2['unknown|5000']->unavailableReason);
         $this->assertSame('historical_company_only_household_conflict', $v2['company|5000']->unavailableReason);
+        $this->assertV3SafetyParity();
     }
 
     public function test_v2_relational_season_profile_is_flat_and_fee_only_is_not_free_energy(): void
@@ -465,6 +558,7 @@ class AsOfAnnualCostCalculatorTest extends TestCase
         $this->assertSame(0.0, $v2['explicit-zero|5000']->totalCost);
         $this->assertSame(60.0, $this->annualResult('fee-only', 5000)->totalCost);
         $this->assertContains('observed_relational_uniform_monthly_consumption', $v2['flat-season|5000']->provenanceFlags);
+        $this->assertV3SafetyParity();
     }
 
     public function test_v2_reset_uses_shared_forward_estimator_for_monthly_and_quarterly(): void
@@ -496,6 +590,51 @@ class AsOfAnnualCostCalculatorTest extends TestCase
             $this->assertGreaterThan($result->consumptionKwh * 7.25 / 100, $result->totalCost);
         }
         $this->assertGreaterThan(0, $curve->forwardCalls);
+    }
+
+    public function test_v3_reset_missing_reference_uses_dated_premium_and_rejects_same_day_forward_curve(): void
+    {
+        config()->set('canonical_pricing.reset_forward_shift.enabled', true);
+        foreach (['target' => '2026-04-01', 'donor' => '2026-05-01'] as $id => $start) {
+            $contract = $this->contract('reset-premium-'.$id);
+            $this->snapshot($contract);
+            $attributes = CanonicalPricingFixture::attributes(
+                phases: [CanonicalPricingFixture::phase('Known', PhaseKind::RecurringPeriod,
+                    CanonicalPricingFixture::boundary(BoundaryKind::PeriodBoundary),
+                    CanonicalPricingFixture::boundary(BoundaryKind::PeriodBoundary),
+                    [CanonicalPricingFixture::component(ComponentType::EnergyGeneral, 8, ComponentUnit::CentsPerKwh)])],
+                calculationStatus: CalculationStatus::EstimateRequired,
+                recurringSchedule: CanonicalPricingFixture::recurringSchedule('quarterly', $start, '2026-06-30', false),
+                issueCodes: ['recurring_reset_requires_estimate'],
+            );
+            $attributes['canonical_pricing']['recurring_schedule']['evidence'] = [
+                ['source' => 'extra_information_fi', 'quote' => $start.' – 2026-06-30'],
+            ];
+            $this->strictInterpretation($contract, $attributes, '2026-06-01 08:00:00', '2026-06-01 18:00:00');
+        }
+        $curve = new class(true) extends FakeAsOfCurve
+        {
+            public bool $sameDay = false;
+
+            public function referencePrice(CarbonImmutable $asOfDate, CarbonImmutable $anchorMonth, array $kindPreference): ?array
+            {
+                return $asOfDate->month === 4 ? null : parent::referencePrice($asOfDate, $anchorMonth, $kindPreference);
+            }
+
+            public function tradeDate(CarbonImmutable $asOfDate): ?CarbonImmutable
+            {
+                return $this->sameDay ? $asOfDate : parent::tradeDate($asOfDate);
+            }
+        };
+        $this->app->instance(MarketReferenceCurveProvider::class, $curve);
+        $calculator = app(AsOfAnnualCostCalculator::class);
+        $result = collect($calculator->calculate(self::DATE, AnnualCostMethodVersion::AsOfV3))->first(fn ($row) => $row->contractId === 'reset-premium-target');
+        $this->assertSame('recurring_forward_premium', $result->estimateMethod);
+        $this->assertSameEvidenceCurrentParity();
+        $this->assertSame('reset-premium-donor', $result->sourceEvidenceIds['supplied_premium_observations'][0]['lineageId']);
+        $curve->sameDay = true;
+        $result = collect($calculator->calculate(self::DATE, AnnualCostMethodVersion::AsOfV3))->first(fn ($row) => $row->contractId === 'reset-premium-target');
+        $this->assertSame('hold_current_recurring_price', $result->estimateMethod);
     }
 
     public function test_v2_reset_seasonal_fallback_uses_the_known_quarter_not_its_last_month(): void
@@ -687,6 +826,145 @@ class AsOfAnnualCostCalculatorTest extends TestCase
         }
     }
 
+    public function test_v3_reconstructs_latest_valid_exact_source_with_explicit_provenance_and_preserves_versions(): void
+    {
+        $contract = $this->contract('delayed');
+        $this->snapshot($contract);
+        $this->snapshot($contract, '2026-06-02');
+        $this->priceComponent($contract, 'General', 8.0);
+        $first = $this->strictInterpretation($contract, $this->fixedAttributes(9), '2026-06-01 12:00:00', '2026-06-02 12:00:00');
+        $first->update(['completed_at' => '2026-06-02 01:00:00', 'analysis_source_observation_id' => null]);
+        $later = $first->replicate();
+        $later->fill(['analysis_fingerprint' => hash('sha256', 'later'), 'completed_at' => '2026-06-02 02:00:00'])->save();
+        $resolver = app(AsOfAnnualCostEvidenceResolver::class);
+        $v2 = $resolver->resolveForDates([self::DATE, '2026-06-02'], AnnualCostMethodVersion::AsOfV2);
+        $v3 = $resolver->resolveForDates([self::DATE, '2026-06-02'], AnnualCostMethodVersion::AsOfV3);
+        $this->assertNull($v2[self::DATE]['delayed']->canonicalData);
+        $this->assertNull($resolver->resolveDate(self::DATE)['delayed']->canonicalData);
+        $this->assertSame($later->id, $v3[self::DATE]['delayed']->sourceEvidenceIds['interpretation_id']);
+        $this->assertSame($later->id, $v3['2026-06-02']['delayed']->sourceEvidenceIds['interpretation_id']);
+        $this->assertFalse($v3['2026-06-02']['delayed']->sourceInterpretationProvenance->retrospective);
+        $provenance = $v3[self::DATE]['delayed']->sourceInterpretationProvenance->toArray();
+        $this->assertSame(self::DATE, $provenance['target_date']);
+        $this->assertSame('2026-06-02T02:00:00+00:00', $provenance['completed_at']);
+        $this->assertSame($first->source_snapshot_id, $provenance['source_snapshot_id']);
+        $this->assertCount(1, $provenance['observation_ids']);
+        $this->assertTrue($provenance['retrospective']);
+        $this->assertTrue($provenance['legacy_null_observation_binding']);
+        $this->assertContains('exact_source_legacy_null_observation_binding', $v3[self::DATE]['delayed']->provenanceFlags);
+
+        $calculator = app(AsOfAnnualCostCalculator::class);
+        $writer = app(AnnualCostStatisticsWriter::class);
+        foreach ([AnnualCostMethodVersion::AsOf, AnnualCostMethodVersion::AsOfV2] as $version) {
+            $writer->write(self::DATE, $calculator->calculate(self::DATE, $version), $version);
+        }
+        $before = [];
+        foreach (['contract_price_annual_costs', 'contract_price_daily_statistics'] as $table) {
+            $before[$table] = DB::table($table)->orderBy('id')->get()->toJson();
+        }
+        $results = $calculator->calculate(self::DATE, AnnualCostMethodVersion::AsOfV3);
+        $this->assertSame($provenance, $results[0]->sourceInterpretationProvenance->toArray());
+        $writer->write(self::DATE, $results, AnnualCostMethodVersion::AsOfV3);
+        foreach ($before as $table => $rows) {
+            $this->assertSame($rows, DB::table($table)->where('method_version', '!=', AnnualCostMethodVersion::AsOfV3->value)->orderBy('id')->get()->toJson());
+        }
+        $stored = DB::table('contract_price_annual_costs')->where('method_version', AnnualCostMethodVersion::AsOfV3->value)->first();
+        $this->assertSame($provenance, json_decode($stored->provenance, true)['source_interpretation']);
+        $this->assertEquals($v2, $resolver->resolveForDates([self::DATE, '2026-06-02'], AnnualCostMethodVersion::AsOfV2));
+    }
+
+    public function test_v3_rejects_missing_invalid_wrong_episode_and_tied_exact_source_outputs(): void
+    {
+        foreach (['missing', 'failed', 'errors', 'parser', 'wrong-episode', 'tie'] as $case) {
+            $contract = $this->contract($case);
+            $this->snapshot($contract);
+            $row = $this->strictInterpretation($contract, $this->fixedAttributes(9), '2026-06-01 12:00:00', '2026-06-01 13:00:00');
+            $row->update(['completed_at' => '2026-06-02 01:00:00']);
+            if ($case === 'missing') {
+                $row->delete();
+            } elseif ($case === 'failed') {
+                $row->update(['status' => 'failed']);
+            } elseif ($case === 'errors') {
+                $row->update(['validation_errors' => ['invalid']]);
+            } elseif ($case === 'parser') {
+                $row->update(['output' => []]);
+            } elseif ($case === 'wrong-episode') {
+                $other = ContractSourceObservation::create([
+                    'contract_id' => $contract->id, 'source_snapshot_id' => $row->source_snapshot_id,
+                    'first_observed_at' => '2026-06-03 12:00:00', 'last_observed_at' => '2026-06-03 13:00:00',
+                ]);
+                $row->update(['analysis_source_observation_id' => $other->id]);
+            } else {
+                $copy = $row->replicate();
+                $copy->fill(['analysis_fingerprint' => hash('sha256', 'tie')])->save();
+            }
+            // A valid later different source must never repair this historical source.
+            $this->strictInterpretation($contract, $this->fixedAttributes(2), '2026-06-03 12:00:00', '2026-06-04 12:00:00');
+        }
+        $resolver = app(AsOfAnnualCostEvidenceResolver::class);
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $batch = $resolver->resolveForDates([self::DATE, '2026-06-03'], AnnualCostMethodVersion::AsOfV3);
+        $queryCount = count(DB::getQueryLog());
+        DB::disableQueryLog();
+        $this->assertLessThanOrEqual(7, $queryCount);
+        foreach ($batch[self::DATE] as $case => $evidence) {
+            $this->assertNull($evidence->canonicalData, $case);
+            $this->assertNull($evidence->sourceInterpretationProvenance, $case);
+        }
+        $this->assertContains('canonical_omitted_ambiguous_interpretation_chronology', $batch[self::DATE]['tie']->provenanceFlags);
+    }
+
+    public function test_v3_prefers_latest_output_and_skips_invalid_late_output(): void
+    {
+        $contract = $this->contract('preference');
+        $this->snapshot($contract);
+        $timely = $this->strictInterpretation($contract, $this->fixedAttributes(9), '2026-06-01 12:00:00', '2026-06-01 13:00:00');
+        $late = $timely->replicate();
+        $late->fill(['analysis_fingerprint' => hash('sha256', 'valid-late'), 'completed_at' => '2026-06-02 03:00:00'])->save();
+        $resolver = app(AsOfAnnualCostEvidenceResolver::class);
+        $this->assertSame($late->id, $resolver->resolveDate(self::DATE, AnnualCostMethodVersion::AsOfV3)['preference']->sourceEvidenceIds['interpretation_id']);
+        $timely->update(['completed_at' => '2026-06-02 01:00:00', 'status' => 'failed']);
+        $evidence = $resolver->resolveDate(self::DATE, AnnualCostMethodVersion::AsOfV3)['preference'];
+        $this->assertSame($late->id, $evidence->sourceEvidenceIds['interpretation_id']);
+        $this->assertTrue($evidence->sourceInterpretationProvenance->retrospective);
+        $this->assertNotNull($evidence->sourceInterpretationProvenance->analysisObservationId);
+    }
+
+    public function test_v3_rejects_source_ambiguity_ownership_and_latest_ties(): void
+    {
+        $contract = $this->contract('guarded');
+        $this->snapshot($contract);
+        $first = $this->strictInterpretation($contract, $this->fixedAttributes(9), '2026-06-01 12:00:00', '2026-06-01 13:00:00');
+        $tie = $first->replicate();
+        $tie->fill(['analysis_fingerprint' => hash('sha256', 'timely-tie')])->save();
+        $late = $first->replicate();
+        $late->fill(['analysis_fingerprint' => hash('sha256', 'after-tie'), 'completed_at' => '2026-06-02 01:00:00'])->save();
+        $tie->update(['completed_at' => $late->completed_at]);
+        $resolver = app(AsOfAnnualCostEvidenceResolver::class);
+        $this->assertContains('canonical_omitted_ambiguous_interpretation_chronology', $resolver->resolveDate(self::DATE, AnnualCostMethodVersion::AsOfV3)['guarded']->provenanceFlags);
+        $tie->delete();
+        $other = $this->contract('other-owner');
+        ContractSourceSnapshot::findOrFail($first->source_snapshot_id)->update(['contract_id' => $other->id]);
+        $this->assertContains('canonical_omitted_source_ownership_mismatch', $resolver->resolveDate(self::DATE, AnnualCostMethodVersion::AsOfV3)['guarded']->provenanceFlags);
+        ContractSourceSnapshot::findOrFail($first->source_snapshot_id)->update(['contract_id' => $contract->id]);
+        $this->strictInterpretation($contract, $this->fixedAttributes(2), '2026-06-01 14:00:00', '2026-06-02 12:00:00');
+        $this->assertContains('canonical_omitted_ambiguous_covering_source_snapshots', $resolver->resolveDate(self::DATE, AnnualCostMethodVersion::AsOfV3)['guarded']->provenanceFlags);
+    }
+
+    private function assertV3SafetyParity(): void
+    {
+        $calculator = app(AsOfAnnualCostCalculator::class);
+        $v2 = $calculator->calculate(self::DATE, AnnualCostMethodVersion::AsOfV2);
+        $v3 = $calculator->calculate(self::DATE, AnnualCostMethodVersion::AsOfV3);
+        foreach ($v2 as $index => $result) {
+            $this->assertSame($result->totalCost, $v3[$index]->totalCost);
+            $this->assertSame($result->unavailableReason, $v3[$index]->unavailableReason);
+            $this->assertSame($result->calculationBasis, $v3[$index]->calculationBasis);
+            $this->assertSame($result->estimateBasis, $v3[$index]->estimateBasis);
+        }
+    }
+
     private function annualResult(string $contractId, int $consumption)
     {
         return collect(app(AsOfAnnualCostCalculator::class)->calculate(self::DATE))
@@ -707,6 +985,60 @@ class AsOfAnnualCostCalculatorTest extends TestCase
             'pricing_model' => $pricingModel,
             'pricing_name' => $pricingModel,
         ]);
+    }
+
+    public function test_v3_same_evidence_hybrid_and_short_six_month_current_parity(): void
+    {
+        foreach (['hybrid', 'short6'] as $kind) {
+            $contract = $this->contract('same-evidence-'.$kind);
+            if ($kind === 'short6') {
+                $contract->update(['contract_type' => 'FixedTerm', 'fixed_time_range' => 'Fixed6']);
+                $attributes = CanonicalPricingFixture::fixedAttributes();
+                $attributes['canonical_pricing']['phases'][0]['ends'] = ['kind' => 'after_months', 'value' => '6'];
+            } else {
+                $contract->update(['pricing_model' => 'Hybrid']);
+                $attributes = CanonicalPricingFixture::hybridAttributes();
+            }
+            $this->snapshot($contract, pricingModel: $contract->pricing_model);
+            DB::table('contract_price_snapshots')->where('contract_id', $contract->id)->update([
+                'contract_type' => $contract->contract_type, 'fixed_time_range' => $contract->fixed_time_range,
+            ]);
+            $analysis = $this->strictInterpretation($contract, $attributes, '2026-06-01 08:00:00', '2026-06-01 18:00:00');
+            ContractSourceSnapshot::findOrFail($analysis->source_snapshot_id)->update(['source_payload' => [
+                'id' => $contract->id, 'Details' => ['ContractType' => $contract->contract_type, 'FixedTimeRange' => $contract->fixed_time_range],
+            ]]);
+        }
+        $this->assertSameEvidenceCurrentParity();
+    }
+
+    private function assertSameEvidenceCurrentParity(): void
+    {
+        // Bounded calculator parity: exact selected source, full tariffs, date, anchors and
+        // donors are shared. This does not claim parity between unequal live/history stores.
+        $date = CarbonImmutable::parse(self::DATE, 'Europe/Helsinki');
+        $evidence = app(AsOfAnnualCostEvidenceResolver::class)->resolveDate($date, AnnualCostMethodVersion::AsOfV3);
+        $prepared = app(AsOfPremiumEvidenceAdapter::class)->resolve($evidence, $date);
+        $historical = collect(app(AsOfAnnualCostCalculator::class)->calculate($date, AnnualCostMethodVersion::AsOfV3))
+            ->keyBy(fn ($result) => $result->contractId.'|'.$result->consumptionKwh);
+        foreach ($evidence as $item) {
+            $this->assertNotNull($item->canonicalData, $item->contractId);
+            $context = new ContractContext(
+                $item->pricingModel, $item->contractType, $item->metering, $item->fixedTimeRange, 'Household',
+            );
+            foreach ([2000, 5000, 18000] as $consumption) {
+                $current = app(CanonicalContractPriceCalculator::class)->calculate(
+                    $item->canonicalData, $context, new EnergyUsage(total: $consumption, basicLiving: $consumption),
+                    new SpotAssumptions(null, null), $date,
+                    $prepared['anchors'][$item->contractId] ?? null,
+                    premium: $prepared['premiums'][$item->contractId] ?? null,
+                    resetPremium: $prepared['premiums'][$item->contractId] ?? null,
+                );
+                $result = $historical[$item->contractId.'|'.$consumption];
+                $this->assertNotNull($current->totalCost, $item->contractId);
+                $this->assertSame($current->estimateMethod->value, $result->estimateMethod, $item->contractId);
+                $this->assertEqualsWithDelta($current->totalCost, $result->totalCost, 0.00001, $item->contractId.' at '.$consumption);
+            }
+        }
     }
 
     /** @param array<int, float|null> $masks */
@@ -787,9 +1119,9 @@ class AsOfAnnualCostCalculatorTest extends TestCase
             'analysis_source_observation_id' => $observation->id,
             'analysis_fingerprint' => hash('sha256', 'interpretation-'.$snapshot->id),
             'status' => 'published',
-            'schema_version' => 'test',
-            'prompt_version' => 'test',
-            'validator_version' => 'test',
+            'schema_version' => 'schema-v4',
+            'prompt_version' => 'prompt-v19',
+            'validator_version' => 'validator-v17',
             'provider' => 'test',
             'model' => 'test',
             'output' => [

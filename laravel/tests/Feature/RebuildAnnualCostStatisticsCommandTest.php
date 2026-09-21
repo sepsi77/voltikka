@@ -65,6 +65,22 @@ class RebuildAnnualCostStatisticsCommandTest extends TestCase
         $this->assertSame($first, $second);
     }
 
+    public function test_explicit_v3_preview_and_apply_keep_default_method_and_stored_v2(): void
+    {
+        $this->evidence('v3-command', 8.0);
+        $active = ContractPriceDailyStatistic::activeAnnualMethodVersion();
+        $this->artisan('contracts:rebuild-annual-cost-statistics', ['--date' => self::DATE, '--apply' => true])->assertSuccessful();
+        $stored = DB::table('contract_price_annual_costs')->orderBy('id')->get()->toJson();
+        $options = ['--date' => self::DATE, '--method' => AnnualCostMethodVersion::AsOfV3->value, '--baseline' => AnnualCostMethodVersion::AsOfV2->value];
+        $this->artisan('contracts:rebuild-annual-cost-statistics', $options)
+            ->expectsOutputToContain('V3 is not ready for release: full-history target-evidence and continuity review, dated current-producer parity')->assertSuccessful();
+        $this->assertSame($stored, DB::table('contract_price_annual_costs')->orderBy('id')->get()->toJson());
+        $this->artisan('contracts:rebuild-annual-cost-statistics', [...$options, '--apply' => true])->assertSuccessful();
+        $this->assertSame($stored, DB::table('contract_price_annual_costs')->where('method_version', AnnualCostMethodVersion::AsOfV2->value)->orderBy('id')->get()->toJson());
+        $this->assertSame(3, ContractPriceAnnualCost::query()->where('method_version', AnnualCostMethodVersion::AsOfV3->value)->count());
+        $this->assertSame($active, ContractPriceDailyStatistic::activeAnnualMethodVersion());
+    }
+
     public function test_component_only_date_is_selected_from_the_union_and_previewed_as_three_exclusions(): void
     {
         $contract = ElectricityContract::factory()->forCompany('Rebuild Energy Oy')->legacy()->create([

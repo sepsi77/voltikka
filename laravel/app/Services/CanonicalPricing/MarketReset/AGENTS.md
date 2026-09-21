@@ -1,13 +1,23 @@
 # Market-reset annualised price (forward-curve shift)
 
 > **History policy (2026-09-21):** when this estimator's current method changes, the stored annual
-> history must be recalculated with the same method in as-of mode. Statements in this file that the
-> Historical path is "unchanged", "strict", "retained", or "never invokes" a current component
-> describe the implementation state. They are known gaps, not rules to preserve. The rule that stays
-> is no look-ahead: a past date uses only peers, premiums, interpretations, and curve vintages known
-> on that date. See "History follows the current method" in `../../ContractStatistics/AGENTS.md`.
+> history must be recalculated with the same method in as-of mode. Historical-policy statements
+> below apply to v1/v2, not explicit annual v3. V3 uses shared Current semantics on dated sources
+> and exact-date premiums, never current pointers. It selects the latest exact-source reconstruction
+> that passes full target-date validation; completion is provenance, not seller evidence. No later
+> seller facts or future curves are allowed. Local continuity checks pass within documented limits;
+> no production activation is approved. See `../../ContractStatistics/AGENTS.md`.
 
 > **Approved target, implemented locally; release blocked:** read the [annualized comparison policy (2026-09-15)](../AGENTS.md#approved-annualized-comparison-policy-2026-09-15) first. It governs intended future changes where older routing, own-reference fallback, or calibration constraints below conflict. The implementation and dated rollout notes below do not establish deployment of the new policy. Known-period, VAT, dated-evidence, billing, and cache safeguards remain; no production mutation is authorized by this documentation.
+
+Explicit annual AsOf v3 now uses the shared Current estimator policy with an explicit historical
+date and supplied reset premiums from exact-date v3 evidence. Its adapter uses dated historical
+company identities, full bucket rates and a month/quarter reference strictly before min(period
+start, target). It never calls the current premium loader or reads current publication pointers.
+Dedicated historical output and approved later exact-source interpretations are eligible; their
+completion is processing provenance only. The reset flag and known-period/short-term rules remain.
+V1/v2 keep Historical; older absent donors, dated replacement lineage and V5 rules remain unsupported.
+See `../../ContractStatistics/AGENTS.md` for these evidence limits and private audit provenance.
 
 This directory annualises **market-reset** contracts — `canonical_pricing.recurring_schedule.present
 = true` with cadence `monthly`, `quarterly`, `seasonal`, or `other`. Those products publish one price
@@ -30,7 +40,7 @@ Current pricing keeps the original own reference first. It never substitutes tod
 an unavailable old-period reference. A complete, fresh current curve for the target's actual tail
 can instead use the shared `ForwardPremium/CurrentPremiumEvidenceLoader`: own trusted lineage,
 same company, then company-balanced comparable market evidence. Missing premium evidence still
-falls through to seasonal and hold pricing. The old fallback-to-today behavior is Historical only.
+falls through to seasonal and hold pricing. The old fallback-to-today behavior is v1/v2 Historical only; explicit annual v3 uses Current with dated premiums.
 `ResetEstimateRequest::policy` defaults to Historical for old direct callers; every current core
 call passes Current explicitly. Existing original-reference arithmetic and beta remain unchanged.
 
@@ -149,7 +159,8 @@ The reference vintage is expected to be old — up to a full quarter for a quart
 `max_curve_age_days` staleness guard applies to the **forward** vintage only. Do not extend it to the
 reference.
 
-**Fallback.** A period that began before the FI curve history starts (2026-04-08) has no pricing
+**Retained v1/v2 Historical fallback (original release).** Current and explicit annual v3 instead
+use premium → seasonal → hold when the own reference is missing. A period that began before the FI curve history starts (2026-04-08) has no pricing
 vintage and never will, because EEX serves an approximately 45-day rolling window. Those fall back to
 today's vintage and are flagged `reference_vintage_fallback_today`, rather than dropping to the much
 weaker spot index. Verified 2026-07-25: **0 of 32** lineages needed it.

@@ -1,0 +1,13 @@
+date,contract,source_id,interpretation_id,historical_interpretation_id,method,anchor,cost
+2026-07-22,68g91h-keuruun-sahko-oy-yosahko,,,3616,supplier_adjusted_forward_premium,2026-01-20T22:00:00.000000Z,276.4857134408602
+2026-07-22,bgbqwj-imatran-seudun-sahko-oy-huoleton,,,3965,recurring_forward_curve_shift,,381.648167204301
+2026-07-22,fwgtme-fortum-markets-oy-fortum-kesto-yleissahko,,,4467,recurring_forward_curve_shift,,348.78139301075265
+2026-07-22,ymqe7v-helen-oy-perussahko,,,6414,supplier_adjusted_forward_premium,2026-01-20T22:00:00.000000Z,305.48095013440854
+2026-07-23,68g91h-keuruun-sahko-oy-yosahko,16,122,,none,,286.89
+2026-07-23,bgbqwj-imatran-seudun-sahko-oy-huoleton,234,246,,recurring_forward_curve_shift,,386.4469565860215
+2026-07-23,fwgtme-fortum-markets-oy-fortum-kesto-yleissahko,380,302,,supplier_adjusted_forward_curve_shift,2026-07-22T21:00:00.000000Z,381.3429752688172
+2026-07-23,ymqe7v-helen-oy-perussahko,377,61,,none,,342.87999999999994
+2026-07-24,68g91h-keuruun-sahko-oy-yosahko,16,1052,,supplier_adjusted_forward_curve_shift,2026-07-23T21:00:00.000000Z,411.13432526881707
+2026-07-24,bgbqwj-imatran-seudun-sahko-oy-huoleton,234,1090,,supplier_adjusted_forward_curve_shift,2026-07-23T21:00:00.000000Z,461.04432526881715
+2026-07-24,fwgtme-fortum-markets-oy-fortum-kesto-yleissahko,380,1149,,recurring_forward_curve_shift,,354.7797532258064
+2026-07-24,ymqe7v-helen-oy-perussahko,377,1414,,supplier_adjusted_forward_curve_shift,2026-07-23T21:00:00.000000Z,467.12432526881724

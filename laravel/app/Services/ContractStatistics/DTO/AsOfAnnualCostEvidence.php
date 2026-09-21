@@ -37,6 +37,7 @@ readonly class AsOfAnnualCostEvidence
         public ?int $minimumAnnualConsumptionKwh = null,
         public ?int $maximumAnnualConsumptionKwh = null,
         public bool $householdAudienceConflict = false,
+        public ?SourceInterpretationProvenance $sourceInterpretationProvenance = null,
     ) {}
 
     public function isWithinProvenConsumptionRange(int $consumption): bool

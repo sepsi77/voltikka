@@ -60,18 +60,7 @@ class CurrentSourcePromotionEvidence
             $rates = [];
             if ($valid) {
                 $source = json_decode($row->source_payload, true);
-                $details = $source['Details'] ?? [];
-                foreach ([$source['Name'] ?? null, $details['Pricing']['Name'] ?? null, $details['ShortDescription'] ?? null,
-                    $details['LongDescription'] ?? null, $details['ExtraInformation']['FI'] ?? null,
-                    $details['ExtraInformation']['Default'] ?? null] as $text) {
-                    $text = $normalizer->normalizeText($text) ?? '';
-                    // Explicit campaign energy or margin wording plus its numerical c/kWh price only.
-                    // "vain", "tarjous", and "superdiili" are not temporary-price evidence.
-                    preg_match_all('/(?:kampanjamarginaali|marginaalin\s+kampanjahinta|kampanjahinta|kampanjan\s+energiahinta|energian\s+kampanjahinta)\s*(?:on\s*)?[:]?\s*(\d+(?:[.,]\d+)?)\s*(?:snt|c)\s*\/\s*kwh/iu', $text, $matches);
-                    foreach ($matches[1] as $amount) {
-                        $rates[] = (float) str_replace(',', '.', $amount);
-                    }
-                }
+                $rates = self::campaignRatesFromPayload(is_array($source) ? $source : []);
             }
             $result[(string) $contract->id] = [
                 'valid' => $valid,
@@ -82,6 +71,27 @@ class CurrentSourcePromotionEvidence
         }
 
         return $result;
+    }
+
+    /** Pure extraction from the caller's exact source, without current-pointer validation. */
+    public static function campaignRatesFromPayload(array $source): array
+    {
+        $normalizer = new ContractInterpretationInputBuilder;
+        $details = $source['Details'] ?? [];
+        $rates = [];
+        foreach ([$source['Name'] ?? null, $details['Pricing']['Name'] ?? null, $details['ShortDescription'] ?? null,
+            $details['LongDescription'] ?? null, $details['ExtraInformation']['FI'] ?? null,
+            $details['ExtraInformation']['Default'] ?? null] as $text) {
+            $text = $normalizer->normalizeText($text) ?? '';
+            // Explicit campaign energy or margin wording plus its numerical c/kWh price only.
+            // "vain", "tarjous", and "superdiili" are not temporary-price evidence.
+            preg_match_all('/(?:kampanjamarginaali|marginaalin\s+kampanjahinta|kampanjahinta|kampanjan\s+energiahinta|energian\s+kampanjahinta)\s*(?:on\s*)?[:]?\s*(\d+(?:[.,]\d+)?)\s*(?:snt|c)\s*\/\s*kwh/iu', $text, $matches);
+            foreach ($matches[1] as $amount) {
+                $rates[] = (float) str_replace(',', '.', $amount);
+            }
+        }
+
+        return array_values(array_unique($rates));
     }
 
     /** An unpointed or malformed known-rule object must not acquire legacy fixed-price semantics. */

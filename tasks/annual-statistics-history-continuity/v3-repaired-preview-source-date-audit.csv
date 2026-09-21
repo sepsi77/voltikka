@@ -1,0 +1,5 @@
+check,count
+exact_snapshot_checks,296879
+covering_observation_checks,80665
+exact_interpretation_checks,78571
+violations,0

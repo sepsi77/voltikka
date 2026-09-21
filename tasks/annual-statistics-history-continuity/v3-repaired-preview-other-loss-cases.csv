@@ -1,0 +1,32 @@
+date,contract,kwh,interpretation,classification,structured_status,calculation_status,missing_facts
+2026-07-23,35idqf-vattenfall-oy-taysvesi-24-kk,2000,152,selected_source_structured_conflict,conflicting,incomplete,"[""Kuukausimaksuksi sovellettava arvo: 3,95 €/kk vai 4,90 €/kk.""]"
+2026-07-23,35idqf-vattenfall-oy-taysvesi-24-kk,5000,152,selected_source_structured_conflict,conflicting,incomplete,"[""Kuukausimaksuksi sovellettava arvo: 3,95 €/kk vai 4,90 €/kk.""]"
+2026-07-23,35idqf-vattenfall-oy-taysvesi-24-kk,18000,152,selected_source_structured_conflict,conflicting,incomplete,"[""Kuukausimaksuksi sovellettava arvo: 3,95 €/kk vai 4,90 €/kk.""]"
+2026-07-23,3bdzoe-paneliankosken-voima-oy-kosken-kayttowoima-12-kk-kulutusjousto,2000,1790,selected_source_structured_conflict,conflicting,unsupported,[]
+2026-07-23,3bdzoe-paneliankosken-voima-oy-kosken-kayttowoima-12-kk-kulutusjousto,5000,1790,selected_source_structured_conflict,conflicting,unsupported,[]
+2026-07-23,3bdzoe-paneliankosken-voima-oy-kosken-kayttowoima-12-kk-kulutusjousto,18000,1790,selected_source_structured_conflict,conflicting,unsupported,[]
+2026-07-23,8lw2cg-turku-energia-oy-louna-helppo-l,2000,1597,selected_source_incomplete_package,incomplete,incomplete,"[""The package's included monthly energy allowance in kWh is not specified.""]"
+2026-07-23,8lw2cg-turku-energia-oy-louna-helppo-l,5000,1597,selected_source_incomplete_package,incomplete,incomplete,"[""The package's included monthly energy allowance in kWh is not specified.""]"
+2026-07-23,8lw2cg-turku-energia-oy-louna-helppo-l,18000,1597,selected_source_incomplete_package,incomplete,incomplete,"[""The package's included monthly energy allowance in kWh is not specified.""]"
+2026-07-23,dgh71e-turku-energia-oy-louna-helppo-m,2000,1837,selected_source_incomplete_package,incomplete,incomplete,"[""The selected package's included monthly energy allowance in kWh"", ""The future package price after market-based price updates""]"
+2026-07-23,dgh71e-turku-energia-oy-louna-helppo-m,5000,1837,selected_source_incomplete_package,incomplete,incomplete,"[""The selected package's included monthly energy allowance in kWh"", ""The future package price after market-based price updates""]"
+2026-07-23,dgh71e-turku-energia-oy-louna-helppo-m,18000,1837,selected_source_incomplete_package,incomplete,incomplete,"[""The selected package's included monthly energy allowance in kWh"", ""The future package price after market-based price updates""]"
+2026-07-23,kw0pi8-turku-energia-oy-louna-helppo-xs,2000,1735,selected_source_incomplete_package,incomplete,incomplete,"[""Kuukausipakettiin sisältyvä tarkka energiamäärä kilowattitunteina""]"
+2026-07-23,kw0pi8-turku-energia-oy-louna-helppo-xs,5000,1735,selected_source_incomplete_package,incomplete,incomplete,"[""Kuukausipakettiin sisältyvä tarkka energiamäärä kilowattitunteina""]"
+2026-07-23,kw0pi8-turku-energia-oy-louna-helppo-xs,18000,1735,selected_source_incomplete_package,incomplete,incomplete,"[""Kuukausipakettiin sisältyvä tarkka energiamäärä kilowattitunteina""]"
+2026-07-23,x5t18z-helen-oy-helpposahko-m,2000,1386,selected_source_incomplete_package,incomplete,incomplete,"[""The price charged for electricity exceeding 2400 kWh per year."", ""The billing rule for consumption exceeding the 2400 kWh annual package limit.""]"
+2026-07-23,ztawud-turku-energia-oy-louna-helppo-s,2000,1560,selected_source_incomplete_package,incomplete,incomplete,"[""Kuukausipakettiin sisältyvä tarkka energiamäärä kilowattitunteina""]"
+2026-07-23,ztawud-turku-energia-oy-louna-helppo-s,5000,1560,selected_source_incomplete_package,incomplete,incomplete,"[""Kuukausipakettiin sisältyvä tarkka energiamäärä kilowattitunteina""]"
+2026-07-23,ztawud-turku-energia-oy-louna-helppo-s,18000,1560,selected_source_incomplete_package,incomplete,incomplete,"[""Kuukausipakettiin sisältyvä tarkka energiamäärä kilowattitunteina""]"
+2026-07-24,3bdzoe-paneliankosken-voima-oy-kosken-kayttowoima-12-kk-kulutusjousto,2000,1790,selected_source_structured_conflict,conflicting,unsupported,[]
+2026-07-24,3bdzoe-paneliankosken-voima-oy-kosken-kayttowoima-12-kk-kulutusjousto,5000,1790,selected_source_structured_conflict,conflicting,unsupported,[]
+2026-07-24,3bdzoe-paneliankosken-voima-oy-kosken-kayttowoima-12-kk-kulutusjousto,18000,1790,selected_source_structured_conflict,conflicting,unsupported,[]
+2026-07-25,3bdzoe-paneliankosken-voima-oy-kosken-kayttowoima-12-kk-kulutusjousto,2000,1790,selected_source_structured_conflict,conflicting,unsupported,[]
+2026-07-25,3bdzoe-paneliankosken-voima-oy-kosken-kayttowoima-12-kk-kulutusjousto,5000,1790,selected_source_structured_conflict,conflicting,unsupported,[]
+2026-07-25,3bdzoe-paneliankosken-voima-oy-kosken-kayttowoima-12-kk-kulutusjousto,18000,1790,selected_source_structured_conflict,conflicting,unsupported,[]
+2026-07-26,3bdzoe-paneliankosken-voima-oy-kosken-kayttowoima-12-kk-kulutusjousto,2000,1790,selected_source_structured_conflict,conflicting,unsupported,[]
+2026-07-26,3bdzoe-paneliankosken-voima-oy-kosken-kayttowoima-12-kk-kulutusjousto,5000,1790,selected_source_structured_conflict,conflicting,unsupported,[]
+2026-07-26,3bdzoe-paneliankosken-voima-oy-kosken-kayttowoima-12-kk-kulutusjousto,18000,1790,selected_source_structured_conflict,conflicting,unsupported,[]
+2026-07-27,3bdzoe-paneliankosken-voima-oy-kosken-kayttowoima-12-kk-kulutusjousto,2000,1790,selected_source_structured_conflict,conflicting,unsupported,[]
+2026-07-27,3bdzoe-paneliankosken-voima-oy-kosken-kayttowoima-12-kk-kulutusjousto,5000,1790,selected_source_structured_conflict,conflicting,unsupported,[]
+2026-07-27,3bdzoe-paneliankosken-voima-oy-kosken-kayttowoima-12-kk-kulutusjousto,18000,1790,selected_source_structured_conflict,conflicting,unsupported,[]

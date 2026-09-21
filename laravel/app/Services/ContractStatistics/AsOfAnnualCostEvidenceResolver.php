@@ -3,13 +3,20 @@
 namespace App\Services\ContractStatistics;
 
 use App\Models\ContractHistoricalInterpretation;
+use App\Models\ContractSourceSnapshot;
 use App\Services\CanonicalPricing\CanonicalPricingParser;
+use App\Services\CanonicalPricing\CurrentSourcePromotionEvidence;
 use App\Services\CanonicalPricing\DTO\CanonicalContractData;
 use App\Services\CanonicalPricing\Exceptions\CanonicalPricingParseException;
+use App\Services\ContractInterpretation\ContractInterpretationInputBuilder;
+use App\Services\ContractInterpretation\ContractInterpretationProfile;
+use App\Services\ContractInterpretation\ContractInterpretationValidator;
 use App\Services\ContractInterpretation\HistoricalContractEpisodeBuilder;
 use App\Services\ContractInterpretation\HistoricalEvidenceNormalizer;
 use App\Services\ContractInterpretation\HistoricalInterpretationFingerprint;
 use App\Services\ContractStatistics\DTO\AsOfAnnualCostEvidence;
+use App\Services\ContractStatistics\DTO\SourceInterpretationProvenance;
+use App\Services\ContractStatistics\Enums\AnnualCostMethodVersion;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
@@ -25,15 +32,21 @@ class AsOfAnnualCostEvidenceResolver
         private readonly CanonicalPricingParser $parser,
         private readonly HistoricalInterpretationFingerprint $historicalFingerprints,
         private readonly HistoricalEvidenceNormalizer $historicalNormalizer,
+        private readonly ContractInterpretationInputBuilder $inputBuilder,
+        private readonly ContractInterpretationValidator $validator,
     ) {}
 
     /**
      * Resolve all requested dates with one query per evidence table.
      *
+     * The anchor caller can restrict contracts and prefer same-date observed snapshot identity.
+     * Ordinary annual evidence keeps its strict unique-snapshot default.
+     *
      * @param  iterable<CarbonInterface|string>  $dates
+     * @param  list<string>|null  $contractIds
      * @return array<string, array<string, AsOfAnnualCostEvidence>>
      */
-    public function resolveForDates(iterable $dates): array
+    public function resolveForDates(iterable $dates, AnnualCostMethodVersion $methodVersion = AnnualCostMethodVersion::AsOf, ?array $contractIds = null, bool $preferObservedSnapshots = false): array
     {
         $targets = collect($dates)
             ->map(fn (CarbonInterface|string $date): CarbonImmutable => $this->date($date))
@@ -48,6 +61,7 @@ class AsOfAnnualCostEvidenceResolver
         $dateStrings = $targets->map->toDateString()->all();
         $snapshots = DB::table('contract_price_snapshots')
             ->whereIn(DB::raw('DATE(snapshot_date)'), $dateStrings)
+            ->when($contractIds !== null, fn ($query) => $query->whereIn('contract_id', $contractIds))
             ->orderBy('snapshot_date')
             ->orderBy('contract_id')
             ->get([
@@ -74,6 +88,7 @@ class AsOfAnnualCostEvidenceResolver
 
         $componentRows = DB::table('price_components')
             ->whereIn(DB::raw('DATE(price_date)'), $dateStrings)
+            ->when($contractIds !== null, fn ($query) => $query->whereIn('electricity_contract_id', $contractIds))
             ->orderBy('price_date')
             ->orderBy('electricity_contract_id')
             ->orderBy('id')
@@ -131,7 +146,8 @@ class AsOfAnnualCostEvidenceResolver
             : DB::table('contract_interpretations')
                 ->whereIn('source_snapshot_id', $sourceSnapshotIds)
                 ->whereNotNull('completed_at')
-                ->where('completed_at', '<=', $maximumEnd->format('Y-m-d H:i:s'))
+                ->when($methodVersion !== AnnualCostMethodVersion::AsOfV3,
+                    fn ($query) => $query->where('completed_at', '<=', $maximumEnd->format('Y-m-d H:i:s')))
                 ->orderBy('source_snapshot_id')
                 ->orderBy('completed_at')
                 ->orderBy('id')
@@ -140,6 +156,9 @@ class AsOfAnnualCostEvidenceResolver
                     'contract_id',
                     'source_snapshot_id',
                     'analysis_source_observation_id',
+                    'schema_version',
+                    'prompt_version',
+                    'validator_version',
                     'status',
                     'output',
                     'validation_errors',
@@ -207,6 +226,9 @@ class AsOfAnnualCostEvidenceResolver
             foreach ($contractIds as $contractId) {
                 $key = $dateString.'|'.$contractId;
                 $snapshotRows = $snapshotsByDateContract->get($key, collect());
+                if ($preferObservedSnapshots && $snapshotRows->contains('pricing_basis', ContractPriceBasis::ObservedSellerData->value)) {
+                    $snapshotRows = $snapshotRows->where('pricing_basis', ContractPriceBasis::ObservedSellerData->value);
+                }
                 $snapshot = $snapshotRows->count() === 1 ? $snapshotRows->first() : null;
                 $rawComponents = $componentsByDateContract->get($key, collect());
 
@@ -237,7 +259,7 @@ class AsOfAnnualCostEvidenceResolver
                     continue;
                 }
 
-                [$canonical, $sourceIds, $flags] = $this->canonicalEvidence(
+                $selection = $this->canonicalEvidence(
                     $contractId,
                     $target,
                     $snapshot,
@@ -246,7 +268,10 @@ class AsOfAnnualCostEvidenceResolver
                     $interpretations,
                     $historicalEpisodes->get($contractId, collect()),
                     $historicalInterpretations,
+                    $methodVersion,
+                    $sourcePayloads,
                 );
+                [$canonical, $sourceIds, $flags] = $selection;
 
                 $sourceIds = [
                     'price_snapshot_id' => (int) $snapshot->id,
@@ -258,6 +283,16 @@ class AsOfAnnualCostEvidenceResolver
                 $payload = $source !== null && (string) $source->contract_id === $contractId
                     ? json_decode((string) $source->source_payload, true)
                     : null;
+                $exclusionReason = in_array('historical_energy_rule_source_validation_unavailable', $flags, true)
+                    ? 'historical_energy_rule_source_validation_unavailable' : null;
+                if ($methodVersion === AnnualCostMethodVersion::AsOfV3 && $canonical !== null
+                    && $sourceIds['source_snapshot_id'] !== null && ! is_array($payload)) {
+                    $exclusionReason = 'historical_promotion_source_payload_unavailable';
+                    $flags[] = $exclusionReason;
+                }
+                if ($methodVersion === AnnualCostMethodVersion::AsOfV3 && $canonical !== null && is_array($payload)) {
+                    $canonical = $canonical->withComparisonEvidence(sourceCampaignEnergyRates: CurrentSourcePromotionEvidence::campaignRatesFromPayload($payload));
+                }
                 $details = is_array($payload['Details'] ?? null) ? $payload['Details'] : [];
                 $limits = $details['ConsumptionLimitation'] ?? null;
                 $eligibilityProven = is_array($limits)
@@ -287,6 +322,8 @@ class AsOfAnnualCostEvidenceResolver
                     canonicalData: $canonical,
                     sourceEvidenceIds: $sourceIds,
                     provenanceFlags: $flags,
+                    exclusionReason: $exclusionReason,
+                    sourceInterpretationProvenance: $selection[3] ?? null,
                     consumptionEligibilityProven: $eligibilityProven,
                     minimumAnnualConsumptionKwh: $eligibilityProven && $limits['MinXKWhPerY'] !== null ? (int) $limits['MinXKWhPerY'] : null,
                     maximumAnnualConsumptionKwh: $eligibilityProven && $limits['MaxXKWhPerY'] !== null ? (int) $limits['MaxXKWhPerY'] : null,
@@ -304,11 +341,11 @@ class AsOfAnnualCostEvidenceResolver
     }
 
     /** @return array<string, AsOfAnnualCostEvidence> */
-    public function resolveDate(CarbonInterface|string $date): array
+    public function resolveDate(CarbonInterface|string $date, AnnualCostMethodVersion $methodVersion = AnnualCostMethodVersion::AsOf): array
     {
         $target = $this->date($date);
 
-        return $this->resolveForDates([$target])[$target->toDateString()] ?? [];
+        return $this->resolveForDates([$target], $methodVersion)[$target->toDateString()] ?? [];
     }
 
     /**
@@ -317,7 +354,7 @@ class AsOfAnnualCostEvidenceResolver
      * @param  Collection<int|string, Collection<int, object>>  $interpretations
      * @param  Collection<int, object>  $historicalEpisodes
      * @param  Collection<int|string, Collection<int, object>>  $historicalInterpretations
-     * @return array{0: CanonicalContractData|null, 1: array{price_snapshot_id?: int|null, price_component_ids?: list<string>, observation_ids: list<int>, source_snapshot_id: int|null, interpretation_id: int|null, historical_episode_id: int|null, historical_interpretation_id: int|null, historical_evidence_grade: string|null}, 2: list<string>}
+     * @return array{0: CanonicalContractData|null, 1: array{price_snapshot_id?: int|null, price_component_ids?: list<string>, observation_ids: list<int>, source_snapshot_id: int|null, interpretation_id: int|null, historical_episode_id: int|null, historical_interpretation_id: int|null, historical_evidence_grade: string|null}, 2: list<string>, 3?: SourceInterpretationProvenance|null}
      */
     private function canonicalEvidence(
         string $contractId,
@@ -328,6 +365,8 @@ class AsOfAnnualCostEvidenceResolver
         Collection $interpretations,
         Collection $historicalEpisodes,
         Collection $historicalInterpretations,
+        AnnualCostMethodVersion $methodVersion,
+        Collection $sourcePayloads,
     ): array {
         $startUtc = $target->startOfDay()->utc();
         $endUtc = $target->endOfDay()->utc();
@@ -365,11 +404,18 @@ class AsOfAnnualCostEvidenceResolver
         }
 
         $sourceSnapshotId = (int) $sourceSnapshotIds->first();
+        $isV3 = $methodVersion === AnnualCostMethodVersion::AsOfV3;
+        if ($isV3 && (string) ($sourcePayloads->get($sourceSnapshotId)->contract_id ?? '') !== $contractId) {
+            return [null, $ids, ['canonical_omitted_source_ownership_mismatch']];
+        }
         $valid = [];
         $sawInvalid = false;
+        $missingRuleProof = false;
+        $targetRejections = [];
+        $targetValidationFlags = [];
         foreach ($interpretations->get($sourceSnapshotId, collect()) as $row) {
             $completedAt = CarbonImmutable::parse((string) $row->completed_at, 'UTC');
-            if ($completedAt->greaterThan($target->endOfDay()->utc())) {
+            if (! $isV3 && $completedAt->greaterThan($endUtc)) {
                 continue;
             }
             if ((string) $row->contract_id !== $contractId
@@ -396,19 +442,63 @@ class AsOfAnnualCostEvidenceResolver
                 );
             } catch (CanonicalPricingParseException) {
                 $sawInvalid = true;
+                $missingRuleProof = $missingRuleProof || ($isV3 && ($row->schema_version === 'schema-v5'
+                    || CurrentSourcePromotionEvidence::requiresEnergyRuleProof($output['pricing'] ?? null)));
 
                 continue;
+            }
+
+            if ($isV3 && ($row->schema_version === 'schema-v5'
+                || CurrentSourcePromotionEvidence::requiresEnergyRuleProof($output['pricing'] ?? null))) {
+                $missingRuleProof = true;
+
+                continue;
+            }
+            if ($isV3) {
+                $payload = $this->jsonObject($sourcePayloads->get($sourceSnapshotId)->source_payload);
+                try {
+                    $profile = ContractInterpretationProfile::stored($row->schema_version, $row->prompt_version, $row->validator_version);
+                    $source = new ContractSourceSnapshot(['contract_id' => $contractId, 'source_payload' => $payload]);
+                    $input = $this->inputBuilder->build($source, $target, $profile);
+                    $errors = $this->validator->validate($output, $input, $profile);
+                    if ($errors === [] && ! $this->hasSupportedTargetDates($output, $input)) {
+                        $errors[] = 'Historical date boundaries lack exact source proof.';
+                        $targetValidationFlags[] = 'historical_temporal_source_validation_unavailable';
+                    }
+                } catch (\InvalidArgumentException) {
+                    $errors = ['Unsupported stored interpretation profile.'];
+                    $targetValidationFlags[] = 'historical_stored_interpretation_profile_unavailable';
+                }
+                if ($errors !== []) {
+                    $sawInvalid = true;
+                    $targetRejections[] = (int) $row->id;
+
+                    continue;
+                }
             }
 
             $valid[] = ['row' => $row, 'data' => $data, 'completed_at' => $completedAt];
         }
 
+        if ($targetRejections !== []) {
+            sort($targetRejections);
+            $ids['target_evidence_rejected_interpretation_ids'] = $targetRejections;
+        }
+        $targetFlags = $targetRejections !== []
+            ? ['canonical_interpretation_rejected_by_exact_target_validation', ...array_unique($targetValidationFlags)] : [];
+
         if ($valid === []) {
-            return [null, $ids, [$sawInvalid
+            if ($missingRuleProof) {
+                return [null, $ids, [...$targetFlags, 'historical_energy_rule_source_validation_unavailable']];
+            }
+
+            return [null, $ids, [...$targetFlags, $sawInvalid
                 ? 'canonical_omitted_no_valid_interpretation_as_of_date'
                 : 'canonical_omitted_no_interpretation_as_of_date']];
         }
 
+        // Completion orders reconstructions, never economic applicability. V1/v2 were
+        // already restricted to timely output above; v3 validates the exact target instead.
         usort($valid, fn (array $left, array $right): int => $right['completed_at']->getTimestamp() <=> $left['completed_at']->getTimestamp());
         $latestTimestamp = $valid[0]['completed_at']->getTimestamp();
         $latest = array_values(array_filter(
@@ -416,12 +506,106 @@ class AsOfAnnualCostEvidenceResolver
             fn (array $candidate): bool => $candidate['completed_at']->getTimestamp() === $latestTimestamp,
         ));
         if (count($latest) !== 1) {
-            return [null, $ids, ['canonical_omitted_ambiguous_interpretation_chronology']];
+            return [null, $ids, [...$targetFlags, 'canonical_omitted_ambiguous_interpretation_chronology']];
         }
 
         $ids['interpretation_id'] = (int) $latest[0]['row']->id;
 
-        return [$latest[0]['data'], $ids, ['historical_household_statistics_scope_assumed']];
+        $flags = ['historical_household_statistics_scope_assumed', ...$targetFlags];
+        $retrospective = $isV3 && $latest[0]['completed_at']->greaterThan($endUtc);
+        $provenance = null;
+        if ($isV3) {
+            $binding = $latest[0]['row']->analysis_source_observation_id;
+            $provenance = new SourceInterpretationProvenance(
+                sourceSnapshotId: $sourceSnapshotId,
+                observationIds: $observationIds,
+                interpretationId: $ids['interpretation_id'],
+                analysisObservationId: $binding !== null ? (int) $binding : null,
+                targetDate: $target,
+                completedAt: $latest[0]['completed_at'],
+                retrospective: $retrospective,
+            );
+            if ($retrospective) {
+                $flags[] = 'retrospective_exact_source_interpretation';
+            }
+            if ($binding === null) {
+                $flags[] = 'exact_source_legacy_null_observation_binding';
+            }
+        }
+
+        return [$latest[0]['data'], $ids, $flags, $provenance];
+    }
+
+    /**
+     * Legacy validation checks discount coverage, but does not prove arbitrary dates
+     * inferred from relative prose. Keep those cases unresolved, not date assumptions.
+     * This runs only after full validation of the exact target input.
+     */
+    private function hasSupportedTargetDates(array $output, array $input): bool
+    {
+        foreach ($output['pricing']['phases'] ?? [] as $phase) {
+            foreach (['starts', 'ends'] as $side) {
+                $boundary = $phase[$side];
+                if (in_array($boundary['kind'], ['contract_start', 'none', 'unknown', 'period_boundary'], true)
+                    || ($side === 'starts' && $boundary['kind'] === 'after_months' && (int) $boundary['value'] === 0)) {
+                    continue;
+                }
+                $supported = $boundary['kind'] === 'after_months'
+                    && ($input['contract_type'] ?? null) === 'FixedTerm'
+                    && in_array($input['fixed_time_range'] ?? null, ['Fixed6', 'Fixed12', 'Fixed24'], true)
+                    && (int) $boundary['value'] === (int) substr($input['fixed_time_range'], 5);
+                foreach ($input['components'] ?? [] as $component) {
+                    $type = $this->validator->canonicalComponentTypeForSource($component['price_component_type'] ?? null, $input['pricing_model'] ?? null);
+                    if (($component['has_discount'] ?? false) !== true
+                        || ! in_array($type, array_column($phase['components'] ?? [], 'component_type'), true)) {
+                        continue;
+                    }
+                    if ($boundary['kind'] === 'after_months'
+                        && $component['discount_type'] === 'NFirstMonth'
+                        && (int) $boundary['value'] === (int) $component['discount_n_first_months']) {
+                        $supported = true;
+                    }
+                    if ($boundary['kind'] === 'date' && $component['discount_type'] === 'UntilDate') {
+                        $until = substr((string) $component['discount_until_date'], 0, 10);
+                        if (preg_match('/^\d{4}-\d{2}-\d{2}$/D', $until) === 1
+                            && CarbonImmutable::createFromFormat('!Y-m-d', $until)->toDateString() === $until) {
+                            $supported = $supported || $boundary['value'] === $until
+                                || $boundary['value'] === CarbonImmutable::parse($until)->addDay()->toDateString()
+                                || ($side === 'starts' && $boundary['value'] <= $input['analysis_date']
+                                    && ($phase['ends']['value'] ?? null) === $until && $until >= $input['analysis_date']);
+                        }
+                    }
+                }
+                if ($boundary['kind'] === 'date') {
+                    // Exact calendar dates in validated phase citations are allowed.
+                    // A bare day/month or relative phrase cannot supply its own year.
+                    $date = CarbonImmutable::parse($boundary['value']);
+                    foreach ($phase['evidence'] ?? [] as $evidence) {
+                        $quote = (string) ($evidence['quote'] ?? '');
+                        $supported = $supported || str_contains($quote, $date->toDateString())
+                            || preg_match('/(?<!\d)0?'.$date->day.'\.0?'.$date->month.'\.'.$date->year.'(?!\d)/u', $quote) === 1;
+                    }
+                }
+                if (! $supported) {
+                    return false;
+                }
+            }
+        }
+
+        // Calendar reset windows must also be explicit, not guessed at completion.
+        foreach (['current_period_start', 'current_period_end'] as $key) {
+            $value = $output['pricing']['recurring_schedule'][$key] ?? null;
+            if ($value !== null) {
+                $quotes = array_column($output['pricing']['recurring_schedule']['evidence'] ?? [], 'quote');
+                $date = CarbonImmutable::parse($value);
+                if (! collect($quotes)->contains(fn (string $quote): bool => str_contains($quote, $value)
+                    || preg_match('/(?<!\d)0?'.$date->day.'\.0?'.$date->month.'\.'.$date->year.'(?!\d)/u', $quote) === 1)) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 
     /**

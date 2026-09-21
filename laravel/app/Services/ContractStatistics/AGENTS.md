@@ -36,9 +36,11 @@ release (`111a101`) with no rebuild. See `../../../../tasks/annual-statistics-hi
   the stored active method with `contracts:rebuild-annual-cost-statistics`, and a rebuild plan in
   the same task. If a rebuild is not possible, record the reason and the resulting chart gap.
 - These rules stay, because they protect evidence and do not prevent a rebuild:
-  - No look-ahead. A past date uses only evidence that existed on that date: interpretations
-    completed by that date, peers and premiums observed by that date, and curve vintages before
-    that date. Never apply today's interpretation or today's peers to a past date.
+  - No later seller facts, prices, current peers, or future curve evidence. V1/v2 keep strict
+    immutable-source completion chronology. Approved v3 selects the newest target-validated
+    interpretation of the EXACT covering source, independent of completion relative to target.
+    Record retrospective provenance; missing exact-source output stays unresolved.
+    A legacy NULL observation binding proves exact-source identity, not episode completion.
   - Observed evidence (`contract_price_snapshots`, `price_components`, source snapshots,
     interpretations) is never rewritten. `BackfillContractPriceStatistics` keeps `useCanonical: false`.
   - Earlier annual method rows stay as audit and rollback evidence. Write a new method version
@@ -47,8 +49,112 @@ release (`111a101`) with no rebuild. See `../../../../tasks/annual-statistics-hi
     backup. Deployment and cache invalidation never run a rebuild automatically; the rebuild is a
     planned, reviewed step of the release.
 
-Statements below that say the Historical path is "unchanged", "strict", or "retained" describe the
-implementation on 2026-09-21. They are known gaps against this policy, not rules to preserve.
+Statements below about the `ComparisonPolicy::Historical` path apply to retained v1/v2 behavior,
+not explicit annual v3. V3 uses shared Current semantics on dated evidence. Earlier dated release
+records remain evidence of those releases, not current v3 policy.
+
+## V3 reconstruction (local; production not activated)
+
+The first v3 unit adds method-aware `resolveDate/resolveForDates`; defaults and other callers
+remain strict v1. V3 verifies source ownership and covering observation IDs, keeps validation and
+parser-v1 checks, and selects the latest target-validated exact-source output by completion time.
+Completion relative to the target never changes this ordering. The earlier timely/first-later rule
+created a processing seam for unchanged sources and is superseded. A tie at the selected completion
+second, explicit wrong-episode binding, multiple covering sources, or invalid/missing output stays
+unresolved and uses existing fallback rules. Older tied seconds do not disqualify a unique newer
+valid output. No current pointer or later different source can repair missing evidence.
+
+V3 builds input from the exact immutable payload with `analysis_date` equal to the target and the
+stored registered profile. The full `ContractInterpretationValidator` checks source evidence,
+prices and active/expired discount timing before selection. Invalid candidates are skipped in the
+same newest-valid order. `target_evidence_rejected_interpretation_ids` and the target-validation
+flag survive in evidence/result/writer provenance. Unsupported stored profiles have a separate
+flag. Registered legacy profiles use retained schemas and today's pre-extension checks, not
+archived validator implementations. A supplemental date guard rejects unproved relative prose:
+calendar boundaries need exact ISO/full Finnish dates in validated phase citations or supported
+component-scoped structured discount boundaries. Active UntilDate coverage can prove an earlier
+phase start for the exact target. Relative month boundaries need matching scoped NFirstMonth
+metadata or the exact source Fixed6/Fixed12/Fixed24 term. Zero-month starts equal contract start.
+Unknown boundaries add no calendar claim and retain the shared timeline behavior.
+Calendar reset windows need exact dated schedule citations; absent windows remain
+available to the shared cadence estimator. Unsupported proof stays explicit as
+`historical_temporal_source_validation_unavailable`; no year or processing-date assumption is
+invented. V5 remains excluded. This is bounded legacy support, not a general prose-date parser.
+`SourceInterpretationProvenance` records source/covering observation/interpretation IDs, optional
+analysis observation ID, target date, UTC completion and retrospective/legacy-null-binding flags;
+it passes from typed evidence to typed results and writer JSON only for v3 source selections.
+NULL binding does not prove completion within the observation episode.
+V3 inherits all v2 audience, consumption-proof, energy and uniform-monthly fallback protections.
+The rebuild command permits explicit v3 preview/apply, warns about remaining release checks, and
+keeps its v2 default. Writes preserve stored v1/v2 rows. Public method remains v2; the current
+producer selects v3 only when the configured active method explicitly equals v3. V3 dated left-censored anchors and date-local supplier/reset premiums now feed the shared
+Current candidate and calculation policy. Shared estimators are unchanged. Local full-history
+coverage and median review are complete. Production approval and active-method selection remain
+pending. No automatic rebuild, schedule, deployment, or public switch is added.
+
+Final local evidence: `tasks/annual-statistics-history-continuity/v3-repaired-preview.md` covers
+242 dates at 2,000/5,000/18,000 kWh. July's processing seam is repaired; all 11 remaining post-May
+transitions have documented dated reference or membership causes. Keep strict display boundaries.
+Six applies on a full 40-table disposable backup preserve protected evidence and all v1/v2 financial
+rows. The recorded full suite passes 2,878 tests / 21,930 assertions. Endpoint dominant-method
+agreement and same-input fixtures do not prove full-store current/historical amount equality or
+forecast improvement. No full current-v3 database replay is claimed.
+
+Keep 703 temporal-proof losses across seven contracts and 664 short-duration-proof losses explicit.
+Recovery needs bounded source-backed proof, not weaker guards. V5 dated validation, dated replacement
+lineage and older absent donors remain unsupported. Preview must use an explicit 512 MiB limit and
+one `nice -n 15` worker per date, sequentially. The 144.5 MiB measured allocated peak does not prove
+128 MiB worker safety or safety for an unbounded multi-date command.
+
+Release requires separate explicit Git push approval, a current verified full production backup,
+production apply approval, and active-method switch approval. A push to main deploys code; it does
+not authorize or automatically run a history rebuild. Default/public v2 remains unchanged.
+
+Local current-writer evidence is in `tasks/annual-statistics-history-continuity/v3-current-writer.md`
+(repository root). Bounded calculator tests share exact selected source data, target, full tariff,
+anchors and dated donors for supplier premium, reset premium, Hybrid and Fixed6. They prove
+same-input calculation parity, not equality between unequal current and historical evidence stores.
+Partial parser fixtures mock full source validation; separate exact-source tests retain that proof.
+
+## V3 dated premium integration
+
+`AsOfPremiumEvidenceAdapter` prepares supplier and reset candidates with the shared consumption-free
+Current helpers. It receives the already loaded exact-date v3 evidence universe and resolves all
+supplier anchors in one batch with `HistoricalPriceEpisodeResolver`. The result is reused for all
+three consumptions and discarded after that date. The shared market provider memoizes dated curves;
+there is no new persistent premium store or cache, and no current contract/company/lineage lookup.
+
+Validated dedicated episodes are eligible before immutable coverage (including Apr 8–Jul 22).
+Retrospective exact-source completion is processing provenance, not the donor observation date.
+Supplier spreads use every normalized bucket minus its audience-matched month reference strictly
+before the episode start. Reset spreads use the matching month/quarter reference strictly before
+min(period start, target). Trades must also be strictly before target; non-finite or absent references
+produce no donor, never zero. Reference trade dates must be exact ISO calendar dates: parse with
+`!Y-m-d`, require an exact round trip, and reject malformed, relative, overflow and NUL values.
+`InvalidArgumentException`/`ValueError` skip only the bad donor and preserve valid alternatives.
+Do not use permissive `Carbon::parse()` for premium reference dates.
+`ForwardPremiumResolver` owns family/VAT/cadence compatibility,
+exact-contract own evidence, company then company-balanced market selection, and clone deduplication.
+Hybrid base families stay separate. Current estimator guards, reset flag, short-term rules, known
+phases and fees are unchanged. Spot/seasonal/EEX inputs retain their explicit dated bounds.
+
+Private result `source_evidence_ids.supplied_premium_observations` retains supplied observation
+identity, source/interpretation/episode IDs, completion provenance, anchor flags and reference facts.
+It describes supplied evidence; a valid own reference can still win in the estimator. It is not a
+public calculated-cost payload. Current-pointer source validation is never called. V3 reuses the
+full interpretation validator and input builder with exact historical payload/target context.
+The pure `CurrentSourcePromotionEvidence::campaignRatesFromPayload` extractor is also shared: immutable v3 input
+uses its exact selected historical payload. Malformed/missing selected payload proof fails closed.
+Dedicated v4 evidence retains exact component/discount manifest proof, not later seller prose.
+Schema-v5/known-rule selected output fails closed with
+`historical_energy_rule_source_validation_unavailable`; rule parsing stays disabled. Full dated V5
+validation and normal-map evidence are NOT implemented.
+
+Remaining bounds: only exact-date donors are loaded (no older absent donor carry-forward); exact
+contract IDs stand in for trusted lineage until dated replacement trust exists. Missing identity,
+missing full Time/Season proof, missing exact-source output, and genuine pre-Apr-8 FI reference gaps
+stay unresolved or use the shared fallback ladder. The bounded local continuity acceptance above
+does not remove these limits or authorize production release.
 
 ## Optional import transaction fence
 
@@ -60,14 +166,15 @@ implementation on 2026-09-21. They are known gaps against this policy, not rules
   method. It is separate from `contract_price_snapshots` so a historical method can be rebuilt
   without copying or rewriting observed unit-price facts.
 - `AnnualCostMethodVersion` defines `annual_cost_legacy_v1`, `annual_cost_as_of_v1`, and
-  `annual_cost_as_of_v2`; `isAsOf()` accepts both AsOf versions. `AnnualCostCalculationBasis`
+  `annual_cost_as_of_v2`, and `annual_cost_as_of_v3`; `isAsOf()` accepts all three AsOf versions. `AnnualCostCalculationBasis`
   distinguishes observed relational input from a canonical outcome. Public v2 has been active since
   the explicitly approved activation on 2026-09-12. Historical v2 was applied for 233 evidence dates
   from 2026-01-21 through 2026-09-11 (no evidence date on February 12): 213,755 annual rows and
   7,618 aggregates. V1 remains retained at 2026-09-11 with its snapshot joins preserved; historical
   snapshots and price components are unchanged. See
   `../../../../tasks/annual-statistics-v2-rollout/apply-results.md` for proof.
-  Current canonical collection writes v2 only. Every public annual reader selects the active method.
+  Current canonical collection writes v2 unless the configured active method is explicitly v3.
+  Legacy/v1 configuration still writes v2, never retired v1. Every public annual reader selects the active method.
   Retained v1 remains dated history for a separately approved rollback.
 - Daily aggregate application writes carry a non-null `method_version`, but the database column stays
   nullable so an application rollback can still write the old shape. Existing annual rows are always
@@ -96,9 +203,32 @@ implementation on 2026-09-21. They are known gaps against this policy, not rules
   duplicates, off-hour values, and non-finite prices remain invalid. Day is local 07:00-21:59 and
   night is 22:00-06:59. Missing hours never pull a later stored average, a future hourly row, or other
   future data. Its memo key is target date plus region.
-- `AsOfAnnualCostCalculator` passes explicit `ComparisonPolicy::Historical` during supplier candidate preparation as well as calculation. Dates do not select policy. Current redundant/fee-only phase extraction must not widen historical candidates or read current peers.
-- `HistoricalPriceEpisodeResolver` is the strict as-of counterpart to the current-source resolver.
-  It makes one batch query only to `contract_price_snapshots` through the explicit target date. A
+- `AsOfAnnualCostCalculator` selects Current candidate/calculation semantics only for explicit v3,
+  with the explicit historical date and supplied dated premiums. V1/v2 retain Historical. Dates
+  alone never select policy. No current premium loader or current episode resolver is called.
+- `HistoricalPriceEpisodeResolver` selects policy by explicit method version; its default and v1/v2
+  remain strict. V3 accepts first-observed, left-censored energy proxies, never proven repricing or
+  hedge dates. The calculator passes its selected method. V3 uses only exact-contract dated identity:
+  current replacement links cannot prove lineage trust on a past date. It batches snapshot/component
+  dates and source interval boundaries through the target, then reuses `AsOfAnnualCostEvidenceResolver` with
+  contract filtering and local observed-basis priority. No annual price calculation proves a signature.
+  Source-covered dates use v3 exact-source selection; pre-source dates can use validated dedicated
+  historical evidence. Invalid/missing covering source output never reopens raw proof; after the first
+  immutable observation, source gaps cannot reopen raw proof either. Only an undiscounted dated
+  General/FixedPrice/OpenEnded singleton can use raw snapshot evidence before immutable coverage and
+  when no dedicated episode exists. Time/Season need valid dated canonical full buckets; raw weighted
+  averages never prove them. Shared candidate signature comparison includes buckets, metering, mechanism
+  and VAT, but not fees. Unknown, conflicting, or different energy breaks the run; the next match starts
+  another uncertain proxy. Missing calendar dates between matching evidence can retain a flagged proxy,
+  not fabricated observed days. Missing dated snapshot identity at a source boundary remains unknown;
+  this unit does not reconstruct identity from current metadata. Source and dedicated retrospective-use
+  flags survive in the anchor. Signature proof alone uses the pure shared Current candidate extractor
+  with the exact historical date, so redundant/fee-only phases do not reset energy. It reads no current
+  pointers or peer evidence. V3 target candidate eligibility and estimator policy now use Current
+  with explicit dated inputs; v1/v2 stay Historical. Source event dates include the day after an
+  inclusive interval end when another interval covers that day. An ended conflict is rechecked
+  without waiting for an unrelated event; a missing dated identity still cannot prove a signature.
+- The v1/v2 episode branch makes one batch query only to `contract_price_snapshots` through the explicit target date. A
   matching observed target row wins. Another basis is eligible only when the caller passes that
   basis explicitly, either once or per candidate. The matching run has a proven start only when the
   immediately preceding local calendar date exists in the same basis and has a different
@@ -111,8 +241,8 @@ implementation on 2026-09-21. They are known gaps against this policy, not rules
   components are normalized in one query. A component-only identity never reads current contract
   fields: it produces three unavailable `unclassified` results with
   `missing_historical_snapshot_identity` provenance and is never aggregated or persisted. Optional
-  canonical data first uses covering source observations and one parser-valid interpretation completed
-  by the target day. Only exact `canonical_omitted_no_covering_source_observation` opens the dedicated
+  canonical data first uses covering source observations. V1/v2 require parser-valid output completed
+  by the target day; v3 uses the newest exact-source output that passes full target validation. Only exact `canonical_omitted_no_covering_source_observation` opens the dedicated
   historical path. It batch-loads overlapping current-builder episodes and analyses, requires one
   covering episode, exact target snapshot plus sorted component composite membership and normalized
   economic digest in `target_days`, and one validated complete current analysis fingerprint with empty
@@ -191,7 +321,7 @@ implementation on 2026-09-21. They are known gaps against this policy, not rules
   `--baseline` equal to the active public method. It selects historical snapshot/component dates plus
   retained baseline-only dates through yesterday. Unknown methods, a Legacy target, and partial apply
   options fail before date queries. Recalculated v1 is preview-only diagnostic output; historical
-  correction `--apply` accepts v2 only. The stored baseline is captured before writing, including when
+  correction `--apply` accepts an explicit v2 or v3 target and replaces only that method. The stored baseline is captured before writing, including when
   baseline equals target. AsOf contract totals come only from exact-method annual rows; Legacy totals
   come from snapshot annual columns. Full-date aggregate deltas use stored baseline medians. Partial
   previews use one sorted baseline/candidate contract-ID union, including baseline-only IDs, and
@@ -207,15 +337,19 @@ implementation on 2026-09-21. They are known gaps against this policy, not rules
   `CanonicalPricingOutcome` slots for every processed current contract, including excluded contracts
   that produce no numeric snapshot. After snapshot IDs exist, `CurrentCanonicalAnnualCostResultFactory`
   loads current contract identity, optional snapshot IDs, and current source pointers in one batch. It
-  adapts every contract to exactly three v2 AsOf results without recalculation or a `price_components`
+  adapts every contract to exactly three AsOf results without recalculation or a `price_components`
   query; excluded identities are unavailable and let a non-empty full apply remove stale rows safely.
+  The factory accepts only explicit v2/v3 (default v2), rejects legacy/v1 even for empty input,
+  and uses that version for both result and compatibility identity. The service captures v3 only
+  for explicit active-v3 configuration, otherwise v2, once before the transaction. Factory and
+  writer share that captured version even if config changes during the transaction.
   The writer stays inside the outer date transaction, so adapter, validation, or writer failure
-  rolls back snapshots, unit aggregates, legacy annual aggregates, and v2 annual rows together.
+  rolls back snapshots, unit aggregates, legacy annual aggregates, and the selected annual rows together.
   Date-wide replacement removes excluded, out-of-range, and stale rows. Feature-off and historical
-  observed calls do not invoke this current adapter. Historical rebuilds continue to use the strict
-  `AsOfAnnualCostCalculator`. Production has used public v2 since 2026-09-12, with v1 retained
+  observed calls do not invoke this current adapter. Historical rebuilds use the version-aware
+  `AsOfAnnualCostCalculator`: Historical for v1/v2, Current over dated evidence for v3. Production has used public v2 since 2026-09-12, with v1 retained
   at 2026-09-11 for dated rollback. The annual-only table has no compatibility-snapshot foreign key. Current same-day
-  replacement preserves v1 financial rows, but old snapshot IDs in provenance can stop resolving,
+  replacement preserves inactive v1/v2 financial rows, but old snapshot IDs in provenance can stop resolving,
   and company date/contract joins can lose newly excluded identities. Avoid replacing the last
   retained v1 date; stored annual rows alone do not replace a full backup.
 - Exact-date evidence queries normalize SQL date columns with `DATE(...)`. Eloquent stores current
@@ -242,7 +376,7 @@ implementation on 2026-09-21. They are known gaps against this policy, not rules
 - **Every snapshot and aggregate has `pricing_basis`.** `canonical_calculation` identifies forward current calculations; `observed_seller_data` identifies feature-off and historical rows. Request-scoped `PricingMode::expectedContractPriceBasis()` is the shared public-current rule: canonical flag on means canonical basis, and feature-off means observed basis, with no cross-basis fallback. The two small columns are necessary because the old tables could not distinguish canonical annual values from observed unit values. Existing rows default to observed. CSV exports the field and page copy explains it.
 - Before the canonical unit migration, a whole segment could vanish when upstream stopped writing `price_components`; this happened to Hybrid on 2026-07-24. Forward canonical snapshot and legacy aggregate collection no longer has that dependency. Missing exact-date components can make an AsOf historical fallback unavailable; it cannot remove the canonical compatibility snapshot. If a current segment now stops, inspect canonical publication/comparability first. Historical backfill still depends on component-date coverage by design. See `../ContractInterpretation/AGENTS.md` and `tasks/hybrid-relational-pricing-gate/`.
 - After `contracts:republish-gated-pricing` backfills lost price-component days, the daily statistics still hold the gap; rerun `contracts:backfill-price-statistics --from=… --to=… --overwrite` over the affected historical dates.
-- Future daily calculation uses `active_contracts`. Canonical mode reads only typed canonical outcomes for its compatibility snapshots and adapts those same outcomes to v2 annual rows; feature-off reads observed components for the requested date and writes no AsOf rows. `contracts:calculate-price-statistics --date=` rejects every date other than today, including future dates, and directs past-date operators to the historical annual rebuild command; an omitted date and today's date keep the current behavior.
+- Future daily calculation uses `active_contracts`. Canonical mode reads only typed canonical outcomes for its compatibility snapshots and adapts those same outcomes to the selected v2/v3 annual rows; feature-off reads observed components for the requested date and writes no AsOf rows. `contracts:calculate-price-statistics --date=` rejects every date other than today, including future dates, and directs past-date operators to the historical annual rebuild command; an omitted date and today's date keep the current behavior.
 - `ContractPostImportCoordinator` captures exact timestamps immediately before and after it calls `calculateForDate()` with active IDs and `overwrite=true`, then calls the optional `ContractPercentileService`; a percentile failure cannot leave imported price rows without `/sahkosopimus/tilastot` aggregate rows. The start timestamp is the freshness boundary because an interpretation can publish while statistics are being calculated.
 - Spot contracts track both margin and realistic total energy price (`stored spot average + margin`).
 - Current/legacy statistics rolling readers accept both legacy and local period types, select by
@@ -260,7 +394,7 @@ implementation on 2026-09-21. They are known gaps against this policy, not rules
 - `/sahkosopimus/tilastot` caches its prepared Livewire view data per period + consumption until the next day, with cache keys versioned by the expected current basis, active annual method, and cheap source-table fingerprints. Current cache schema v21 adds the separate dated annual endpoint, retains the coral overall seller-set line, and includes the seller-set index, dominant-method display regime, the exact latest-day endpoint, point-marker modes, the reset-category sufficiency gate, and dated Quarterly rows in the deep dive and both summary tables. The source fingerprint reads only unit rows and the active annual method, so writing inactive annual rows does not invalidate public prepared data.
 - After `contracts:calculate-price-statistics` recalculates daily statistics, it queues `contracts:warm-price-statistics-cache` for the default weekly/5 000 kWh page state. The contract post-import coordinator does not call that command; after successful direct statistics it dispatches `WarmContractPriceStatisticsCache` directly for the same state. `spot:fetch` queues the same warmer after spot averages update because spot fingerprints also bust this page cache.
 - The warmer builds many segment/date summaries in one job. Keep `ContractPriceStatistics` request/job-scoped batching intact: one `dailyStats` collection, one one-pass segment + metric + consumption index over those rows, memoized period series, one daily spot-average load sliced with native ordered-array loops for rolling windows, and no per-segment latest-row SQL lookups. The daily-statistics query hydrates all `unit_statistics_v1` rows. It hydrates active-method `annual_cost` rows only for the component's selected consumption because the page does not use the other annual consumption rows. The one-pass index and series memoization reduced the 2026-08-07 local production-snapshot cold warm from about 12 seconds / 144 MB RSS to about 3 seconds / 123 MB RSS after production exhausted its 300-second queue timeout.
-- One pricing basis owns each newly calculated date. Inside the calculation transaction, a run deletes opposite-basis snapshots for only its target date and replaces snapshots for its own contract set before aggregate calculation. This removes stale snapshots when a later canonical run excludes a contract. It never deletes another date. Its base daily-statistic cleanup is method-scoped to `unit_statistics_v1` and `annual_cost_legacy_v1`. The current canonical adapter separately replaces only v2 annual rows within that transaction; v1 remains unchanged. A feature-off/backfill run takes the same target-date ownership with observed basis.
+- One pricing basis owns each newly calculated date. Inside the calculation transaction, a run deletes opposite-basis snapshots for only its target date and replaces snapshots for its own contract set before aggregate calculation. This removes stale snapshots when a later canonical run excludes a contract. It never deletes another date. Its base daily-statistic cleanup is method-scoped to `unit_statistics_v1` and `annual_cost_legacy_v1`. The current canonical adapter separately replaces only the selected v2/v3 annual rows within that transaction; inactive v1/v2 financial rows remain unchanged. A feature-off/backfill run takes the same target-date ownership with observed basis.
 - Unit panels end on the latest `unit_statistics_v1` date for `PricingMode::expectedContractPriceBasis()`. Annual panels have their own latest eligible active-method date, no later than the unit endpoint, requiring the expected basis or `mixed_evidence`. Retained annual history behind unit collection gets dated historical copy, not today's-price copy. This is an endpoint comparison, not a clock-age rule for ordinary yesterday data. Earlier points retain their dated basis; sample floors and compatibility rules remain. No expected-basis annual endpoint means no fallback to an inactive method or wrong-basis annual data. The one-pass daily index also caches the annual endpoint. Switching back to v1 selects retained dated v1; it does not resume old current computation.
 - Every public annual-cost trend uses `AnnualSeriesCompatibility`: mixed weekly/monthly periods and the first point after a method cutover are null, while deltas require the same normalized key. Unit c/kWh aggregation is unchanged.
 - The two statistics widgets on `/sahkosopimus/kannattaako-porssisahko` follow the same endpoint rule. They read only the trailing year and only the plotted columns, then cache prepared arrays. Do not restore their former unbounded all-column Eloquent reads: together with the other eager article widgets, those reads exhausted the 128 MB production request limit.
