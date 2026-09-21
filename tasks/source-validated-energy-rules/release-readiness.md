@@ -1,18 +1,35 @@
-# Deployment readiness — renewed local gate, 2026-09-16
+# Deployment readiness — verified release, 2026-09-17
 
 ## Current status and authority
 
-**USER DEPLOYMENT APPROVAL RECEIVED; DEPLOYMENT NOT YET PERFORMED.** The user replied
-**“Approved”** to the manager's request to commit the reviewed changes on `main` and run
-`git push origin main`. This authorizes the normal Git auto-deploy to Voltikka/production/voltikka,
-which changes live comparison prices, and read-only deployment/live checks. Technical readiness
-and its limits below are unchanged. Release SHA, deployment ID and live results remain pending
-manager execution. See `production-release.md` for the exact target and exclusions.
+**DEFAULT-V4 DEPLOYMENT VERIFIED after explicit user approval.** The manager committed and
+pushed `111a101b6e0b3fa64d84b8cb3020237c9eec87b0` on `main`. Matching deployment
+`19dc90e6-8d8c-4e54-afcc-56081ef82366`, created `2026-09-17T02:14:59.314Z`, reached
+`SUCCESS`, `stopped=false`; MCP confirmed current success. See `production-release.md` for
+exact target IDs, poll evidence, live URLs, runtime profile, asset hashes and exclusions.
 
-This approval supersedes only the earlier pending commit/push/deployment authority statements.
-It does not authorize V5 producer activation or reinterpretation, manual imports, cache flushes,
-history writes, restarts, rollbacks or video posting. The dated readiness record below is preserved
-as historical evidence, including its pre-approval authority statements and status snapshot.
+The first four page GETs returned **502 during startup cache warming**. Warming completed and
+Supervisor/server/worker/scheduler were running by **02:21:03**. Subsequent health, selected
+pages, four contract APIs, manifest and all four manifest assets returned **200**. No manual
+restart, flush, redeploy or rollback was used. The observed readiness/traffic gap is a separate
+hardening follow-up, not an ongoing failure. The 45-line log sample showed startup completion
+and no application error in that sample, not universal error absence.
+
+All four raw live calculated-cost payloads passed local schema-19 hydration with network denied.
+Vaasa preserves real six-month benefit 5.90 EUR versus annual equivalent 11.80 EUR; Kerava and
+Hehku fail closed for the recorded reasons. The supplier-premium sample is available with
+controlled lower-confidence aggregate provenance. Cached configuration confirms current
+V4/v19/v17 with correct asset paths, Historical V4/v19/v17/parser-v1 and canonical enabled.
+Production serves prior `app-BE-AUgaZ.css` with the verified retained bytes, not local CXF output.
+
+Live September 17/curve September 16 evidence differs from sealed September 16/curve September 15
+replay. No same-date financial replay, exact live/replay match, all-market/rank/cache accuracy or
+forecast improvement is claimed. No V5 activation, provider run, history write, manual import or
+video post was performed for this release. These actions remain separately unapproved.
+
+This current record supersedes earlier pending release statements, not their evidence limits.
+All sections below preserve pre-approval status and test evidence. Final result documentation
+stays local and uncommitted; no second auto-deploy is required.
 
 ## Historical status and authority — before user approval
 

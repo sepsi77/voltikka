@@ -2,16 +2,23 @@
 
 ## Current release authority
 
-**User approval received; deployment NOT yet performed.** The user replied **“Approved”** to
-the manager's request to commit the reviewed changes on `main` and run `git push origin main`.
-The approved scope is the normal Git auto-deploy to Voltikka/production/voltikka, including its
-live comparison price changes, and read-only deployment/live checks. See `production-release.md`
-for the exact IDs, existing deployed SHA, exclusions and pending manager execution record.
-Technical readiness is unchanged. Release SHA, deployment ID and live results are pending.
+**DEFAULT-V4 DEPLOYMENT VERIFIED — 2026-09-17.** After the user's explicit approval, the manager
+committed 246 intended files as `111a101b6e0b3fa64d84b8cb3020237c9eec87b0` and ran
+`git push origin main`. Matching deployment `19dc90e6-8d8c-4e54-afcc-56081ef82366` reached
+`SUCCESS`, `stopped=false`; MCP confirmed current success. Subsequent bounded live page/API,
+health and asset checks passed. See `production-release.md` for exact IDs and evidence.
 
-The dated records below retain their pre-approval authority statements as historical evidence.
-This approval supersedes only their pending commit/push/deployment permission statements; it does
-not approve V5 activation, reinterpretation or other excluded production actions.
+Initial four page GETs returned 502 during startup cache warming. Startup completed by 02:21:03;
+subsequent checks returned 200 without manual intervention. Track the observed startup
+readiness/traffic gap as a separate hardening follow-up, not an ongoing release failure.
+The bounded log sample does not establish universal error absence. Production retains V4/v19/v17
+and Historical V4/v19/v17/parser-v1. V5 activation and other excluded actions remain unapproved.
+
+Live September 17/curve September 16 checks are not a same-date replay of sealed September 16/
+curve September 15 evidence. Do not infer all-market, ranking, cache or forecast accuracy.
+Final result documents stay local and uncommitted to avoid a second auto-deploy.
+The dated records below retain their pre-approval statements as historical evidence; this record
+supersedes pending release status only, not the preserved evidence limits or V5 approval gates.
 
 ## Historical renewed readiness gate — 2026-09-16
 
@@ -51,7 +58,7 @@ Explicit production target (verify these IDs before any separately authorized op
 - Environment: `9245cef8-41d0-486e-862f-193726511dba`
 - Service: `700d0624-fa96-4266-876c-e37640d220ea`
 
-## Current staged default-V4 release checklist
+## Completed default-V4 release checklist
 
 - [x] Independent 81-total/37-anchor/39-rate-fee review; manager accepts 27 numeric changes as policy-conformant, not better forecasts.
 - [x] Fresh separate read-only export and verified SHA; production/defaults and original snapshot unchanged.
@@ -62,7 +69,7 @@ Explicit production target (verify these IDs before any separately authorized op
 - [x] Manager accepts default-V4 code as technically ready for user deployment approval, with no runtime blockers.
 - [x] Final manager Pint (job 237), context/mirror and snapshot/loaded-source-hash checks all pass; no technical conditions remain.
 - [x] Receive explicit user approval to commit the reviewed changes on `main`, run `git push origin main` for normal Git auto-deploy, and perform read-only deployment/live checks.
-- [ ] Manager performs the approved release and records the release SHA, matching deployment ID/status and live verification results in `production-release.md`. Deployment is not yet performed.
+- [x] Manager performed the approved Git release; exact matching deployment reached SUCCESS. `production-release.md` records SHA, deployment ID/status, initial startup 502s, subsequent successful live checks and evidence limits.
 
 ## Historical staged default-V4 checklist — superseded status
 

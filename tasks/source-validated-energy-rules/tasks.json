@@ -43,6 +43,6 @@
   {"name":"Final network-denied combined PHP gate: 2812 tests; preflight and export smoke PASS", "status":"completed"},
   {"name":"Manager accepts default-V4 technical readiness for user deployment approval; all technical checks passed", "status":"completed"},
   {"name":"Final manager job 237 Pint and subsequent context/mirror/snapshot/loaded-source-hash checks PASS", "status":"completed"},
-  {"name":"Separate user commit/push/deployment approval and authorized live verification", "status":"pending"},
+  {"name":"Separate user commit/push/deployment approval and authorized live verification", "status":"completed"},
   {"name":"Separately approved V5 pilot, activation and reanalysis with coverage review", "status":"pending"}
 ]
