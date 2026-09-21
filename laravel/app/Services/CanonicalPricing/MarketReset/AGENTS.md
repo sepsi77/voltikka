@@ -1,5 +1,12 @@
 # Market-reset annualised price (forward-curve shift)
 
+> **History policy (2026-09-21):** when this estimator's current method changes, the stored annual
+> history must be recalculated with the same method in as-of mode. Statements in this file that the
+> Historical path is "unchanged", "strict", "retained", or "never invokes" a current component
+> describe the implementation state. They are known gaps, not rules to preserve. The rule that stays
+> is no look-ahead: a past date uses only peers, premiums, interpretations, and curve vintages known
+> on that date. See "History follows the current method" in `../../ContractStatistics/AGENTS.md`.
+
 > **Approved target, implemented locally; release blocked:** read the [annualized comparison policy (2026-09-15)](../AGENTS.md#approved-annualized-comparison-policy-2026-09-15) first. It governs intended future changes where older routing, own-reference fallback, or calibration constraints below conflict. The implementation and dated rollout notes below do not establish deployment of the new policy. Known-period, VAT, dated-evidence, billing, and cache safeguards remain; no production mutation is authorized by this documentation.
 
 This directory annualises **market-reset** contracts — `canonical_pricing.recurring_schedule.present
@@ -181,8 +188,8 @@ monthly) first-month fee waiver must keep the Q3/September energy reference and 
 pricing vintages. The old fee boundary at October 11 selected Q4/October and could create false
 zero-floor months. The floor itself is unchanged. Schema v15 invalidates cached annual results.
 New daily statistics can change after this code is released; stored historical annual rows and
-aggregates are not rewritten by cache invalidation. A historical rebuild needs a separate reviewed
-plan and explicit write approval. Do not infer a real seller price cut from that method correction.
+aggregates are not rewritten by cache invalidation. A historical rebuild is therefore a required,
+planned step of a method change; it needs a reviewed plan and explicit write approval. Do not infer a real seller price cut from that method correction.
 
 Existing timeline limits are unchanged: offsets apply to calendar-month keys, even for a genuine
 mid-month energy boundary. `monthly_costs` groups each slice by its start's elapsed month, so an

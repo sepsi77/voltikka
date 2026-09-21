@@ -1,0 +1,13 @@
+[
+  {"name":"Review the public chart and CSV; identify the cause of each annual-cost gap","status":"completed"},
+  {"name":"Find the cause of the 2026-07-23 relational-fallback seam with local production-snapshot evidence","status":"pending"},
+  {"name":"Correct the 2026-07-23 seam and preview the rebuilt date","status":"pending"},
+  {"name":"Design the as-of mode of the current annualized policy (anchors, as-of premium evidence, no look-ahead) and record the decision","status":"pending"},
+  {"name":"Implement annual_cost_as_of_v3 with future-leakage tests","status":"pending"},
+  {"name":"Preview v3 against stored v2 on a fresh local production snapshot; review coverage and median changes","status":"pending"},
+  {"name":"Decide the display rule for the first point after a regime transition","status":"pending"},
+  {"name":"Document the policy that history follows the current method in the AGENTS.md files","status":"completed"},
+  {"name":"After v3 is complete, replace the known-gap notes in the context files with the implemented as-of rules","status":"pending"},
+  {"name":"Obtain approval, verified backup, and apply v3 history in production","status":"pending"},
+  {"name":"Obtain approval and switch the public active annual method to v3; verify the public page","status":"pending"}
+]

@@ -14,6 +14,42 @@ Primary files:
 - `../../Console/Commands/CalculateContractPriceStatistics.php` — current/future daily calculation, usually after `contracts:fetch`.
 - `../../Console/Commands/BackfillContractPriceStatistics.php` — historical backfill from `price_components.price_date`.
 
+## History follows the current method (policy, 2026-09-21)
+
+When the annual-cost calculation method changes, recalculate the stored history with the new
+method, so that the public series is as complete and continuous as possible. This is the default.
+A method change without a history rebuild plan is incomplete work.
+
+Reason: the public chart hides a point at each dominant-method transition. On 2026-09-21 the
+`open_ended` series had gaps on Jul 23–24, Sep 12, and Sep 17. None came from missing data. They
+came from a historical policy that was different from the current method, and from a current-method
+release (`111a101`) with no rebuild. See `../../../../tasks/annual-statistics-history-continuity/`.
+
+- The historical (as-of) calculation must use the same method as the current calculation.
+  `ComparisonPolicy::Historical` can differ from Current only where a rule is necessary for date
+  safety, or where the evidence does not exist for that date. Document each difference with its
+  reason. "Historical is unchanged" is not an acceptable default when the current method changes.
+- When the exact current method is not possible for a date (for example, no FI futures before
+  2026-04-08), use the nearest possible rung of the same method ladder. Accept a regime transition
+  only for a documented real evidence gap.
+- A change that moves current annual totals needs: an as-of mode of the new rule, a preview against
+  the stored active method with `contracts:rebuild-annual-cost-statistics`, and a rebuild plan in
+  the same task. If a rebuild is not possible, record the reason and the resulting chart gap.
+- These rules stay, because they protect evidence and do not prevent a rebuild:
+  - No look-ahead. A past date uses only evidence that existed on that date: interpretations
+    completed by that date, peers and premiums observed by that date, and curve vintages before
+    that date. Never apply today's interpretation or today's peers to a past date.
+  - Observed evidence (`contract_price_snapshots`, `price_components`, source snapshots,
+    interpretations) is never rewritten. `BackfillContractPriceStatistics` keeps `useCanonical: false`.
+  - Earlier annual method rows stay as audit and rollback evidence. Write a new method version
+    beside them; do not relabel old rows.
+  - A production apply and an active-method switch each need explicit approval and a verified full
+    backup. Deployment and cache invalidation never run a rebuild automatically; the rebuild is a
+    planned, reviewed step of the release.
+
+Statements below that say the Historical path is "unchanged", "strict", or "retained" describe the
+implementation on 2026-09-21. They are known gaps against this policy, not rules to preserve.
+
 ## Optional import transaction fence
 
 `calculateForDate()` accepts an optional `transactionFence` callable. It runs inside the existing date transaction before any statistics read/delete/rebuild. General and historical callers default to null and retain their behavior. Full and deferred post-import callers use it to lock the same-date contract freshness row through commit. Scoped callers lock that row if it exists but never create global readiness. An absent-key locking read remains inside the existing statistics transaction; InnoDB's default REPEATABLE READ gap lock serializes a concurrent full-start insertion. No guarantee for another isolation level is inferred from SQLite tests. Deferred callers validate current UUID, claim token/lease, date, exact manifest and active IDs from fresh database rows. This prevents an expired old execution from deleting statistics written by a newer ready import. The finite outer cache lock is only an execution optimization, not the ordering proof. No new transaction wraps a cache build or publisher. See `../ContractImport/AGENTS.md`.
@@ -216,7 +252,7 @@ Primary files:
 - The statistics-page source fingerprint includes daily and both versions of rolling 30/365 rows.
   Coverage and price sums detect a same-second refresh even when row count and date do not change.
 - Current canonical annual outcomes use the shared flat default monthly consumption profile with explicit heating/cooling shape, no-overflow anniversary fee/bin rules, calendar package rules, and once-only inherited charges. Short-term real costs remain annualized; Hybrid totals exclude consumption effects. Reset/supplier annual equivalents use billed energy divided by costed kWh, not snapshot representative weights. Audience VAT is Household/Both/null inclusive and Company excluded; explicit source components and inclusive market curves normalize once before costing. Current collection reuses these outcomes, not a second statistics calculation.
-- Current shared calculated-cost schema v19 invalidates semantic caches only. It does not run a historical rebuild, rewrite snapshots/annual statistics, or replace stored method evidence. Dated annual metric keys advance at Helsinki midnight. Existing historical method rules remain dated evidence, not current annual fallbacks.
+- Current shared calculated-cost schema v19 invalidates semantic caches only. It does not run a historical rebuild, rewrite snapshots/annual statistics, or replace stored method evidence. A schema bump that moves annual totals therefore leaves a method seam in the history; plan the rebuild required by "History follows the current method" above. Dated annual metric keys advance at Helsinki midnight. Existing historical method rules remain dated evidence, not current annual fallbacks.
 - `phpunit.xml` forces the configured legacy annual-method default for test isolation from local `.env`; AsOf tests opt in through `config()->set()`. Test isolation does not change production method configuration.
 - Current canonical Spot `annual_cost` uses the same forward 12-month curve, historical intraday shape (or explicit lower-confidence zero-offset baseload), exact margin, fee, and offers as the public ranking. Historical observed rows keep the trailing-365 Spot level that was known for that date. Use `annual_cost`, not current/day-period `spot_total_energy_price`, for contract-type annual-cost comparisons.
 - On `/sahkosopimus/tilastot`, the contract-type **c/kWh** table, deep-dive Spot chart, and top Spot callout remain historical views: trailing-12-month realized daily Spot average + latest typical margin, with p20–p80 calculated from daily prices over the same window. Do not switch those historical unit-price figures to the forward estimate or latest-day Spot. The annual-cost chart and current canonical snapshot are the forward-looking surfaces.

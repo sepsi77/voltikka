@@ -123,7 +123,11 @@ Redundant-phase and fully disclosed fee-only-promotion equivalence are now imple
   old one-month 4 c/kWh hold-estimate expectation identified in the task decisions.
 - Exact known terms, exact-period bills, VAT normalization, usage conservation, fee/package rules,
   and billed-total reconciliation remain intact. Preserve date-safe historical evidence and cache
-  safety boundaries; this policy does not authorize historical rewrites.
+  safety boundaries. Observed evidence is never rewritten, but a method change must be followed by
+  a rebuild of the stored annual history with the same method in as-of mode; see
+  "History follows the current method" in `../ContractStatistics/AGENTS.md` (2026-09-21, replaces
+  the earlier sentence "this policy does not authorize historical rewrites"). A production apply
+  still needs separate approval.
 
 ## Current local status
 
@@ -179,6 +183,11 @@ in `tasks/annualized-pricing-implementation/final-verification.md`. Detailed pro
   unchanged. The new method is `supplier_adjusted_forward_premium`, basis `forward_premium`.
   See `ForwardPremium/AGENTS.md` for loader proof and selection rules.
 - `ComparisonPolicy::Historical` keeps dedicated replay behavior and never reads current peers.
+  This is the implementation state, and it is a known gap: it caused method seams in the public
+  annual chart. The rule that must stay is "no look-ahead", not "no peers". Historical must get an
+  as-of form of each Current rule (peers, premiums, and curve vintages known on the target date)
+  and can differ only for date safety or missing evidence. See "History follows the current
+  method" in `../ContractStatistics/AGENTS.md`.
   Exact-period bills never use annual projections. Current shared calculated-cost schema is **19**;
   it invalidates calculated-cost caches only, not history or the configured stored annual method.
 - Current ordinary unchanged-energy General/Time/Season tariffs now share one consumption-free
@@ -631,7 +640,9 @@ explicit unavailable/comparability state and no current rates. Feature-off respo
 legacy `PriceComponentResource` rows and calculator. See `../../Http/AGENTS.md`.
 
 **When you add or remove a field on `calculated_cost`, or change which contracts receive a materially
-different calculated outcome, bump `CalculatedCostPayloadSchema::VERSION` once.** List, company,
+different calculated outcome, bump `CalculatedCostPayloadSchema::VERSION` once.** The bump refreshes
+caches only. When it moves annual totals, also plan the history rebuild that
+`../ContractStatistics/AGENTS.md` ("History follows the current method") requires. List, company,
 ranking, and prepared-page cache keys all include this shared dependency. Their service-specific
 outer payload versions remain separate; bump an outer version only when that wrapper's own
 membership, fields, or structure changes. The import-driven version and the pricing-mode marker do

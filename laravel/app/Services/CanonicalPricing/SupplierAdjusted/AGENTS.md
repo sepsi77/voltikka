@@ -1,5 +1,12 @@
 # Supplier-adjusted open-ended annual estimate
 
+> **History policy (2026-09-21):** when this estimator's current method changes, the stored annual
+> history must be recalculated with the same method in as-of mode. Statements in this file that the
+> Historical path is "unchanged", "strict", "retained", or "never invokes" a current component
+> describe the implementation state. They are known gaps, not rules to preserve. The rule that stays
+> is no look-ahead: a past date uses only peers, premiums, interpretations, and curve vintages known
+> on that date. See "History follows the current method" in `../../ContractStatistics/AGENTS.md`.
+
 > **Approved target, implemented locally; release blocked:** read the [annualized comparison policy (2026-09-15)](../AGENTS.md#approved-annualized-comparison-policy-2026-09-15) first. It governs intended future changes where the strict eligibility, routing, own-anchor fallback, or fee-coupled episode rules below conflict. These notes describe current implementation, not completion of that policy. Billing, VAT, evidence, and cache safeguards remain; this documentation does not authorize deployment or production mutations.
 
 This directory annualises a deliberately narrow set of adjustable open-ended `FixedPrice` tariffs. It is separate from `../MarketReset/`: these suppliers disclose no recurring cadence or pass-through rule.

@@ -1,5 +1,12 @@
 # Current forward premium selection
 
+> **History policy (2026-09-21):** when this estimator's current method changes, the stored annual
+> history must be recalculated with the same method in as-of mode. Statements in this file that the
+> Historical path is "unchanged", "strict", "retained", or "never invokes" a current component
+> describe the implementation state. They are known gaps, not rules to preserve. The rule that stays
+> is no look-ahead: a past date uses only peers, premiums, interpretations, and curve vintages known
+> on that date. See "History follows the current method" in `../../ContractStatistics/AGENTS.md`.
+
 The pure selector chooses an ephemeral retail premium for current non-fixed annual forecasts.
 `CurrentPremiumEvidenceLoader` now connects it to the strict ordinary supplier-adjusted current
 path, including the shared unchanged-energy extraction for redundant and fully disclosed fee-only phases. It also serves current market-reset candidates that lack an original reference. Real energy promotions and unknown gaps before known future energy spans remain outside this slice. Nothing in this directory writes
