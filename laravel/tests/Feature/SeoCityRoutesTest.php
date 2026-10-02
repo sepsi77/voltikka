@@ -10,6 +10,8 @@ use App\Models\Municipality;
 use App\Models\Postcode;
 use App\Models\PriceComponent;
 use App\Services\CitySolarService;
+use App\Services\CompanyListCacheService;
+use App\Services\ContractListCacheService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +20,13 @@ use Tests\TestCase;
 
 class SeoCityRoutesTest extends TestCase
 {
+    private function warmPrices(): void
+    {
+        // Build verified fixture prices before public reads, not in the GET request.
+        app()->forgetScopedInstances();
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
+    }
+
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -222,12 +231,14 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_helsinki_route_is_accessible(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/paikkakunnat/helsinki');
         $response->assertStatus(200);
     }
 
     public function test_city_out_of_range_page_returns_404(): void
     {
+        $this->warmPrices();
         $this->get('/sahkosopimus/paikkakunnat/helsinki?page=2')->assertStatus(404);
     }
 
@@ -236,12 +247,14 @@ class SeoCityRoutesTest extends TestCase
         $this->seedPaginatedCityListing();
         $baseUrl = config('app.url').'/sahkosopimus/paikkakunnat/helsinki';
 
+        $this->warmPrices();
         $this->get('/sahkosopimus/paikkakunnat/helsinki')
             ->assertOk()
             ->assertDontSee('<meta name="robots"', false)
             ->assertSeeLivewire('local-contracts-section')
             ->assertSee('Lähialueen sähköyhtiöt');
 
+        $this->warmPrices();
         $this->get('/sahkosopimus/paikkakunnat/helsinki?page=2')
             ->assertOk()
             ->assertSee('<meta name="robots" content="noindex,follow">', false)
@@ -254,6 +267,7 @@ class SeoCityRoutesTest extends TestCase
 
     public function test_city_page_rejects_missing_municipality_slug(): void
     {
+        $this->warmPrices();
         $municipalitySlugQueries = 0;
 
         DB::listen(function ($query) use (&$municipalitySlugQueries) {
@@ -280,6 +294,7 @@ class SeoCityRoutesTest extends TestCase
             }
         });
 
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/paikkakunnat/helsinki');
 
         $response->assertStatus(200);
@@ -330,6 +345,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_tampere_route_is_accessible(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/paikkakunnat/tampere');
         $response->assertStatus(200);
     }
@@ -339,6 +355,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_espoo_route_is_accessible(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/paikkakunnat/espoo');
         $response->assertStatus(200);
     }
@@ -350,6 +367,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_old_helsinki_url_redirects_to_new(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/helsinki');
         $response->assertStatus(301);
         $response->assertRedirect('/sahkosopimus/paikkakunnat/helsinki');
@@ -360,6 +378,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_old_tampere_url_redirects_to_new(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/tampere');
         $response->assertStatus(301);
         $response->assertRedirect('/sahkosopimus/paikkakunnat/tampere');
@@ -370,6 +389,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_old_city_url_pattern_redirects(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/oulu');
         $response->assertStatus(301);
         $response->assertRedirect('/sahkosopimus/paikkakunnat/oulu');
@@ -377,6 +397,7 @@ class SeoCityRoutesTest extends TestCase
 
     public function test_old_city_url_pattern_rejects_unknown_slugs(): void
     {
+        $this->warmPrices();
         $this->get('/sahkosopimus/tuntematon-paikkakunta')->assertStatus(404);
     }
 
@@ -387,6 +408,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_helsinki_page_has_unique_h1(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/paikkakunnat/helsinki');
         $response->assertSee('Sähkösopimukset Helsingissä');
     }
@@ -396,6 +418,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_tampere_page_has_unique_h1(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/paikkakunnat/tampere');
         $response->assertSee('Sähkösopimukset Tampereella');
     }
@@ -405,6 +428,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_espoo_page_has_unique_h1(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/paikkakunnat/espoo');
         $response->assertSee('Sähkösopimukset Espoossa');
     }
@@ -416,6 +440,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_city_page_shows_intro_text(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/paikkakunnat/helsinki');
         $response->assertSee('Helsingissä');
     }
@@ -425,6 +450,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_city_page_has_meta_description(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/paikkakunnat/helsinki');
         // Meta description should mention the city
         $response->assertSee('Helsinki', false);
@@ -437,6 +463,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_national_contracts_shown_on_city_pages(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/paikkakunnat/helsinki');
         $response->assertSee('Perussähkö');
     }
@@ -446,9 +473,11 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_city_specific_contracts_require_an_exact_selected_postcode(): void
     {
+        $this->warmPrices();
         $this->get('/sahkosopimus/paikkakunnat/helsinki')
             ->assertDontSee('Helsinki Sähkö');
 
+        $this->warmPrices();
         Livewire::test('seo-contracts-list', ['location' => 'helsinki'])
             ->call('selectPostcode', '00100')
             ->assertSee('Helsinki Sähkö');
@@ -459,6 +488,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_city_specific_contracts_not_shown_on_other_cities(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/paikkakunnat/tampere');
         $response->assertDontSee('Helsinki Sähkö');
     }
@@ -468,6 +498,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_tampere_contracts_are_hidden_without_a_selected_postcode(): void
     {
+        $this->warmPrices();
         $this->get('/sahkosopimus/paikkakunnat/tampere')
             ->assertDontSee('Tampere Sähkö');
     }
@@ -479,6 +510,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_city_page_has_breadcrumb(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/paikkakunnat/helsinki');
         $response->assertSee('Etusivu');
         $response->assertSee('Sähkösopimukset');
@@ -491,6 +523,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_city_page_has_internal_links(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/paikkakunnat/helsinki');
         // Should have links to housing types
         $response->assertSee('/sahkosopimus/omakotitalo');
@@ -505,6 +538,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_city_page_shows_provider_count(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/paikkakunnat/helsinki');
         // Should show number of providers available in Helsinki
         $response->assertSee('sopimusta');
@@ -518,9 +552,13 @@ class SeoCityRoutesTest extends TestCase
     public function test_city_route_uses_wildcard(): void
     {
         // Test that routes work for various cities
+        $this->warmPrices();
         $this->get('/sahkosopimus/paikkakunnat/helsinki')->assertStatus(200);
+        $this->warmPrices();
         $this->get('/sahkosopimus/paikkakunnat/tampere')->assertStatus(200);
+        $this->warmPrices();
         $this->get('/sahkosopimus/paikkakunnat/oulu')->assertStatus(200);
+        $this->warmPrices();
         $this->get('/sahkosopimus/paikkakunnat/turku')->assertStatus(200);
     }
 
@@ -540,6 +578,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_oulu_has_correct_locative(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/paikkakunnat/oulu');
         $response->assertSee('Oulussa');
     }
@@ -549,6 +588,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_turku_has_correct_locative(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/paikkakunnat/turku');
         $response->assertSee('Turussa');
     }
@@ -558,6 +598,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_jyvaskyla_has_correct_locative(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/paikkakunnat/jyvaskyla');
         $response->assertSee('Jyväskylässä');
     }
@@ -567,6 +608,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_seinajoki_has_correct_locative(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/paikkakunnat/seinajoki');
         $response->assertSee('Seinäjoella');
     }
@@ -576,6 +618,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_rovaniemi_has_correct_locative(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/paikkakunnat/rovaniemi');
         $response->assertSee('Rovaniemellä');
     }
@@ -587,6 +630,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_unknown_city_returns_404(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/paikkakunnat/testcity');
         $response->assertStatus(404);
     }
@@ -598,6 +642,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_city_page_has_json_ld(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/paikkakunnat/helsinki');
         $response->assertSee('application/ld+json', false);
     }
@@ -609,6 +654,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_housing_routes_not_overridden(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/omakotitalo');
         $response->assertStatus(200);
         $response->assertSee('omakotitaloon');
@@ -619,6 +665,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_energy_routes_not_overridden(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/tuulisahko');
         $response->assertStatus(200);
         $response->assertSee('Tuulisähkösopimukset');
@@ -629,6 +676,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_pricing_routes_not_overridden(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/porssisahko');
         $response->assertStatus(200);
         $response->assertSee('Pörssisähkösopimukset');
@@ -636,6 +684,7 @@ class SeoCityRoutesTest extends TestCase
 
     public function test_kiintea_hinta_route_is_pricing_page_not_city_redirect(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/kiintea-hinta');
 
         $response->assertStatus(200);
@@ -645,6 +694,7 @@ class SeoCityRoutesTest extends TestCase
 
     public function test_kiintea_hinta_is_not_valid_location_page(): void
     {
+        $this->warmPrices();
         $this->get('/sahkosopimus/paikkakunnat/kiintea-hinta')->assertStatus(404);
     }
 
@@ -653,6 +703,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_cheapest_contracts_route_not_overridden(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/halvin-sahkosopimus');
         $response->assertStatus(200);
     }
@@ -662,6 +713,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_company_contracts_route_not_overridden(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/yritykselle');
         $response->assertStatus(200);
     }
@@ -673,6 +725,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_city_page_shows_contracts_count(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/paikkakunnat/helsinki');
 
         $response->assertSee('sopimusta');
@@ -713,6 +766,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_locations_browser_is_accessible(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/paikkakunnat');
         $response->assertStatus(200);
         $response->assertSee('paikkakunnittain');
@@ -723,6 +777,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_locations_browser_shows_municipalities(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/paikkakunnat');
         $response->assertSee('Helsinki');
         $response->assertSee('Tampere');

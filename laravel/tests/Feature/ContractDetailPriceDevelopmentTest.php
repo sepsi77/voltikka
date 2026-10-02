@@ -8,6 +8,8 @@ use App\Models\ContractPriceDailyStatistic;
 use App\Models\ElectricityContract;
 use App\Models\PriceComponent;
 use App\Models\SpotPriceAverage;
+use App\Services\CompanyListCacheService;
+use App\Services\ContractListCacheService;
 use App\Services\ContractPriceHistory\PriceDevelopmentPresenter;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -18,10 +20,21 @@ use Tests\TestCase;
 /**
  * "Näin hinta on kehittynyt" on the contract detail page.
  *
- * @see \App\Services\ContractPriceHistory\PriceDevelopmentPresenter
+ * @see PriceDevelopmentPresenter
  */
 class ContractDetailPriceDevelopmentTest extends TestCase
 {
+    private function warmPrices(): void
+    {
+        // Current annual warming must not change observed history or its source dates.
+        $components = PriceComponent::query()->orderBy('id')->get()->map->getAttributes()->all();
+        $statistics = ContractPriceDailyStatistic::query()->orderBy('id')->get()->map->getAttributes()->all();
+        app()->forgetScopedInstances();
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
+        $this->assertSame($components, PriceComponent::query()->orderBy('id')->get()->map->getAttributes()->all());
+        $this->assertSame($statistics, ContractPriceDailyStatistic::query()->orderBy('id')->get()->map->getAttributes()->all());
+    }
+
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -60,6 +73,7 @@ class ContractDetailPriceDevelopmentTest extends TestCase
         $this->monthlyFee($contract->id, '2026-07-25', 4.50);
         $this->segmentMedians('open_ended', '2026-03-07', '2026-07-25', 8.70);
 
+        $this->warmPrices();
         $test = Livewire::test('contract-detail', ['contractId' => $contract->id]);
         $development = $test->viewData('priceDevelopment');
 
@@ -94,6 +108,7 @@ class ContractDetailPriceDevelopmentTest extends TestCase
                 ]);
             }
         }
+        $this->warmPrices();
         $test = Livewire::test('contract-detail', ['contractId' => $contract->id]);
         $development = $test->viewData('priceDevelopment');
         $label = 'Painotettu kausisähkön energianhinta';
@@ -138,6 +153,7 @@ class ContractDetailPriceDevelopmentTest extends TestCase
             '2026-07-25' => 6.95,
         ]);
 
+        $this->warmPrices();
         $chart = Livewire::test('contract-detail', ['contractId' => $contract->id])
             ->viewData('priceDevelopment')['chart'];
 
@@ -157,6 +173,7 @@ class ContractDetailPriceDevelopmentTest extends TestCase
             '2026-07-25' => 6.95,
         ]);
 
+        $this->warmPrices();
         $development = Livewire::test('contract-detail', ['contractId' => $contract->id])
             ->viewData('priceDevelopment');
 
@@ -188,6 +205,7 @@ class ContractDetailPriceDevelopmentTest extends TestCase
         // with the unchanged key is also present on that date.
         $this->segmentMedians('market_reset', '2026-07-20', '2026-07-20', 88.0, 'observed_seller_data');
 
+        $this->warmPrices();
         $test = Livewire::test('contract-detail', ['contractId' => $contract->id]);
         $chart = $test->viewData('priceDevelopment')['chart'];
         $references = array_values(array_filter(array_column($chart['rows'], 'reference')));
@@ -227,6 +245,7 @@ class ContractDetailPriceDevelopmentTest extends TestCase
             'hours_count' => 8760,
         ]);
 
+        $this->warmPrices();
         $test = Livewire::test('contract-detail', ['contractId' => $contract->id]);
         $development = $test->viewData('priceDevelopment');
 
@@ -259,6 +278,7 @@ class ContractDetailPriceDevelopmentTest extends TestCase
         ]);
         $this->monthlySpotAverages(['2026-05' => 4.90, '2026-06' => 4.10]);
 
+        $this->warmPrices();
         $development = Livewire::test('contract-detail', ['contractId' => $contract->id])
             ->viewData('priceDevelopment');
 
@@ -279,6 +299,7 @@ class ContractDetailPriceDevelopmentTest extends TestCase
             '2026-07-25' => 6.95,
         ]);
 
+        $this->warmPrices();
         $test = Livewire::test('contract-detail', ['contractId' => $contract->id]);
         $development = $test->viewData('priceDevelopment');
 
@@ -295,6 +316,7 @@ class ContractDetailPriceDevelopmentTest extends TestCase
         $contract = $this->openEndedContract('history-single');
         $this->generalPriceSeries($contract->id, ['2026-07-25' => 6.95]);
 
+        $this->warmPrices();
         Livewire::test('contract-detail', ['contractId' => $contract->id])
             ->assertSee('Voltikka on havainnut tämän sopimuksen hinnan vain kerran (25.7.2026)');
     }
@@ -313,6 +335,7 @@ class ContractDetailPriceDevelopmentTest extends TestCase
             '2026-07-25' => 7.10,
         ]);
 
+        $this->warmPrices();
         $test = Livewire::test('contract-detail', ['contractId' => $contract->id]);
         $facts = $test->viewData('priceDevelopment')['facts'];
 
@@ -337,6 +360,7 @@ class ContractDetailPriceDevelopmentTest extends TestCase
         $this->monthlyFee($contract->id, '2026-03-07', 4.50);
         $this->monthlyFee($contract->id, '2026-07-25', 4.50);
 
+        $this->warmPrices();
         $facts = Livewire::test('contract-detail', ['contractId' => $contract->id])
             ->viewData('priceDevelopment')['facts'];
 
@@ -360,6 +384,7 @@ class ContractDetailPriceDevelopmentTest extends TestCase
         $this->monthlyFee($contract->id, '2026-07-20', 4.50);
         $this->monthlyFee($contract->id, '2026-07-25', 4.50);
 
+        $this->warmPrices();
         $facts = Livewire::test('contract-detail', ['contractId' => $contract->id])
             ->viewData('priceDevelopment')['facts'];
 
@@ -377,6 +402,7 @@ class ContractDetailPriceDevelopmentTest extends TestCase
         $this->monthlyFee($contract->id, '2026-05-02', 4.99);
         $this->monthlyFee($contract->id, '2026-07-25', 4.99);
 
+        $this->warmPrices();
         $facts = Livewire::test('contract-detail', ['contractId' => $contract->id])
             ->viewData('priceDevelopment')['facts'];
 
@@ -403,6 +429,7 @@ class ContractDetailPriceDevelopmentTest extends TestCase
             $successorId = $older->id;
         }
 
+        $this->warmPrices();
         Livewire::test('contract-detail', ['contractId' => $contract->id])
             ->assertSee('Näytä 2 vanhempaa versiota')
             // All five versions stay in the DOM; only the oldest two are collapsed.
@@ -426,6 +453,7 @@ class ContractDetailPriceDevelopmentTest extends TestCase
             $successorId = $older->id;
         }
 
+        $this->warmPrices();
         Livewire::test('contract-detail', ['contractId' => $contract->id])
             ->assertDontSee('vanhempaa versiota');
     }
@@ -440,6 +468,7 @@ class ContractDetailPriceDevelopmentTest extends TestCase
         $older->save();
         $this->generalPriceSeries($older->id, ['2026-05-01' => 7.00]);
 
+        $this->warmPrices();
         Livewire::test('contract-detail', ['contractId' => $contract->id])
             ->assertSeeInOrder(['-0,50', 'c/kWh', 'Energiahinta muuttui']);
     }
@@ -470,6 +499,7 @@ class ContractDetailPriceDevelopmentTest extends TestCase
         $this->monthlyFee($contract->id, '2026-01-10', 4.05);
         $this->monthlyFee($contract->id, '2026-07-24', 4.05);
 
+        $this->warmPrices();
         $development = Livewire::test('contract-detail', ['contractId' => $contract->id])
             ->viewData('priceDevelopment');
 
@@ -513,6 +543,7 @@ class ContractDetailPriceDevelopmentTest extends TestCase
         $this->monthlyFee($contract->id, '2026-03-07', 39.90);
         $this->monthlyFee($contract->id, '2026-07-25', 39.90);
 
+        $this->warmPrices();
         $development = Livewire::test('contract-detail', ['contractId' => $contract->id])
             ->viewData('priceDevelopment');
 

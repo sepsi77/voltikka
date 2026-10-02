@@ -7,6 +7,8 @@ use App\Models\ActiveContract;
 use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\PriceComponent;
+use App\Services\CompanyListCacheService;
+use App\Services\ContractListCacheService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -112,6 +114,8 @@ class SahkosopimusBillModeTest extends TestCase
     {
         // 30-day period so months-in-period is exactly 1 and €/kk equals the
         // period cost, keeping the period-cost assertions deterministic.
+        $this->refreshPriceFixtures();
+
         return Livewire::test(SahkosopimusIndex::class)
             ->set('billPeriodPreset', 'custom')
             ->set('billStartDate', '2026-05-01')
@@ -122,6 +126,8 @@ class SahkosopimusBillModeTest extends TestCase
 
     public function test_bill_entry_form_is_shown_on_sahkosopimus(): void
     {
+        $this->refreshPriceFixtures();
+
         $this->get('/sahkosopimus')
             ->assertStatus(200)
             ->assertSee('Vertaa nykyistä sähkölaskuasi');
@@ -223,6 +229,8 @@ class SahkosopimusBillModeTest extends TestCase
         $this->createCappedContract('capped-tier', 'Capped Tier', 'Halpa Energia Oy', 8.0, 4500);
 
         // Small May bill that annualizes well below the 4500 cap.
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test(SahkosopimusIndex::class)
             ->set('billPeriodPreset', 'custom')
             ->set('billStartDate', '2026-05-01')
@@ -251,6 +259,8 @@ class SahkosopimusBillModeTest extends TestCase
     {
         $this->createFixedContract('cheap-contract', 'Halpa Kiinteä', 'Halpa Energia Oy', 5.0, 3.00);
 
+        $this->refreshPriceFixtures();
+
         $this->get('/sahkosopimus/porssisahko')
             ->assertStatus(200)
             ->assertSee('Vertaa nykyistä sähkölaskuasi');
@@ -258,5 +268,10 @@ class SahkosopimusBillModeTest extends TestCase
         $this->get('/sahkosopimus/yritykselle')
             ->assertStatus(200)
             ->assertDontSee('Vertaa nykyistä sähkölaskuasi');
+    }
+
+    private function refreshPriceFixtures(): void
+    {
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
     }
 }

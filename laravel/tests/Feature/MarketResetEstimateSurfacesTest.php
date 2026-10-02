@@ -6,6 +6,7 @@ use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\ElectricityFuturesEodPrice;
 use App\Services\Caching\ContractPageCacheVersion;
+use App\Services\Caching\ContractPriceCacheLifecycle;
 use App\Services\CalculatedCostPayloadSchema;
 use App\Services\CanonicalPricing\CanonicalContractPriceCalculator;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
@@ -58,10 +59,12 @@ class MarketResetEstimateSurfacesTest extends TestCase
         Cache::flush();
 
         $this->beginPricingMode(['canonical_pricing.reset_forward_shift.enabled' => false]);
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
         app(ContractListCacheService::class)->getCachedMetrics(5000);
         $offKeys = $this->cacheKeysMatching('contract_list_metrics');
 
         $this->beginPricingMode(['canonical_pricing.reset_forward_shift.enabled' => true]);
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
         app(ContractListCacheService::class)->getCachedMetrics(5000);
         $allKeys = $this->cacheKeysMatching('contract_list_metrics');
 
@@ -77,9 +80,11 @@ class MarketResetEstimateSurfacesTest extends TestCase
         Cache::flush();
 
         $this->beginPricingMode(['canonical_pricing.reset_forward_shift.enabled' => false]);
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
         app(ContractRankingService::class)->getTotalActiveContracts();
 
         $this->beginPricingMode(['canonical_pricing.reset_forward_shift.enabled' => true]);
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
         app(ContractRankingService::class)->getTotalActiveContracts();
 
         $keys = $this->cacheKeysMatching('contract_rankings');
@@ -157,11 +162,12 @@ class MarketResetEstimateSurfacesTest extends TestCase
             'canonical_pricing.reset_forward_shift.enabled' => true,
         ]);
 
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
         app(CompanyListCacheService::class)->getCachedCompanies(5000);
 
         $keys = $this->cacheKeysMatching('company_list:');
 
-        $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_contains($key, ':s2:'.CalculatedCostPayloadSchema::cacheMarker().':')));
+        $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_contains($key, ':s3:'.CalculatedCostPayloadSchema::cacheMarker().':')));
         $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_contains($key, ':c1r1:')));
     }
 
@@ -169,15 +175,19 @@ class MarketResetEstimateSurfacesTest extends TestCase
     {
         Cache::flush();
 
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
         app(ContractRankingService::class)->getTotalActiveContracts();
-        app(ContractListCacheService::class)->bumpVersion();
+        $lifecycle = app(ContractPriceCacheLifecycle::class);
+        $starting = $lifecycle->active();
+        $lifecycle->promote($starting, $lifecycle->candidate($starting), []);
         app()->forgetInstance(ContractRankingService::class);
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
         app(ContractRankingService::class)->getTotalActiveContracts();
 
         $keys = $this->cacheKeysMatching('contract_rankings');
 
-        $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_contains($key, ':lv1:')));
         $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_contains($key, ':lv2:')));
+        $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_contains($key, ':lv4:')));
     }
 
     /**

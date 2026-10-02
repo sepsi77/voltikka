@@ -46,14 +46,16 @@ class ContractRequestMemoizationTest extends TestCase
         $canonical = $this->createMock(CanonicalContractPricingService::class);
         $canonical->method('enabled')->willReturn(false);
 
-        $service = new ContractListCacheService(
-            $this->createMock(ContractPriceCalculator::class),
-            $this->createMock(CO2EmissionsCalculator::class),
-            $canonical,
-            new PricingMode(canonicalPricingEnabled: false, resetForwardShiftEnabled: false),
-            $lifecycle,
-            $evidence,
-        );
+        $service = $this->getMockBuilder(ContractListCacheService::class)
+            ->setConstructorArgs([
+                $this->createMock(ContractPriceCalculator::class),
+                $this->createMock(CO2EmissionsCalculator::class),
+                $canonical,
+                new PricingMode(canonicalPricingEnabled: false, resetForwardShiftEnabled: false),
+                $lifecycle,
+                $evidence,
+            ])->onlyMethods(['currentAvailability'])->getMock();
+        $service->expects($this->exactly(2))->method('currentAvailability')->willReturn([]);
 
         $first = $service->getCachedMetrics(5000);
         $second = $service->getCachedMetrics(5000);
@@ -65,16 +67,17 @@ class ContractRequestMemoizationTest extends TestCase
 
     public function test_company_list_cache_reads_are_memoized_per_service_instance(): void
     {
-        $companies = collect();
+        $companies = collect([['_availability' => hash('sha256', serialize([]))]]);
 
         $lifecycle = $this->createMock(ContractPriceCacheLifecycle::class);
         $lifecycle->method('active')->willReturn(['version' => 7, 'generation' => 'test']);
         Cache::shouldReceive('get')->once()
-            ->with('company_list:v7:s2:'.CalculatedCostPayloadSchema::cacheMarker().':lv7:c1r0:5000:gtest:')
+            ->with('company_list:v7:s3:'.CalculatedCostPayloadSchema::cacheMarker().':lv7:c1r0:5000:gtest')
             ->andReturn($companies);
 
         $listCache = $this->createMock(ContractListCacheService::class);
         $listCache->method('getVersion')->willReturn(7);
+        $listCache->expects($this->exactly(2))->method('availabilityFingerprint')->willReturn(hash('sha256', serialize([])));
 
         $canonical = $this->createMock(CanonicalContractPricingService::class);
         $canonical->method('enabled')->willReturn(true);

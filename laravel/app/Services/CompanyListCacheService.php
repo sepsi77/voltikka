@@ -6,6 +6,7 @@ use App\Enums\PricingModel;
 use App\Models\ElectricityContract;
 use App\Services\Caching\ContractPriceCacheConflict;
 use App\Services\Caching\ContractPriceCacheLifecycle;
+use App\Services\Caching\ContractPriceCacheUnavailable;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\CanonicalPricing\PricingMode;
 use App\Services\ContractPricing\ContractMetric;
@@ -22,7 +23,7 @@ class CompanyListCacheService
      * The import version and pricing flags do not change on a code-only deploy. Bump this
      * value whenever company metric membership or payload fields change.
      */
-    private const PAYLOAD_SCHEMA_VERSION = 2;
+    private const PAYLOAD_SCHEMA_VERSION = 3;
 
     private const DEFAULT_CONSUMPTION = 5000;
 
@@ -55,25 +56,43 @@ class CompanyListCacheService
     {
         $generation = $this->lifecycle->active();
         $cacheKey = $this->getCacheKey($consumption, $generation);
-        if (isset($this->cachedCompaniesMemo[$cacheKey])) {
-            return $this->cachedCompaniesMemo[$cacheKey];
+        $availability = $this->contractListCache->availabilityFingerprint();
+        $memoKey = $cacheKey.':'.$availability;
+        if (isset($this->cachedCompaniesMemo[$memoKey])) {
+            return $this->cachedCompaniesMemo[$memoKey];
         }
 
-        $companies = Cache::get($cacheKey);
-        if ($companies === null) {
+        $custom = ! in_array($consumption, ContractListCacheService::PRESET_CONSUMPTIONS, true);
+        // Custom wrappers must never outlive the exact shared handoff or persist forever.
+        $companies = $custom ? null : Cache::get($cacheKey);
+        if ($companies !== null && ! $companies instanceof Collection) {
+            throw new InvalidArgumentException('Cached companies must be a collection payload.');
+        }
+        // Empty collections have no row on which to store the availability marker.
+        if ($companies === null || $companies->isEmpty()
+            || $companies->contains(fn (array $company) => ($company['_availability'] ?? null) !== $availability)) {
             // This read owns the two-attempt budget; the list must not retry inside it.
             $metrics = $this->contractListCache->getCachedMetrics($consumption, retryConflicts: false);
             if ($metrics === null) {
+                if ($custom) {
+                    throw new ContractPriceCacheUnavailable;
+                }
                 throw new InvalidArgumentException('Company pricing requires a supported cached consumption.');
             }
             $companies = $this->buildCachedCompanies($consumption, $metrics);
-            if ($cacheKey !== $this->getCacheKey($consumption, $generation)) {
+            if ($availability !== $this->contractListCache->availabilityFingerprint()) {
                 throw ContractPriceCacheConflict::evidenceChanged();
             }
-            $this->lifecycle->write($generation, $cacheKey, $companies);
+            if ($custom) {
+                if ($this->lifecycle->active() !== $generation) {
+                    throw ContractPriceCacheConflict::generationChanged();
+                }
+            } else {
+                $this->lifecycle->write($generation, $cacheKey, $companies);
+            }
         }
 
-        return $this->cachedCompaniesMemo[$cacheKey] = $companies;
+        return $this->cachedCompaniesMemo[$memoKey] = $companies;
     }
 
     public function warm(): void
@@ -97,7 +116,7 @@ class CompanyListCacheService
     public function getCacheKey(int $consumption, ?array $generation = null): string
     {
         return sprintf(
-            'company_list:v%d:s%d:%s:lv%d:%s:%d:g%s:%s',
+            'company_list:v%d:s%d:%s:lv%d:%s:%d:g%s',
             ($generation ??= $this->lifecycle->active())['version'],
             self::PAYLOAD_SCHEMA_VERSION,
             CalculatedCostPayloadSchema::cacheMarker(),
@@ -105,7 +124,6 @@ class CompanyListCacheService
             $this->pricingMode->cacheMarker(),
             $consumption,
             $generation['generation'],
-            $this->contractListCache->safetyFingerprint(),
         );
     }
 
@@ -116,6 +134,7 @@ class CompanyListCacheService
             throw new InvalidArgumentException('Company pricing requires a supported cached consumption.');
         }
 
+        $availability = $this->contractListCache->availabilityFingerprint();
         $contracts = ElectricityContract::query()
             ->active()
             ->with(['company', 'electricitySource'])
@@ -127,15 +146,15 @@ class CompanyListCacheService
         $useCanonical = $this->canonicalPricing->enabled();
 
         foreach ($contractsByCompany as $allCompanyContracts) {
-            $companyContracts = $useCanonical
-                ? $allCompanyContracts->filter(function (ElectricityContract $contract) use ($cachedMetrics): bool {
-                    $metric = $cachedMetrics->metric($contract->id);
+            $companyContracts = $allCompanyContracts->filter(function (ElectricityContract $contract) use ($cachedMetrics, $useCanonical): bool {
+                $metric = $cachedMetrics->metric($contract->id);
 
-                    return $metric !== null
-                        && $metric->isListed()
-                        && $metric->pricing()->pricingBasis() === 'canonical';
-                })
-                : $allCompanyContracts;
+                return $metric !== null
+                    && $metric->isListed()
+                    && $metric->pricing()->total() !== null
+                    && is_finite($metric->pricing()->total())
+                    && (! $useCanonical || $metric->pricing()->pricingBasis() === 'canonical');
+            });
 
             $company = $companyContracts->first()?->company;
 
@@ -167,6 +186,7 @@ class CompanyListCacheService
             );
 
             $companies->push([
+                '_availability' => $availability,
                 'company' => $company,
                 'contractCount' => $companyContracts->count(),
                 'avgPrice' => $priceMetrics->isNotEmpty()

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\Caching\ContractPriceCacheUnavailable;
 use App\Services\SpotPriceVideoService;
 use App\Services\WeeklyOffersVideoService;
 use Carbon\Carbon;
@@ -84,7 +85,13 @@ class VideoController extends Controller
      */
     public function weeklyOffers(): JsonResponse
     {
-        $data = $this->weeklyOffersService->getWeeklyOffersData();
+        try {
+            $data = $this->weeklyOffersService->getWeeklyOffersData();
+        } catch (ContractPriceCacheUnavailable) {
+            return response()->json(['error' => 'Cached pricing is unavailable.'], 503)
+                ->header('Retry-After', '60')
+                ->header('Cache-Control', 'no-store');
+        }
 
         return response()->json([
             'data' => $data,

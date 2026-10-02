@@ -24,6 +24,13 @@ Schedule::command('contracts:complete-import')
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/contracts-complete-import.log'));
 
+// File price caches are instance-local. All producers also share the execution lease.
+Schedule::command('contracts:warm-cache --pending')
+    ->everyMinute()
+    ->runInBackground()
+    ->withoutOverlapping(35)
+    ->appendOutputTo(storage_path('logs/contract-price-cache-warm.log'));
+
 // Delete only tracked retired price-cache payloads, after their one-hour reader grace period.
 Schedule::command('contracts:cleanup-price-cache')
     ->everyFiveMinutes()

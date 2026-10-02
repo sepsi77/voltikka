@@ -8,6 +8,8 @@ use App\Models\ElectricityContract;
 use App\Models\Municipality;
 use App\Models\Postcode;
 use App\Models\PriceComponent;
+use App\Services\CompanyListCacheService;
+use App\Services\ContractListCacheService;
 use App\Services\LocalContractsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -53,6 +55,8 @@ class LocalContractsServiceTest extends TestCase
 
             $this->createContract("contract-{$index}", $companyName);
         }
+
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
 
         DB::enableQueryLog();
 
@@ -139,6 +143,8 @@ class LocalContractsServiceTest extends TestCase
         $otherRegional = $this->createContract('other-regional', 'Regional Energia Oy', false);
         $localRegional->availabilityPostcodes()->attach(['00100', '00101', '33100']);
         $otherRegional->availabilityPostcodes()->attach(['00100', '00101', '33100']);
+
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
 
         $service = app(LocalContractsService::class);
         $nationalOnly = $service->getLocalContracts($municipality, 5000);

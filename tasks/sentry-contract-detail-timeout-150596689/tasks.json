@@ -1,0 +1,12 @@
+[
+  {"name":"Measure the cold calculation and identify repeated work","status":"completed"},
+  {"name":"Implement a semantics-preserving performance correction and regression tests","status":"completed"},
+  {"name":"Verify local price parity, performance and safety; record limits","status":"completed"},
+  {"name":"Measure complete cold and concurrent city requests with local-contract sections","status":"completed"},
+  {"name":"Implement retained-cache producer demand and lifecycle policy","status":"completed"},
+  {"name":"Implement shared cache-only read guards and exact custom preparation API","status":"completed"},
+  {"name":"Integrate owned cache/service regression fixtures without relaxing GET policy","status":"completed"},
+  {"name":"Preserve monotonic refresh demand after standalone demand metadata loss","status":"completed"},
+  {"name":"Implement cache-only public GET consumers and explicit-action custom calculations","status":"completed"},
+  {"name":"Confirm production timeout cause and verify an explicitly approved release","status":"pending"}
+]

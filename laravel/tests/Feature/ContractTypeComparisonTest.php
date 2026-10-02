@@ -13,6 +13,8 @@ use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\CanonicalPricing\CanonicalPricingParser;
 use App\Services\CanonicalPricing\ContractPricingIntegrityService;
 use App\Services\CanonicalPricing\PricingMode;
+use App\Services\CompanyListCacheService;
+use App\Services\ContractListCacheService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
@@ -34,12 +36,21 @@ class ContractTypeComparisonTest extends TestCase
         ]);
     }
 
+    private function warmPrices(): void
+    {
+        // Run the private producer before HTTP initialization and pricing spies.
+        app()->forgetScopedInstances();
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
+    }
+
     public function test_initial_render_does_not_dump_all_contract_names(): void
     {
         $this->createContract('spot-cheapest', 'Halpa Spot', 'Spot', 0.2);
         $this->createContract('spot-extra', 'Crawler Dump Spot Name', 'Spot', 5.0);
         $this->createContract('fixed-cheapest', 'Halpa Kiinteä', 'FixedPrice', 4.0);
         $this->createContract('fixed-extra', 'Crawler Dump Fixed Name', 'FixedPrice', 25.0);
+
+        $this->warmPrices();
 
         Livewire::test(ContractTypeComparison::class)
             ->assertSee('Vaihda sopimus')
@@ -54,6 +65,8 @@ class ContractTypeComparisonTest extends TestCase
         $this->createContract('spot-cheapest', 'Halpa Spot', 'Spot', 0.2);
         $this->createContract('spot-extra', 'Searchable Spot Name', 'Spot', 5.0);
         $this->createContract('fixed-cheapest', 'Halpa Kiinteä', 'FixedPrice', 4.0);
+
+        $this->warmPrices();
 
         Livewire::test(ContractTypeComparison::class)
             ->assertDontSee('Searchable Spot Name')
@@ -76,6 +89,8 @@ class ContractTypeComparisonTest extends TestCase
         ]);
         $this->createRelationalPrice($fixedTerm, 'General', 1.0);
         $this->createRelationalPrice($openEnded, 'General', 50.0);
+
+        $this->warmPrices();
 
         $component = Livewire::test(ContractTypeComparison::class, [
             'comparisonMode' => 'contract_term',
@@ -113,6 +128,8 @@ class ContractTypeComparisonTest extends TestCase
         $missing = $this->createCanonicalContract('canonical-missing-widget', 'OpenEnded', 'FixedPrice', null);
         $this->createRelationalPrice($missing, 'General', 1.0);
 
+        $this->warmPrices();
+
         $component = Livewire::test(ContractTypeComparison::class, [
             'comparisonMode' => 'contract_term',
             'selectedContractA' => $canonicalOnly->id,
@@ -121,6 +138,8 @@ class ContractTypeComparisonTest extends TestCase
 
         $this->assertEqualsWithDelta(400.0, $component->viewData('projectedCostsA')['total'], 0.01);
         $this->assertFalse($component->viewData('projectedCostsB')['available']);
+        $this->assertSame('excluded_incomplete', $component->viewData('projectedCostsB')['comparability']);
+        $this->assertSame('excluded_incomplete', $component->instance()->getDisplayPrice($missing)['comparability']);
         $this->assertSame([], $component->viewData('projectedCostsB')['monthly']);
         $this->assertFalse($component->viewData('comparisonResult')['hasResult']);
         $this->assertNull($component->viewData('comparisonResult')['winner']);
@@ -140,6 +159,8 @@ class ContractTypeComparisonTest extends TestCase
         ]);
         $this->createRelationalPrice($excludedA, 'General', 0.1);
         $this->createRelationalPrice($excludedB, 'General', 0.2);
+
+        $this->warmPrices();
 
         $oneExcluded = Livewire::test(ContractTypeComparison::class, [
             'comparisonMode' => 'contract_term',
@@ -176,6 +197,8 @@ class ContractTypeComparisonTest extends TestCase
         ]);
         $this->createRelationalPrice($package, 'General', 99.0);
 
+        $this->warmPrices();
+
         $component = Livewire::test(ContractTypeComparison::class, [
             'comparisonMode' => 'contract_term',
             'selectedContractA' => $fixedTerm->id,
@@ -206,6 +229,8 @@ class ContractTypeComparisonTest extends TestCase
             $this->phase([$this->canonicalComponent('energy_general', 7.0)], 'contract_start', 'after_months', '1'),
         ], calculationStatus: 'estimate_required', issues: ['recurring_reset_requires_estimate'], recurringCadence: 'quarterly');
 
+        $this->warmPrices();
+
         $component = Livewire::test(ContractTypeComparison::class, [
             'comparisonMode' => 'contract_term',
             'selectedContractA' => $fixedTerm->id,
@@ -233,6 +258,8 @@ class ContractTypeComparisonTest extends TestCase
             $this->phase([$this->canonicalComponent('energy_general', 8.0)]),
         ], calculationStatus: 'unsupported', consumptionEffect: true);
 
+        $this->warmPrices();
+
         $component = Livewire::test(ContractTypeComparison::class, [
             'comparisonMode' => 'contract_term',
             'selectedContractA' => $short->id,
@@ -249,6 +276,8 @@ class ContractTypeComparisonTest extends TestCase
             ->assertSee('Arvio – ei sisällä kulutusvaikutusta');
 
         $hybrid->update(['contract_type' => 'FixedTerm', 'fixed_time_range' => 'Fixed6']);
+        // Changed classification cannot reuse the old generation's financial facts.
+        $this->warmPrices();
         $projected = (new \ReflectionMethod(ContractTypeComparison::class, 'calculateProjectedCosts'))
             ->invoke(new ContractTypeComparison, $hybrid->fresh());
         $this->assertSame('base_only_hybrid', $projected['comparability']);
@@ -270,6 +299,8 @@ class ContractTypeComparisonTest extends TestCase
             $this->phase([$this->canonicalComponent('energy_general', 8.0)]),
         ], attributes: ['fixed_time_range' => 'Fixed12']);
 
+        $this->warmPrices();
+
         $pricingMode = Livewire::test(ContractTypeComparison::class, [
             'comparisonMode' => 'pricing_model',
             'comparisonContext' => 'spot_article',
@@ -290,7 +321,7 @@ class ContractTypeComparisonTest extends TestCase
         $termMode->assertSee('Arvio – pörssihinta perustuu 365 päivän keskiarvoon');
     }
 
-    public function test_canonical_render_does_not_query_components_and_evaluates_each_candidate_once(): void
+    public function test_cached_canonical_render_skips_evaluation_and_explicit_selection_evaluates_each_side_once(): void
     {
         config()->set('canonical_pricing.enabled', true);
 
@@ -303,6 +334,8 @@ class ContractTypeComparisonTest extends TestCase
         $this->createRelationalPrice($fixedTerm, 'General', 1.0);
         $this->createRelationalPrice($openEnded, 'General', 2.0);
 
+        $this->warmPrices();
+
         $service = \Mockery::mock(CanonicalContractPricingService::class, [
             app(CanonicalContractPriceCalculator::class),
             app(PricingMode::class),
@@ -310,6 +343,7 @@ class ContractTypeComparisonTest extends TestCase
             app(ContractPricingIntegrityService::class),
         ])->makePartial();
         $service->shouldReceive('evaluate')->twice()->passthru();
+        $service->shouldNotReceive('metricsForContracts');
         $this->app->instance(CanonicalContractPricingService::class, $service);
 
         $queries = [];
@@ -317,16 +351,24 @@ class ContractTypeComparisonTest extends TestCase
             $queries[] = $query->sql;
         });
 
-        Livewire::test(ContractTypeComparison::class, [
+        $component = Livewire::test(ContractTypeComparison::class, [
             'comparisonMode' => 'contract_term',
             'selectedContractA' => $fixedTerm->id,
             'selectedContractB' => $openEnded->id,
         ])->assertSee('Edullisempi');
+        $service->shouldNotHaveReceived('evaluate');
+        $cachedA = $component->viewData('projectedCostsA');
+        $cachedB = $component->viewData('projectedCostsB');
 
         $this->assertSame([], array_values(array_filter(
             $queries,
             fn (string $sql): bool => str_contains($sql, 'price_components'),
         )));
+
+        $component->call('selectContractA', $fixedTerm->id);
+        $this->assertSame($cachedA, $component->viewData('projectedCostsA'));
+        $this->assertSame($cachedB, $component->viewData('projectedCostsB'));
+        $service->shouldHaveReceived('evaluate')->twice();
     }
 
     public function test_feature_off_keeps_relational_chart_winner_and_display_rates(): void
@@ -341,6 +383,8 @@ class ContractTypeComparisonTest extends TestCase
         ]);
         $this->createRelationalPrice($fixedTerm, 'General', 3.0);
         $this->createRelationalPrice($openEnded, 'General', 6.0);
+
+        $this->warmPrices();
 
         $component = Livewire::test(ContractTypeComparison::class, [
             'comparisonMode' => 'contract_term',

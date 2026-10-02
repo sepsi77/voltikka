@@ -9,6 +9,7 @@ use App\Models\SpotPriceAverage;
 use App\Services\Analytics\ContractOrderClickContextSigner;
 use App\Services\BillComparison\BillComparisonService;
 use App\Services\Caching\ContractPageCacheVersion;
+use App\Services\Caching\PublicPriceCalculationPolicy;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\CanonicalPricing\MarketReset\ResetEstimateCopy;
 use App\Services\CanonicalPricing\PricingMode;
@@ -197,6 +198,8 @@ class ContractDetail extends Component
         if ($contract) {
             $value = $this->clampConsumption($value, $contract);
         }
+        app(PublicPriceCalculationPolicy::class)->allowUserAction();
+        $this->pricingViewDataCache = [];
         $this->consumption = $value;
         $this->directConsumption = $value;
     }
@@ -215,6 +218,7 @@ class ContractDetail extends Component
         $raw = $value ?? $this->directConsumption;
 
         if ($raw === null || $raw === '' || ! is_numeric($raw)) {
+            app(PublicPriceCalculationPolicy::class)->allowUserAction();
             $this->directConsumption = $this->consumption;
 
             return;
@@ -223,6 +227,7 @@ class ContractDetail extends Component
         $requested = (int) round((float) $raw);
 
         if ($requested <= 0) {
+            app(PublicPriceCalculationPolicy::class)->allowUserAction();
             $this->directConsumption = $this->consumption;
 
             return;
@@ -235,6 +240,8 @@ class ContractDetail extends Component
             $clamped = $this->clampConsumption($clamped, $contract);
         }
 
+        app(PublicPriceCalculationPolicy::class)->allowUserAction();
+        $this->pricingViewDataCache = [];
         $this->consumption = $clamped;
         $this->directConsumption = $clamped;
     }
@@ -457,7 +464,7 @@ class ContractDetail extends Component
     protected function loadContract(): ?ElectricityContract
     {
         return ElectricityContract::query()
-            ->with(['company', 'priceComponents', 'electricitySource', 'activeContract'])
+            ->with(['company', 'electricitySource', 'activeContract'])
             ->find($this->contractId);
     }
 
@@ -1042,19 +1049,20 @@ class ContractDetail extends Component
 
         $contract = $this->contract;
 
-        if (! $contract) {
+        if (! $contract || (! $contract->isActive() && ! app(PublicPriceCalculationPolicy::class)->allowsCalculation())) {
             return $this->pricingViewDataCache[$consumption] = null;
         }
 
-        // Reference table tiers must not build whole-market caches on a detail request.
-        if ($consumption === $this->consumption) {
-            /** @var ContractListCacheService $contractListCache */
-            $contractListCache = app(ContractListCacheService::class);
-            $cachedMetric = $contractListCache->getCachedMetrics($consumption)?->metric($contract->id);
+        $cachedMetric = app(ContractListCacheService::class)->getCachedMetrics($consumption)?->metric($contract->id);
+        if ($contract->isActive() && $cachedMetric !== null
+            && ! in_array('cached_source_evidence_is_not_current', $cachedMetric->pricing()->assumptions(), true)) {
+            $this->computedValueCache['pricingIntegrity:'.$consumption] = $cachedMetric->integrity()?->toArray();
 
-            if ($cachedMetric !== null) {
-                return $this->pricingViewDataCache[$consumption] = $cachedMetric->pricing();
-            }
+            return $this->pricingViewDataCache[$consumption] = $cachedMetric->pricing();
+        }
+
+        if (! app(PublicPriceCalculationPolicy::class)->allowsCalculation()) {
+            return $this->pricingViewDataCache[$consumption] = null;
         }
 
         $usage = new EnergyUsage(
@@ -1064,9 +1072,10 @@ class ContractDetail extends Component
 
         $canonicalPricing = app(CanonicalContractPricingService::class);
         if ($canonicalPricing->enabled()) {
-            return $this->pricingViewDataCache[$consumption] = ContractPricingViewData::fromCanonicalOutcome(
-                $canonicalPricing->evaluate($contract, $usage)['outcome'],
-            );
+            $evaluation = $canonicalPricing->evaluate($contract, $usage);
+            $this->computedValueCache['pricingIntegrity:'.$consumption] = $evaluation['integrity']->toArray();
+
+            return $this->pricingViewDataCache[$consumption] = ContractPricingViewData::fromCanonicalOutcome($evaluation['outcome']);
         }
 
         $calculator = app(ContractPriceCalculator::class);
@@ -1102,15 +1111,9 @@ class ContractDetail extends Component
             return null;
         }
 
-        $cachedMetrics = app(ContractListCacheService::class)->getCachedMetrics($this->consumption);
-        $cachedMetric = $cachedMetrics?->metric($contract->id);
-        if ($cachedMetric !== null) {
-            return $cachedMetric->integrity()?->toArray();
-        }
+        $this->pricingViewDataFor($this->consumption);
 
-        $usage = new EnergyUsage(total: $this->consumption, basicLiving: $this->consumption);
-
-        return $canonicalPricing->evaluate($contract, $usage)['integrity']->toArray();
+        return $this->computedValueCache['pricingIntegrity:'.$this->consumption] ?? null;
     }
 
     /**
@@ -1126,17 +1129,28 @@ class ContractDetail extends Component
             return null;
         }
 
-        $cachedMetrics = app(ContractListCacheService::class)->getCachedMetrics($this->consumption);
-        $cachedMetric = $cachedMetrics?->metric($contract->id);
-        if ($cachedMetric !== null) {
-            return $cachedMetric->comparability();
-        }
-
         return $this->pricingViewDataFor($this->consumption)?->comparability()?->value;
     }
 
     /**
-     * Whether this contract is excluded from comparison (no reliable annual total).
+     * Explain an unavailable annual price without displaying a fabricated zero.
+     *
+     * @return array{heading: string, body: string}|null
+     */
+    public function getPriceAvailabilityNoticeProperty(): ?array
+    {
+        if ($this->pricingViewDataFor($this->consumption)?->total() !== null || $this->isPricingExcluded) {
+            return null;
+        }
+
+        return [
+            'heading' => 'Vuosihinta ei ole vielä saatavilla tällä kulutuksella',
+            'body' => 'Valitse kulutusvalinta tai syötä vuosikulutuksesi, niin laskemme hinnan. Puuttuva hinta ei tarkoita maksutonta sähköä.',
+        ];
+    }
+
+    /**
+     * Whether canonical pricing excludes this contract from comparison.
      */
     public function getIsPricingExcludedProperty(): bool
     {
@@ -2205,6 +2219,7 @@ class ContractDetail extends Component
      */
     protected function recomputeBill(): void
     {
+        app(PublicPriceCalculationPolicy::class)->allowUserAction();
         $wasActive = $this->billActive;
 
         $this->billActive = $this->isBillInputValid();
@@ -2225,6 +2240,7 @@ class ContractDetail extends Component
 
     public function clearBill(): void
     {
+        app(PublicPriceCalculationPolicy::class)->allowUserAction();
         $this->billActive = false;
         $this->billKwh = null;
         $this->billTotalEur = null;
@@ -2769,6 +2785,7 @@ class ContractDetail extends Component
                 'pricingIntegrity' => $this->pricingIntegrity,
                 'pricingComparability' => $this->pricingComparability,
                 'isPricingExcluded' => $this->isPricingExcluded,
+                'priceAvailabilityNotice' => $this->priceAvailabilityNotice,
                 'priceHistory' => $historyPresentation['priceHistory'],
                 'contractHistory' => $historyPresentation['contractHistory'],
                 'priceDevelopment' => $this->priceDevelopment,
@@ -2826,8 +2843,8 @@ class ContractDetail extends Component
 
     protected function contractDetailViewDataCacheKey(): string
     {
-        // v20: version observation dates/counts and weighted seasonal history copy.
-        return 'contract-detail:view-data:v20:'.md5(json_encode([
+        // v21: include the unavailable annual-price notice in prepared view data.
+        return 'contract-detail:view-data:v21:'.md5(json_encode([
             'contract_id' => $this->contractId,
             'consumption' => $this->consumption,
             'version' => $this->contractPageCacheVersionHash(),

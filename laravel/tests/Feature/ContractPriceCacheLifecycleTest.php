@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Services\Caching\ContractPriceCacheConflict;
 use App\Services\Caching\ContractPriceCacheLifecycle;
 use App\Services\Caching\ContractPriceCacheStorageException;
+use App\Services\Caching\ContractPriceCacheUnavailable;
 use App\Services\CompanyListCacheService;
 use App\Services\ContractListCacheService;
 use App\Services\ContractPricing\ContractMetricSet;
@@ -19,6 +20,13 @@ use Tests\TestCase;
 class ContractPriceCacheLifecycleTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // Direct cold reads below model the CLI producer boundary.
+        request()->server->remove('REQUEST_METHOD');
+    }
 
     public function test_last_preset_failure_preserves_active_generation_and_payloads(): void
     {
@@ -62,6 +70,11 @@ class ContractPriceCacheLifecycleTest extends TestCase
         $built = [];
         $list->shouldReceive('buildCachedMetrics')->andReturnUsing(function (int $consumption) use (&$built, $starting, $lifecycle) {
             $this->assertSame($starting, $lifecycle->active());
+            $competitor = Cache::lock(ContractPriceCacheLifecycle::PRODUCER_LOCK_KEY, 30);
+            $this->assertFalse($competitor->get());
+            $transition = Cache::lock(ContractPriceCacheLifecycle::LOCK_KEY, 30);
+            $this->assertTrue($transition->get());
+            $transition->release();
             $built[] = $consumption;
 
             return $this->emptyMetrics($consumption);
@@ -78,7 +91,7 @@ class ContractPriceCacheLifecycleTest extends TestCase
         $this->assertNotNull(Cache::get($list->getCacheKey(5000)));
     }
 
-    public function test_immediate_invalidation_rejects_an_in_progress_candidate(): void
+    public function test_refresh_demand_rejects_an_in_progress_candidate(): void
     {
         $list = $this->builder();
         $starting = app(ContractPriceCacheLifecycle::class)->active();
@@ -94,8 +107,8 @@ class ContractPriceCacheLifecycleTest extends TestCase
             $this->assertStringContainsString('changed while replacement', $exception->getMessage());
         }
         $active = app(ContractPriceCacheLifecycle::class)->active();
-        $this->assertSame($starting['version'] + 2, $active['version']);
-        $this->assertNotSame($starting['generation'], $active['generation']);
+        $this->assertSame($starting, $active);
+        $this->assertTrue(app(ContractPriceCacheLifecycle::class)->pending());
         $this->assertNull(Cache::get($list->getCacheKey(5000)));
     }
 
@@ -182,7 +195,7 @@ class ContractPriceCacheLifecycleTest extends TestCase
         $lifecycle = app(ContractPriceCacheLifecycle::class);
         $old = $lifecycle->active();
         $lifecycle->write($old, 'owned-retired-payload', ['old' => true]);
-        $lifecycle->invalidate();
+        $lifecycle->promote($old, $lifecycle->candidate($old), []);
         $active = $lifecycle->active();
         $lifecycle->write($active, 'owned-active-payload', ['active' => true]);
         Cache::forever('unrelated-cleanup-payload', 'keep');
@@ -217,7 +230,7 @@ class ContractPriceCacheLifecycleTest extends TestCase
         foreach (range(1, 101) as $number) {
             $lifecycle->write($old, 'bounded-retired-'.$number, ['old' => true]);
         }
-        $lifecycle->invalidate();
+        $lifecycle->promote($old, $lifecycle->candidate($old), []);
         $this->travel(59)->minutes();
         try {
             $lifecycle->write($old, 'late-retired-write', ['late' => true]);
@@ -296,8 +309,9 @@ class ContractPriceCacheLifecycleTest extends TestCase
         });
         $list->refresh(app(CompanyListCacheService::class));
         $this->assertSame([...ContractListCacheService::PRESET_CONSUMPTIONS, ...ContractListCacheService::PRESET_CONSUMPTIONS], $built);
-        $this->assertSame($starting['version'] + 2, $lifecycle->active()['version']);
-        $this->assertCount(3, Cache::get(ContractPriceCacheLifecycle::RETIRED_KEY));
+        $this->assertSame($starting['version'] + 1, $lifecycle->active()['version']);
+        $this->assertCount(2, Cache::get(ContractPriceCacheLifecycle::RETIRED_KEY));
+        $this->assertFalse($lifecycle->pending());
     }
 
     public function test_failed_candidate_retirement_stops_retry_and_exposes_storage_failure(): void
@@ -316,6 +330,305 @@ class ContractPriceCacheLifecycleTest extends TestCase
             $this->assertSame('cache_write_failed', $exception->reason);
         }
         $this->assertSame($starting, app(ContractPriceCacheLifecycle::class)->active());
+    }
+
+    public function test_invalidation_retains_exact_pointer_and_payloads_and_repair_demand_coalesces(): void
+    {
+        $lifecycle = app(ContractPriceCacheLifecycle::class);
+        $active = $lifecycle->active();
+        $lifecycle->write($active, 'retained-demand-payload', ['old' => true]);
+        $lifecycle->invalidate();
+        $lifecycle->invalidate();
+        $this->assertSame(2, $lifecycle->demandRevision());
+        $lifecycle->requestRepair();
+        $lifecycle->requestRepair();
+        $this->assertSame(2, $lifecycle->demandRevision());
+        $this->assertSame($active, $lifecycle->active());
+        $this->assertSame(['old' => true], Cache::get('retained-demand-payload'));
+        $this->assertNull(Cache::get(ContractPriceCacheLifecycle::RETIRED_KEY));
+        $lifecycle->promote($active, $lifecycle->candidate($active), []);
+        $this->assertFalse($lifecycle->pending());
+        $lifecycle->requestRepair();
+        $lifecycle->requestRepair();
+        $this->assertSame(3, $lifecycle->demandRevision());
+    }
+
+    public function test_lost_demand_key_keeps_the_satisfied_floor_and_next_invalidation_is_warmed(): void
+    {
+        $list = $this->builder();
+        $this->app->instance(ContractListCacheService::class, $list);
+        $lifecycle = app(ContractPriceCacheLifecycle::class);
+        foreach (range(1, 3) as $revision) {
+            $this->assertSame($revision, $lifecycle->invalidate());
+        }
+        $list->refresh(app(CompanyListCacheService::class));
+        $active = $lifecycle->active();
+        $this->assertSame(3, $active['demand_revision']);
+        $this->assertSame(3, Cache::get(ContractPriceCacheLifecycle::DEMAND_KEY));
+        Cache::forget(ContractPriceCacheLifecycle::DEMAND_KEY);
+        $this->assertSame(3, $lifecycle->demandRevision());
+        $this->assertFalse($lifecycle->pending());
+        $this->assertSame($active, $lifecycle->active());
+        $list->shouldNotReceive('getCachedMetrics');
+        $this->artisan('contracts:warm-cache --pending')->doesntExpectOutput()->assertSuccessful();
+        $this->assertSame($active, $lifecycle->active());
+        $this->assertNull(Cache::get(ContractPriceCacheLifecycle::DEMAND_KEY));
+
+        $this->assertSame(4, $lifecycle->invalidate());
+        $this->assertTrue($lifecycle->pending());
+        $this->assertSame($active, $lifecycle->active());
+        $this->artisan('contracts:warm-cache --pending')->doesntExpectOutput()->assertSuccessful();
+        $replacement = $lifecycle->active();
+        $this->assertNotSame($active['generation'], $replacement['generation']);
+        $this->assertSame($active['version'] + 1, $replacement['version']);
+        $this->assertSame(4, $replacement['demand_revision']);
+        $this->assertSame(4, Cache::get(ContractPriceCacheLifecycle::DEMAND_KEY));
+        $this->assertSame(4, $lifecycle->demandRevision());
+        $this->assertFalse($lifecycle->pending());
+        foreach (ContractListCacheService::PRESET_CONSUMPTIONS as $consumption) {
+            $this->assertNotNull(Cache::get($list->getCacheKey($consumption)));
+        }
+        $this->assertNotNull(Cache::get(app(CompanyListCacheService::class)->getCacheKey(5000)));
+    }
+
+    public function test_repair_after_demand_metadata_loss_advances_above_the_satisfied_floor_once(): void
+    {
+        $lifecycle = app(ContractPriceCacheLifecycle::class);
+        $starting = $lifecycle->active();
+        $lifecycle->invalidate();
+        $lifecycle->invalidate();
+        $lifecycle->promote($starting, $lifecycle->candidate($starting), []);
+        $active = $lifecycle->active();
+        Cache::forget(ContractPriceCacheLifecycle::DEMAND_KEY);
+        $this->assertFalse($lifecycle->pending());
+        $lifecycle->requestRepair();
+        $lifecycle->requestRepair();
+        $this->assertSame(3, $lifecycle->demandRevision());
+        $this->assertSame(3, Cache::get(ContractPriceCacheLifecycle::DEMAND_KEY));
+        $this->assertTrue($lifecycle->pending());
+        $this->assertSame($active, $lifecycle->active());
+    }
+
+    public function test_demand_key_loss_during_an_unmet_candidate_rejects_promotion(): void
+    {
+        $lifecycle = app(ContractPriceCacheLifecycle::class);
+        $starting = $lifecycle->active();
+        $lifecycle->invalidate();
+        $lifecycle->invalidate();
+        $lifecycle->promote($starting, $lifecycle->candidate($starting), []);
+        $active = $lifecycle->active();
+        $lifecycle->invalidate();
+        $candidate = $lifecycle->candidate($active);
+        $this->assertSame(3, $candidate['demand_revision']);
+        $payload = ['verified' => true];
+        $lifecycle->write($candidate, 'candidate-before-demand-loss', $payload, true);
+        Cache::forget(ContractPriceCacheLifecycle::DEMAND_KEY);
+        $this->assertSame(2, $lifecycle->demandRevision());
+        try {
+            $lifecycle->promote($active, $candidate, ['candidate-before-demand-loss' => hash('sha256', serialize($payload))]);
+            $this->fail('Lost unmet demand proof must reject candidate promotion.');
+        } catch (ContractPriceCacheConflict $exception) {
+            $this->assertSame('generation_changed', $exception->reason);
+        }
+        $this->assertSame($active, $lifecycle->active());
+        $this->assertSame($payload, Cache::get('candidate-before-demand-loss'));
+    }
+
+    public function test_expired_producer_cannot_promote_and_does_not_release_new_owner(): void
+    {
+        $lifecycle = app(ContractPriceCacheLifecycle::class);
+        $active = $lifecycle->active();
+        $lifecycle->requestRepair();
+        $candidate = $lifecycle->candidate($active);
+        $producer = Cache::lock(ContractPriceCacheLifecycle::PRODUCER_LOCK_KEY, 1);
+        $this->assertTrue($producer->get());
+        $this->travel(2)->seconds();
+        $replacement = Cache::lock(ContractPriceCacheLifecycle::PRODUCER_LOCK_KEY, 30);
+        $this->assertTrue($replacement->get());
+        try {
+            $lifecycle->promote($active, $candidate, [], $producer);
+            $this->fail('Expired producers must not publish.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('Price cache producer lease lost.', $exception->getMessage());
+        }
+        $producer->release();
+        $this->assertTrue($replacement->isOwnedByCurrentProcess());
+        $this->assertSame($active, $lifecycle->active());
+        $this->assertTrue($lifecycle->pending());
+        $replacement->release();
+    }
+
+    public function test_pending_warmer_builds_missing_payloads_then_is_a_quiet_noop(): void
+    {
+        $list = $this->builder();
+        $this->app->instance(ContractListCacheService::class, $list);
+        $list->shouldNotReceive('getCachedMetrics');
+        $this->artisan('contracts:warm-cache --pending')->doesntExpectOutput()->assertSuccessful();
+        $active = app(ContractPriceCacheLifecycle::class)->active();
+        $list->shouldNotReceive('buildCachedMetrics');
+        $this->artisan('contracts:warm-cache --pending')->doesntExpectOutput()->assertSuccessful();
+        $this->assertSame($active, app(ContractPriceCacheLifecycle::class)->active());
+        $event = collect(app(Schedule::class)->events())
+            ->first(fn ($event) => str_contains($event->command ?? '', 'contracts:warm-cache --pending'));
+        $this->assertSame('* * * * *', $event->expression);
+        $this->assertFalse($event->onOneServer);
+        $this->assertTrue($event->runInBackground);
+        $this->assertTrue($event->withoutOverlapping);
+    }
+
+    public function test_pending_warmer_failure_keeps_demand_and_active_pointer(): void
+    {
+        $list = $this->builder();
+        $this->app->instance(ContractListCacheService::class, $list);
+        $active = app(ContractPriceCacheLifecycle::class)->active();
+        $list->shouldReceive('buildCachedMetrics')->with(20000)->andThrow(new RuntimeException('failure'));
+        $this->artisan('contracts:warm-cache --pending')->assertFailed();
+        $this->assertSame($active, app(ContractPriceCacheLifecycle::class)->active());
+        $this->assertTrue(app(ContractPriceCacheLifecycle::class)->pending());
+    }
+
+    public function test_comparison_domain_is_checked_before_pricing_or_cache_writes(): void
+    {
+        Cache::flush();
+        $list = $this->builder();
+        $list->shouldNotReceive('buildCachedMetrics');
+        foreach ([0, -1, 150001, PHP_INT_MAX] as $consumption) {
+            try {
+                $list->prepareComparisonForConsumption($consumption);
+                $this->fail('Invalid input must fail before cache bootstrap.');
+            } catch (\InvalidArgumentException) {
+                $this->assertNull(Cache::get(ContractPriceCacheLifecycle::ACTIVE_KEY));
+            }
+        }
+        $this->assertSame(150000, ContractListCacheService::MAX_COMPARISON_CONSUMPTION);
+    }
+
+    public function test_custom_cap_prevents_calculation_and_expiry_reclaims_only_owned_custom_keys(): void
+    {
+        $list = $this->builder();
+        $lifecycle = app(ContractPriceCacheLifecycle::class);
+        $list->refresh(app(CompanyListCacheService::class));
+        $active = $lifecycle->active();
+        $presetKeys = array_map(fn ($consumption) => $list->getCacheKey($consumption), ContractListCacheService::PRESET_CONSUMPTIONS);
+        $companyKey = app(CompanyListCacheService::class)->getCacheKey(5000);
+        $before = array_map(fn ($key) => Cache::get($key), [...$presetKeys, $companyKey]);
+        Cache::forever('unrelated-profile', 'keep');
+        foreach (range(7001, 7064) as $consumption) {
+            $this->assertSame($consumption, $list->prepareComparisonForConsumption($consumption)->consumption());
+        }
+        $manifestKey = 'contract_price_manifest:'.$active['generation'];
+        $manifest = Cache::get($manifestKey);
+        $this->assertCount(64, $manifest['custom_expirations']);
+        $this->assertCount(74, $manifest);
+        $this->assertSame(now()->timestamp + 1800, $manifest['custom_expirations'][$list->getCacheKey(7001)]);
+        $list->shouldNotReceive('buildCachedMetrics')->with(7312);
+        try {
+            $list->prepareComparisonForConsumption(7312);
+            $this->fail('Live profiles must not be evicted at capacity.');
+        } catch (ContractPriceCacheUnavailable) {
+            $this->assertSame($manifest, Cache::get($manifestKey));
+        }
+        $this->travel(1799)->seconds();
+        $this->assertNotNull(Cache::get($list->getCacheKey(7001)));
+        $this->travel(2)->seconds();
+        $this->assertNull(Cache::get($list->getCacheKey(7001)));
+        $list->resetCalculationState();
+        $this->assertNull($list->getCachedMetrics(7312));
+        $this->assertSame(150000, $list->prepareComparisonForConsumption(150000)->consumption());
+        $manifest = Cache::get($manifestKey);
+        $this->assertCount(1, $manifest['custom_expirations']);
+        $this->assertCount(11, $manifest);
+        $this->assertNotContains($list->getCacheKey(7001), $manifest);
+        $this->assertSame($before, array_map(fn ($key) => Cache::get($key), [...$presetKeys, $companyKey]));
+        $this->assertSame('keep', Cache::get('unrelated-profile'));
+        $this->assertSame($active, $lifecycle->active());
+    }
+
+    public function test_database_custom_ttl_and_physical_pruning_preserve_forever_presets(): void
+    {
+        config(['cache.default' => 'database']);
+        $lifecycle = app(ContractPriceCacheLifecycle::class);
+        $active = $lifecycle->active();
+        $lifecycle->write($active, 'forever-preset', ['preset' => true]);
+        $lifecycle->write($active, 'database-expired-custom', [], custom: true);
+        $prefix = Cache::getStore()->getPrefix();
+        $this->assertSame(now()->timestamp + 1800, (int) DB::table('cache')->where('key', $prefix.'database-expired-custom')->value('expiration'));
+        $this->travel(1801)->seconds();
+        $this->assertSame(1, DB::table('cache')->where('key', $prefix.'database-expired-custom')->count());
+        $lifecycle->write($active, 'database-next-custom', [], custom: true);
+        $this->assertSame(0, DB::table('cache')->where('key', $prefix.'database-expired-custom')->count());
+        $this->assertSame(['preset' => true], Cache::get('forever-preset'));
+        $this->assertCount(1, Cache::get('contract_price_manifest:'.$active['generation'])['custom_expirations']);
+        $this->assertSame($active, $lifecycle->active());
+    }
+
+    public function test_custom_prune_manifest_write_failure_keeps_retry_ownership(): void
+    {
+        $lifecycle = app(ContractPriceCacheLifecycle::class);
+        $active = $lifecycle->active();
+        $lifecycle->write($active, 'expired-before-manifest-failure', [], custom: true);
+        $manifestKey = 'contract_price_manifest:'.$active['generation'];
+        $manifest = Cache::get($manifestKey);
+        $this->travel(1801)->seconds();
+        $repository = Cache::getFacadeRoot()->store();
+        $proxy = Mockery::mock($repository)->makePartial();
+        $proxy->shouldReceive('forever')->with($manifestKey, Mockery::type('array'))->andReturn(false);
+        Cache::swap($proxy);
+        try {
+            $lifecycle->checkCustomCapacity($active, 'after-manifest-failure');
+            $this->fail('Manifest failure must retain retry ownership.');
+        } catch (ContractPriceCacheStorageException) {
+            $this->assertSame($manifest, Cache::get($manifestKey));
+        } finally {
+            Cache::swap($repository);
+        }
+        $lifecycle->write($active, 'after-manifest-failure', [], custom: true);
+        $this->assertNotContains('expired-before-manifest-failure', Cache::get($manifestKey));
+        $this->assertCount(1, Cache::get($manifestKey)['custom_expirations']);
+    }
+
+    public function test_custom_write_rechecks_capacity_after_preflight_race(): void
+    {
+        $lifecycle = app(ContractPriceCacheLifecycle::class);
+        $active = $lifecycle->active();
+        $lifecycle->checkCustomCapacity($active, 'racing-custom');
+        foreach (range(1, 64) as $profile) {
+            $lifecycle->write($active, 'owned-custom-'.$profile, [], custom: true);
+        }
+        try {
+            $lifecycle->write($active, 'racing-custom', [], custom: true);
+            $this->fail('Atomic write must reject a full manifest.');
+        } catch (ContractPriceCacheUnavailable) {
+            $this->assertNull(Cache::get('racing-custom'));
+            $this->assertCount(64, Cache::get('contract_price_manifest:'.$active['generation'])['custom_expirations']);
+        }
+    }
+
+    public function test_custom_expiry_deletion_failure_keeps_manifest_ownership_for_retry(): void
+    {
+        $lifecycle = app(ContractPriceCacheLifecycle::class);
+        $active = $lifecycle->active();
+        $lifecycle->write($active, 'expired-owned-custom', [], custom: true);
+        $manifestKey = 'contract_price_manifest:'.$active['generation'];
+        $manifest = Cache::get($manifestKey);
+        $this->travel(1801)->seconds();
+        $repository = Cache::getFacadeRoot()->store();
+        $proxy = Mockery::mock($repository)->makePartial();
+        $proxy->shouldReceive('forget')->with('expired-owned-custom')->andReturn(false);
+        Cache::swap($proxy);
+        try {
+            $lifecycle->checkCustomCapacity($active, 'next-owned-custom');
+            $this->fail('Deletion failure must not lose cleanup ownership.');
+        } catch (ContractPriceCacheStorageException) {
+            $this->assertSame($manifest, Cache::get($manifestKey));
+            $this->assertSame($active, $lifecycle->active());
+            $this->assertNull(Cache::get('next-owned-custom'));
+        } finally {
+            Cache::swap($repository);
+        }
+        $lifecycle->write($active, 'next-owned-custom', [], custom: true);
+        $this->assertSame(['next-owned-custom'], array_values(array_filter(Cache::get($manifestKey), 'is_string')));
+        $this->assertCount(1, Cache::get($manifestKey)['custom_expirations']);
     }
 
     private function builder(): ContractListCacheService

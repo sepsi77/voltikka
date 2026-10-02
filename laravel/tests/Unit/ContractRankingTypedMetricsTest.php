@@ -45,14 +45,18 @@ class ContractRankingTypedMetricsTest extends TestCase
         $canonical = $this->createMock(CanonicalContractPricingService::class);
         $canonical->method('enabled')->willReturn(false);
         $mode = new PricingMode(canonicalPricingEnabled: false, resetForwardShiftEnabled: false);
-        $listCache = new ContractListCacheService(
-            $this->createMock(ContractPriceCalculator::class),
-            $this->createMock(CO2EmissionsCalculator::class),
-            $canonical,
-            $mode,
-            $lifecycle,
-            $evidence,
-        );
+        $listCache = $this->getMockBuilder(ContractListCacheService::class)
+            ->setConstructorArgs([
+                $this->createMock(ContractPriceCalculator::class),
+                $this->createMock(CO2EmissionsCalculator::class),
+                $canonical,
+                $mode,
+                $lifecycle,
+                $evidence,
+            ])
+            ->onlyMethods(['currentAvailability'])
+            ->getMock();
+        $listCache->method('currentAvailability')->willReturn([]);
         $ranking = new ContractRankingService(
             $this->createMock(ContractPriceCalculator::class),
             $listCache,

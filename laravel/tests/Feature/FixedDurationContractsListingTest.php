@@ -7,6 +7,8 @@ use App\Models\Company;
 use App\Models\ContractPriceDailyStatistic;
 use App\Models\ElectricityContract;
 use App\Models\FixedContractPriceForecast;
+use App\Services\CompanyListCacheService;
+use App\Services\ContractListCacheService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -46,6 +48,8 @@ class FixedDurationContractsListingTest extends TestCase
 
     public function test_exact_duration_routes_are_public_and_have_exact_defaults(): void
     {
+        $this->refreshPriceFixtures();
+
         foreach ($this->durationCases() as $months => $case) {
             $route = Route::getRoutes()->getByName($case['route_name']);
 
@@ -77,6 +81,8 @@ class FixedDurationContractsListingTest extends TestCase
                 'fixed_time_range' => 'Fixed6',
             ]);
 
+        $this->refreshPriceFixtures();
+
         foreach ($this->durationCases() as $months => $case) {
             $contracts = Livewire::test(SeoContractsList::class, [
                 'contractDuration' => 'FixedTerm',
@@ -91,6 +97,8 @@ class FixedDurationContractsListingTest extends TestCase
     {
         foreach ($this->durationCases() as $months => $case) {
             $this->fixedContract("seo-{$months}", "SEO {$months} kk", $case['range']);
+
+            $this->refreshPriceFixtures();
 
             $component = Livewire::test(SeoContractsList::class, [
                 'contractDuration' => 'FixedTerm',
@@ -124,6 +132,8 @@ class FixedDurationContractsListingTest extends TestCase
             $this->fixedContract("guide-heading-{$months}", "Opas {$months} kk", $case['range']);
         }
 
+        $this->refreshPriceFixtures();
+
         foreach ($this->supportHeadingCases() as $case) {
             $response = $this->get($case['path'])
                 ->assertOk()
@@ -143,6 +153,8 @@ class FixedDurationContractsListingTest extends TestCase
     {
         CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-06-15 12:00', 'Europe/Helsinki'));
         $this->fixedContract('winter-end-fixed-6', 'Talveen päättyvä sopimus', 'Fixed6');
+
+        $this->refreshPriceFixtures();
 
         $component = Livewire::test(SeoContractsList::class, [
             'contractDuration' => 'FixedTerm',
@@ -169,6 +181,8 @@ class FixedDurationContractsListingTest extends TestCase
     {
         CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-01-31 12:00', 'Europe/Helsinki'));
         $this->fixedContract('summer-end-fixed-6', 'Kesään päättyvä sopimus', 'Fixed6');
+
+        $this->refreshPriceFixtures();
 
         Livewire::test(SeoContractsList::class, [
             'contractDuration' => 'FixedTerm',
@@ -198,6 +212,8 @@ class FixedDurationContractsListingTest extends TestCase
             'ennen sivutusta',
         ];
 
+        $this->refreshPriceFixtures();
+
         foreach ($this->supportHeadingCases() as $case) {
             $response = $this->get($case['path'])->assertOk();
 
@@ -216,10 +232,12 @@ class FixedDurationContractsListingTest extends TestCase
         $this->comparisonStatistic('2026-06-15', 12, 7.80, 8.60, 9.90, 12);
         $this->comparisonStatistic('2026-06-15', 24, 8.30, 9.10, 10.40, 13);
 
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test(SeoContractsList::class, [
             'contractDuration' => 'FixedTerm',
             'fixedTimeRange' => 'Fixed12',
-        ])->set('consumption', 10000);
+        ])->call('setConsumption', 10000);
         $comparison = $component->viewData('fixedTermComparison');
         $rows = collect($comparison['rows'])->keyBy('duration_months');
 
@@ -262,6 +280,8 @@ class FixedDurationContractsListingTest extends TestCase
         $this->comparisonStatistic('2026-06-15', 12, 7.80, 8.60, 9.90, 12);
         $this->comparisonStatistic('2026-06-15', 24, 8.30, 9.10, 10.40, 13);
 
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test(SeoContractsList::class, ['contractDuration' => 'FixedTerm']);
 
         $this->assertSame(12, $component->viewData('fixedTermComparison')['baseline_duration_months']);
@@ -280,6 +300,8 @@ class FixedDurationContractsListingTest extends TestCase
         $this->comparisonStatistic('2026-06-02', 12, 26.0, 27.0, 28.0, 14);
         $this->comparisonStatistic('2026-06-01', 24, 36.0, 37.0, 38.0, 14);
 
+        $this->refreshPriceFixtures();
+
         Livewire::test(SeoContractsList::class, ['contractDuration' => 'FixedTerm'])
             ->assertSeeText('Hinnat ovat päivältä 20.5.2026')
             ->assertDontSeeText('Hinnat ovat päivältä 3.6.2026');
@@ -289,6 +311,7 @@ class FixedDurationContractsListingTest extends TestCase
             ->where('segment_key', 'fixed_term_24')
             ->update(['contract_count' => 9]);
         Cache::flush();
+        $this->refreshPriceFixtures();
 
         $withoutCommonData = Livewire::test(SeoContractsList::class, ['contractDuration' => 'FixedTerm'])
             ->assertDontSeeText('Miten sopimuskausi vaikuttaa hintaan?')
@@ -303,6 +326,8 @@ class FixedDurationContractsListingTest extends TestCase
         $this->pricedFixedContract('fixed-cheap', 'Edullisin kiinteä', 'Fixed12', 5.0, 3.0);
         $this->pricedFixedContract('effect-cheap', 'Kulutusvaikutus', 'Fixed12', 4.0, 2.0, 'consumption_effect');
         $this->pricedFixedContract('market-option', 'Markkinahinta', 'Fixed12', 6.0, 1.0, 'market');
+
+        $this->refreshPriceFixtures();
 
         $component = Livewire::test(SeoContractsList::class, ['contractDuration' => 'FixedTerm']);
         $summary = $component->viewData('fixedTermMechanismSummary');
@@ -340,6 +365,8 @@ class FixedDurationContractsListingTest extends TestCase
         $this->unitStatistic('2026-06-01', 12, 8.5);
         $this->forecast('2026-06-01', 12);
 
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test(SeoContractsList::class, ['contractDuration' => 'FixedTerm'])
             ->set('billPeriodPreset', 'custom')
             ->set('billStartDate', '2026-05-01')
@@ -376,6 +403,8 @@ class FixedDurationContractsListingTest extends TestCase
         foreach ($this->durationCases() as $months => $durationCase) {
             $this->fixedContract("guide-copy-{$months}", "Ohje {$months} kk", $durationCase['range']);
 
+            $this->refreshPriceFixtures();
+
             $component = Livewire::test(SeoContractsList::class, [
                 'contractDuration' => 'FixedTerm',
                 'fixedTimeRange' => $durationCase['range'],
@@ -390,6 +419,8 @@ class FixedDurationContractsListingTest extends TestCase
     public function test_fixed_term_guide_follows_a_contract_and_precedes_related_links(): void
     {
         $this->fixedContract('guide-order', 'Järjestystestin sopimus', 'Fixed12');
+
+        $this->refreshPriceFixtures();
 
         $html = Livewire::test(SeoContractsList::class, [
             'contractDuration' => 'FixedTerm',
@@ -412,6 +443,8 @@ class FixedDurationContractsListingTest extends TestCase
             $this->fixedContract("page-two-{$index}", "Sivun sopimus {$index}", 'Fixed12');
         }
 
+        $this->refreshPriceFixtures();
+
         $this->get('/sahkosopimus/maaraaikainen-12-kk?page=2')
             ->assertOk()
             ->assertDontSeeText('12 kuukauden määräaikainen sähkösopimus käytännössä')
@@ -423,6 +456,8 @@ class FixedDurationContractsListingTest extends TestCase
     public function test_exact_results_heading_remains_visible_in_bill_mode(): void
     {
         $this->fixedContract('bill-fixed-6', 'Bill 6 kk', 'Fixed6');
+
+        $this->refreshPriceFixtures();
 
         Livewire::test(SeoContractsList::class, [
             'contractDuration' => 'FixedTerm',
@@ -445,6 +480,8 @@ class FixedDurationContractsListingTest extends TestCase
             $this->forecast('2026-06-01', $months);
             $this->forecast('2026-06-02', $months, 'canonical_calculation');
         }
+
+        $this->refreshPriceFixtures();
 
         foreach ($this->durationCases() as $months => $case) {
             $insight = Livewire::test(SeoContractsList::class, [
@@ -505,6 +542,8 @@ class FixedDurationContractsListingTest extends TestCase
             $this->forecast('2026-06-01', $months, 'observed_seller_data', 'lock_sooner');
             FixedContractPriceForecast::where('duration_months', $months)->update(['direction' => $direction]);
 
+            $this->refreshPriceFixtures();
+
             Livewire::test(SeoContractsList::class, [
                 'contractDuration' => 'FixedTerm',
                 'fixedTimeRange' => $range,
@@ -522,6 +561,8 @@ class FixedDurationContractsListingTest extends TestCase
         $this->unitStatistic('2026-05-01', 6, 6.0);
         $this->unitStatistic('2026-06-01', 6, 6.5);
 
+        $this->refreshPriceFixtures();
+
         $trendOnly = Livewire::test(SeoContractsList::class, [
             'contractDuration' => 'FixedTerm',
             'fixedTimeRange' => 'Fixed6',
@@ -534,6 +575,7 @@ class FixedDurationContractsListingTest extends TestCase
 
         $this->fixedContract('forecast-only', 'Vain ennuste', 'Fixed12');
         $this->forecast('2026-06-02', 12);
+        $this->refreshPriceFixtures();
 
         $forecastOnly = Livewire::test(SeoContractsList::class, [
             'contractDuration' => 'FixedTerm',
@@ -558,6 +600,8 @@ class FixedDurationContractsListingTest extends TestCase
             $this->forecast('2026-06-01', $months, 'canonical_calculation');
         }
         $this->forecast('2026-06-02', 6, 'observed_seller_data');
+
+        $this->refreshPriceFixtures();
 
         $insight = Livewire::test(SeoContractsList::class, [
             'contractDuration' => 'FixedTerm',
@@ -751,5 +795,10 @@ class FixedDurationContractsListingTest extends TestCase
                 'current_retail_pricing_basis' => $pricingBasis,
             ],
         ]);
+    }
+
+    private function refreshPriceFixtures(): void
+    {
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
     }
 }

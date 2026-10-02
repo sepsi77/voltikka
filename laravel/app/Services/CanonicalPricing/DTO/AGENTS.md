@@ -1,5 +1,16 @@
 # Canonical pricing VAT copies
 
+## Immutable segment fractions
+
+`WindowSegment` computes its calendar and billing fractions once in the constructor from one
+signed `start->diffInDays(end)` duration. Calendar fractions retain the 0..1 clamp; billing
+fractions retain the supplied denominator without clamping, or the calendar fraction when it is
+null. Annual fractions multiply the calendar fraction by the original annual scale. Splits must
+construct new segments with the same annual scale and billing-month denominator. This object-local
+reuse removes repeated date arithmetic only; it adds no shared or persistent cache. Constructor
+arguments and defaults remain unchanged. `TimelineFractionReuseTest` checks month-end, leap-day,
+Helsinki DST, signed durations, split fractions and duration call counts.
+
 ## Source-backed energy facts
 
 `CanonicalComponent` has a trailing `EnergyPriceRule $energyRule = new EnergyPriceRule` argument.

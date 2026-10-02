@@ -6,8 +6,12 @@ use App\Models\ActiveContract;
 use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\PriceComponent;
+use App\Services\CompanyListCacheService;
+use App\Services\ContractListCacheService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
+use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -38,7 +42,7 @@ class ContractDetailBillComparisonTest extends TestCase
     {
         $contract = $this->createContract('negative-bill-inputs', 'Negatiivinen lasku', 5.0, 3.0);
 
-        Livewire::test('contract-detail', ['contractId' => $contract->id])
+        $this->mountWithPrices('contract-detail', ['contractId' => $contract->id])
             ->set('billKwh', -10)
             ->assertSet('billKwh', null)
             ->assertSee('Kulutuksen pitää olla suurempi kuin 0 kWh.')
@@ -62,7 +66,7 @@ class ContractDetailBillComparisonTest extends TestCase
             'id' => $id,
             'company_name' => 'Test Energia Oy',
             'name' => $name,
-            'name_slug' => \Illuminate\Support\Str::slug($name),
+            'name_slug' => Str::slug($name),
             'contract_type' => 'OpenEnded',
             'metering' => 'General',
             'pricing_model' => $pricingModel,
@@ -106,7 +110,7 @@ class ContractDetailBillComparisonTest extends TestCase
      */
     private function billComponent(string $contractId, float $totalEur, float $kwh = 300)
     {
-        return Livewire::test('contract-detail', ['contractId' => $contractId])
+        return $this->mountWithPrices('contract-detail', ['contractId' => $contractId])
             ->set('billPeriodPreset', 'custom')
             ->set('billStartDate', '2026-05-01')
             ->set('billEndDate', '2026-05-30')
@@ -118,7 +122,7 @@ class ContractDetailBillComparisonTest extends TestCase
     {
         $this->createContract('bill-detail-contract', 'Perus Kiinteä', 5.0, 3.00);
 
-        $component = Livewire::test('contract-detail', ['contractId' => 'bill-detail-contract'])
+        $component = $this->mountWithPrices('contract-detail', ['contractId' => 'bill-detail-contract'])
             ->assertSee('Vertaa nykyiseen sähkölaskuusi')
             ->assertSee('Syötä yhden laskun tiedot, niin näytämme mitä tämä sopimus olisi maksanut samalta jaksolta.')
             // The shared bill form partial, same field ids on both surfaces.
@@ -279,7 +283,7 @@ class ContractDetailBillComparisonTest extends TestCase
         $keyMethod = new \ReflectionMethod($instance, 'contractDetailViewDataCacheKey');
         $keyMethod->setAccessible(true);
 
-        $withoutBill = Livewire::test('contract-detail', ['contractId' => 'bill-detail-contract'])->instance();
+        $withoutBill = $this->mountWithPrices('contract-detail', ['contractId' => 'bill-detail-contract'])->instance();
         $keyWithoutBill = new \ReflectionMethod($withoutBill, 'contractDetailViewDataCacheKey');
         $keyWithoutBill->setAccessible(true);
 
@@ -337,7 +341,14 @@ class ContractDetailBillComparisonTest extends TestCase
         $this->createContract('bill-detail-contract', 'Perus Kiinteä', 5.0, 3.00);
         ActiveContract::where('id', 'bill-detail-contract')->delete();
 
-        Livewire::test('contract-detail', ['contractId' => 'bill-detail-contract'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'bill-detail-contract'])
             ->assertDontSee('Vertaa nykyiseen sähkölaskuusi');
+    }
+
+    private function mountWithPrices(string $component, array $parameters = []): Testable
+    {
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
+
+        return Livewire::test($component, $parameters);
     }
 }

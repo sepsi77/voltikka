@@ -8,6 +8,8 @@ use App\Models\ElectricityContract;
 use App\Models\ElectricitySource;
 use App\Models\Postcode;
 use App\Models\PriceComponent;
+use App\Services\CompanyListCacheService;
+use App\Services\ContractListCacheService;
 use App\Services\ContractStatistics\ContractPriceBasis;
 use App\Services\ContractStatistics\ContractStatisticsSegmentClassifier;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -92,6 +94,8 @@ class ContractsFilterTest extends TestCase
      */
     public function test_filter_controls_are_displayed(): void
     {
+        $this->refreshPriceFixtures();
+
         Livewire::test('contracts-list')
             ->assertSee('Miten hinta käyttäytyy?') // Pricing-type pill row label
             ->assertSee('Pörssisähkö')
@@ -116,6 +120,8 @@ class ContractsFilterTest extends TestCase
             'name' => 'Spot Sähkö',
             'contract_type' => 'Spot',
         ]);
+
+        $this->refreshPriceFixtures();
 
         $component = Livewire::test('contracts-list')
             ->set('contractTypeFilter', 'Fixed');
@@ -145,6 +151,8 @@ class ContractsFilterTest extends TestCase
             'pricing_model' => 'Spot',
         ]);
 
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test('contracts-list')
             ->set('pricingModelFilter', 'Spot');
 
@@ -173,6 +181,8 @@ class ContractsFilterTest extends TestCase
             'pricing_model' => 'Hybrid',
         ]);
 
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test('contracts-list')
             ->set('pricingModelFilter', 'Hybrid');
 
@@ -199,6 +209,8 @@ class ContractsFilterTest extends TestCase
             'contract_type' => 'OpenEnded',
         ]);
 
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test('contracts-list')
             ->set('contractTypeFilter', 'OpenEnded');
 
@@ -222,6 +234,8 @@ class ContractsFilterTest extends TestCase
             'id' => 'spot-contract',
             'contract_type' => 'Spot',
         ]);
+
+        $this->refreshPriceFixtures();
 
         $component = Livewire::test('contracts-list')
             ->set('contractTypeFilter', 'Fixed')
@@ -253,6 +267,8 @@ class ContractsFilterTest extends TestCase
             'id' => 'other-contract',
             'name' => 'Perussähkö',
         ]);
+
+        $this->refreshPriceFixtures();
 
         foreach ([
             'Quarterly' => ['quarterly-contract'],
@@ -291,6 +307,8 @@ class ContractsFilterTest extends TestCase
                 'extra_information_fi' => 'Hinta muuttuu neljä kertaa vuodessa.',
             ]),
         ]);
+
+        $this->refreshPriceFixtures();
 
         $baseIds = Livewire::test('contracts-list')
             ->set('pricingModelFilter', 'Quarterly')
@@ -336,6 +354,8 @@ class ContractsFilterTest extends TestCase
             'metering' => 'Time',
         ]);
 
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test('contracts-list')
             ->set('meteringFilter', 'General');
 
@@ -360,6 +380,8 @@ class ContractsFilterTest extends TestCase
             'metering' => 'Time',
         ]);
 
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test('contracts-list')
             ->set('meteringFilter', 'Time');
 
@@ -383,6 +405,8 @@ class ContractsFilterTest extends TestCase
             'id' => 'seasonal-contract',
             'metering' => 'Seasonal',
         ]);
+
+        $this->refreshPriceFixtures();
 
         $component = Livewire::test('contracts-list')
             ->set('meteringFilter', 'Seasonal');
@@ -435,6 +459,8 @@ class ContractsFilterTest extends TestCase
         // Attach Helsinki postcode to the regional contract
         $helsinkiOnlyContract->availabilityPostcodes()->attach('00100');
 
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test('contracts-list')
             ->set('postcodeFilter', '00100');
 
@@ -476,6 +502,8 @@ class ContractsFilterTest extends TestCase
             'municipal_name_fi_slug' => 'helsinki',
         ]);
 
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test('contracts-list')
             ->set('postcodeSearch', '001');
 
@@ -506,6 +534,8 @@ class ContractsFilterTest extends TestCase
             'municipal_name_fi' => 'Tampere',
             'municipal_name_fi_slug' => 'tampere',
         ]);
+
+        $this->refreshPriceFixtures();
 
         $component = Livewire::test('contracts-list')
             ->set('postcodeSearch', 'Helsinki');
@@ -550,6 +580,8 @@ class ContractsFilterTest extends TestCase
         ]);
 
         // Filter for contracts with >= 50% renewable
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test('contracts-list')
             ->set('renewableFilter', true);
 
@@ -589,6 +621,8 @@ class ContractsFilterTest extends TestCase
         ]);
 
         // Filter for contracts with nuclear energy
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test('contracts-list')
             ->set('nuclearFilter', true);
 
@@ -628,6 +662,8 @@ class ContractsFilterTest extends TestCase
         ]);
 
         // Filter for fossil-free contracts
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test('contracts-list')
             ->set('fossilFreeFilter', true);
 
@@ -663,6 +699,8 @@ class ContractsFilterTest extends TestCase
             'contract_type' => 'Spot',
             'metering' => 'General',
         ]);
+
+        $this->refreshPriceFixtures();
 
         $component = Livewire::test('contracts-list')
             ->set('contractTypeFilter', 'Fixed')
@@ -734,6 +772,8 @@ class ContractsFilterTest extends TestCase
             'fossil_total' => 70.0,
         ]);
 
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test('contracts-list')
             ->set('contractTypeFilter', 'Fixed')
             ->set('meteringFilter', 'General')
@@ -759,6 +799,8 @@ class ContractsFilterTest extends TestCase
         $contract1 = $this->createContract(['id' => 'contract-1', 'contract_type' => 'Fixed']);
         $contract2 = $this->createContract(['id' => 'contract-2', 'contract_type' => 'Spot']);
 
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test('contracts-list')
             ->set('contractTypeFilter', 'Fixed')
             ->set('meteringFilter', 'General')
@@ -778,9 +820,11 @@ class ContractsFilterTest extends TestCase
     {
         $this->createContract(['id' => 'contract-1', 'contract_type' => 'Fixed']);
 
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test('contracts-list')
             ->set('contractTypeFilter', 'Fixed')
-            ->set('consumption', 10000); // Change consumption (triggers update)
+            ->call('setConsumption', 10000); // Explicit consumption action
 
         // Filter should still be applied
         $this->assertEquals('Fixed', $component->get('contractTypeFilter'));
@@ -797,6 +841,8 @@ class ContractsFilterTest extends TestCase
     {
         $this->createContract(['id' => 'contract-1']);
 
+        $this->refreshPriceFixtures();
+
         Livewire::test('contracts-list')
             ->set('contractTypeFilter', 'FixedTerm')
             ->assertSeeHtml('bg-slate-950'); // Active filter indicator class
@@ -811,11 +857,18 @@ class ContractsFilterTest extends TestCase
         $this->createContract(['id' => 'contract-2', 'contract_type' => 'Fixed']);
         $this->createContract(['id' => 'contract-3', 'contract_type' => 'Spot']);
 
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test('contracts-list')
             ->set('contractTypeFilter', 'Fixed');
 
         // Should show count of filtered contracts
         $contracts = $component->viewData('contracts');
         $this->assertCount(2, $contracts);
+    }
+
+    private function refreshPriceFixtures(): void
+    {
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
     }
 }

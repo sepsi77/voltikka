@@ -219,7 +219,7 @@ class LocalContractsService
     }
 
     /**
-     * Filter contracts by consumption and calculate costs.
+     * Filter contracts by consumption and attach shared annual metrics.
      */
     private function processContracts(Collection $contracts, int $consumption): Collection
     {

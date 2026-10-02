@@ -6,10 +6,18 @@ use App\Models\ActiveContract;
 use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\ElectricitySource;
+use App\Models\Postcode;
 use App\Models\PriceComponent;
+use App\Services\Caching\PublicPriceCalculationPolicy;
+use App\Services\CompanyListCacheService;
+use App\Services\ContractListCacheService;
 use Database\Factories\Support\CanonicalPricingFixture;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Testing\TestResponse;
+use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -50,7 +58,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_contracts_page_is_accessible(): void
     {
-        $response = $this->get('/');
+        $response = $this->getWithPrices('/');
 
         $response->assertStatus(200);
     }
@@ -60,7 +68,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_contracts_page_renders_livewire_component(): void
     {
-        $response = $this->get('/sahkosopimus');
+        $response = $this->getWithPrices('/sahkosopimus');
 
         $response->assertStatus(200);
         $response->assertSeeLivewire('sahkosopimus-index');
@@ -68,7 +76,7 @@ class ContractsListPageTest extends TestCase
 
     public function test_main_comparison_page_renders_the_manual_preferred_source_action_strip(): void
     {
-        $response = $this->get('/sahkosopimus');
+        $response = $this->getWithPrices('/sahkosopimus');
 
         $response->assertOk();
         $response->assertSee('data-page-action-strip', false);
@@ -114,7 +122,7 @@ class ContractsListPageTest extends TestCase
 
     public function test_seo_comparison_page_renders_the_preferred_source_action_strip(): void
     {
-        $response = $this->get('/sahkosopimus/porssisahko');
+        $response = $this->getWithPrices('/sahkosopimus/porssisahko');
 
         $response->assertOk();
         $response->assertSee('data-page-action-strip', false);
@@ -162,7 +170,7 @@ class ContractsListPageTest extends TestCase
             'payment_unit' => 'EUR/month',
         ]);
 
-        Livewire::test('contracts-list')
+        $this->mountWithPrices('contracts-list')
             ->assertSee('Perus Sähkö')
             ->assertSee('Test Energia Oy');
     }
@@ -197,7 +205,7 @@ class ContractsListPageTest extends TestCase
             'payment_unit' => 'c/kWh',
         ]);
 
-        Livewire::test('contracts-list')
+        $this->mountWithPrices('contracts-list')
             ->assertSeeHtml('logos/test-energia.webp')
             ->assertDontSeeHtml('https://storage.example.com/logos/test-energia.png');
     }
@@ -223,7 +231,7 @@ class ContractsListPageTest extends TestCase
             'payment_unit' => 'c/kWh',
         ]);
 
-        Livewire::test('contracts-list')
+        $this->mountWithPrices('contracts-list')
             ->assertSee('Tes')
             ->assertDontSeeHtml('https://storage.example.com/logos/test-energia.png');
     }
@@ -249,7 +257,7 @@ class ContractsListPageTest extends TestCase
             'payment_unit' => 'c/kWh',
         ]);
 
-        $schema = Livewire::test('contracts-list')->instance()->itemListSchema;
+        $schema = $this->mountWithPrices('contracts-list')->instance()->itemListSchema;
         $brand = $schema['itemListElement'][0]['item']['brand'];
 
         $this->assertSame('Test Energia Oy', $brand['name']);
@@ -261,7 +269,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_consumption_presets_are_displayed(): void
     {
-        Livewire::test('contracts-list')
+        $this->mountWithPrices('contracts-list')
             ->assertSee('Pieni yksiö')           // 2000 kWh
             ->assertSee('Kerrostalo perhe')       // 5000 kWh
             ->assertSee('Rivitalo')              // 10000 kWh
@@ -294,6 +302,7 @@ class ContractsListPageTest extends TestCase
             ]);
         }
 
+        $this->warmPrices();
         Livewire::withQueryParams([
             'consumption' => 10000,
             'hintatyyppi' => 'kulutusvaikutus',
@@ -307,8 +316,14 @@ class ContractsListPageTest extends TestCase
             ->assertSet('directConsumption', null);
     }
 
-    public function test_custom_query_consumption_uses_the_direct_input_on_initial_load(): void
+    public function test_prepared_custom_query_consumption_uses_the_direct_input_on_initial_load(): void
     {
+        $this->warmPrices();
+        $request = request();
+        $this->app->instance('request', Request::create('/fixture', 'POST'));
+        app(PublicPriceCalculationPolicy::class)->allowUserAction();
+        app(ContractListCacheService::class)->prepareComparisonForConsumption(7500);
+        $this->app->instance('request', $request);
         Livewire::withQueryParams(['consumption' => 7500])
             ->test('sahkosopimus-index')
             ->assertSet('consumption', 7500)
@@ -318,7 +333,7 @@ class ContractsListPageTest extends TestCase
 
     public function test_contract_listing_uses_the_compact_consumption_selector(): void
     {
-        Livewire::test('contracts-list')
+        $this->mountWithPrices('contracts-list')
             ->assertSee('Vuosikulutus')
             ->assertSee('Tiedän kulutukseni')
             ->assertSeeHtml('wire:model.blur="directConsumption"')
@@ -328,7 +343,7 @@ class ContractsListPageTest extends TestCase
 
     public function test_cheapest_contracts_uses_the_compact_consumption_selector(): void
     {
-        Livewire::test('cheapest-contracts')
+        $this->mountWithPrices('cheapest-contracts')
             ->assertSee('Vuosikulutus')
             ->assertSee('Arvioi kulutus laskurilla')
             ->assertSee('Tiedän kulutukseni')
@@ -342,7 +357,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_selecting_preset_updates_consumption(): void
     {
-        Livewire::test('contracts-list')
+        $this->mountWithPrices('contracts-list')
             ->call('selectPreset', 'small_apartment')
             ->assertSet('consumption', 2000)
             ->assertSet('selectedPreset', 'small_apartment')
@@ -378,7 +393,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_direct_consumption_input_updates_consumption(): void
     {
-        Livewire::test('contracts-list')
+        $this->mountWithPrices('contracts-list')
             ->set('directConsumption', 7000)
             ->assertSet('consumption', 7000)
             ->assertSet('selectedPreset', null)
@@ -409,7 +424,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_tab_switching_works(): void
     {
-        Livewire::test('contracts-list')
+        $this->mountWithPrices('contracts-list')
             ->assertSet('activeTab', 'presets')
             ->call('setActiveTab', 'calculator')
             ->assertSet('activeTab', 'calculator')
@@ -455,8 +470,8 @@ class ContractsListPageTest extends TestCase
 
         // Change to 10000 kWh
         // Total = (5.5 * 10000 / 100) + (2.95 * 12) = 550 + 35.4 = 585.4 EUR/year
-        Livewire::test('contracts-list')
-            ->set('consumption', 10000)
+        $this->mountWithPrices('contracts-list')
+            ->call('setConsumption', 10000)
             ->assertSee('585'); // Approximate match for the annual cost
     }
 
@@ -523,7 +538,7 @@ class ContractsListPageTest extends TestCase
             'payment_unit' => 'EUR/month',
         ]);
 
-        $component = Livewire::test('contracts-list');
+        $component = $this->mountWithPrices('contracts-list');
 
         // Get the contracts from the component
         $contracts = $component->viewData('contracts');
@@ -567,7 +582,7 @@ class ContractsListPageTest extends TestCase
             'fossil_total' => 0.0,
         ]);
 
-        Livewire::test('contracts-list')
+        $this->mountWithPrices('contracts-list')
             ->assertSee('Vihreä') // Green indicator
             ->assertSee('Vihreä Sähkö');
     }
@@ -605,7 +620,7 @@ class ContractsListPageTest extends TestCase
             'payment_unit' => 'EUR/month',
         ]);
 
-        Livewire::test('contracts-list')
+        $this->mountWithPrices('contracts-list')
             ->assertSee('Kiinteä hinta') // Pricing type label
             ->assertSee('Perus Sähkö'); // Contract name
     }
@@ -641,7 +656,7 @@ class ContractsListPageTest extends TestCase
 
         ActiveContract::create(['id' => 'spot-contract']);
 
-        Livewire::test('contracts-list')
+        $this->mountWithPrices('contracts-list')
             ->assertSee('Spot Sähkö')
             ->assertSee('Hinta seuraa pörssin tuntihintaa');
     }
@@ -651,7 +666,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_clicking_preset_changes_consumption(): void
     {
-        Livewire::test('contracts-list')
+        $this->mountWithPrices('contracts-list')
             ->call('setConsumption', 2000)
             ->assertSet('consumption', 2000)
             ->call('setConsumption', 18000)
@@ -663,7 +678,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_page_has_correct_title(): void
     {
-        $response = $this->get('/');
+        $response = $this->getWithPrices('/');
 
         $response->assertSee('Voltikka'); // App name in title or header
     }
@@ -676,7 +691,7 @@ class ContractsListPageTest extends TestCase
     public function test_postcode_filter_works_without_eager_loading_all_postcodes(): void
     {
         // Create test postcodes
-        \App\Models\Postcode::create([
+        Postcode::create([
             'postcode' => '00100',
             'postcode_fi_name' => 'Helsinki',
             'postcode_fi_name_slug' => 'helsinki',
@@ -688,7 +703,7 @@ class ContractsListPageTest extends TestCase
             'municipal_name_sv_slug' => 'helsingfors',
         ]);
 
-        \App\Models\Postcode::create([
+        Postcode::create([
             'postcode' => '33100',
             'postcode_fi_name' => 'Tampere',
             'postcode_fi_name_slug' => 'tampere',
@@ -741,13 +756,13 @@ class ContractsListPageTest extends TestCase
         ]);
 
         // Link Helsinki contract to Helsinki postcode only
-        \Illuminate\Support\Facades\DB::table('contract_postcode')->insert([
+        DB::table('contract_postcode')->insert([
             'contract_id' => 'helsinki-contract',
             'postcode' => '00100',
         ]);
 
         // Test: Filter by Helsinki postcode - should see both contracts
-        $component = Livewire::test('contracts-list')
+        $component = $this->mountWithPrices('contracts-list')
             ->set('postcodeFilter', '00100');
 
         $contracts = $component->viewData('contracts');
@@ -756,7 +771,7 @@ class ContractsListPageTest extends TestCase
         $this->assertTrue($contracts->contains('id', 'helsinki-contract'));
 
         // Test: Filter by Tampere postcode - should only see national contract
-        $component = Livewire::test('contracts-list')
+        $component = $this->mountWithPrices('contracts-list')
             ->set('postcodeFilter', '33100');
 
         $contracts = $component->viewData('contracts');
@@ -773,7 +788,7 @@ class ContractsListPageTest extends TestCase
     {
         // Create 100 postcodes
         for ($i = 0; $i < 100; $i++) {
-            \App\Models\Postcode::create([
+            Postcode::create([
                 'postcode' => str_pad($i, 5, '0', STR_PAD_LEFT),
                 'postcode_fi_name' => "Area $i",
                 'postcode_fi_name_slug' => "area-$i",
@@ -814,11 +829,11 @@ class ContractsListPageTest extends TestCase
                 'postcode' => str_pad($i, 5, '0', STR_PAD_LEFT),
             ];
         }
-        \Illuminate\Support\Facades\DB::table('contract_postcode')->insert($inserts);
+        DB::table('contract_postcode')->insert($inserts);
 
         // The component should load without issues and the contract should NOT have
         // availabilityPostcodes relationship loaded (to save memory)
-        $component = Livewire::test('contracts-list')
+        $component = $this->mountWithPrices('contracts-list')
             ->call('selectPostcode', '00000');
         $contracts = $component->viewData('contracts');
 
@@ -883,8 +898,8 @@ class ContractsListPageTest extends TestCase
             'payment_unit' => 'EUR/month',
         ]);
 
-        $component = Livewire::test('contracts-list')
-            ->set('consumption', 5000);
+        $component = $this->mountWithPrices('contracts-list')
+            ->call('setConsumption', 5000);
 
         $contracts = $component->viewData('contracts');
         $contract = $contracts->first();
@@ -905,7 +920,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_inline_calculator_has_default_values(): void
     {
-        Livewire::test('contracts-list')
+        $this->mountWithPrices('contracts-list')
             ->assertSet('calcLivingArea', 80)
             ->assertSet('calcNumPeople', 2)
             ->assertSet('calcBuildingType', 'apartment')
@@ -917,7 +932,7 @@ class ContractsListPageTest extends TestCase
 
     public function test_inline_calculator_corrects_negative_values_with_a_visible_notice(): void
     {
-        Livewire::test('contracts-list')
+        $this->mountWithPrices('contracts-list')
             ->set('activeTab', 'calculator')
             ->set('calcLivingArea', -20)
             ->assertSet('calcLivingArea', 10)
@@ -933,7 +948,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_calculator_tab_shows_building_type_options(): void
     {
-        Livewire::test('contracts-list')
+        $this->mountWithPrices('contracts-list')
             ->set('activeTab', 'calculator')
             ->assertSee('Kerrostalo')
             ->assertSee('Rivitalo')
@@ -947,7 +962,7 @@ class ContractsListPageTest extends TestCase
     {
         // Basic electricity consumption = numPeople * 400 + livingArea * 30
         // With 2 people and 100 m²: 2 * 400 + 100 * 30 = 800 + 3000 = 3800 kWh
-        $component = Livewire::test('contracts-list')
+        $component = $this->mountWithPrices('contracts-list')
             ->set('activeTab', 'calculator')
             ->set('calcNumPeople', 2)
             ->set('calcLivingArea', 100);
@@ -964,7 +979,7 @@ class ContractsListPageTest extends TestCase
     {
         // Basic electricity consumption = numPeople * 400 + livingArea * 30
         // With 4 people and 80 m²: 4 * 400 + 80 * 30 = 1600 + 2400 = 4000 kWh
-        $component = Livewire::test('contracts-list')
+        $component = $this->mountWithPrices('contracts-list')
             ->set('activeTab', 'calculator')
             ->set('calcLivingArea', 80)
             ->set('calcNumPeople', 4);
@@ -979,7 +994,7 @@ class ContractsListPageTest extends TestCase
     public function test_enabling_heating_increases_consumption(): void
     {
         // First get consumption without heating
-        $componentWithoutHeating = Livewire::test('contracts-list')
+        $componentWithoutHeating = $this->mountWithPrices('contracts-list')
             ->set('activeTab', 'calculator')
             ->set('calcLivingArea', 100)
             ->set('calcNumPeople', 2)
@@ -988,7 +1003,7 @@ class ContractsListPageTest extends TestCase
         $consumptionWithoutHeating = $componentWithoutHeating->get('consumption');
 
         // Now enable heating
-        $componentWithHeating = Livewire::test('contracts-list')
+        $componentWithHeating = $this->mountWithPrices('contracts-list')
             ->set('activeTab', 'calculator')
             ->set('calcLivingArea', 100)
             ->set('calcNumPeople', 2)
@@ -1010,7 +1025,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_heating_options_shown_when_include_heating_enabled(): void
     {
-        Livewire::test('contracts-list')
+        $this->mountWithPrices('contracts-list')
             ->set('activeTab', 'calculator')
             ->set('calcIncludeHeating', true)
             ->assertSee('Suora sähkölämmitys')
@@ -1024,7 +1039,7 @@ class ContractsListPageTest extends TestCase
     public function test_calculator_does_not_affect_consumption_on_presets_tab(): void
     {
         // Set to presets tab and select a preset
-        $component = Livewire::test('contracts-list')
+        $component = $this->mountWithPrices('contracts-list')
             ->set('activeTab', 'presets')
             ->call('selectPreset', 'small_apartment')
             ->assertSet('consumption', 2000);
@@ -1039,7 +1054,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_calculator_clears_preset_selection(): void
     {
-        $component = Livewire::test('contracts-list')
+        $component = $this->mountWithPrices('contracts-list')
             ->call('selectPreset', 'small_apartment')
             ->assertSet('selectedPreset', 'small_apartment')
             ->set('activeTab', 'calculator')
@@ -1058,7 +1073,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_calculator_displays_all_housing_type_cards(): void
     {
-        Livewire::test('contracts-list')
+        $this->mountWithPrices('contracts-list')
             ->set('activeTab', 'calculator')
             ->assertSee('Omakotitalo')
             ->assertSee('Rivitalo')
@@ -1070,7 +1085,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_selecting_housing_type_card_updates_building_type(): void
     {
-        Livewire::test('contracts-list')
+        $this->mountWithPrices('contracts-list')
             ->set('activeTab', 'calculator')
             ->call('selectBuildingType', 'detached_house')
             ->assertSet('calcBuildingType', 'detached_house')
@@ -1085,7 +1100,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_selecting_housing_type_clears_preset(): void
     {
-        $component = Livewire::test('contracts-list')
+        $component = $this->mountWithPrices('contracts-list')
             ->call('selectPreset', 'small_apartment')
             ->assertSet('selectedPreset', 'small_apartment')
             ->set('activeTab', 'calculator')
@@ -1099,7 +1114,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_extras_section_displays_all_toggle_options(): void
     {
-        Livewire::test('contracts-list')
+        $this->mountWithPrices('contracts-list')
             ->set('activeTab', 'calculator')
             ->assertSee('Lattialämmitys')
             ->assertSee('Sauna')
@@ -1112,7 +1127,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_underfloor_heating_toggle_works(): void
     {
-        Livewire::test('contracts-list')
+        $this->mountWithPrices('contracts-list')
             ->set('activeTab', 'calculator')
             ->assertSet('calcUnderfloorHeatingEnabled', false)
             ->call('toggleExtra', 'underfloor')
@@ -1126,7 +1141,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_sauna_toggle_works(): void
     {
-        Livewire::test('contracts-list')
+        $this->mountWithPrices('contracts-list')
             ->set('activeTab', 'calculator')
             ->assertSet('calcSaunaEnabled', false)
             ->call('toggleExtra', 'sauna')
@@ -1140,7 +1155,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_electric_vehicle_toggle_works(): void
     {
-        Livewire::test('contracts-list')
+        $this->mountWithPrices('contracts-list')
             ->set('activeTab', 'calculator')
             ->assertSet('calcElectricVehicleEnabled', false)
             ->call('toggleExtra', 'ev')
@@ -1154,7 +1169,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_cooling_toggle_works(): void
     {
-        Livewire::test('contracts-list')
+        $this->mountWithPrices('contracts-list')
             ->set('activeTab', 'calculator')
             ->assertSet('calcCooling', false)
             ->call('toggleExtra', 'cooling')
@@ -1168,7 +1183,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_underfloor_heating_input_appears_when_enabled(): void
     {
-        Livewire::test('contracts-list')
+        $this->mountWithPrices('contracts-list')
             ->set('activeTab', 'calculator')
             ->call('toggleExtra', 'underfloor')
             ->assertSee('Lämmitetty lattia-ala');
@@ -1179,7 +1194,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_sauna_usage_input_appears_when_enabled(): void
     {
-        Livewire::test('contracts-list')
+        $this->mountWithPrices('contracts-list')
             ->set('activeTab', 'calculator')
             ->call('toggleExtra', 'sauna')
             ->assertSee('Saunakertoja viikossa');
@@ -1190,7 +1205,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_ev_kms_input_appears_when_enabled(): void
     {
-        Livewire::test('contracts-list')
+        $this->mountWithPrices('contracts-list')
             ->set('activeTab', 'calculator')
             ->call('toggleExtra', 'ev')
             ->assertSee('Ajokilometrit viikossa');
@@ -1201,7 +1216,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_bathroom_heating_area_resets_when_disabled(): void
     {
-        $component = Livewire::test('contracts-list')
+        $component = $this->mountWithPrices('contracts-list')
             ->set('activeTab', 'calculator')
             ->call('toggleExtra', 'underfloor')
             ->set('calcBathroomHeatingArea', 15);
@@ -1217,7 +1232,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_sauna_usage_resets_when_disabled(): void
     {
-        $component = Livewire::test('contracts-list')
+        $component = $this->mountWithPrices('contracts-list')
             ->set('activeTab', 'calculator')
             ->call('toggleExtra', 'sauna')
             ->set('calcSaunaUsagePerWeek', 3);
@@ -1233,7 +1248,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_ev_kms_resets_when_disabled(): void
     {
-        $component = Livewire::test('contracts-list')
+        $component = $this->mountWithPrices('contracts-list')
             ->set('activeTab', 'calculator')
             ->call('toggleExtra', 'ev')
             ->set('calcElectricVehicleKmsPerWeek', 200);
@@ -1250,7 +1265,7 @@ class ContractsListPageTest extends TestCase
     public function test_sauna_usage_increases_consumption(): void
     {
         // Get baseline consumption without sauna
-        $componentWithoutSauna = Livewire::test('contracts-list')
+        $componentWithoutSauna = $this->mountWithPrices('contracts-list')
             ->set('activeTab', 'calculator')
             ->set('calcLivingArea', 80)
             ->set('calcNumPeople', 2)
@@ -1259,7 +1274,7 @@ class ContractsListPageTest extends TestCase
         $consumptionWithoutSauna = $componentWithoutSauna->get('consumption');
 
         // Enable sauna with usage
-        $componentWithSauna = Livewire::test('contracts-list')
+        $componentWithSauna = $this->mountWithPrices('contracts-list')
             ->set('activeTab', 'calculator')
             ->set('calcLivingArea', 80)
             ->set('calcNumPeople', 2)
@@ -1278,7 +1293,7 @@ class ContractsListPageTest extends TestCase
     public function test_ev_kms_increases_consumption(): void
     {
         // Get baseline consumption without EV
-        $componentWithoutEV = Livewire::test('contracts-list')
+        $componentWithoutEV = $this->mountWithPrices('contracts-list')
             ->set('activeTab', 'calculator')
             ->set('calcLivingArea', 80)
             ->set('calcNumPeople', 2)
@@ -1287,7 +1302,7 @@ class ContractsListPageTest extends TestCase
         $consumptionWithoutEV = $componentWithoutEV->get('consumption');
 
         // Enable EV with kms
-        $componentWithEV = Livewire::test('contracts-list')
+        $componentWithEV = $this->mountWithPrices('contracts-list')
             ->set('activeTab', 'calculator')
             ->set('calcLivingArea', 80)
             ->set('calcNumPeople', 2)
@@ -1306,7 +1321,7 @@ class ContractsListPageTest extends TestCase
     public function test_bathroom_heating_area_increases_consumption(): void
     {
         // Get baseline consumption without underfloor heating
-        $componentWithoutHeating = Livewire::test('contracts-list')
+        $componentWithoutHeating = $this->mountWithPrices('contracts-list')
             ->set('activeTab', 'calculator')
             ->set('calcLivingArea', 80)
             ->set('calcNumPeople', 2)
@@ -1315,7 +1330,7 @@ class ContractsListPageTest extends TestCase
         $consumptionWithoutHeating = $componentWithoutHeating->get('consumption');
 
         // Enable underfloor heating with area
-        $componentWithHeating = Livewire::test('contracts-list')
+        $componentWithHeating = $this->mountWithPrices('contracts-list')
             ->set('activeTab', 'calculator')
             ->set('calcLivingArea', 80)
             ->set('calcNumPeople', 2)
@@ -1334,7 +1349,7 @@ class ContractsListPageTest extends TestCase
     public function test_cooling_increases_consumption(): void
     {
         // Get baseline consumption without cooling
-        $componentWithoutCooling = Livewire::test('contracts-list')
+        $componentWithoutCooling = $this->mountWithPrices('contracts-list')
             ->set('activeTab', 'calculator')
             ->set('calcLivingArea', 80)
             ->set('calcNumPeople', 2)
@@ -1343,7 +1358,7 @@ class ContractsListPageTest extends TestCase
         $consumptionWithoutCooling = $componentWithoutCooling->get('consumption');
 
         // Enable cooling
-        $componentWithCooling = Livewire::test('contracts-list')
+        $componentWithCooling = $this->mountWithPrices('contracts-list')
             ->set('activeTab', 'calculator')
             ->set('calcLivingArea', 80)
             ->set('calcNumPeople', 2)
@@ -1360,7 +1375,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_supplementary_heating_dropdown_shown_when_heating_enabled(): void
     {
-        Livewire::test('contracts-list')
+        $this->mountWithPrices('contracts-list')
             ->set('activeTab', 'calculator')
             ->set('calcIncludeHeating', true)
             ->assertSee('Lisälämmitys')
@@ -1374,7 +1389,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_supplementary_heating_can_be_selected(): void
     {
-        Livewire::test('contracts-list')
+        $this->mountWithPrices('contracts-list')
             ->set('activeTab', 'calculator')
             ->set('calcIncludeHeating', true)
             ->set('calcSupplementaryHeating', 'heat_pump')
@@ -1417,7 +1432,7 @@ class ContractsListPageTest extends TestCase
             'payment_unit' => 'EUR/month',
         ]);
 
-        $component = Livewire::test('contracts-list')
+        $component = $this->mountWithPrices('contracts-list')
             ->set('activeTab', 'calculator')
             ->set('calcLivingArea', 150)
             ->set('calcNumPeople', 4)
@@ -1472,7 +1487,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_extra_fields_have_correct_defaults(): void
     {
-        Livewire::test('contracts-list')
+        $this->mountWithPrices('contracts-list')
             ->assertSet('calcSupplementaryHeating', null)
             ->assertSet('calcUnderfloorHeatingEnabled', false)
             ->assertSet('calcSaunaEnabled', false)
@@ -1488,7 +1503,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_extras_toggles_clear_preset_selection(): void
     {
-        $component = Livewire::test('contracts-list')
+        $component = $this->mountWithPrices('contracts-list')
             ->call('selectPreset', 'small_apartment')
             ->assertSet('selectedPreset', 'small_apartment')
             ->set('activeTab', 'calculator')
@@ -1502,7 +1517,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_supplementary_heating_methods_are_available(): void
     {
-        $component = Livewire::test('contracts-list');
+        $component = $this->mountWithPrices('contracts-list');
         $methods = $component->get('supplementaryHeatingMethods');
 
         $this->assertArrayHasKey('heat_pump', $methods);
@@ -1568,8 +1583,8 @@ class ContractsListPageTest extends TestCase
         ]);
 
         // With 5000 kWh consumption, only the no-limit contract should show
-        $component = Livewire::test('contracts-list')
-            ->set('consumption', 5000);
+        $component = $this->mountWithPrices('contracts-list')
+            ->call('setConsumption', 5000);
 
         $contracts = $component->viewData('contracts');
         $this->assertCount(1, $contracts);
@@ -1577,8 +1592,8 @@ class ContractsListPageTest extends TestCase
         $this->assertFalse($contracts->contains('id', 'high-min-contract'));
 
         // With 15000 kWh consumption, both contracts should show
-        $component2 = Livewire::test('contracts-list')
-            ->set('consumption', 15000);
+        $component2 = $this->mountWithPrices('contracts-list')
+            ->call('setConsumption', 15000);
 
         $contracts2 = $component2->viewData('contracts');
         $this->assertCount(2, $contracts2);
@@ -1636,8 +1651,8 @@ class ContractsListPageTest extends TestCase
         ]);
 
         // With 10000 kWh consumption, only the no-limit contract should show
-        $component = Livewire::test('contracts-list')
-            ->set('consumption', 10000);
+        $component = $this->mountWithPrices('contracts-list')
+            ->call('setConsumption', 10000);
 
         $contracts = $component->viewData('contracts');
         $this->assertCount(1, $contracts);
@@ -1645,8 +1660,8 @@ class ContractsListPageTest extends TestCase
         $this->assertFalse($contracts->contains('id', 'low-max-contract'));
 
         // With 5000 kWh consumption, both contracts should show
-        $component2 = Livewire::test('contracts-list')
-            ->set('consumption', 5000);
+        $component2 = $this->mountWithPrices('contracts-list')
+            ->call('setConsumption', 5000);
 
         $contracts2 = $component2->viewData('contracts');
         $this->assertCount(2, $contracts2);
@@ -1682,20 +1697,20 @@ class ContractsListPageTest extends TestCase
         ]);
 
         // With 2000 kWh (below min), contract should not show
-        $componentBelow = Livewire::test('contracts-list')
-            ->set('consumption', 2000);
+        $componentBelow = $this->mountWithPrices('contracts-list')
+            ->call('setConsumption', 2000);
         $this->assertCount(0, $componentBelow->viewData('contracts'));
 
         // With 10000 kWh (within range), contract should show
-        $componentWithin = Livewire::test('contracts-list')
-            ->set('consumption', 10000);
+        $componentWithin = $this->mountWithPrices('contracts-list')
+            ->call('setConsumption', 10000);
         $contracts = $componentWithin->viewData('contracts');
         $this->assertCount(1, $contracts);
         $this->assertTrue($contracts->contains('id', 'range-contract'));
 
         // With 20000 kWh (above max), contract should not show
-        $componentAbove = Livewire::test('contracts-list')
-            ->set('consumption', 20000);
+        $componentAbove = $this->mountWithPrices('contracts-list')
+            ->call('setConsumption', 20000);
         $this->assertCount(0, $componentAbove->viewData('contracts'));
     }
 
@@ -1708,7 +1723,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_default_page_title_without_filters(): void
     {
-        $component = Livewire::test('contracts-list');
+        $component = $this->mountWithPrices('contracts-list');
         $this->assertEquals('Sähkösopimukset', $component->get('pageTitle'));
     }
 
@@ -1717,7 +1732,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_page_title_with_spot_pricing_filter(): void
     {
-        $component = Livewire::test('contracts-list')
+        $component = $this->mountWithPrices('contracts-list')
             ->set('pricingModelFilter', 'Spot');
 
         $this->assertEquals('Pörssisähkösopimukset', $component->get('pageTitle'));
@@ -1728,7 +1743,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_page_title_with_fixed_price_filter(): void
     {
-        $component = Livewire::test('contracts-list')
+        $component = $this->mountWithPrices('contracts-list')
             ->set('pricingModelFilter', 'FixedPrice');
 
         $this->assertEquals('Kiinteähintaiset sähkösopimukset', $component->get('pageTitle'));
@@ -1739,7 +1754,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_page_title_with_hybrid_filter(): void
     {
-        $component = Livewire::test('contracts-list')
+        $component = $this->mountWithPrices('contracts-list')
             ->set('pricingModelFilter', 'Hybrid');
 
         $this->assertEquals('Hybridisähkösopimukset', $component->get('pageTitle'));
@@ -1750,7 +1765,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_page_title_with_fixed_term_filter(): void
     {
-        $component = Livewire::test('contracts-list')
+        $component = $this->mountWithPrices('contracts-list')
             ->set('contractTypeFilter', 'FixedTerm');
 
         $this->assertEquals('Määräaikaiset sähkösopimukset', $component->get('pageTitle'));
@@ -1761,7 +1776,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_page_title_with_open_ended_filter(): void
     {
-        $component = Livewire::test('contracts-list')
+        $component = $this->mountWithPrices('contracts-list')
             ->set('contractTypeFilter', 'OpenEnded');
 
         $this->assertEquals('Toistaiseksi voimassa olevat sähkösopimukset', $component->get('pageTitle'));
@@ -1772,7 +1787,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_page_title_with_fixed_term_and_spot_filters(): void
     {
-        $component = Livewire::test('contracts-list')
+        $component = $this->mountWithPrices('contracts-list')
             ->set('contractTypeFilter', 'FixedTerm')
             ->set('pricingModelFilter', 'Spot');
 
@@ -1784,7 +1799,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_page_title_with_fixed_term_and_fixed_price_filters(): void
     {
-        $component = Livewire::test('contracts-list')
+        $component = $this->mountWithPrices('contracts-list')
             ->set('contractTypeFilter', 'FixedTerm')
             ->set('pricingModelFilter', 'FixedPrice');
 
@@ -1796,7 +1811,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_page_title_with_open_ended_and_spot_filters(): void
     {
-        $component = Livewire::test('contracts-list')
+        $component = $this->mountWithPrices('contracts-list')
             ->set('contractTypeFilter', 'OpenEnded')
             ->set('pricingModelFilter', 'Spot');
 
@@ -1808,7 +1823,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_page_title_with_renewable_filter(): void
     {
-        $component = Livewire::test('contracts-list')
+        $component = $this->mountWithPrices('contracts-list')
             ->set('renewableFilter', true);
 
         $this->assertEquals('Uusiutuvat sähkösopimukset', $component->get('pageTitle'));
@@ -1819,7 +1834,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_page_title_with_fossil_free_filter(): void
     {
-        $component = Livewire::test('contracts-list')
+        $component = $this->mountWithPrices('contracts-list')
             ->set('fossilFreeFilter', true);
 
         $this->assertEquals('Fossiilittomat sähkösopimukset', $component->get('pageTitle'));
@@ -1830,7 +1845,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_page_title_with_nuclear_filter(): void
     {
-        $component = Livewire::test('contracts-list')
+        $component = $this->mountWithPrices('contracts-list')
             ->set('nuclearFilter', true);
 
         $this->assertEquals('Ydinvoimasähkösopimukset', $component->get('pageTitle'));
@@ -1841,7 +1856,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_page_title_with_spot_and_renewable_filters(): void
     {
-        $component = Livewire::test('contracts-list')
+        $component = $this->mountWithPrices('contracts-list')
             ->set('pricingModelFilter', 'Spot')
             ->set('renewableFilter', true);
 
@@ -1857,7 +1872,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_default_meta_description_without_filters(): void
     {
-        $component = Livewire::test('contracts-list');
+        $component = $this->mountWithPrices('contracts-list');
         $description = $component->get('metaDescription');
 
         $this->assertStringContainsString('Vertaile sähkösopimuksia', $description);
@@ -1868,7 +1883,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_meta_description_with_spot_filter(): void
     {
-        $component = Livewire::test('contracts-list')
+        $component = $this->mountWithPrices('contracts-list')
             ->set('pricingModelFilter', 'Spot');
 
         $description = $component->get('metaDescription');
@@ -1880,7 +1895,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_meta_description_with_fixed_price_filter(): void
     {
-        $component = Livewire::test('contracts-list')
+        $component = $this->mountWithPrices('contracts-list')
             ->set('pricingModelFilter', 'FixedPrice');
 
         $description = $component->get('metaDescription');
@@ -1892,7 +1907,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_meta_description_with_fixed_term_filter(): void
     {
-        $component = Livewire::test('contracts-list')
+        $component = $this->mountWithPrices('contracts-list')
             ->set('contractTypeFilter', 'FixedTerm');
 
         $description = $component->get('metaDescription');
@@ -1904,7 +1919,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_meta_description_with_renewable_filter(): void
     {
-        $component = Livewire::test('contracts-list')
+        $component = $this->mountWithPrices('contracts-list')
             ->set('renewableFilter', true);
 
         $description = $component->get('metaDescription');
@@ -1916,7 +1931,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_page_title_is_passed_to_layout(): void
     {
-        $response = $this->get('/sahkosopimus?pricingModelFilter=Spot');
+        $response = $this->getWithPrices('/sahkosopimus?pricingModelFilter=Spot');
 
         $response->assertStatus(200);
         $response->assertSee('Pörssisähkösopimukset');
@@ -1927,9 +1942,33 @@ class ContractsListPageTest extends TestCase
      */
     public function test_h1_reflects_dynamic_title(): void
     {
-        $component = Livewire::test('contracts-list')
+        $component = $this->mountWithPrices('contracts-list')
             ->set('pricingModelFilter', 'Spot');
 
         $component->assertSee('Pörssisähkösopimukset');
+    }
+
+    private function warmPrices(): void
+    {
+        $logging = DB::connection()->logging();
+        DB::disableQueryLog();
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
+        if ($logging) {
+            DB::enableQueryLog();
+        }
+    }
+
+    private function mountWithPrices(string $component, array $parameters = []): Testable
+    {
+        $this->warmPrices();
+
+        return Livewire::test($component, $parameters);
+    }
+
+    private function getWithPrices(string $uri): TestResponse
+    {
+        $this->warmPrices();
+
+        return $this->get($uri);
     }
 }

@@ -12,6 +12,8 @@ use App\Models\PriceComponent;
 use App\Models\SpotPriceAverage;
 use App\Services\Analytics\ContractOrderClickContextSigner;
 use App\Services\Caching\ContractPageCacheVersion;
+use App\Services\CompanyListCacheService;
+use App\Services\ContractListCacheService;
 use App\Services\ContractPriceHistory\ContractHistoryPresenter;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -19,6 +21,8 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Testing\TestResponse;
+use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -103,7 +107,7 @@ class ContractDetailPageTest extends TestCase
      */
     public function test_contract_detail_page_is_accessible(): void
     {
-        $response = $this->get('/sahkosopimus/sopimus/contract-detail-test');
+        $response = $this->getWithPrices('/sahkosopimus/sopimus/contract-detail-test');
 
         $response->assertStatus(200);
     }
@@ -113,7 +117,7 @@ class ContractDetailPageTest extends TestCase
      */
     public function test_contract_detail_page_renders_livewire_component(): void
     {
-        $response = $this->get('/sahkosopimus/sopimus/contract-detail-test');
+        $response = $this->getWithPrices('/sahkosopimus/sopimus/contract-detail-test');
 
         $response->assertStatus(200);
         $response->assertSeeLivewire('contract-detail');
@@ -121,7 +125,7 @@ class ContractDetailPageTest extends TestCase
 
     public function test_both_seller_ctas_use_the_shared_first_party_path_and_keep_plausible(): void
     {
-        $component = Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $component = $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSeeHtml("\$track('Contract Order Clicked', {")
             ->assertSeeHtml('props: {')
             ->assertSeeHtml("contract_id: 'contract-detail-test'")
@@ -146,7 +150,7 @@ class ContractDetailPageTest extends TestCase
      */
     public function test_contract_name_is_displayed(): void
     {
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSee('Perus Sähkö 24kk');
     }
 
@@ -155,13 +159,13 @@ class ContractDetailPageTest extends TestCase
      */
     public function test_company_name_is_displayed(): void
     {
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSee('Test Energia Oy');
     }
 
     public function test_company_name_links_to_company_detail_page(): void
     {
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSeeHtml('href="/sahkosopimus/sahkoyhtiot/test-energia-oy"');
     }
 
@@ -172,7 +176,7 @@ class ContractDetailPageTest extends TestCase
             'fixed_time_range' => 'Fixed24',
         ]);
 
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSeeHtml('href="/sahkosopimus/maaraaikainen-24-kk"')
             ->assertSeeHtml('href="/sahkosopimus/yleissahko"');
     }
@@ -201,7 +205,7 @@ class ContractDetailPageTest extends TestCase
             'payment_unit' => 'c/kWh',
         ]);
 
-        Livewire::test('contract-detail', ['contractId' => $contract->id])
+        $this->mountWithPrices('contract-detail', ['contractId' => $contract->id])
             ->assertSeeHtml('href="/sahkosopimus/porssisahko"')
             ->assertDontSeeHtml('href="/sahkosopimus/yleissahko"');
     }
@@ -230,14 +234,14 @@ class ContractDetailPageTest extends TestCase
             'payment_unit' => 'c/kWh',
         ]);
 
-        Livewire::test('contract-detail', ['contractId' => $contract->id])
+        $this->mountWithPrices('contract-detail', ['contractId' => $contract->id])
             ->assertSeeHtml('href="/sahkosopimus/joustosahko"')
             ->assertDontSeeHtml('href="/sahkosopimus/yleissahko"');
     }
 
     public function test_external_only_company_logo_is_not_requested(): void
     {
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSee('Tes')
             ->assertDontSeeHtml('https://storage.example.com/logos/test-energia.png');
     }
@@ -247,7 +251,7 @@ class ContractDetailPageTest extends TestCase
      */
     public function test_contract_type_is_displayed(): void
     {
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSee('Fixed');
     }
 
@@ -256,7 +260,7 @@ class ContractDetailPageTest extends TestCase
      */
     public function test_fixed_time_range_is_displayed(): void
     {
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSee('24 months');
     }
 
@@ -268,7 +272,7 @@ class ContractDetailPageTest extends TestCase
         // The Finnish label, not the raw enum. This used to pass on an HTML comment
         // ("<!-- General metering (non-spot) -->") in the hand-rolled price-row block that
         // ContractCardPresenter replaced; the enum value was never shown to a visitor.
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSee('Yleissähkö');
     }
 
@@ -277,7 +281,7 @@ class ContractDetailPageTest extends TestCase
      */
     public function test_short_description_is_not_used_as_seo_schema_description(): void
     {
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertDontSee('Edullinen kiinteähintainen sähkösopimus.');
     }
 
@@ -286,7 +290,7 @@ class ContractDetailPageTest extends TestCase
      */
     public function test_long_description_is_displayed(): void
     {
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSee('Tämä on pidempi kuvaus sopimuksesta.');
     }
 
@@ -315,7 +319,7 @@ class ContractDetailPageTest extends TestCase
             'payment_unit' => 'c/kWh',
         ]);
 
-        $description = Livewire::test('contract-detail', ['contractId' => $contract->id])
+        $description = $this->mountWithPrices('contract-detail', ['contractId' => $contract->id])
             ->instance()
             ->metaDescription;
 
@@ -327,7 +331,7 @@ class ContractDetailPageTest extends TestCase
 
     public function test_title_uses_compact_price_rank_and_contract_name(): void
     {
-        $title = Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $title = $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->instance()
             ->pageTitle;
 
@@ -345,7 +349,7 @@ class ContractDetailPageTest extends TestCase
             'payment_unit' => 'c/kWh',
         ]);
 
-        $component = Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])->instance();
+        $component = $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])->instance();
         $description = $component->metaDescription;
 
         $this->assertStringContainsString('Perus Sähkö 24kk maksaa nyt 5,50 c/kWh + 2,95 €/kk', $description);
@@ -384,7 +388,7 @@ class ContractDetailPageTest extends TestCase
             'payment_unit' => 'c/kWh',
         ]);
 
-        $description = Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $description = $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->instance()
             ->metaDescription;
 
@@ -395,7 +399,7 @@ class ContractDetailPageTest extends TestCase
 
     public function test_product_schema_uses_generated_meta_description(): void
     {
-        $component = Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])->instance();
+        $component = $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])->instance();
 
         $this->assertSame($component->metaDescription, $component->productSchema['description']);
         $this->assertNotSame($this->contract->short_description, $component->productSchema['description']);
@@ -423,7 +427,7 @@ class ContractDetailPageTest extends TestCase
             'payment_unit' => 'c/kWh',
         ]);
 
-        $title = Livewire::test('contract-detail', ['contractId' => $contract->id])
+        $title = $this->mountWithPrices('contract-detail', ['contractId' => $contract->id])
             ->instance()
             ->pageTitle;
 
@@ -476,7 +480,7 @@ class ContractDetailPageTest extends TestCase
             ]);
         }
 
-        $component = Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $component = $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertDontSee('Yksi halvimmista')
             // Phase 4 dissolved the tiered verdict strip into the hero verdict line.
             ->assertSee('Sija 26')
@@ -491,7 +495,7 @@ class ContractDetailPageTest extends TestCase
      */
     public function test_energy_price_is_displayed(): void
     {
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSee('5,5'); // Finnish number format
     }
 
@@ -500,7 +504,7 @@ class ContractDetailPageTest extends TestCase
      */
     public function test_monthly_fee_is_displayed(): void
     {
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSee('2,95'); // Finnish number format
     }
 
@@ -509,7 +513,7 @@ class ContractDetailPageTest extends TestCase
      */
     public function test_electricity_source_breakdown_is_displayed(): void
     {
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSee('65') // Renewable total
             ->assertSee('30') // Nuclear total
             ->assertSee('5');  // Fossil total (but context might match price too)
@@ -520,7 +524,7 @@ class ContractDetailPageTest extends TestCase
      */
     public function test_renewable_breakdown_is_displayed(): void
     {
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSee('40') // Wind
             ->assertSee('20'); // Hydro
     }
@@ -530,7 +534,7 @@ class ContractDetailPageTest extends TestCase
      */
     public function test_product_link_is_displayed(): void
     {
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSeeHtml('https://testenergia.fi/products/perus-sahko');
     }
 
@@ -539,7 +543,7 @@ class ContractDetailPageTest extends TestCase
      */
     public function test_order_link_is_displayed(): void
     {
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSeeHtml('https://testenergia.fi/order/perus-sahko');
     }
 
@@ -552,7 +556,7 @@ class ContractDetailPageTest extends TestCase
         // Energy: 5.5 * 5000 / 100 = 275 EUR
         // Monthly: 2.95 * 12 = 35.40 EUR
         // Total: 310.40 EUR
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSee('310'); // Approximate match
     }
 
@@ -565,7 +569,7 @@ class ContractDetailPageTest extends TestCase
         // Energy: 5.5 * 10000 / 100 = 550 EUR
         // Monthly: 2.95 * 12 = 35.40 EUR
         // Total: 585.40 EUR
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->set('consumption', 10000)
             ->assertSee('585'); // Approximate match
     }
@@ -575,7 +579,7 @@ class ContractDetailPageTest extends TestCase
      */
     public function test_consumption_presets_are_available(): void
     {
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSee('2 000 kWh')
             ->assertSee('5 000 kWh')
             ->assertSee('10 000 kWh')
@@ -587,7 +591,7 @@ class ContractDetailPageTest extends TestCase
      */
     public function test_microproduction_info_is_displayed(): void
     {
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSee('Ostamme ylituotannon spot-hintaan.');
     }
 
@@ -596,7 +600,7 @@ class ContractDetailPageTest extends TestCase
      */
     public function test_company_address_is_displayed(): void
     {
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSee('Energiakatu 1')
             ->assertSee('00100')
             ->assertSee('Helsinki');
@@ -607,7 +611,7 @@ class ContractDetailPageTest extends TestCase
      */
     public function test_404_for_non_existent_contract(): void
     {
-        $response = $this->get('/sahkosopimus/sopimus/non-existent-contract');
+        $response = $this->getWithPrices('/sahkosopimus/sopimus/non-existent-contract');
 
         $response->assertStatus(404);
     }
@@ -627,7 +631,7 @@ class ContractDetailPageTest extends TestCase
             'payment_unit' => 'c/kWh',
         ]);
 
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSee('6,0'); // Historical price should be shown
     }
 
@@ -728,7 +732,7 @@ class ContractDetailPageTest extends TestCase
      */
     protected function contractHistoryPriceLabels(string $contractId): array
     {
-        $history = Livewire::test('contract-detail', ['contractId' => $contractId])
+        $history = $this->mountWithPrices('contract-detail', ['contractId' => $contractId])
             ->viewData('contractHistory');
 
         return collect($history)
@@ -760,7 +764,7 @@ class ContractDetailPageTest extends TestCase
             'payment_unit' => 'c/kWh',
         ]);
 
-        Livewire::test('contract-detail', ['contractId' => $this->contract->id])
+        $this->mountWithPrices('contract-detail', ['contractId' => $this->contract->id])
             ->assertSee('Sopimus ei ole enää myynnissä')
             // The date carries a machine-readable <time datetime>, so the sentence and
             // the date are asserted separately.
@@ -774,7 +778,7 @@ class ContractDetailPageTest extends TestCase
         ActiveContract::query()->whereKey($this->contract->id)->delete();
         PriceComponent::query()->where('electricity_contract_id', $this->contract->id)->delete();
 
-        Livewire::test('contract-detail', ['contractId' => $this->contract->id])
+        $this->mountWithPrices('contract-detail', ['contractId' => $this->contract->id])
             ->assertSee('Näin hinta on kehittynyt')
             ->assertSee('Sopimus ei ole enää myynnissä')
             ->assertSee('Viimeinen havainto myynnissä ei ole tiedossa.');
@@ -793,7 +797,7 @@ class ContractDetailPageTest extends TestCase
             'canonical_calculation' => null,
         ]);
 
-        $this->get(route('contract.detail', ['contractId' => $this->contract->id]))
+        $this->getWithPrices(route('contract.detail', ['contractId' => $this->contract->id]))
             ->assertOk()
             ->assertSeeLivewire('contract-detail')
             ->assertSee('<meta name="robots" content="noindex, follow">', false)
@@ -804,7 +808,7 @@ class ContractDetailPageTest extends TestCase
 
     public function test_active_contract_history_does_not_show_not_for_sale_node(): void
     {
-        Livewire::test('contract-detail', ['contractId' => $this->contract->id])
+        $this->mountWithPrices('contract-detail', ['contractId' => $this->contract->id])
             ->assertDontSee('Sopimus ei ole enää myynnissä')
             ->assertSee('Nykyinen');
     }
@@ -818,7 +822,7 @@ class ContractDetailPageTest extends TestCase
             $mock->shouldReceive('hash')->once()->andReturn('stable-version');
         });
 
-        $component = Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])->instance();
+        $component = $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])->instance();
 
         $lookupKey = new \ReflectionMethod($component, 'contractLookupCacheKey');
         $lookupKey->setAccessible(true);
@@ -855,7 +859,7 @@ class ContractDetailPageTest extends TestCase
 
         DB::enableQueryLog();
 
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertStatus(200);
 
         $targetGroupQueries = collect(DB::getQueryLog())
@@ -904,7 +908,7 @@ class ContractDetailPageTest extends TestCase
 
         DB::enableQueryLog();
 
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSee('Query Previous')
             ->assertSee('Query Oldest');
 
@@ -959,7 +963,7 @@ class ContractDetailPageTest extends TestCase
 
         DB::enableQueryLog();
 
-        $this->get('/sahkosopimus/sopimus/'.$old->id)
+        $this->getWithPrices('/sahkosopimus/sopimus/'.$old->id)
             ->assertRedirect(route('contract.detail', ['contractId' => $replacement->id]));
 
         $queries = collect(DB::getQueryLog())->pluck('query');
@@ -1025,7 +1029,7 @@ class ContractDetailPageTest extends TestCase
             'payment_unit' => 'c/kWh',
         ]);
 
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSee('Näin hinta on kehittynyt')
             ->assertSeeInOrder(['Perus Sähkö 24kk', 'Perus Sähkö 12kk', 'Vanha Perus Sähkö'])
             ->assertSee('6,20')
@@ -1039,7 +1043,7 @@ class ContractDetailPageTest extends TestCase
      */
     public function test_back_to_list_link_is_present(): void
     {
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSeeHtml('href="/sahkosopimus"'); // Back link to contracts list
     }
 
@@ -1086,7 +1090,7 @@ class ContractDetailPageTest extends TestCase
 
         ActiveContract::create(['id' => 'time-metering-contract']);
 
-        Livewire::test('contract-detail', ['contractId' => 'time-metering-contract'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'time-metering-contract'])
             ->assertSee('6,0')  // Day price
             ->assertSee('4,0'); // Night price
     }
@@ -1134,7 +1138,7 @@ class ContractDetailPageTest extends TestCase
 
         ActiveContract::create(['id' => 'seasonal-metering-contract']);
 
-        Livewire::test('contract-detail', ['contractId' => 'seasonal-metering-contract'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'seasonal-metering-contract'])
             ->assertSee('7,0')  // Winter price
             ->assertSee('4,5'); // Other season price
     }
@@ -1156,7 +1160,7 @@ class ContractDetailPageTest extends TestCase
 
         // Only "Pieni talo" (10000) and "Suuri talo" (18000) should be shown
         // "Yksiö" (2000) and "Kerrostalo" (5000) should be hidden
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertDontSeeHtml('data-consumption-preset="2000"')
             ->assertDontSeeHtml('data-consumption-preset="5000"')
             ->assertSeeHtml('data-consumption-preset="10000"')
@@ -1175,7 +1179,7 @@ class ContractDetailPageTest extends TestCase
 
         // Only "Yksiö" (2000) and "Kerrostalo" (5000) should be shown
         // "Pieni talo" (10000) and "Suuri talo" (18000) should be hidden
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSeeHtml('data-consumption-preset="2000"')
             ->assertSeeHtml('data-consumption-preset="5000"')
             ->assertDontSeeHtml('data-consumption-preset="10000"')
@@ -1195,7 +1199,7 @@ class ContractDetailPageTest extends TestCase
 
         // Only "Kerrostalo" (5000) and "Pieni talo" (10000) should be shown
         // "Yksiö" (2000) is below min, "Suuri talo" (18000) is above max.
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertDontSeeHtml('data-consumption-preset="2000"')
             ->assertSeeHtml('data-consumption-preset="5000"')
             ->assertSeeHtml('data-consumption-preset="10000"')
@@ -1214,7 +1218,7 @@ class ContractDetailPageTest extends TestCase
             'consumption_limitation_max_x_kwh_per_y' => 15000,
         ]);
 
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertDontSeeHtml('data-consumption-preset="2000"')
             ->assertSeeHtml('data-consumption-preset="5000"')
             ->assertSeeHtml('data-consumption-preset="10000"')
@@ -1235,7 +1239,7 @@ class ContractDetailPageTest extends TestCase
         ]);
 
         // The default consumption should be adjusted to the minimum
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSet('consumption', 8000);
     }
 
@@ -1251,12 +1255,12 @@ class ContractDetailPageTest extends TestCase
         ]);
 
         // Try to set consumption below min - should clamp to min
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->call('setConsumption', 1000)
             ->assertSet('consumption', 3000);
 
         // Try to set consumption above max - should clamp to max
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->call('setConsumption', 20000)
             ->assertSet('consumption', 10000);
     }
@@ -1268,7 +1272,7 @@ class ContractDetailPageTest extends TestCase
     public function test_kulutus_query_param_sets_consumption(): void
     {
         // No param: stays at the 5000 kWh default.
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSet('consumption', 5000);
 
         // ?kulutus=10000 is honored on mount.
@@ -1285,7 +1289,7 @@ class ContractDetailPageTest extends TestCase
     {
         $cleanUrl = route('contract.detail', ['contractId' => 'contract-detail-test']);
 
-        $this->get($cleanUrl.'?kulutus=10000')
+        $this->getWithPrices($cleanUrl.'?kulutus=10000')
             ->assertStatus(200)
             ->assertSee('<link rel="canonical" href="'.$cleanUrl.'">', false)
             ->assertDontSee('canonical" href="'.$cleanUrl.'?kulutus', false);
@@ -1299,7 +1303,7 @@ class ContractDetailPageTest extends TestCase
     {
         $this->createComparisonContract('runner-up-contract', 'Toiseksi Halvin', 6.5);
 
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSee('Sija 1')
             ->assertSee('halvempi kuin seuraavaksi halvin (Toiseksi Halvin)')
             ->assertDontSee('Ei vertailutietoa')
@@ -1311,7 +1315,7 @@ class ContractDetailPageTest extends TestCase
      */
     public function test_rank_one_verdict_without_any_alternative_never_says_no_data(): void
     {
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSee('Ainoa vertailukelpoinen sopimus tällä kulutuksella')
             ->assertDontSee('Ei vertailutietoa')
             ->assertDontSee('Ei tietoa');
@@ -1329,7 +1333,7 @@ class ContractDetailPageTest extends TestCase
         $capped = $this->createComparisonContract('capped-contract', 'Rajattu Sopimus', 6.6);
         $capped->update(['consumption_limitation_max_x_kwh_per_y' => 3000]);
 
-        $component = Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $component = $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSee('Sija 1')
             ->assertSee('2 sopimuksesta')
             ->instance();
@@ -1361,7 +1365,7 @@ class ContractDetailPageTest extends TestCase
         // the popover carries the figures, and split day/night at that. Without a
         // popover the same property still returns the full figure sentence, which
         // `test_spot_qualifier_carries_the_figures_without_a_popover` covers.
-        Livewire::test('contract-detail', ['contractId' => $contract->id])
+        $this->mountWithPrices('contract-detail', ['contractId' => $contract->id])
             ->assertSee('Pörssisähkössä maksat sähkön tuntihinnan, joten vuosihinta on arvio.')
             ->assertSee('Vuosihinta perustuu 12 kuukauden toteutuneeseen pörssikeskihintaan')
             ->assertDontSee('joten vuosihinta on arvio: viimeisen 12 kuukauden');
@@ -1437,7 +1441,7 @@ class ContractDetailPageTest extends TestCase
             ],
         ]);
 
-        $component = Livewire::test('contract-detail', ['contractId' => $contract->id])->instance();
+        $component = $this->mountWithPrices('contract-detail', ['contractId' => $contract->id])->instance();
         $estimate = $component->card?->estimate;
 
         $this->assertNotNull($estimate, 'A market reset must carry the Arvio popover.');
@@ -1454,7 +1458,7 @@ class ContractDetailPageTest extends TestCase
     {
         $this->contract->update(['pricing_model' => 'FixedPrice', 'contract_type' => 'FixedTerm']);
 
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSee('Määräaikaisuus kertoo sopimuksen kestosta. Tarkista energian hinnat, hintajaksot ja hinnanmuutosehdot.');
     }
 
@@ -1462,7 +1466,7 @@ class ContractDetailPageTest extends TestCase
     {
         $this->contract->update(['pricing_model' => 'FixedPrice', 'contract_type' => 'OpenEnded']);
 
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSee('Energian hinta 5,50 c/kWh ei seuraa pörssin tuntihintaa, ja myyjän on ilmoitettava hinnanmuutoksesta etukäteen.');
     }
 
@@ -1481,7 +1485,7 @@ class ContractDetailPageTest extends TestCase
     {
         $this->contract->update(['pricing_model' => 'Hybrid']);
 
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSee('Arvio on laskettu sopimuksen kiinteällä perushinnalla 5,50 c/kWh, ja lopullista hintaa nostaa tai laskee kulutusvaikutus, jonka suuruutta myyjä ei julkaise etukäteen.');
     }
 
@@ -1495,7 +1499,7 @@ class ContractDetailPageTest extends TestCase
             'billing_frequency' => ['EN' => '1 kk', 'FI' => '1 kk', 'SV' => '1 kk', 'Default' => null],
         ]);
 
-        $html = Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])->html();
+        $html = $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])->html();
 
         $this->assertStringContainsString('Laskutusväli', $html);
         $this->assertStringNotContainsString('1 kk, 1 kk', $html);
@@ -1507,7 +1511,7 @@ class ContractDetailPageTest extends TestCase
             'billing_frequency' => ['EN' => '1 kk', 'FI' => '1 kk', 'SV' => '3 kk', 'Default' => null],
         ]);
 
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSee('1 kk, 3 kk');
     }
 
@@ -1516,7 +1520,7 @@ class ContractDetailPageTest extends TestCase
      */
     public function test_external_only_company_logo_uses_initials_without_a_remote_request(): void
     {
-        $component = Livewire::test('contract-detail', ['contractId' => 'contract-detail-test']);
+        $component = $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test']);
         $html = $component->html();
 
         $this->assertStringNotContainsString('https://storage.example.com/logos/test-energia.png', $html);
@@ -1531,7 +1535,7 @@ class ContractDetailPageTest extends TestCase
         Storage::disk('public')->put('logos/test-energia.webp', 'optimized content');
         $this->company->update(['local_logo_path' => 'logos/test-energia.png']);
 
-        $component = Livewire::test('contract-detail', ['contractId' => 'contract-detail-test']);
+        $component = $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test']);
         $logoUrl = $component->instance()->productSchema['brand']['logo'];
 
         $this->assertStringContainsString('logos/test-energia.webp', $logoUrl);
@@ -1543,7 +1547,7 @@ class ContractDetailPageTest extends TestCase
     {
         $this->company->update(['logo_url' => null]);
 
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertDontSeeHtml('https://storage.example.com/logos/test-energia.png')
             ->assertSee('Tes');
     }
@@ -1552,7 +1556,7 @@ class ContractDetailPageTest extends TestCase
     {
         $this->contract->update(['name' => 'Hehku KIINTEÄ 12 kk - 0€ KUUKAUSIMAKSU ENSIMMÄISET 3 KK!']);
 
-        $component = Livewire::test('contract-detail', ['contractId' => 'contract-detail-test']);
+        $component = $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test']);
 
         $component
             ->assertSee('Hehku Kiinteä 12 kk')
@@ -1569,7 +1573,7 @@ class ContractDetailPageTest extends TestCase
             'extra_information_fi' => '"Tilaa Perus Sähkö 24kk TÄÄLTÄ. Hinta on kiinteä koko kauden."',
         ]);
 
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertDontSee('TÄÄLTÄ')
             ->assertSee('Tilaa Perus Sähkö 24kk. Hinta on kiinteä koko kauden.');
     }
@@ -1580,7 +1584,7 @@ class ContractDetailPageTest extends TestCase
             'extra_information_fi' => 'Tilaa sopimus <a href="https://testenergia.fi/tilaa">TÄÄLTÄ</a>.',
         ]);
 
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSeeHtml('<a href="https://testenergia.fi/tilaa">TÄÄLTÄ</a>');
     }
 
@@ -1591,7 +1595,7 @@ class ContractDetailPageTest extends TestCase
             'long_description' => null,
         ]);
 
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertDontSee('Sopimuksen kuvaus')
             ->assertDontSee('KLIKKAA');
     }
@@ -1617,7 +1621,7 @@ class ContractDetailPageTest extends TestCase
         // 5 000 kWh: this contract 275 + 35,40 = 310,40 EUR/v, the rival 150 EUR/v.
         $this->createComparisonContract('cheaper-rival-contract', 'Halvempi Kilpailija', 3.0);
 
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSee('Kannattaako Perus Sähkö 24kk?')
             ->assertSee('on hinnaltaan vertailun kalliimmassa päässä: 2 vertaillusta sopimuksesta 1 on halvempi 5 000 kWh vuosikulutuksella.')
             ->assertSee('Vertailun halvimpaan sopimukseen verrattuna maksat arviolta 160 € vuodessa enemmän, eli noin 13,37 €/kk.')
@@ -1633,7 +1637,7 @@ class ContractDetailPageTest extends TestCase
         // 5 000 kWh: this contract 310,40 EUR/v, the rival 400 EUR/v.
         $this->createComparisonContract('pricier-rival-contract', 'Kalliimpi Kilpailija', 8.0);
 
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSee('on 12 kuukauden hinta-arviolla vertailun halvin: 2 vertaillusta sopimuksesta yksikään ei ole edullisempi 5 000 kWh vuosikulutuksella.')
             ->assertSee('Seuraavaksi halvin sopimus (Kalliimpi Kilpailija) maksaa arviolta 90 € vuodessa enemmän.')
             ->assertDontSee('Katso halvemmat vaihtoehdot');
@@ -1648,7 +1652,7 @@ class ContractDetailPageTest extends TestCase
         // Low energy price, high monthly fee: cheaper at 18 000 kWh, pricier at 2 000.
         $this->createComparisonContract('verdict-fee-heavy', 'Perusmaksupainotteinen', 3.0, monthlyFee: 15.0);
 
-        $component = Livewire::test('contract-detail', ['contractId' => 'contract-detail-test']);
+        $component = $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test']);
 
         // 2 000 kWh: 145 EUR/v against 240 EUR/v, so this contract leads.
         $component->call('setConsumption', 2000)
@@ -1668,7 +1672,7 @@ class ContractDetailPageTest extends TestCase
      */
     public function test_faq_page_schema_matches_the_rendered_faq_items(): void
     {
-        $component = Livewire::test('contract-detail', ['contractId' => 'contract-detail-test']);
+        $component = $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test']);
         $instance = $component->instance();
 
         $items = $instance->faqItems;
@@ -1698,7 +1702,7 @@ class ContractDetailPageTest extends TestCase
      */
     public function test_faq_pricing_mechanism_item_carries_the_hero_anchor(): void
     {
-        $component = Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $component = $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSeeHtml('<details id="faq-miten"');
 
         $mechanism = collect($component->instance()->faqItems)->firstWhere('id', 'faq-miten');
@@ -1717,7 +1721,7 @@ class ContractDetailPageTest extends TestCase
         $contract = $this->createComparisonContract('spot-faq-contract', 'Pörssisähkö FAQ', 0.42);
         $contract->update(['pricing_model' => 'Spot']);
 
-        Livewire::test('contract-detail', ['contractId' => $contract->id])
+        $this->mountWithPrices('contract-detail', ['contractId' => $contract->id])
             ->assertSee('Miten pörssisähkön hinta muodostuu?')
             ->assertDontSee('Kuinka paljon pörssisähkön hinta vaihtelee?');
 
@@ -1733,7 +1737,7 @@ class ContractDetailPageTest extends TestCase
             ]);
         }
 
-        Livewire::test('contract-detail', ['contractId' => $contract->id])
+        $this->mountWithPrices('contract-detail', ['contractId' => $contract->id])
             ->assertSee('Kuinka paljon pörssisähkön hinta vaihtelee?')
             ->assertSee('kuukausikeskihinta on vaihdellut välillä 3,10 ja 12,80 c/kWh.');
     }
@@ -1751,7 +1755,7 @@ class ContractDetailPageTest extends TestCase
             'available_for_existing_users' => null,
         ]);
 
-        Livewire::test('contract-detail', ['contractId' => $contract->id])
+        $this->mountWithPrices('contract-detail', ['contractId' => $contract->id])
             ->assertSee('Sopimusehdot lyhyesti')
             ->assertSee('Sopimuskausi')
             ->assertSee('Toistaiseksi voimassa')
@@ -1777,14 +1781,14 @@ class ContractDetailPageTest extends TestCase
         $binding = $this->createComparisonContract('capped-terms-contract', 'Rajattu Ehtosopimus', 6.0);
         $binding->update(['consumption_limitation_max_x_kwh_per_y' => 12000]);
 
-        Livewire::test('contract-detail', ['contractId' => $binding->id])
+        $this->mountWithPrices('contract-detail', ['contractId' => $binding->id])
             ->assertSee('Vuosikulutusrajat')
             ->assertSee('Enintään 12 000 kWh/v');
 
         $wide = $this->createComparisonContract('wide-cap-terms-contract', 'Väljä Ehtosopimus', 6.0);
         $wide->update(['consumption_limitation_max_x_kwh_per_y' => 200000]);
 
-        Livewire::test('contract-detail', ['contractId' => $wide->id])
+        $this->mountWithPrices('contract-detail', ['contractId' => $wide->id])
             ->assertDontSee('Vuosikulutusrajat');
     }
 
@@ -1866,7 +1870,7 @@ class ContractDetailPageTest extends TestCase
         // 18 000 kWh and more expensive at 2 000 kWh, so the rank has to flip.
         $this->createComparisonContract('fee-heavy-contract', 'Perusmaksupainotteinen', 3.0, monthlyFee: 15.0);
 
-        $component = Livewire::test('contract-detail', ['contractId' => 'contract-detail-test']);
+        $component = $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test']);
 
         // 2 000 kWh: 2 000 x 5,5 c/kWh + 12 x 2,95 EUR = 145 EUR/v, rank 1.
         $component->call('setConsumption', 2000)
@@ -1907,7 +1911,7 @@ class ContractDetailPageTest extends TestCase
      */
     public function test_free_consumption_input_clamps_and_clears_the_chip_selection(): void
     {
-        $component = Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $component = $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSet('directConsumption', 5000);
 
         $component->set('directConsumption', 500)
@@ -1948,6 +1952,7 @@ class ContractDetailPageTest extends TestCase
      */
     public function test_kulutus_query_param_preselects_the_free_field_too(): void
     {
+        $this->warmPrices();
         Livewire::withQueryParams(['kulutus' => 10000])
             ->test('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSet('consumption', 10000)
@@ -1961,7 +1966,7 @@ class ContractDetailPageTest extends TestCase
      */
     public function test_static_cost_table_is_in_the_initial_html_with_all_four_rows(): void
     {
-        $response = $this->get('/sahkosopimus/sopimus/contract-detail-test');
+        $response = $this->getWithPrices('/sahkosopimus/sopimus/contract-detail-test');
 
         $response->assertStatus(200)
             ->assertSee('Arvioitu kustannus eri vuosikulutuksilla')
@@ -1987,7 +1992,7 @@ class ContractDetailPageTest extends TestCase
         $this->createComparisonContract('spot-a', 'Pörssi A', 0.42, pricingModel: 'Spot');
         $this->createComparisonContract('spot-b', 'Pörssi B', 0.42, pricingModel: 'Spot');
 
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSee('Vertailun vuoksi: tyypillinen pörssisähkösopimus maksaisi samalla 5 000 kWh kulutuksella arviolta 350 € vuodessa')
             ->assertSee('Tämä sopimus on siis arviolta 39 € vuodessa edullisempi.')
             ->assertSeeHtml('href="/sahkosopimus/porssisahko"');
@@ -2004,7 +2009,7 @@ class ContractDetailPageTest extends TestCase
         // 5 000 kWh x 8,00 c/kWh = 400 EUR/v against the spot contract's 349 EUR/v.
         $this->createComparisonContract('fixed-cheapest', 'Kiinteä Halvin', 8.0);
 
-        Livewire::test('contract-detail', ['contractId' => $spot->id])
+        $this->mountWithPrices('contract-detail', ['contractId' => $spot->id])
             ->assertSee('Vertailun vuoksi: halvin kiinteähintainen sopimus maksaisi samalla 5 000 kWh kulutuksella arviolta 400 € vuodessa')
             ->assertSee('Hintavarmuudesta maksaisit siis arviolta 50 € vuodessa.')
             ->assertSeeHtml('href="/sahkosopimus/kiintea-hinta"');
@@ -2024,10 +2029,34 @@ class ContractDetailPageTest extends TestCase
         // so it is only shown because it is the same pricing type.
         $this->createComparisonContract('alt-fixed', 'Kiinteä Vaihtoehto', 4.5);
 
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSee('Pörssi Halvin')
             ->assertSee('Pörssi Toinen')
             ->assertSee('Kiinteä Vaihtoehto')
             ->assertSee('Samantyyppinen · Kiinteä hinta');
+    }
+
+    private function warmPrices(): void
+    {
+        $logging = DB::connection()->logging();
+        DB::disableQueryLog();
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
+        if ($logging) {
+            DB::enableQueryLog();
+        }
+    }
+
+    private function mountWithPrices(string $component, array $parameters = []): Testable
+    {
+        $this->warmPrices();
+
+        return Livewire::test($component, $parameters);
+    }
+
+    private function getWithPrices(string $uri): TestResponse
+    {
+        $this->warmPrices();
+
+        return $this->get($uri);
     }
 }

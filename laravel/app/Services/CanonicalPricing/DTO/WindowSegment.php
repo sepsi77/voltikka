@@ -11,6 +11,10 @@ use Carbon\CarbonImmutable;
  */
 readonly class WindowSegment
 {
+    private float $calendarFraction;
+
+    private float $billingFraction;
+
     public function __construct(
         public CarbonImmutable $start,
         public CarbonImmutable $end,
@@ -18,7 +22,16 @@ readonly class WindowSegment
         public ?int $phaseIndex,
         public float $annualMonthScale = 1.0,
         public ?float $billingMonthDays = null,
-    ) {}
+    ) {
+        $daysInMonth = (int) $this->start->daysInMonth;
+        $segmentDays = $this->start->diffInDays($this->end);
+        $this->calendarFraction = $daysInMonth <= 0
+            ? 0.0
+            : max(0.0, min(1.0, $segmentDays / $daysInMonth));
+        $this->billingFraction = $this->billingMonthDays !== null
+            ? $segmentDays / $this->billingMonthDays
+            : $this->calendarFraction;
+    }
 
     /**
      * Fraction of the calendar month this segment represents (0..1), used to pro-rate
@@ -26,21 +39,12 @@ readonly class WindowSegment
      */
     public function monthFraction(): float
     {
-        $daysInMonth = (int) $this->start->daysInMonth;
-        if ($daysInMonth <= 0) {
-            return 0.0;
-        }
-
-        $segmentDays = $this->start->diffInDays($this->end);
-
-        return max(0.0, min(1.0, $segmentDays / $daysInMonth));
+        return $this->calendarFraction;
     }
 
     public function billingMonthFraction(): float
     {
-        return $this->billingMonthDays !== null
-            ? $this->start->diffInDays($this->end) / $this->billingMonthDays
-            : $this->monthFraction();
+        return $this->billingFraction;
     }
 
     public function annualMonthFraction(): float

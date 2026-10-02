@@ -23,6 +23,7 @@ class CompanyListPageTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        request()->server->remove('REQUEST_METHOD');
 
         // Create test companies
         Company::create([
@@ -60,6 +61,7 @@ class CompanyListPageTest extends TestCase
      */
     public function test_company_list_page_is_accessible(): void
     {
+        $this->preparePrices();
         $response = $this->get('/sahkosopimus/sahkoyhtiot');
 
         $response->assertStatus(200);
@@ -70,6 +72,7 @@ class CompanyListPageTest extends TestCase
      */
     public function test_company_list_page_renders_livewire_component(): void
     {
+        $this->preparePrices();
         $response = $this->get('/sahkosopimus/sahkoyhtiot');
 
         $response->assertStatus(200);
@@ -110,6 +113,7 @@ class CompanyListPageTest extends TestCase
             'payment_unit' => 'EUR/month',
         ]);
 
+        $this->preparePrices();
         Livewire::test('company-list')
             ->assertSee('Cheap Energy Oy');
     }
@@ -120,6 +124,7 @@ class CompanyListPageTest extends TestCase
     public function test_companies_without_contracts_are_not_displayed(): void
     {
         // Green Power has no contracts, should not appear
+        $this->preparePrices();
         Livewire::test('company-list')
             ->assertDontSee('Green Power Ab');
     }
@@ -134,6 +139,7 @@ class CompanyListPageTest extends TestCase
     {
         $this->seedCheapContract();
 
+        $this->preparePrices();
         $response = $this->get('/sahkosopimus/sahkoyhtiot');
 
         $response->assertStatus(200);
@@ -151,6 +157,7 @@ class CompanyListPageTest extends TestCase
     {
         $this->seedCheapContract();
 
+        $this->preparePrices();
         $response = $this->get('/sahkosopimus/sahkoyhtiot');
 
         $response->assertStatus(200);
@@ -165,6 +172,7 @@ class CompanyListPageTest extends TestCase
     {
         $this->seedCheapContract();
 
+        $this->preparePrices();
         $response = $this->get('/sahkosopimus/sahkoyhtiot');
 
         $response->assertStatus(200);
@@ -186,6 +194,7 @@ class CompanyListPageTest extends TestCase
     {
         $this->seedCheapContract();
 
+        $this->preparePrices();
         $response = $this->get('/sahkosopimus/sahkoyhtiot');
 
         $response->assertDontSee('luotettavin sähköyhtiö', false);
@@ -199,6 +208,7 @@ class CompanyListPageTest extends TestCase
     {
         $this->seedCheapContract();
 
+        $this->preparePrices();
         $faq = Livewire::test('company-list')->instance()->faqItems;
         $cheapest = collect($faq)->firstWhere('question', 'Mikä sähköyhtiö on halvin?');
 
@@ -222,6 +232,7 @@ class CompanyListPageTest extends TestCase
         }
         $this->seedCheapContract();
 
+        $this->preparePrices();
         $component = Livewire::test('company-list');
 
         $component->assertSee('Pienet ja paikalliset sähköyhtiöt')
@@ -325,6 +336,7 @@ class CompanyListPageTest extends TestCase
             'payment_unit' => 'EUR/month',
         ]);
 
+        $this->preparePrices();
         $component = Livewire::test('company-list');
         $cheapestCompanies = $component->viewData('cheapestCompanies');
 
@@ -395,6 +407,7 @@ class CompanyListPageTest extends TestCase
             'fossil_total' => 20.0,
         ]);
 
+        $this->preparePrices();
         $component = Livewire::test('company-list');
         $greenestCompanies = $component->viewData('greenestCompanies');
 
@@ -462,6 +475,7 @@ class CompanyListPageTest extends TestCase
             'fossil_coal' => 80.0,
         ]);
 
+        $this->preparePrices();
         $component = Livewire::test('company-list');
         $cleanestCompanies = $component->viewData('cleanestEmissionsCompanies');
 
@@ -531,6 +545,7 @@ class CompanyListPageTest extends TestCase
             'payment_unit' => 'EUR/month',
         ]);
 
+        $this->preparePrices();
         $component = Livewire::test('company-list');
         $companies = $component->viewData('companies');
 
@@ -583,6 +598,7 @@ class CompanyListPageTest extends TestCase
             'payment_unit' => 'c/kWh',
         ]);
 
+        $this->preparePrices();
         $component = Livewire::test('company-list')
             ->set('search', 'Green');
 
@@ -674,6 +690,7 @@ class CompanyListPageTest extends TestCase
             'payment_unit' => 'c/kWh',
         ]);
 
+        $this->preparePrices();
         $component = Livewire::test('company-list');
         $mostContractsCompanies = $component->viewData('mostContractsCompanies');
 
@@ -744,6 +761,7 @@ class CompanyListPageTest extends TestCase
             'payment_unit' => 'EUR/month',
         ]);
 
+        $this->preparePrices();
         $component = Livewire::test('company-list');
         $lowestFeesCompanies = $component->viewData('lowestMonthlyFeesCompanies');
 
@@ -811,6 +829,7 @@ class CompanyListPageTest extends TestCase
             'fossil_total' => 20.0,
         ]);
 
+        $this->preparePrices();
         $component = Livewire::test('company-list');
         $fullyRenewableCompanies = $component->viewData('fullyRenewableCompanies');
 
@@ -866,6 +885,7 @@ class CompanyListPageTest extends TestCase
             'payment_unit' => 'c/kWh',
         ]);
 
+        $this->preparePrices();
         $component = Livewire::test('company-list');
         $bestSpotCompanies = $component->viewData('bestSpotMarginsCompanies');
 
@@ -916,6 +936,7 @@ class CompanyListPageTest extends TestCase
             'payment_unit' => 'c/kWh',
         ]);
 
+        $this->preparePrices();
         $component = Livewire::test('company-list');
         $companyCount = $component->viewData('companyCount');
 
@@ -946,6 +967,7 @@ class CompanyListPageTest extends TestCase
             'payment_unit' => 'c/kWh',
         ]);
 
+        $this->preparePrices();
         $response = $this->get('/sahkosopimus/sahkoyhtiot');
 
         $response->assertStatus(200);
@@ -978,6 +1000,7 @@ class CompanyListPageTest extends TestCase
             'payment_unit' => 'c/kWh',
         ]);
 
+        $this->preparePrices();
         Livewire::test('company-list')
             ->assertSeeHtml('href="/sahkosopimus/sahkoyhtiot/cheap-energy-oy"');
     }
@@ -990,6 +1013,7 @@ class CompanyListPageTest extends TestCase
         $this->createCanonicalContract('green-canonical', 'Green Power Ab', 5.0, 20.0);
         $this->createCanonicalContract('nuclear-canonical-only', 'Nuclear Plus Oy', 7.0);
 
+        $this->preparePrices();
         $queries = [];
         DB::listen(function ($query) use (&$queries): void {
             $queries[] = strtolower($query->sql);
@@ -1021,6 +1045,7 @@ class CompanyListPageTest extends TestCase
         $this->createCanonicalContract('excluded-canonical', 'Green Power Ab', null, 0.0);
         $this->createCanonicalContract('incomplete-canonical', 'Nuclear Plus Oy', null, 0.0, true);
 
+        $this->preparePrices();
         $component = Livewire::test('company-list');
         $companies = $component->viewData('companies');
         $cheapest = $component->viewData('cheapestCompanies');
@@ -1044,6 +1069,7 @@ class CompanyListPageTest extends TestCase
         $this->createCanonicalContract('cheap-legacy', 'Cheap Energy Oy', 20.0, 2.0);
         $this->createCanonicalContract('green-legacy', 'Green Power Ab', 1.0, 8.0);
 
+        $this->preparePrices();
         $component = Livewire::test('company-list');
         $companies = $component->viewData('companies')->keyBy('company.name');
         $cheapest = $component->viewData('cheapestCompanies');
@@ -1067,6 +1093,7 @@ class CompanyListPageTest extends TestCase
         }
 
         app(ContractListCacheService::class)->bumpVersion();
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
         app(CompanyListCacheService::class)->getCachedCompanies(5000);
 
         $keys = $this->cacheKeysMatching('company_list:');
@@ -1074,9 +1101,15 @@ class CompanyListPageTest extends TestCase
         $schema = CalculatedCostPayloadSchema::cacheMarker();
         foreach (['v1:c0r0', 'v1:c1r0', 'v1:c1r1', 'v2:c1r1'] as $marker) {
             [$version, $mode] = explode(':', $marker);
-            $prefix = "company_list:{$version}:s2:{$schema}:l{$version}:{$mode}:5000:g";
+            $prefix = "company_list:{$version}:s3:{$schema}:l{$version}:{$mode}:5000:g";
             $this->assertCount(1, array_filter($keys, fn ($key) => str_starts_with($key, $prefix)));
         }
+    }
+
+    private function preparePrices(): void
+    {
+        app()->forgetScopedInstances();
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
     }
 
     private function createCanonicalContract(

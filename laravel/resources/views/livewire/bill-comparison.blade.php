@@ -189,6 +189,9 @@
         </div>
 
         {{-- Results --}}
+        @if (! $this->hasResults && ! $errorMessage)
+            <p class="text-sm text-slate-600 mb-6">Muokkaa yllä olevia tietoja sähkölaskusi mukaan, niin näet vertailun.</p>
+        @endif
         @if ($this->hasResults && $resultArray)
         <div wire:loading.delay.class="opacity-50" class="transition-opacity duration-200 motion-reduce:transition-none">
             @php

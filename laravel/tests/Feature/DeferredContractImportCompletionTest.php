@@ -511,7 +511,7 @@ class DeferredContractImportCompletionTest extends TestCase
         app()->forgetScopedInstances();
         $this->assertSame('waiting', app(ContractImportCompletion::class)->tick());
         $this->assertSame(16, $calls);
-        $this->assertCount(4, Cache::get(ContractPriceCacheLifecycle::RETIRED_KEY));
+        $this->assertCount(2, Cache::get(ContractPriceCacheLifecycle::RETIRED_KEY));
         $this->assertSame(ContractImportCompletion::PENDING, $this->checkpoint()->status);
         $this->assertSame([], $this->sentryIssues);
         app()->instance(CanonicalContractPricingService::class, $real);
@@ -573,10 +573,12 @@ class DeferredContractImportCompletionTest extends TestCase
                 return $version;
             });
             app()->instance(ContractListCacheService::class, $proxy);
-            $this->assertSame('waiting', app(ContractImportCompletion::class)->tick());
-            $this->assertSame(ContractImportCompletion::PENDING, $this->checkpoint()->status);
+            $this->assertSame($window === 'before' ? 'ready' : 'waiting', app(ContractImportCompletion::class)->tick());
+            $this->assertSame($window === 'before' ? 'ready' : ContractImportCompletion::PENDING, $this->checkpoint()->status);
             app()->instance(ContractListCacheService::class, $real);
-            $this->assertSame('ready', app(ContractImportCompletion::class)->tick());
+            if ($window === 'after') {
+                $this->assertSame('ready', app(ContractImportCompletion::class)->tick());
+            }
         }
         $this->assertSame([], $this->sentryIssues);
     }

@@ -8,7 +8,9 @@ use App\Livewire\SeoContractsList;
 use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Services\CanonicalPricing\Enums\CalculationStatus;
+use App\Services\CompanyListCacheService;
 use App\Services\ContractCard\Enums\PricingBucket;
+use App\Services\ContractListCacheService;
 use Database\Factories\Support\CanonicalPricingFixture;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -152,6 +154,8 @@ class PricingBucketFilterTest extends TestCase
     {
         $this->createOnePerBucket();
 
+        $this->refreshPriceFixtures();
+
         foreach ([
             'porssisahko' => ['c-spot'],
             'paivittyva' => ['c-reset'],
@@ -168,6 +172,8 @@ class PricingBucketFilterTest extends TestCase
     {
         $this->createOnePerBucket();
 
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test(ContractsList::class)
             ->set('pricingBucketFilter', 'porssisahko,kiintea');
 
@@ -178,6 +184,8 @@ class PricingBucketFilterTest extends TestCase
     {
         $this->createOnePerBucket();
         $all = ['c-effect', 'c-fixed', 'c-reset', 'c-spot'];
+
+        $this->refreshPriceFixtures();
 
         $this->assertSame($all, $this->listedIds(Livewire::test(ContractsList::class)));
 
@@ -192,6 +200,8 @@ class PricingBucketFilterTest extends TestCase
         $this->createOnePerBucket();
 
         // A bot-supplied value must degrade to "no constraint", never to an error.
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test(ContractsList::class)
             ->set('pricingBucketFilter', 'roskaa,,  ,Spot');
 
@@ -209,6 +219,8 @@ class PricingBucketFilterTest extends TestCase
     {
         $this->createOnePerBucket();
 
+        $this->refreshPriceFixtures();
+
         $this->get('/sahkosopimus?hintatyyppi=porssisahko')
             ->assertStatus(200)
             ->assertSee('Sopimus c-spot')
@@ -224,6 +236,8 @@ class PricingBucketFilterTest extends TestCase
         for ($i = 1; $i <= 22; $i++) {
             $this->createContract('extra-fixed-'.$i);
         }
+
+        $this->refreshPriceFixtures();
 
         $component = Livewire::test(ContractsList::class)
             ->set('page', 2)
@@ -251,6 +265,8 @@ class PricingBucketFilterTest extends TestCase
 
     public function test_toggling_an_unknown_bucket_does_nothing(): void
     {
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test(ContractsList::class)
             ->set('pricingBucketFilter', 'kiintea')
             ->call('togglePricingBucket', 'roskaa');
@@ -262,6 +278,8 @@ class PricingBucketFilterTest extends TestCase
 
     public function test_legacy_pricing_model_values_map_onto_buckets_and_stop_applying_twice(): void
     {
+        $this->refreshPriceFixtures();
+
         foreach ([
             'Spot' => 'porssisahko',
             'FixedPrice' => 'kiintea',
@@ -293,6 +311,8 @@ class PricingBucketFilterTest extends TestCase
         ]);
         $this->createContract('c-hybrid-plain', ['pricing_model' => 'Hybrid']);
 
+        $this->refreshPriceFixtures();
+
         $component = Livewire::withQueryParams(['pricingModelFilter' => 'Hybrid'])->test(ContractsList::class);
 
         $this->assertSame(['c-hybrid-plain'], $this->listedIds($component));
@@ -302,6 +322,8 @@ class PricingBucketFilterTest extends TestCase
     {
         $this->createContract('c-time', ['metering' => 'Time']);
         $this->createContract('c-fixed');
+
+        $this->refreshPriceFixtures();
 
         $component = Livewire::withQueryParams(['pricingModelFilter' => 'TimeOfUse'])->test(ContractsList::class);
 
@@ -313,6 +335,8 @@ class PricingBucketFilterTest extends TestCase
     public function test_an_explicit_hintatyyppi_wins_over_a_legacy_parameter(): void
     {
         $this->createOnePerBucket();
+
+        $this->refreshPriceFixtures();
 
         $component = Livewire::withQueryParams([
             'pricingModelFilter' => 'Spot',
@@ -330,6 +354,8 @@ class PricingBucketFilterTest extends TestCase
     {
         $this->createOnePerBucket();
 
+        $this->refreshPriceFixtures();
+
         $component = Livewire::withQueryParams(['pricingModelFilter' => 'Spot'])
             ->test(SahkosopimusIndex::class);
 
@@ -341,6 +367,8 @@ class PricingBucketFilterTest extends TestCase
 
     public function test_a_bucket_selection_counts_as_an_active_filter(): void
     {
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test(ContractsList::class);
         $this->assertFalse($component->instance()->hasActiveFilters());
 
@@ -360,6 +388,8 @@ class PricingBucketFilterTest extends TestCase
     {
         $this->createOnePerBucket();
 
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test(ContractsList::class)
             ->set('pricingBucketFilter', 'porssisahko')
             ->call('resetFilters');
@@ -376,6 +406,8 @@ class PricingBucketFilterTest extends TestCase
 
         // /sahkosopimus/porssisahko already fixes the pricing type; the interactive filter
         // narrows it further (AND), so an incompatible bucket empties the page.
+        $this->refreshPriceFixtures();
+
         $spotPage = Livewire::test(SeoContractsList::class, ['pricingType' => 'Spot'])
             ->set('pricingBucketFilter', 'porssisahko');
         $this->assertSame(['c-spot'], $this->listedIds($spotPage));
@@ -398,6 +430,8 @@ class PricingBucketFilterTest extends TestCase
                 ),
             ),
         ], 12.0);
+
+        $this->refreshPriceFixtures();
 
         $component = Livewire::test(SahkosopimusIndex::class)
             ->set('pricingBucketFilter', 'kiintea')
@@ -428,6 +462,8 @@ class PricingBucketFilterTest extends TestCase
     {
         $this->createOnePerBucket();
 
+        $this->refreshPriceFixtures();
+
         foreach ([
             '/sahkosopimus',
             '/sahkosopimus/omakotitalo',
@@ -448,6 +484,8 @@ class PricingBucketFilterTest extends TestCase
     public function test_the_pills_are_crawlable_links_on_sahkosopimus_when_no_filter_is_active(): void
     {
         $this->createOnePerBucket();
+
+        $this->refreshPriceFixtures();
 
         $html = $this->get('/sahkosopimus')->getContent();
 
@@ -475,6 +513,8 @@ class PricingBucketFilterTest extends TestCase
         $this->createOnePerBucket();
 
         // One active filter is enough: filter combinations must never become crawlable URLs.
+        $this->refreshPriceFixtures();
+
         $html = $this->get('/sahkosopimus?hintatyyppi=kiintea')->getContent();
 
         foreach (PricingBucket::cases() as $bucket) {
@@ -489,6 +529,8 @@ class PricingBucketFilterTest extends TestCase
     public function test_listing_pages_that_do_not_opt_in_render_the_pills_as_toggles(): void
     {
         $this->createOnePerBucket();
+
+        $this->refreshPriceFixtures();
 
         foreach (['/sahkosopimus/omakotitalo', '/sahkosopimus/halvin-sahkosopimus'] as $url) {
             $html = $this->get($url)->getContent();
@@ -512,6 +554,8 @@ class PricingBucketFilterTest extends TestCase
 
     public function test_a_pill_selection_does_not_open_the_accordion_or_inflate_its_badge(): void
     {
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test(ContractsList::class)->set('pricingBucketFilter', 'kiintea');
 
         // It is still an active filter (it gates "Tyhjennä suodattimet" and the cache),
@@ -532,6 +576,8 @@ class PricingBucketFilterTest extends TestCase
 
     public function test_the_accordion_no_longer_hosts_the_pricing_model_section(): void
     {
+        $this->refreshPriceFixtures();
+
         Livewire::test(ContractsList::class)
             ->assertDontSee('setPricingModelFilter(', false)
             ->assertSee('Sopimuksen kesto')
@@ -542,11 +588,18 @@ class PricingBucketFilterTest extends TestCase
 
     public function test_every_bucket_case_is_reachable_from_the_filter_state(): void
     {
+        $this->refreshPriceFixtures();
+
         foreach (PricingBucket::cases() as $bucket) {
             $component = Livewire::test(ContractsList::class)->set('pricingBucketFilter', $bucket->value);
 
             $this->assertSame([$bucket], $component->instance()->selectedPricingBuckets());
             $this->assertTrue($component->instance()->isPricingBucketSelected($bucket->value));
         }
+    }
+
+    private function refreshPriceFixtures(): void
+    {
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
     }
 }

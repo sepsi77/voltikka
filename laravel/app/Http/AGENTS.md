@@ -36,10 +36,12 @@ When `CANONICAL_PRICING_ENABLED=true`:
   as `exclusion_reason`, null current unit/package values, and a null calculated total when a
   calculation was requested. Its integrity object keeps only the typed detected/reason/issue state;
   price-bearing integrity fields and generated fact text are not returned.
-- The list controller must use `CanonicalContractPricingService::metricsForContracts()` once for
-  the page. That batch returns typed `CanonicalContractMetric` objects. Current-pricing decisions and
-  sorting use typed metric/pricing access, and serialization occurs only when existing resource
-  attributes are assigned. Do not evaluate each row through a query-producing fallback.
+- List/show GET and HEAD read `ContractListCacheService::getCachedMetrics()` only. Requested
+  consumption selects its exact cached set; an absent consumption uses the 5,000 kWh reference and
+  omits `calculated_cost`. Current-pricing facts come from typed `ContractMetric` / pricing access.
+  Cached canonical facts require integrity. Missing/custom/inactive/new-ID pricing is unavailable;
+  it never triggers an annual batch, local evaluation, raw fallback, or zero-price result. Missing
+  preset generations use the shared typed 503 boundary. Null totals sort last.
 - `pricing_has_discounts` is derived from the canonical outcome. Package allowance pricing is not
   a promotion.
 - Source-backed results also expose `energy_rule_comparison`, `benefit_is_estimate` and the shared
@@ -49,7 +51,7 @@ When `CANONICAL_PRICING_ENABLED=true`:
   integrity claims; typed detection/reason/issue facts remain.
 
 When the feature is off, the explicit legacy branch loads and returns relational
-`price_components` and uses `ContractPriceCalculator`. Keep that compatibility path until the
+`price_components` and reads cached legacy annual metrics. Keep that compatibility path until the
 feature flag is retired by a separate decision.
 
 There is no contract API response cache. A change to this shape does not require an application
@@ -108,9 +110,10 @@ The calculation API has no response cache. Shared annual list/company payloads u
 generation writes with schema and pricing-mode markers, not a calculation-day suffix or a 48-hour
 TTL. Rankings have a one-hour wrapper TTL but rebuild from retained annual metrics. Verified
 replacement activates one generation; retired tracked payloads receive one hour of reader grace
-before bounded cleanup. Immediate interpretation/EEX invalidation and current source/publication
-guards remain. Custom consumption bypasses the preset list cache and uses current calculation;
-this is not a site-wide frozen database snapshot. See `../Services/Caching/AGENTS.md`.
+before bounded cleanup. Public prices remain cached while background producers replace them.
+Uncached custom GET consumption is unavailable; only explicit user actions can calculate exact
+prices through `PublicPriceCalculationPolicy`. The explicit calculation POST remains unchanged.
+See `../Services/Caching/AGENTS.md`.
 This guidance does not change unrelated CompanyList prepared-data cache lifetimes.
 
 ## Weekly-offers video API pricing
@@ -122,3 +125,17 @@ estimate state, and measured customer benefit. It does not return the legacy `di
 benefit and identify annualized totals as comparison values. The feature-off response keeps the old
 relational payload for compatibility with staged rollback. This endpoint has no response cache, so
 this response change needs no cache-version bump.
+
+Both video modes read the shared 2,000/5,000/10,000 kWh sets. A generation check before and after
+each read prevents mixed-generation prices. Promotion retries are limited to two cache-only attempts;
+exhaustion or a missing preset returns 503 with Retry-After and no-store. Missing contract profiles
+are ineligible. Canonical ranking, one-company selection, benefit/term facts, and public fields stay
+unchanged. Legacy costs and savings use retained metric values, not annual calculation.
+
+The internal `ContractTypeComparison` widget also reads retained typed pricing during public GET,
+HEAD, and automatic Livewire POST initialization. Candidate selection, annual/monthly charts,
+current rates/packages and benefit/estimate copy use the same view data. No monthly series is
+reconstructed. Typed exclusion comparability remains in unavailable chart/display data, without
+exposing a priced excluded side. Actual consumption/mode/selection action hooks grant the shared request-local
+permission; explicit legacy actions retain their previous monthly math. Unavailable sides stop
+comparison, not a zero or sentinel winner. Tests: `OtherPublicGetPriceCacheTest`.

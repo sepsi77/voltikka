@@ -10,6 +10,7 @@ use App\Models\ContractSourceSnapshot;
 use App\Models\ElectricityContract;
 use App\Services\Caching\ContractPriceCacheConflict;
 use App\Services\Caching\ContractPriceCacheLifecycle;
+use App\Services\Caching\PublicPriceCalculationPolicy;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\CompanyListCacheService;
 use App\Services\ContractListCacheService;
@@ -30,6 +31,8 @@ class PriceCacheConflictRecoveryTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // Direct service calls model an Artisan producer, not an HTTP GET.
+        request()->server->remove('REQUEST_METHOD');
         config(['canonical_pricing.enabled' => true]);
         app()->forgetScopedInstances();
     }
@@ -54,13 +57,17 @@ class PriceCacheConflictRecoveryTest extends TestCase
         $this->assertSame(2, $calls->count);
     }
 
-    public function test_persistent_conflict_is_a_bounded_uncached_finnish_http_503(): void
+    public function test_explicit_action_persistent_conflict_is_a_bounded_uncached_finnish_http_503(): void
     {
         $this->captureSentryIssues();
         $contract = $this->contract('changing', 5);
         $calls = $this->duringCalculation(fn (int $call) => $this->publish($contract, 5 + $call));
-        Route::get('/test-price-conflict', fn () => app(ContractListCacheService::class)->getCachedMetrics(5000));
-        $response = $this->get('/test-price-conflict');
+        Route::post('/test-price-conflict', function () {
+            app(PublicPriceCalculationPolicy::class)->allowUserAction();
+
+            return app(ContractListCacheService::class)->getCachedMetrics(5000);
+        });
+        $response = $this->post('/test-price-conflict');
         $response->assertStatus(503)->assertHeader('Retry-After', '30')
             ->assertHeader('Content-Type', 'text/plain; charset=UTF-8')
             ->assertSeeText('Hintatiedot ovat tilapäisesti poissa käytöstä.');
@@ -73,7 +80,7 @@ class PriceCacheConflictRecoveryTest extends TestCase
         $this->assertTrue($handler->shouldReport(new RuntimeException('unknown')));
     }
 
-    public function test_company_recovery_uses_the_new_evidence_key_and_fresh_price(): void
+    public function test_company_cold_recovery_keeps_the_generation_key_and_uses_fresh_price(): void
     {
         $contract = $this->contract('changing', 5);
         $calls = $this->duringCalculation(function (int $call) use ($contract) {
@@ -85,8 +92,8 @@ class PriceCacheConflictRecoveryTest extends TestCase
         $oldKey = $companies->getCacheKey(5000);
         $this->assertEqualsWithDelta(1000, $companies->getCachedCompanies()->first()['lowestPrice'], .01);
         $this->assertSame(2, $calls->count);
-        $this->assertNull(Cache::get($oldKey));
-        $this->assertNotNull(Cache::get($companies->getCacheKey(5000)));
+        $this->assertSame($oldKey, $companies->getCacheKey(5000));
+        $this->assertNotNull(Cache::get($oldKey));
     }
 
     public function test_cold_generation_conflict_reloads_active_descriptor_before_writing(): void
@@ -95,7 +102,8 @@ class PriceCacheConflictRecoveryTest extends TestCase
         $lifecycle = app(ContractPriceCacheLifecycle::class);
         $calls = $this->duringCalculation(function (int $call) use ($lifecycle) {
             if ($call === 1) {
-                $lifecycle->invalidate();
+                $starting = $lifecycle->active();
+                $lifecycle->promote($starting, $lifecycle->candidate($starting), []);
             }
         });
         $list = app(ContractListCacheService::class);

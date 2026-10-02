@@ -33,6 +33,7 @@ use App\Services\ContractCard\ContractCardCopy;
 use App\Services\ContractCard\ContractCardPresenter;
 use App\Services\ContractCard\PricingCategoryResolver;
 use App\Services\ContractPricing\CanonicalContractMetric;
+use App\Services\ContractPricing\ContractMetric;
 use App\Services\ContractPricing\ContractPricingViewData;
 use App\Services\WeeklyOffersPromptFormatter;
 use App\Services\WeeklyOffersVideoService;
@@ -43,6 +44,22 @@ use Tests\TestCase;
 
 class EnergyRulePublicOutputTest extends TestCase
 {
+    private function cachedMetric(CanonicalPricingOutcome $outcome): ContractMetric
+    {
+        $metric = CanonicalContractMetric::fromEvaluation($outcome, ContractPricingIntegrity::none());
+
+        return ContractMetric::fromArray('public-energy-rule', [
+            'calculated_cost' => $metric->pricing()->toArray(),
+            'emission_factor' => null,
+            'exceeds_consumption_limit' => false,
+            'total_cost' => $metric->pricing()->total(),
+            'comparability' => $metric->comparability()->value,
+            'is_listed' => $metric->isListed(),
+            'sort_key' => $metric->sortKey(),
+            'pricing_integrity' => $metric->integrity()->toArray(),
+        ]);
+    }
+
     private function outcome(bool $normal = true, bool $short = false, bool $formula = false): CanonicalPricingOutcome
     {
         $differences = [5.0, -1.0, -1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
@@ -90,7 +107,7 @@ class EnergyRulePublicOutputTest extends TestCase
         $this->assertNull($pricing->contractTerm()->number('base_total_cost'));
         $this->assertNull($pricing->discountSaving());
         $this->assertNull(CanonicalOfferFacts::fromPricing($pricing));
-        $metric = CanonicalContractMetric::fromEvaluation($this->outcome(false, true), ContractPricingIntegrity::none());
+        $metric = $this->cachedMetric($this->outcome(false, true));
         $weekly = (new \ReflectionMethod(WeeklyOffersVideoService::class, 'canonicalConsumptionOutput'))
             ->invoke(app(WeeklyOffersVideoService::class), $metric, 1200);
         $this->assertSame('annualized_contract_term', $weekly['total_basis']);
@@ -202,7 +219,7 @@ class EnergyRulePublicOutputTest extends TestCase
         $this->assertStringContainsString('Säästö ei ole taattu', $card->offerDescription);
         $this->assertSame('Energia nyt', $card->receiptLines[0]->label);
 
-        $metric = CanonicalContractMetric::fromEvaluation($outcome, ContractPricingIntegrity::none());
+        $metric = $this->cachedMetric($outcome);
         $method = new \ReflectionMethod(ContractController::class, 'canonicalCurrentPricing');
         $api = $method->invoke(app(ContractController::class), $metric);
         $this->assertFalse($api['is_estimate']);

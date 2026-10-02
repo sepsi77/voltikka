@@ -16,6 +16,8 @@ use App\Services\CanonicalPricing\Enums\ComponentType;
 use App\Services\CanonicalPricing\Enums\ComponentUnit;
 use App\Services\CanonicalPricing\Enums\PhaseKind;
 use App\Services\CanonicalPricing\Enums\PriceRole;
+use App\Services\CompanyListCacheService;
+use App\Services\ContractListCacheService;
 use App\Services\DTO\EnergyUsage;
 use Carbon\CarbonImmutable;
 use Database\Factories\Support\CanonicalPricingFixture as F;
@@ -25,6 +27,13 @@ use Tests\TestCase;
 
 class CurrentPromotionTermsTest extends TestCase
 {
+    private function warmPrices(): void
+    {
+        // Build verified fixture prices before public reads, not in the GET request.
+        app()->forgetScopedInstances();
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
+    }
+
     use RefreshDatabase;
 
     private const CAMPAIGN = 'Kampanjahinta 14,90 snt/kWh + perusmaksu 0 € ensimmäisen kuukauden ajan, tämän jälkeenkin vain 4,90€/kk.';
@@ -61,6 +70,7 @@ class CurrentPromotionTermsTest extends TestCase
         $this->postJson('/api/calculate-price', ['contract_id' => $hehku->id, 'energy_usage' => ['total' => 5000, 'basic_living' => 3000, 'room_heating' => 2000]])
             ->assertOk()->assertJsonPath('data.total_cost', null)
             ->assertJsonPath('data.assumptions', ['insufficient_promotion_terms']);
+        $this->warmPrices();
         $this->getJson('/api/contracts/'.$hehku->id.'?consumption=5000')->assertOk()
             ->assertJsonPath('data.current_pricing.availability', 'unavailable')
             ->assertJsonPath('data.calculated_cost.assumptions', ['insufficient_promotion_terms']);
@@ -222,7 +232,7 @@ class CurrentPromotionTermsTest extends TestCase
                 $component, F::component(ComponentType::MonthlyFee, $fee, ComponentUnit::EurPerMonth),
             ]),
         ];
-        $contract = ElectricityContract::factory()->forCompany('Terms Oy')->create([
+        $contract = ElectricityContract::factory()->forCompany('Terms Oy')->active()->create([
             'id' => $id, 'pricing_model' => $spot ? 'Spot' : 'FixedPrice', 'contract_type' => 'OpenEnded', ...$attributes,
         ]);
         $snapshot = ContractSourceSnapshot::create([

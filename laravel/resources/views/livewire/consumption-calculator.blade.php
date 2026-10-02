@@ -387,6 +387,10 @@
             Arvio perustuu tilastollisiin keskiarvoihin (mm. 400 kWh/asukas + 30 kWh/m² vuodessa sekä lämmitystavan ja rakennusvuoden mukainen kerroin), eikä se ole toteutunut sähkölasku. Todellinen kulutus vaihtelee asumistottumusten, kodinkoneiden ja sään mukaan.
         </p>
 
+        @error('comparisonConsumption')
+            <p role="alert" class="text-sm text-white mb-4">{{ $message }}</p>
+        @enderror
+
         <button
             wire:click="compareContracts"
             class="w-full flex items-center justify-center bg-coral-500 hover:bg-coral-400 text-white font-semibold py-4 px-6 rounded-xl transition-colors"

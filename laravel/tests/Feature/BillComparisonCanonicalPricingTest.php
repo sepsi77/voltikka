@@ -10,6 +10,8 @@ use App\Models\PriceComponent;
 use App\Models\SpotPriceAverage;
 use App\Models\SpotPriceHour;
 use App\Services\BillComparison\BillComparisonService;
+use App\Services\CompanyListCacheService;
+use App\Services\ContractListCacheService;
 use App\Services\DTO\BillComparisonRequest;
 use Carbon\Carbon;
 use Illuminate\Database\Events\QueryExecuted;
@@ -48,6 +50,8 @@ class BillComparisonCanonicalPricingTest extends TestCase
         $serviceData = app(BillComparisonService::class)->periodRowsForContracts([$contract->load('company')], $this->request());
         $this->assertEqualsWithDelta(18.0, $serviceData['rows'][$contract->id]->periodCostEur, 0.001);
         $this->assertSame('canonical', $serviceData['rows'][$contract->id]->pricingBasis);
+
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
 
         $standalone = Livewire::test('bill-comparison')
             ->set('periodPreset', 'custom')
@@ -186,6 +190,8 @@ class BillComparisonCanonicalPricingTest extends TestCase
         $this->assertEqualsWithDelta(14.4, $row->periodCostEur, 0.001);
         $this->assertContains('actual_hourly_spot_prices', $row->assumptions);
         $this->assertContains('missing_spot_hours_filled_with_observed_average', $row->assumptions);
+
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
 
         $detail = Livewire::test('contract-detail', ['contractId' => $contract->id])
             ->set('billPeriodPreset', 'custom')

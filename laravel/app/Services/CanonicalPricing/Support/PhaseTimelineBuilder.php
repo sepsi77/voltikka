@@ -25,7 +25,15 @@ class PhaseTimelineBuilder
     public function build(array $phases, RecurringScheduleData $recurring, CarbonImmutable $windowStart): array
     {
         $windowStart = $windowStart->startOfDay();
-        $windowEnd = $windowStart->addMonthsNoOverflow(12);
+        $anniversaries = [];
+        for ($month = 0; $month <= 12; $month++) {
+            $anniversaries[] = $windowStart->addMonthsNoOverflow($month);
+        }
+        $windowEnd = $anniversaries[12];
+        $billingMonthDays = [];
+        for ($month = 0; $month < 12; $month++) {
+            $billingMonthDays[] = $anniversaries[$month]->diffInDays($anniversaries[$month + 1]);
+        }
 
         // Resolve each known-pricing phase to a clamped [start, end) inside the window.
         $resolved = [];
@@ -47,7 +55,7 @@ class PhaseTimelineBuilder
             $resolved[] = ['index' => $index, 'start' => $start, 'end' => $end];
         }
 
-        $boundaries = $this->boundaryPoints($resolved, $windowStart, $windowEnd);
+        $boundaries = $this->boundaryPoints($resolved, $windowStart, $windowEnd, $anniversaries);
         $segments = [];
 
         for ($i = 0; $i < count($boundaries) - 1; $i++) {
@@ -72,12 +80,12 @@ class PhaseTimelineBuilder
             $fractions[$segment->monthIndex] += $segment->monthFraction();
         }
 
-        return array_map(static function (WindowSegment $segment) use ($windowStart, $fractions): WindowSegment {
+        return array_map(static function (WindowSegment $segment) use ($anniversaries, $billingMonthDays, $fractions): WindowSegment {
             $month = 0;
-            while ($month < 11 && $segment->start->greaterThanOrEqualTo($windowStart->addMonthsNoOverflow($month + 1))) {
+            while ($month < 11 && $segment->start->greaterThanOrEqualTo($anniversaries[$month + 1])) {
                 $month++;
             }
-            $billingDays = $windowStart->addMonthsNoOverflow($month)->diffInDays($windowStart->addMonthsNoOverflow($month + 1));
+            $billingDays = $billingMonthDays[$month];
 
             return new WindowSegment(
                 $segment->start,
@@ -162,9 +170,10 @@ class PhaseTimelineBuilder
 
     /**
      * @param  list<array{index:int,start:CarbonImmutable,end:CarbonImmutable}>  $resolved
+     * @param  list<CarbonImmutable>  $anniversaries
      * @return list<CarbonImmutable>
      */
-    private function boundaryPoints(array $resolved, CarbonImmutable $windowStart, CarbonImmutable $windowEnd): array
+    private function boundaryPoints(array $resolved, CarbonImmutable $windowStart, CarbonImmutable $windowEnd, array $anniversaries): array
     {
         $points = [$windowStart->getTimestamp() => $windowStart, $windowEnd->getTimestamp() => $windowEnd];
 
@@ -177,7 +186,7 @@ class PhaseTimelineBuilder
 
         // Display bins and relative phase dates use the same no-overflow anniversaries.
         for ($month = 1; $month < 12; $month++) {
-            $point = $windowStart->addMonthsNoOverflow($month);
+            $point = $anniversaries[$month];
             $points[$point->getTimestamp()] = $point;
         }
 

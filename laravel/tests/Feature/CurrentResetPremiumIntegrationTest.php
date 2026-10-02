@@ -21,8 +21,10 @@ use App\Services\CanonicalPricing\ForwardPremium\CurrentPremiumEvidenceLoader;
 use App\Services\CanonicalPricing\MarketReset\EexMarketReferenceCurveProvider;
 use App\Services\CanonicalPricing\MarketReset\MarketReferenceCurveProvider;
 use App\Services\CanonicalPricing\MarketReset\ResetEstimateCopy;
+use App\Services\CompanyListCacheService;
 use App\Services\ContractCard\ContractCardCopy;
 use App\Services\ContractCard\PricingCategoryResolver;
+use App\Services\ContractListCacheService;
 use App\Services\ContractPricing\ContractPricingViewData;
 use App\Services\DTO\EnergyUsage;
 use Carbon\CarbonImmutable;
@@ -34,6 +36,14 @@ use Tests\TestCase;
 
 class CurrentResetPremiumIntegrationTest extends TestCase
 {
+    private function warmPrices(): void
+    {
+        // Build verified fixture prices before public reads, not in the GET request.
+        app()->forgetScopedInstances();
+        app()->instance(MarketReferenceCurveProvider::class, $this->curve);
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
+    }
+
     use RefreshDatabase;
 
     private ResetPremiumCurve $curve;
@@ -158,6 +168,7 @@ class CurrentResetPremiumIntegrationTest extends TestCase
         $this->contract('target', 'Seller', '2026-04-01');
         $this->contract('peer', 'Seller', '2026-04-10');
         $this->travelTo($this->date());
+        $this->warmPrices();
         $response = $this->getJson('/api/contracts/target?consumption=5000');
         $response->assertOk()->assertJsonPath('data.calculated_cost.estimate_method', 'recurring_forward_premium')
             ->assertJsonPath('data.calculated_cost.reset_estimate.current_policy', 'recurring_forward_premium_v1')

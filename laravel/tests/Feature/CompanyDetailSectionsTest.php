@@ -9,10 +9,14 @@ use App\Models\ContractPriceDailyStatistic;
 use App\Models\ContractPriceSnapshot;
 use App\Models\ElectricityContract;
 use App\Models\PriceComponent;
+use App\Services\CompanyListCacheService;
 use App\Services\CompanyStatistics\CompanyMarketComparisonService;
+use App\Services\ContractListCacheService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Testing\TestResponse;
+use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -44,7 +48,7 @@ class CompanyDetailSectionsTest extends TestCase
         $this->createContract('promo', 'Kampanja Sähkö', 5.0, 3.0, discount: 2.5);
         $this->createContract('plain', 'Tavallinen Sähkö', 5.0, 3.0);
 
-        $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
+        $component = $this->mountWithPrices('company-detail', ['companySlug' => 'test-energy-oy']);
 
         $promotions = $component->viewData('promotionContracts');
 
@@ -61,7 +65,7 @@ class CompanyDetailSectionsTest extends TestCase
     {
         $this->createContract('plain', 'Tavallinen Sähkö', 5.0, 3.0);
 
-        $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
+        $component = $this->mountWithPrices('company-detail', ['companySlug' => 'test-energy-oy']);
 
         $this->assertCount(0, $component->viewData('promotionContracts'));
 
@@ -80,7 +84,7 @@ class CompanyDetailSectionsTest extends TestCase
     {
         $this->createContract('promo', 'Kampanja Sähkö', 5.0, 3.0, discount: 3.0, discountOnMonthly: true);
 
-        Livewire::test('company-detail', ['companySlug' => 'test-energy-oy'])
+        $this->mountWithPrices('company-detail', ['companySlug' => 'test-energy-oy'])
             ->assertSee('€/kk')
             ->assertDontSee('3,00 c/kWh alennus');
     }
@@ -89,7 +93,7 @@ class CompanyDetailSectionsTest extends TestCase
     {
         $this->createContract('promo', 'Kampanja Sähkö', 5.0, 6.0, discount: 3.0, discountOnMonthly: true, discountMonths: 12);
 
-        $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
+        $component = $this->mountWithPrices('company-detail', ['companySlug' => 'test-energy-oy']);
 
         $savings = $component->viewData('promotionContracts')->first()->calculated_cost['discount_savings_total'];
 
@@ -109,7 +113,7 @@ class CompanyDetailSectionsTest extends TestCase
         // cannot move the 12-month total.
         $this->createContract('promo', 'Kampanja Sähkö', 5.0, 0.0, discount: 3.0, discountOnMonthly: true, discountMonths: 3);
 
-        $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
+        $component = $this->mountWithPrices('company-detail', ['companySlug' => 'test-energy-oy']);
 
         $contract = $component->viewData('promotionContracts')->first();
 
@@ -125,7 +129,7 @@ class CompanyDetailSectionsTest extends TestCase
         $this->createContract('spot', 'Pörssi Sähkö', 0.45, 3.90, pricingModel: 'Spot');
         $this->createContract('fixed', 'Kiinteä Sähkö', 8.0, 3.0);
 
-        $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
+        $component = $this->mountWithPrices('company-detail', ['companySlug' => 'test-energy-oy']);
 
         $spot = $component->viewData('spotContracts');
 
@@ -145,7 +149,7 @@ class CompanyDetailSectionsTest extends TestCase
         $this->createContract('spot-one', 'Pörssi Yksi', 0.45, 3.90, pricingModel: 'Spot');
         $this->createContract('spot-two', 'Pörssi Kaksi', 0.55, 4.20, pricingModel: 'Spot');
 
-        Livewire::test('company-detail', ['companySlug' => 'test-energy-oy'])
+        $this->mountWithPrices('company-detail', ['companySlug' => 'test-energy-oy'])
             ->assertSee('Vertailussa on 2 pörssisähkösopimusta.');
     }
 
@@ -162,7 +166,7 @@ class CompanyDetailSectionsTest extends TestCase
         $this->seedSpotBenchmark('spot_margin', 0.10, 40, 'observed_seller_data', '2026-08-02');
         $this->seedSpotBenchmark('monthly_fee', 9.00, 40, 'canonical_calculation', '2026-08-01');
 
-        $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
+        $component = $this->mountWithPrices('company-detail', ['companySlug' => 'test-energy-oy']);
         $benchmarks = $component->viewData('spotBenchmarks');
 
         $this->assertSame('2026-08-01', $benchmarks['stat_date']);
@@ -206,7 +210,7 @@ class CompanyDetailSectionsTest extends TestCase
         $this->seedSpotBenchmark('spot_margin', 0.45);
         $this->seedSpotBenchmark('monthly_fee', 3.90);
 
-        $html = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy'])->html();
+        $html = $this->mountWithPrices('company-detail', ['companySlug' => 'test-energy-oy'])->html();
 
         $this->assertSame(2, substr_count($html, 'Sama kuin markkinan mediaani'));
     }
@@ -219,7 +223,7 @@ class CompanyDetailSectionsTest extends TestCase
         $this->seedSpotBenchmark('spot_margin', 0.50, CompanyMarketComparisonService::MIN_MARKET_CONTRACTS - 1);
         $this->seedSpotBenchmark('monthly_fee', null);
 
-        $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
+        $component = $this->mountWithPrices('company-detail', ['companySlug' => 'test-energy-oy']);
 
         $this->assertNull($component->viewData('spotBenchmarks'));
         $component
@@ -234,7 +238,7 @@ class CompanyDetailSectionsTest extends TestCase
     {
         $this->createContract('fixed', 'Kiinteä Sähkö', 8.0, 3.0);
 
-        Livewire::test('company-detail', ['companySlug' => 'test-energy-oy'])
+        $this->mountWithPrices('company-detail', ['companySlug' => 'test-energy-oy'])
             ->assertSee('Test Energy Oy: pörssisähkö, marginaali ja perusmaksu')
             ->assertSee('Test Energy Oy ei tarjoa tällä hetkellä kotitalouksille pörssisähkösopimusta Voltikan vertailussa.')
             ->assertSee('Vertaa kaikkia pörssisähkösopimuksia')
@@ -245,7 +249,7 @@ class CompanyDetailSectionsTest extends TestCase
     {
         $this->createContract('fixed', 'Kiinteä Sähkö', 8.0, 3.0);
 
-        Livewire::test('company-detail', ['companySlug' => 'test-energy-oy'])
+        $this->mountWithPrices('company-detail', ['companySlug' => 'test-energy-oy'])
             ->assertSee('Test Energy Oy sähkösopimukset')
             ->assertDontSee('Test Energy Oy: sähkösopimukset');
     }
@@ -254,7 +258,7 @@ class CompanyDetailSectionsTest extends TestCase
     {
         $this->createContract('spot', 'Pörssi Sähkö', 0.45, 3.90, pricingModel: 'Spot');
 
-        $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
+        $component = $this->mountWithPrices('company-detail', ['companySlug' => 'test-energy-oy']);
 
         $component
             ->assertDontSee('Usein kysyttyä')
@@ -654,7 +658,7 @@ class CompanyDetailSectionsTest extends TestCase
         $this->seedMarket(segment: 'open_ended', p20: 500.0, median: 600.0, p80: 700.0, contractCount: 40);
         $this->seedCompanySnapshot(segment: 'open_ended', annualCost: 600.0);
 
-        Livewire::test('company-detail', ['companySlug' => 'test-energy-oy'])
+        $this->mountWithPrices('company-detail', ['companySlug' => 'test-energy-oy'])
             ->assertSee('Test Energy Oy: sähkön hinta')
             ->assertSee('Sähkön hinta riippuu sopimustyypistä ja vuosikulutuksesta.')
             ->assertSee('saman sopimustyypin markkinamediaanin ja keskimmäisen 60 %:n hintahaarukan')
@@ -684,7 +688,7 @@ class CompanyDetailSectionsTest extends TestCase
             );
         }
 
-        $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
+        $component = $this->mountWithPrices('company-detail', ['companySlug' => 'test-energy-oy']);
         $comparison = $component->viewData('marketComparison');
 
         $this->assertNotNull($comparison);
@@ -746,7 +750,7 @@ class CompanyDetailSectionsTest extends TestCase
         $this->seedAsOfAnnual('fixed', 'open_ended', 600.0, 'canonical_calculation', '2026-08-01');
         $this->seedAsOfAnnual('fixed-two', 'open_ended', 800.0, 'canonical_calculation', '2026-08-01');
 
-        $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
+        $component = $this->mountWithPrices('company-detail', ['companySlug' => 'test-energy-oy']);
         $comparison = $component->viewData('marketComparison');
 
         $this->assertNotNull($comparison);
@@ -770,7 +774,7 @@ class CompanyDetailSectionsTest extends TestCase
         foreach (['annual_cost_as_of_v1', 'annual_cost_as_of_v2', 'annual_cost_as_of_v1'] as $method) {
             config()->set('contract_statistics.annual_cost.active_method_version', $method);
             app()->forgetScopedInstances();
-            $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
+            $component = $this->mountWithPrices('company-detail', ['companySlug' => 'test-energy-oy']);
             $comparison = $component->viewData('marketComparison');
             if ($method === 'annual_cost_as_of_v1') {
                 $this->assertSame('historical_retained_annual', $comparison['comparison_state']);
@@ -909,7 +913,7 @@ class CompanyDetailSectionsTest extends TestCase
     {
         $this->createContract('fixed', 'Kiinteä Sähkö', 8.0, 3.0);
 
-        $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
+        $component = $this->mountWithPrices('company-detail', ['companySlug' => 'test-energy-oy']);
 
         $this->assertNull($component->viewData('marketComparison'));
         $component
@@ -1075,5 +1079,30 @@ class CompanyDetailSectionsTest extends TestCase
         ActiveContract::create(['id' => $contract->id]);
 
         return $contract;
+    }
+
+    private function warmPrices(): void
+    {
+        // Explicit producer setup after the test has finished creating its fixtures.
+        $logging = DB::connection()->logging();
+        DB::disableQueryLog();
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
+        if ($logging) {
+            DB::enableQueryLog();
+        }
+    }
+
+    private function mountWithPrices(string $component, array $parameters = []): Testable
+    {
+        $this->warmPrices();
+
+        return Livewire::test($component, $parameters);
+    }
+
+    private function getWithPrices(string $uri): TestResponse
+    {
+        $this->warmPrices();
+
+        return $this->get($uri);
     }
 }

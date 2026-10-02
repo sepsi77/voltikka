@@ -9,10 +9,9 @@ use App\Models\ElectricityContract;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\CanonicalPricing\CanonicalOfferFacts;
 use App\Services\ContractCard\ContractCardCopy;
+use App\Services\ContractListCacheService;
 use App\Services\ContractPriceCalculator;
-use App\Services\ContractPricing\CanonicalContractMetric;
-use App\Services\ContractPricing\ContractPricingViewData;
-use App\Services\DTO\EnergyUsage;
+use App\Services\ContractPricing\ContractMetric;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 
@@ -96,7 +95,7 @@ class ContractController extends Controller
         if ($this->canonicalPricing->enabled()) {
             $this->attachCanonicalPricing(
                 $contracts->getCollection(),
-                $shouldCalculateCosts ? (int) $consumption : 1,
+                $shouldCalculateCosts ? (int) $consumption : 5000,
                 $shouldCalculateCosts,
             );
         } elseif ($shouldCalculateCosts) {
@@ -108,8 +107,8 @@ class ContractController extends Controller
         // Sort by calculated cost if requested
         if ($request->input('sort') === 'cost' && $shouldCalculateCosts) {
             $sortedCollection = $contracts->getCollection()->sort(function (ElectricityContract $left, ElectricityContract $right): int {
-                $leftTotal = ContractPricingViewData::fromArray($left->calculated_cost)->total();
-                $rightTotal = ContractPricingViewData::fromArray($right->calculated_cost)->total();
+                $leftTotal = $left->calculated_cost['total_cost'] ?? null;
+                $rightTotal = $right->calculated_cost['total_cost'] ?? null;
 
                 if ($leftTotal === null || $rightTotal === null) {
                     return $leftTotal === $rightTotal ? 0 : ($leftTotal === null ? 1 : -1);
@@ -147,7 +146,7 @@ class ContractController extends Controller
         if ($this->canonicalPricing->enabled()) {
             $this->attachCanonicalPricing(
                 new Collection([$contract]),
-                $shouldCalculateCosts ? (int) $consumption : 1,
+                $shouldCalculateCosts ? (int) $consumption : 5000,
                 $shouldCalculateCosts,
             );
         } elseif ($shouldCalculateCosts) {
@@ -158,21 +157,25 @@ class ContractController extends Controller
     }
 
     /**
-     * Attach one batch of canonical current-pricing results without loading relational prices.
-     * A one-kWh internal usage gives the typed unit/offer state when no calculated cost was
-     * requested; no total from that internal basis is returned.
+     * Read retained canonical pricing. The default reference is 5,000 kWh;
+     * its annual total is not returned unless consumption was requested.
      *
      * @param  Collection<int, ElectricityContract>  $contracts
      */
     private function attachCanonicalPricing(Collection $contracts, int $consumption, bool $includeCalculatedCost): void
     {
-        $usage = new EnergyUsage(total: $consumption, basicLiving: $consumption);
-        $metrics = $this->canonicalPricing->metricsForContracts($contracts, $usage);
+        $metrics = app(ContractListCacheService::class)->getCachedMetrics($consumption);
 
         $contracts->each(function (ElectricityContract $contract) use ($metrics, $includeCalculatedCost) {
-            $metric = $metrics[$contract->id] ?? null;
-            if (! $metric instanceof CanonicalContractMetric) {
-                throw new \InvalidArgumentException('Canonical metrics are missing contract '.$contract->id.'.');
+            $metric = $metrics?->metric($contract->id);
+            if ($metric === null) {
+                $contract->current_pricing = $this->canonicalCurrentPricing(null);
+                $contract->canonical_pricing_has_discounts = false;
+                if ($includeCalculatedCost) {
+                    $contract->calculated_cost = ['availability' => 'unavailable', 'total_cost' => null];
+                }
+
+                return;
             }
             $pricing = $metric->pricing();
 
@@ -190,21 +193,24 @@ class ContractController extends Controller
      *
      * @return array<string, mixed>
      */
-    private function canonicalCurrentPricing(CanonicalContractMetric $metric): array
+    private function canonicalCurrentPricing(?ContractMetric $metric): array
     {
-        $pricing = $metric->pricing();
-        $integrity = $metric->integrity();
-        $isAvailable = $metric->isListed() && $pricing->total() !== null;
-        $comparability = $metric->comparability()->value;
+        $pricing = $metric?->pricing();
+        $integrity = $metric?->integrity();
+        $isAvailable = $metric?->isListed() && $pricing?->total() !== null;
+        $comparability = $metric?->comparability();
+        if ($metric !== null && $integrity === null) {
+            throw new \InvalidArgumentException('Canonical cached pricing requires integrity facts.');
+        }
 
         return [
             'pricing_basis' => 'canonical',
             'availability' => $isAvailable ? 'available' : 'unavailable',
-            'is_listed' => $metric->isListed(),
+            'is_listed' => $metric?->isListed() ?? false,
             'comparability' => $comparability,
-            'exclusion_reason' => $metric->isListed() ? null : $comparability,
-            'is_estimate' => $pricing->isEstimate(),
-            'estimate_method' => $pricing->estimateMethod()?->value,
+            'exclusion_reason' => $metric === null ? 'cached_pricing_unavailable' : ($metric->isListed() ? null : $comparability),
+            'is_estimate' => $pricing?->isEstimate() ?? false,
+            'estimate_method' => $pricing?->estimateMethod()?->value,
             'includes_discounts' => $isAvailable && $pricing->includesDiscounts(),
             'monthly_fixed_fee' => $isAvailable ? $pricing->monthlyFixedFee() : null,
             'spot_price_margin' => $isAvailable ? $pricing->spotPriceMargin() : null,
@@ -224,30 +230,20 @@ class ContractController extends Controller
             'energy_rule_comparison' => $isAvailable ? $pricing->energyRuleComparison()?->toArray() : null,
             'benefit_is_estimate' => $isAvailable && $pricing->benefitIsEstimate(),
             'offer' => $isAvailable ? CanonicalOfferFacts::fromPricing($pricing) : null,
-            'integrity' => $isAvailable && ! ContractCardCopy::suppressSourcePriceChange($pricing, $integrity) ? $integrity->toArray() : [
+            'integrity' => $integrity === null ? null : ($isAvailable && ! ContractCardCopy::suppressSourcePriceChange($pricing, $integrity) ? $integrity->toArray() : [
                 'detected' => $integrity->detected,
                 'reason_family' => $integrity->reasonFamily->value,
                 'issue_codes' => $integrity->issueCodes,
-            ],
+            ]),
         ];
     }
 
     /**
-     * Calculate the annual cost from relational components only in feature-off mode.
+     * Read retained legacy annual prices without request-time calculation.
      */
     private function calculateLegacyContractCost(ElectricityContract $contract, int $consumption): array
     {
-        $usage = new EnergyUsage(total: $consumption, basicLiving: $consumption);
-        $priceComponents = $contract->getLatestPriceComponentsForCalculation();
-
-        $contractData = [
-            'contract_type' => $contract->contract_type,
-            'pricing_model' => $contract->pricing_model,
-            'metering' => $contract->metering,
-        ];
-
-        $result = $this->priceCalculator->calculate($priceComponents, $contractData, $usage);
-
-        return ContractPricingViewData::fromLegacyResult($result)->toArray();
+        return app(ContractListCacheService::class)->getCachedMetrics($consumption)?->metric($contract->id)?->pricing()->toArray()
+            ?? ['availability' => 'unavailable', 'total_cost' => null];
     }
 }

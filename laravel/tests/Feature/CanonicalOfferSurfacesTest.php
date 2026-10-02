@@ -7,6 +7,8 @@ use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\PriceComponent;
 use App\Models\SpotPriceAverage;
+use App\Services\CompanyListCacheService;
+use App\Services\ContractListCacheService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -15,6 +17,13 @@ use Tests\TestCase;
 
 class CanonicalOfferSurfacesTest extends TestCase
 {
+    private function warmPrices(): void
+    {
+        // Build verified fixture prices before public reads, not in the GET request.
+        app()->forgetScopedInstances();
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
+    }
+
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -55,6 +64,7 @@ class CanonicalOfferSurfacesTest extends TestCase
         $this->createContract('untyped-offer', 'Untyped offer', $this->unresolvedOffer());
         $this->createContract('zero-saving', 'Zero saving', $this->plainPhase(), pricingHasDiscounts: true);
 
+        $this->warmPrices();
         DB::enableQueryLog();
         $component = Livewire::test('company-detail', ['companySlug' => 'offer-energy-oy']);
         $names = $component->viewData('promotionContracts')->pluck('name')->all();
@@ -107,6 +117,7 @@ class CanonicalOfferSurfacesTest extends TestCase
             fixedTimeRange: 'Fixed6',
         );
 
+        $this->warmPrices();
         $component = Livewire::test('company-detail', ['companySlug' => 'offer-energy-oy']);
         $contract = $component->viewData('promotionContracts')->first();
 
@@ -135,6 +146,7 @@ class CanonicalOfferSurfacesTest extends TestCase
             pricingModel: 'Hybrid',
         );
 
+        $this->warmPrices();
         $component = Livewire::test('company-detail', ['companySlug' => 'offer-energy-oy']);
         $contract = $component->viewData('promotionContracts')->first();
 
@@ -162,6 +174,7 @@ class CanonicalOfferSurfacesTest extends TestCase
             pricingModel: 'Spot',
         );
 
+        $this->warmPrices();
         Livewire::test('company-detail', ['companySlug' => 'offer-energy-oy'])
             ->assertSee('Marginaali 0,20 c/kWh 31.8.2026 asti')
             ->assertDontSee('HOSTILE RAW PHASE LABEL');
@@ -174,6 +187,7 @@ class CanonicalOfferSurfacesTest extends TestCase
         $this->createContract('canonical-only', 'Canonical only', $this->offerPhase());
         $this->createContract('legacy-offer', 'Legacy offer', $this->plainPhase(), relationalDiscount: 2.0);
 
+        $this->warmPrices();
         $component = Livewire::test('company-detail', ['companySlug' => 'offer-energy-oy']);
         $names = $component->viewData('promotionContracts')->pluck('name')->all();
 
@@ -194,6 +208,7 @@ class CanonicalOfferSurfacesTest extends TestCase
         $this->createContract('untyped-offer', 'Untyped offer', $this->unresolvedOffer());
         $this->createContract('zero-saving', 'Zero saving', $this->plainPhase(), pricingHasDiscounts: true);
 
+        $this->warmPrices();
         DB::enableQueryLog();
         $component = Livewire::test('seo-contracts-list', ['offerType' => 'promotion']);
         $contracts = $component->viewData('contracts');
@@ -228,6 +243,7 @@ class CanonicalOfferSurfacesTest extends TestCase
             fixedTimeRange: 'Fixed6',
         );
 
+        $this->warmPrices();
         $component = Livewire::test('seo-contracts-list', ['offerType' => 'promotion']);
         $description = $this->jsonLdDescriptions($component->viewData('seoData')['jsonLd'])['Six month offer'];
 
@@ -242,6 +258,7 @@ class CanonicalOfferSurfacesTest extends TestCase
         $this->createContract('canonical-only', 'Canonical only', $this->offerPhase());
         $this->createContract('legacy-offer', 'Legacy offer', $this->plainPhase(), relationalDiscount: 2.0);
 
+        $this->warmPrices();
         $component = Livewire::test('seo-contracts-list', ['offerType' => 'promotion']);
         $contracts = $component->viewData('contracts');
         $descriptions = $this->jsonLdDescriptions($component->viewData('seoData')['jsonLd']);

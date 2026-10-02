@@ -12,6 +12,8 @@ use App\Services\CanonicalPricing\Enums\ComponentUnit;
 use App\Services\CanonicalPricing\Enums\MisleadingState;
 use App\Services\CanonicalPricing\Enums\PhaseKind;
 use App\Services\CanonicalPricing\Enums\PriceRole;
+use App\Services\CompanyListCacheService;
+use App\Services\ContractListCacheService;
 use Database\Factories\Support\CanonicalPricingFixture;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -188,7 +190,9 @@ class CanonicalPricingListingTest extends TestCase
             ),
         );
 
-        $component = Livewire::test(SahkosopimusIndex::class)->set('consumption', 5000);
+        $this->refreshPriceFixtures();
+
+        $component = Livewire::test(SahkosopimusIndex::class)->assertSet('consumption', 5000);
         $contracts = $component->viewData('contracts');
 
         $this->assertSame(2, $contracts->total());
@@ -203,5 +207,10 @@ class CanonicalPricingListingTest extends TestCase
         $component->assertDontSee('Viekas Virhepaketti');
         // Deceptive contract carries the price-increase warning pill.
         $component->assertSee('Hinta nousee');
+    }
+
+    private function refreshPriceFixtures(): void
+    {
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
     }
 }

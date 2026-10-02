@@ -2,11 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Models\ActiveContract;
 use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\ElectricitySource;
 use App\Models\Postcode;
 use App\Models\PriceComponent;
+use App\Services\CompanyListCacheService;
+use App\Services\ContractListCacheService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -31,6 +34,13 @@ class ContractApiTest extends TestCase
             'name_slug' => 'another-company-ab',
             'company_url' => 'https://another.fi',
         ]);
+    }
+
+    private function warmPrices(): void
+    {
+        // Run the private producer before HTTP initialization and pricing spies.
+        app()->forgetScopedInstances();
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
     }
 
     /**
@@ -376,6 +386,9 @@ class ContractApiTest extends TestCase
         ]);
 
         // Request with 5000 kWh annual consumption
+        ActiveContract::create(['id' => 'cost-test-contract']);
+        $this->warmPrices();
+
         $response = $this->getJson('/api/contracts?consumption=5000');
 
         $response->assertStatus(200);
@@ -428,6 +441,9 @@ class ContractApiTest extends TestCase
         ]);
 
         // Request with 10000 kWh annual consumption
+        ActiveContract::create(['id' => 'single-cost-contract']);
+        $this->warmPrices();
+
         $response = $this->getJson('/api/contracts/single-cost-contract?consumption=10000');
 
         $response->assertStatus(200);
@@ -488,6 +504,10 @@ class ContractApiTest extends TestCase
         ]);
 
         // Request sorted by cost (ascending)
+        ActiveContract::create(['id' => 'expensive-contract']);
+        ActiveContract::create(['id' => 'cheap-contract']);
+        $this->warmPrices();
+
         $response = $this->getJson('/api/contracts?consumption=5000&sort=cost');
 
         $response->assertStatus(200);

@@ -143,7 +143,10 @@
                 wire:loading.class.delay="opacity-40"
                 wire:target="setConsumption, directConsumption"
             >
-                @if ($isExcludedPricing)
+                @if ($priceAvailabilityNotice)
+                    <p class="text-2xl font-extrabold leading-tight text-white sm:text-3xl">{{ $priceAvailabilityNotice['heading'] }}</p>
+                    <p class="mt-3 max-w-[60ch] text-[15px] leading-relaxed text-slate-200">{{ $priceAvailabilityNotice['body'] }}</p>
+                @elseif ($isExcludedPricing)
                     <p class="text-2xl font-extrabold leading-tight text-white sm:text-3xl">Vuosihintaa ei voi laskea luotettavasti</p>
                     <p class="mt-3 max-w-[60ch] text-[15px] leading-relaxed text-slate-200">
                         Sopimuksen hinnoittelusta puuttuu tietoja, joten emme näytä sille vuosiarviota emmekä sisällytä sitä vertailuun.
@@ -1437,7 +1440,7 @@
          cannot cover the cheaper options it would be competing with. A scroll listener
          is used rather than IntersectionObserver because the rule is a position test,
          not a visibility test, and the same rect check answers both hide conditions. --}}
-    @if ($sellerCta && $this->isActive && ! $isExcludedPricing)
+    @if ($sellerCta && $this->isActive && ! $isExcludedPricing && ($calculatedCost['total_cost'] ?? null) !== null)
         <div
             x-data="{
                 show: false,

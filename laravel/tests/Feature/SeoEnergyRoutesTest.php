@@ -7,11 +7,20 @@ use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\ElectricitySource;
 use App\Models\PriceComponent;
+use App\Services\CompanyListCacheService;
+use App\Services\ContractListCacheService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class SeoEnergyRoutesTest extends TestCase
 {
+    private function warmPrices(): void
+    {
+        // Build verified fixture prices before public reads, not in the GET request.
+        app()->forgetScopedInstances();
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
+    }
+
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -116,6 +125,7 @@ class SeoEnergyRoutesTest extends TestCase
      */
     public function test_tuulisahko_route_is_accessible(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/tuulisahko');
         $response->assertStatus(200);
     }
@@ -125,6 +135,7 @@ class SeoEnergyRoutesTest extends TestCase
      */
     public function test_aurinkosahko_route_is_accessible(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/aurinkosahko');
         $response->assertStatus(200);
     }
@@ -134,6 +145,7 @@ class SeoEnergyRoutesTest extends TestCase
      */
     public function test_vihrea_sahko_route_is_accessible(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/vihrea-sahko');
         $response->assertStatus(200);
     }
@@ -145,6 +157,7 @@ class SeoEnergyRoutesTest extends TestCase
      */
     public function test_tuulisahko_page_has_unique_h1(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/tuulisahko');
         $response->assertSee('Tuulisähkösopimukset');
     }
@@ -154,6 +167,7 @@ class SeoEnergyRoutesTest extends TestCase
      */
     public function test_aurinkosahko_page_has_unique_h1(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/aurinkosahko');
         $response->assertSee('Aurinkosähkösopimukset');
     }
@@ -163,6 +177,7 @@ class SeoEnergyRoutesTest extends TestCase
      */
     public function test_vihrea_sahko_page_has_unique_h1(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/vihrea-sahko');
         $response->assertSee('Vihreä sähkö');
     }
@@ -174,6 +189,7 @@ class SeoEnergyRoutesTest extends TestCase
      */
     public function test_tuulisahko_page_shows_intro_text(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/tuulisahko');
         $response->assertSee('tuulivoim');
     }
@@ -183,6 +199,7 @@ class SeoEnergyRoutesTest extends TestCase
      */
     public function test_aurinkosahko_page_shows_intro_text(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/aurinkosahko');
         $response->assertSee('aurinkoenergia');
     }
@@ -192,6 +209,7 @@ class SeoEnergyRoutesTest extends TestCase
      */
     public function test_vihrea_sahko_page_shows_intro_text(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/vihrea-sahko');
         $response->assertSee('uusiutuv');
     }
@@ -203,6 +221,7 @@ class SeoEnergyRoutesTest extends TestCase
      */
     public function test_tuulisahko_page_filters_to_wind_contracts(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/tuulisahko');
         $response->assertSee('Tuulivoima Sopimus');
         $response->assertDontSee('Tavallinen Sopimus');
@@ -213,6 +232,7 @@ class SeoEnergyRoutesTest extends TestCase
      */
     public function test_aurinkosahko_page_filters_to_solar_contracts(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/aurinkosahko');
         $response->assertSee('Aurinkovoima Sopimus');
         $response->assertDontSee('Tavallinen Sopimus');
@@ -223,6 +243,7 @@ class SeoEnergyRoutesTest extends TestCase
      */
     public function test_vihrea_sahko_page_filters_to_green_contracts(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/vihrea-sahko');
         // Should show contracts with renewable >= 50 and no peat
         $response->assertSee('Tuulivoima Sopimus');
@@ -239,6 +260,7 @@ class SeoEnergyRoutesTest extends TestCase
      */
     public function test_tuulisahko_page_shows_energy_statistics(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/tuulisahko');
         // Should show renewable percentage
         $response->assertSee('Uusiutuva');
@@ -249,6 +271,7 @@ class SeoEnergyRoutesTest extends TestCase
      */
     public function test_aurinkosahko_page_shows_energy_statistics(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/aurinkosahko');
         // Should show renewable percentage
         $response->assertSee('Uusiutuva');
@@ -261,6 +284,7 @@ class SeoEnergyRoutesTest extends TestCase
      */
     public function test_tuulisahko_page_has_breadcrumb(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/tuulisahko');
         $response->assertSee('Etusivu');
         $response->assertSee('Sähkösopimukset');
@@ -271,6 +295,7 @@ class SeoEnergyRoutesTest extends TestCase
      */
     public function test_aurinkosahko_page_has_breadcrumb(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/aurinkosahko');
         $response->assertSee('Etusivu');
         $response->assertSee('Sähkösopimukset');
@@ -281,6 +306,7 @@ class SeoEnergyRoutesTest extends TestCase
      */
     public function test_vihrea_sahko_page_has_breadcrumb(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/vihrea-sahko');
         $response->assertSee('Etusivu');
         $response->assertSee('Sähkösopimukset');
@@ -293,6 +319,7 @@ class SeoEnergyRoutesTest extends TestCase
      */
     public function test_tuulisahko_page_has_links_to_other_energy_sources(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/tuulisahko');
         $response->assertSee('/sahkosopimus/aurinkosahko');
         $response->assertSee('/sahkosopimus/vihrea-sahko');
@@ -303,6 +330,7 @@ class SeoEnergyRoutesTest extends TestCase
      */
     public function test_aurinkosahko_page_has_links_to_other_energy_sources(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/aurinkosahko');
         $response->assertSee('/sahkosopimus/tuulisahko');
         $response->assertSee('/sahkosopimus/vihrea-sahko');
@@ -313,6 +341,7 @@ class SeoEnergyRoutesTest extends TestCase
      */
     public function test_vihrea_sahko_page_has_links_to_other_energy_sources(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/vihrea-sahko');
         $response->assertSee('/sahkosopimus/tuulisahko');
         $response->assertSee('/sahkosopimus/aurinkosahko');
@@ -354,6 +383,7 @@ class SeoEnergyRoutesTest extends TestCase
      */
     public function test_tuulisahko_page_shows_environmental_info(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/tuulisahko');
         // Should show info about CO2 emissions or environmental benefits
         $response->assertSee('päästö');
@@ -364,6 +394,7 @@ class SeoEnergyRoutesTest extends TestCase
      */
     public function test_aurinkosahko_page_shows_environmental_info(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/aurinkosahko');
         // Should show info about CO2 emissions or environmental benefits
         $response->assertSee('päästö');
@@ -374,6 +405,7 @@ class SeoEnergyRoutesTest extends TestCase
      */
     public function test_vihrea_sahko_page_shows_environmental_info(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/vihrea-sahko');
         // Should show info about CO2 emissions or environmental benefits
         $response->assertSee('päästö');

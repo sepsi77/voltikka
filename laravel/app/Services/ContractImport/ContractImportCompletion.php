@@ -219,6 +219,7 @@ class ContractImportCompletion
             && ($facts['active_contract_ids'] ?? null) === $state['active_ids']
             && isset($facts['cache_generation'], $facts['cache_fingerprint'])
             && Cache::get(ContractPriceCacheLifecycle::ACTIVE_KEY) == $facts['cache_generation']
+            && (int) Cache::get(ContractPriceCacheLifecycle::DEMAND_KEY, 0) === ($facts['cache_generation']['demand_revision'] ?? 0)
             && $this->contracts->safetyFingerprint() === $facts['cache_fingerprint'];
     }
 

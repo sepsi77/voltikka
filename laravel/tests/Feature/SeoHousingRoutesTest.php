@@ -6,11 +6,20 @@ use App\Models\ActiveContract;
 use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\PriceComponent;
+use App\Services\CompanyListCacheService;
+use App\Services\ContractListCacheService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class SeoHousingRoutesTest extends TestCase
 {
+    private function warmPrices(): void
+    {
+        // Build verified fixture prices before public reads, not in the GET request.
+        app()->forgetScopedInstances();
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
+    }
+
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -79,6 +88,7 @@ class SeoHousingRoutesTest extends TestCase
      */
     public function test_omakotitalo_route_is_accessible(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/omakotitalo');
         $response->assertStatus(200);
     }
@@ -88,6 +98,7 @@ class SeoHousingRoutesTest extends TestCase
      */
     public function test_kerrostalo_route_is_accessible(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/kerrostalo');
         $response->assertStatus(200);
     }
@@ -97,6 +108,7 @@ class SeoHousingRoutesTest extends TestCase
      */
     public function test_rivitalo_route_is_accessible(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/rivitalo');
         $response->assertStatus(200);
     }
@@ -108,6 +120,7 @@ class SeoHousingRoutesTest extends TestCase
      */
     public function test_omakotitalo_page_has_unique_h1(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/omakotitalo');
         $response->assertSee('Sähkösopimukset omakotitaloon');
     }
@@ -117,6 +130,7 @@ class SeoHousingRoutesTest extends TestCase
      */
     public function test_kerrostalo_page_has_unique_h1(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/kerrostalo');
         $response->assertSee('Sähkösopimukset kerrostaloon');
     }
@@ -126,6 +140,7 @@ class SeoHousingRoutesTest extends TestCase
      */
     public function test_rivitalo_page_has_unique_h1(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/rivitalo');
         $response->assertSee('Sähkösopimukset rivitaloon');
     }
@@ -137,6 +152,7 @@ class SeoHousingRoutesTest extends TestCase
      */
     public function test_omakotitalo_page_shows_consumption_info(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/omakotitalo');
         $response->assertSee('18 000 kWh');
     }
@@ -146,6 +162,7 @@ class SeoHousingRoutesTest extends TestCase
      */
     public function test_kerrostalo_page_shows_consumption_info(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/kerrostalo');
         $response->assertSee('5 000 kWh');
     }
@@ -155,6 +172,7 @@ class SeoHousingRoutesTest extends TestCase
      */
     public function test_rivitalo_page_shows_consumption_info(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/rivitalo');
         $response->assertSee('10 000 kWh');
     }
@@ -166,6 +184,7 @@ class SeoHousingRoutesTest extends TestCase
      */
     public function test_omakotitalo_page_has_breadcrumb(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/omakotitalo');
         $response->assertSee('Etusivu');
         $response->assertSee('Sähkösopimukset');
@@ -176,6 +195,7 @@ class SeoHousingRoutesTest extends TestCase
      */
     public function test_kerrostalo_page_has_breadcrumb(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/kerrostalo');
         $response->assertSee('Etusivu');
         $response->assertSee('Sähkösopimukset');
@@ -186,6 +206,7 @@ class SeoHousingRoutesTest extends TestCase
      */
     public function test_rivitalo_page_has_breadcrumb(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/rivitalo');
         $response->assertSee('Etusivu');
         $response->assertSee('Sähkösopimukset');
@@ -198,6 +219,7 @@ class SeoHousingRoutesTest extends TestCase
      */
     public function test_omakotitalo_page_has_links_to_other_housing_types(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/omakotitalo');
         $response->assertSee('/sahkosopimus/kerrostalo');
         $response->assertSee('/sahkosopimus/rivitalo');
@@ -208,6 +230,7 @@ class SeoHousingRoutesTest extends TestCase
      */
     public function test_kerrostalo_page_has_links_to_other_housing_types(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/kerrostalo');
         $response->assertSee('/sahkosopimus/omakotitalo');
         $response->assertSee('/sahkosopimus/rivitalo');
@@ -218,6 +241,7 @@ class SeoHousingRoutesTest extends TestCase
      */
     public function test_rivitalo_page_has_links_to_other_housing_types(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/rivitalo');
         $response->assertSee('/sahkosopimus/omakotitalo');
         $response->assertSee('/sahkosopimus/kerrostalo');
@@ -230,6 +254,7 @@ class SeoHousingRoutesTest extends TestCase
      */
     public function test_contracts_displayed_on_housing_type_pages(): void
     {
+        $this->warmPrices();
         $response = $this->get('/sahkosopimus/omakotitalo');
         $response->assertSee('Perussähkö');
         $response->assertSee('Test Energia Oy');

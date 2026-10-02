@@ -7,6 +7,8 @@ use App\Models\SpotPriceAverage;
 use App\Services\Caching\ContractPriceCacheConflict;
 use App\Services\Caching\ContractPriceCacheEvidence;
 use App\Services\Caching\ContractPriceCacheLifecycle;
+use App\Services\Caching\ContractPriceCacheUnavailable;
+use App\Services\Caching\PublicPriceCalculationPolicy;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\CanonicalPricing\DTO\CanonicalPricingOutcome;
 use App\Services\CanonicalPricing\DTO\ContractPricingIntegrity;
@@ -17,6 +19,7 @@ use App\Services\ContractPricing\CanonicalContractMetric;
 use App\Services\ContractPricing\ContractMetricSet;
 use App\Services\ContractPricing\ContractPricingViewData;
 use App\Services\DTO\EnergyUsage;
+use Illuminate\Contracts\Cache\Lock;
 use Illuminate\Support\Facades\Cache;
 use InvalidArgumentException;
 
@@ -27,7 +30,7 @@ class ContractListCacheService
     /**
      * Shape marker for the cached metrics payload itself.
      *
-     * The public version advances on refresh or immediate invalidation; c/r markers track
+     * The public version advances on verified refresh; c/r markers track
      * feature flags, so neither busts the cache when a deploy changes what the payload
      * CONTAINS. Bump this whenever a field is added to or removed from the cached
      * `calculated_cost` / `pricing_integrity` arrays, otherwise cards read a stale shape and
@@ -47,6 +50,7 @@ class ContractListCacheService
      * v10: short BaseOnlyHybrid outcomes preserve real-term totals and offer savings.
      * v11: `other` cadence recurring resets become eligible canonical list estimates.
      */
+    public const MAX_COMPARISON_CONSUMPTION = 150000;
 
     /**
      * Preset consumptions used in the UI and SEO pages.
@@ -91,10 +95,6 @@ class ContractListCacheService
 
     public function getCachedMetrics(int $consumption, bool $retryConflicts = true): ?ContractMetricSet
     {
-        if (! $this->supportsConsumption($consumption)) {
-            return null;
-        }
-
         for ($attempt = 1; ; $attempt++) {
             try {
                 return $this->readCachedMetrics($consumption);
@@ -113,11 +113,31 @@ class ContractListCacheService
         $this->canonicalPricing->resetMemoization();
     }
 
-    private function readCachedMetrics(int $consumption): ContractMetricSet
+    public function prepareComparisonForConsumption(int $consumption): ContractMetricSet
+    {
+        if ($consumption < 1 || $consumption > self::MAX_COMPARISON_CONSUMPTION) {
+            throw new InvalidArgumentException('Comparison consumption must be between 1 and 150000.');
+        }
+        if (! app(PublicPriceCalculationPolicy::class)->allowsCalculation()) {
+            throw new ContractPriceCacheUnavailable;
+        }
+        for ($attempt = 1; ; $attempt++) {
+            try {
+                return $this->readCachedMetrics($consumption, prepareCustom: true);
+            } catch (ContractPriceCacheConflict $exception) {
+                $this->resetCalculationState();
+                if ($attempt === 2) {
+                    throw $exception;
+                }
+            }
+        }
+    }
+
+    private function readCachedMetrics(int $consumption, bool $prepareCustom = false): ?ContractMetricSet
     {
         $generation = $this->lifecycle->active();
         $cacheKey = $this->getCacheKey($consumption, $generation);
-        $current = $this->evidence->current();
+        $current = $this->currentAvailability();
         $memoKey = $cacheKey.':'.hash('sha256', serialize($current));
         if (array_key_exists($memoKey, $this->cachedMetricsMemo)) {
             return $this->cachedMetricsMemo[$memoKey];
@@ -125,11 +145,22 @@ class ContractListCacheService
 
         $payload = Cache::get($cacheKey);
         if ($payload === null) {
+            if (! $prepareCustom && ! $this->supportsConsumption($consumption)) {
+                return null;
+            }
+            if (! app(PublicPriceCalculationPolicy::class)->allowsCalculation()) {
+                $this->lifecycle->requestRepair();
+                throw new ContractPriceCacheUnavailable;
+            }
+            if (! $this->supportsConsumption($consumption)) {
+                $this->lifecycle->checkCustomCapacity($generation, $cacheKey);
+            }
+            $source = $this->evidence->current();
             $payload = $this->buildCachedMetrics($consumption)->toArray();
-            if ($current !== $this->evidence->current()) {
+            if ($source !== $this->evidence->current() || $current !== $this->currentAvailability()) {
                 throw ContractPriceCacheConflict::evidenceChanged();
             }
-            $this->lifecycle->write($generation, $cacheKey, $payload);
+            $this->lifecycle->write($generation, $cacheKey, $payload, custom: ! $this->supportsConsumption($consumption));
         }
 
         if (! is_array($payload)) {
@@ -181,21 +212,44 @@ class ContractListCacheService
         );
     }
 
-    public function refresh(CompanyListCacheService $companies, ?callable $candidateGuard = null): int
+    public function needsRefresh(CompanyListCacheService $companies): bool
     {
-        for ($attempt = 1; ; $attempt++) {
-            $this->resetCalculationState();
-            try {
-                return $this->refreshCandidate($companies, $candidateGuard);
-            } catch (ContractPriceCacheConflict $exception) {
-                if ($attempt === 2) {
-                    throw $exception;
-                }
+        if ($this->lifecycle->pending()) {
+            return true;
+        }
+        $active = $this->lifecycle->active();
+        foreach (self::PRESET_CONSUMPTIONS as $consumption) {
+            if (! Cache::has($this->getCacheKey($consumption, $active))) {
+                return true;
             }
         }
+
+        return ! Cache::has($companies->getCacheKey(5000, $active));
     }
 
-    private function refreshCandidate(CompanyListCacheService $companies, ?callable $candidateGuard): int
+    public function refresh(CompanyListCacheService $companies, ?callable $candidateGuard = null, bool $onlyIfNeeded = false): int
+    {
+        $producer = Cache::lock(ContractPriceCacheLifecycle::PRODUCER_LOCK_KEY, ContractPriceCacheLifecycle::PRODUCER_LEASE_SECONDS);
+
+        return $producer->block(10, function () use ($companies, $candidateGuard, $onlyIfNeeded, $producer): int {
+            if ($onlyIfNeeded && ! $this->needsRefresh($companies)) {
+                return $this->getVersion();
+            }
+            $this->lifecycle->requestRepair();
+            for ($attempt = 1; ; $attempt++) {
+                $this->resetCalculationState();
+                try {
+                    return $this->refreshCandidate($companies, $candidateGuard, $producer);
+                } catch (ContractPriceCacheConflict $exception) {
+                    if ($attempt === 2) {
+                        throw $exception;
+                    }
+                }
+            }
+        });
+    }
+
+    private function refreshCandidate(CompanyListCacheService $companies, ?callable $candidateGuard, Lock $producer): int
     {
         $starting = $this->lifecycle->active();
         $candidate = $this->lifecycle->candidate($starting);
@@ -224,7 +278,7 @@ class ContractListCacheService
             if ($candidateGuard !== null) {
                 $candidateGuard();
             }
-            $this->lifecycle->promote($starting, $candidate, $expected);
+            $this->lifecycle->promote($starting, $candidate, $expected, $producer);
         } catch (\Throwable $exception) {
             $this->lifecycle->retire($candidate, required: true);
             throw $exception;
@@ -233,7 +287,62 @@ class ContractListCacheService
         return $candidate['version'];
     }
 
+    public function currentAvailability(): array
+    {
+        return ElectricityContract::query()->active()->orderBy('id')
+            ->get(['id', 'company_name', 'contract_type', 'pricing_model', 'metering', 'target_group',
+                'fixed_time_range', 'consumption_limitation_min_x_kwh_per_y', 'consumption_limitation_max_x_kwh_per_y',
+                'canonical_pricing->recurring_schedule->present as reset_present',
+                'canonical_pricing->recurring_schedule->cadence as reset_cadence',
+                'canonical_pricing->consumption_effect->present as effect_present',
+                'canonical_pricing->consumption_effect->applies_to as effect_applies_to'])
+            ->mapWithKeys(function (ElectricityContract $contract): array {
+                $row = $contract->getAttributes();
+                // SQLite returns integer booleans; MySQL JSON_UNQUOTE returns true/false strings.
+                $isTrue = fn (mixed $value): bool => in_array($value, [true, 1, '1', 'true'], true);
+                $reset = $isTrue($row['reset_present'])
+                    && in_array($row['reset_cadence'], ['monthly', 'quarterly', 'seasonal', 'other'], true);
+                $effect = $row['pricing_model'] === 'Hybrid'
+                    || ($isTrue($row['effect_present']) && in_array($row['effect_applies_to'], ['base_contract', 'both'], true));
+                unset($row['reset_present'], $row['effect_present'], $row['effect_applies_to']);
+                $row['reset_cadence'] = $reset ? $row['reset_cadence'] : null;
+                $row['has_reset'] = $reset;
+                $row['has_base_effect'] = $effect;
+
+                return [$contract->id => $row];
+            })->all();
+    }
+
+    public function availabilityFingerprint(): string
+    {
+        return hash('sha256', serialize($this->currentAvailability()));
+    }
+
     private function guardEvidence(array $payload, array $current): ContractMetricSet
+    {
+        $validated = ContractMetricSet::fromArray($payload);
+        $changed = false;
+        foreach (array_unique(array_merge(array_keys($payload['contracts']), array_keys($current))) as $id) {
+            if (isset($payload['contracts'][$id], $current[$id])
+                && (! isset($payload['source_classification'][$id]) || $payload['source_classification'][$id] === array_intersect_key($current[$id], $payload['source_classification'][$id]))) {
+                continue;
+            }
+            $changed = true;
+            $payload['sorted_ids'] = array_values(array_diff($payload['sorted_ids'], [$id]));
+            if (! $this->canonicalPricing->enabled()) {
+                unset($payload['contracts'][$id]);
+                $payload['excluded_ids'] = array_values(array_diff($payload['excluded_ids'], [$id]));
+
+                continue;
+            }
+            $payload['contracts'][$id] = $this->excludedMetric();
+            $payload['excluded_ids'] = array_values(array_unique([...$payload['excluded_ids'], $id]));
+        }
+
+        return $changed ? ContractMetricSet::fromArray($payload) : $validated;
+    }
+
+    private function guardBuildEvidence(array $payload, array $current): ContractMetricSet
     {
         $validated = ContractMetricSet::fromArray($payload);
         $changed = false;
@@ -403,7 +512,8 @@ class ContractListCacheService
             throw ContractPriceCacheConflict::evidenceChanged();
         }
 
-        return $this->guardEvidence([
+        return $this->guardBuildEvidence([
+            'source_classification' => $this->currentAvailability(),
             'source_evidence' => $evidence,
             'calculated_at' => now('Europe/Helsinki')->toIso8601String(),
             'contracts' => $metrics,

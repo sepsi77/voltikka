@@ -7,7 +7,11 @@ use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\Postcode;
 use App\Models\PriceComponent;
+use App\Services\CompanyListCacheService;
+use App\Services\ContractListCacheService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -33,6 +37,8 @@ class ContractListingEligibilityTest extends TestCase
         $this->createContract('national', true, 5.0);
         $this->createContract('regional', false, 4.0, ['00100']);
 
+        $this->refreshPriceFixtures();
+
         $baseIds = $this->listingIds(Livewire::test('contracts-list')->viewData('contracts'));
         $seoIds = $this->listingIds(Livewire::test('seo-contracts-list')->viewData('contracts'));
 
@@ -52,6 +58,8 @@ class ContractListingEligibilityTest extends TestCase
         $this->createContract('national', true, 5.0);
         $this->createContract('helsinki-regional', false, 4.0, ['00100']);
         $this->createContract('tampere-regional', false, 3.0, ['33100']);
+
+        $this->refreshPriceFixtures();
 
         $helsinki = Livewire::test('contracts-list')
             ->call('selectPostcode', ' 00100 ')
@@ -86,6 +94,8 @@ class ContractListingEligibilityTest extends TestCase
         for ($i = 1; $i <= 25; $i++) {
             $this->createContract('national-'.$i, true, 5.0);
         }
+
+        $this->refreshPriceFixtures();
 
         $invalid = Livewire::test('contracts-list')
             ->set('page', 2)
@@ -122,6 +132,8 @@ class ContractListingEligibilityTest extends TestCase
 
     public function test_selector_is_visible_and_contains_browser_persistence_markup(): void
     {
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test('contracts-list');
 
         $component
@@ -186,12 +198,17 @@ class ContractListingEligibilityTest extends TestCase
         return $contract;
     }
 
-    private function listingIds(iterable $contracts): \Illuminate\Support\Collection
+    private function listingIds(iterable $contracts): Collection
     {
-        if ($contracts instanceof \Illuminate\Pagination\LengthAwarePaginator) {
+        if ($contracts instanceof LengthAwarePaginator) {
             $contracts = $contracts->items();
         }
 
         return collect($contracts)->pluck('id')->sort()->values();
+    }
+
+    private function refreshPriceFixtures(): void
+    {
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
     }
 }

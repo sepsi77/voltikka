@@ -7,6 +7,8 @@ use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\Municipality;
 use App\Models\PriceComponent;
+use App\Services\CompanyListCacheService;
+use App\Services\ContractListCacheService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -78,6 +80,8 @@ class ContractsListPaginationTest extends TestCase
     {
         $this->createContracts(50);
 
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test('contracts-list')
             ->assertSet('page', 1);
 
@@ -103,6 +107,8 @@ class ContractsListPaginationTest extends TestCase
     {
         $this->createContracts(50);
 
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test('contracts-list');
         $contracts = $component->viewData('contracts');
 
@@ -118,6 +124,8 @@ class ContractsListPaginationTest extends TestCase
         $this->createContracts(60);
 
         // First page
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test('contracts-list')
             ->set('page', 1);
 
@@ -142,6 +150,8 @@ class ContractsListPaginationTest extends TestCase
     public function test_annual_price_order_is_applied_before_manual_pagination(): void
     {
         $this->createContracts(30);
+
+        $this->refreshPriceFixtures();
 
         $firstPageIds = Livewire::test('contracts-list')
             ->set('page', 1)
@@ -168,6 +178,8 @@ class ContractsListPaginationTest extends TestCase
     {
         $this->createContracts(50);
 
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test('contracts-list');
         $contracts = $component->viewData('contracts');
 
@@ -181,6 +193,8 @@ class ContractsListPaginationTest extends TestCase
     public function test_pagination_links_are_rendered(): void
     {
         $this->createContracts(50);
+
+        $this->refreshPriceFixtures();
 
         Livewire::test('contracts-list')
             ->assertSee('Sivu 1')
@@ -196,6 +210,8 @@ class ContractsListPaginationTest extends TestCase
                 'consumption_effect' => ['present' => true, 'applies_to' => 'base_contract'],
             ],
         ]);
+
+        $this->refreshPriceFixtures();
 
         $component = Livewire::withQueryParams([
             'page' => 1,
@@ -220,6 +236,8 @@ class ContractsListPaginationTest extends TestCase
             ],
         ]);
 
+        $this->refreshPriceFixtures();
+
         $component = Livewire::withQueryParams([
             'page' => 1,
             'consumption' => 2000,
@@ -242,6 +260,8 @@ class ContractsListPaginationTest extends TestCase
     {
         $this->createContracts(50);
 
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test('contracts-list')
             ->set('page', 2);
 
@@ -255,6 +275,8 @@ class ContractsListPaginationTest extends TestCase
     public function test_page_title_does_not_include_suffix_on_page_1(): void
     {
         $this->createContracts(50);
+
+        $this->refreshPriceFixtures();
 
         $component = Livewire::test('contracts-list')
             ->set('page', 1);
@@ -272,6 +294,8 @@ class ContractsListPaginationTest extends TestCase
             'pricing_model' => 'Spot',
             'contract_type' => 'OpenEnded',
         ]);
+
+        $this->refreshPriceFixtures();
 
         $component = Livewire::test('contracts-list')
             ->set('pricingModelFilter', 'Spot')
@@ -293,6 +317,8 @@ class ContractsListPaginationTest extends TestCase
     {
         $this->createContracts(50);
 
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test('contracts-list')
             ->set('page', 1);
 
@@ -308,6 +334,8 @@ class ContractsListPaginationTest extends TestCase
     {
         $this->createContracts(50);
 
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test('contracts-list')
             ->set('page', 2);
 
@@ -321,6 +349,8 @@ class ContractsListPaginationTest extends TestCase
     public function test_prev_url_on_page_2(): void
     {
         $this->createContracts(50);
+
+        $this->refreshPriceFixtures();
 
         $component = Livewire::test('contracts-list')
             ->set('page', 2);
@@ -338,6 +368,8 @@ class ContractsListPaginationTest extends TestCase
     {
         $this->createContracts(50);
 
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test('contracts-list')
             ->set('page', 1);
 
@@ -351,6 +383,8 @@ class ContractsListPaginationTest extends TestCase
     public function test_next_url_when_more_pages_exist(): void
     {
         $this->createContracts(50);
+
+        $this->refreshPriceFixtures();
 
         $component = Livewire::test('contracts-list')
             ->set('page', 1);
@@ -367,6 +401,8 @@ class ContractsListPaginationTest extends TestCase
     {
         $this->createContracts(25); // Only 1 page
 
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test('contracts-list')
             ->set('page', 1);
 
@@ -380,6 +416,8 @@ class ContractsListPaginationTest extends TestCase
     public function test_seo_link_tags_are_rendered(): void
     {
         $this->createContracts(75); // 3 pages at 25 per page
+
+        $this->refreshPriceFixtures();
 
         $response = $this->get('/sahkosopimus?page=2');
 
@@ -445,6 +483,8 @@ class ContractsListPaginationTest extends TestCase
             ActiveContract::create(['id' => $contract->id]);
         }
 
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test('contracts-list')
             ->set('page', 2)
             ->assertSet('page', 2)
@@ -460,6 +500,8 @@ class ContractsListPaginationTest extends TestCase
         $this->createContracts(50);
 
         // Test selectPreset method resets page
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test('contracts-list')
             ->set('page', 2)
             ->call('selectPreset', 'large_house_electric')
@@ -525,6 +567,8 @@ class ContractsListPaginationTest extends TestCase
             ActiveContract::create(['id' => $contract->id]);
         }
 
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test('contracts-list')
             ->set('pricingModelFilter', 'Spot');
 
@@ -549,6 +593,8 @@ class ContractsListPaginationTest extends TestCase
     {
         $this->createContracts(50);
 
+        $this->refreshPriceFixtures();
+
         $response = $this->get('/?page=2');
         $response->assertStatus(200);
     }
@@ -559,6 +605,8 @@ class ContractsListPaginationTest extends TestCase
     public function test_navigating_to_page_via_url_works(): void
     {
         $this->createContracts(60);
+
+        $this->refreshPriceFixtures();
 
         $response = $this->get('/sahkosopimus?page=2');
         $response->assertStatus(200);
@@ -571,6 +619,8 @@ class ContractsListPaginationTest extends TestCase
     {
         $this->createContracts(25);
 
+        $this->refreshPriceFixtures();
+
         $this->get('/sahkosopimus?page=999')->assertStatus(404);
         $this->get('/sahkosopimus?page=0')->assertStatus(200);
         $this->get('/sahkosopimus?page=-1')->assertStatus(200);
@@ -579,6 +629,8 @@ class ContractsListPaginationTest extends TestCase
     public function test_bill_mode_out_of_range_page_returns_404(): void
     {
         $this->createContracts(1);
+
+        $this->refreshPriceFixtures();
 
         Livewire::test('sahkosopimus-index')
             ->set('billKwh', 300)
@@ -591,6 +643,8 @@ class ContractsListPaginationTest extends TestCase
     public function test_empty_page_query_parameter_defaults_to_page_one(): void
     {
         $this->createContracts(25);
+
+        $this->refreshPriceFixtures();
 
         $response = $this->get('/sahkosopimus?page=');
 
@@ -611,6 +665,8 @@ class ContractsListPaginationTest extends TestCase
             'region_name' => 'Pohjois-Pohjanmaa',
         ]);
 
+        $this->refreshPriceFixtures();
+
         $response = $this->get('/sahkosopimus/paikkakunnat/pudasjarvi?page=');
 
         $response->assertStatus(200);
@@ -620,6 +676,8 @@ class ContractsListPaginationTest extends TestCase
     public function test_malformed_page_query_parameter_defaults_to_page_one(): void
     {
         $this->createContracts(25);
+
+        $this->refreshPriceFixtures();
 
         $response = $this->get('/sahkosopimus?page=not-a-number');
 
@@ -637,6 +695,8 @@ class ContractsListPaginationTest extends TestCase
     public function test_pagination_reduces_dom_elements(): void
     {
         $this->createContracts(100);
+
+        $this->refreshPriceFixtures();
 
         $component = Livewire::test('contracts-list');
         $contracts = $component->viewData('contracts');
@@ -659,6 +719,8 @@ class ContractsListPaginationTest extends TestCase
         $this->createContracts(50);
 
         // On page 1, the prevUrl should be null
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test('contracts-list')
             ->set('page', 1);
 
@@ -674,6 +736,8 @@ class ContractsListPaginationTest extends TestCase
         $this->createContracts(30); // Creates 2 pages (25 + 5)
 
         // On last page, the nextUrl should be null
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test('contracts-list')
             ->set('page', 2);
 
@@ -688,8 +752,15 @@ class ContractsListPaginationTest extends TestCase
     {
         $this->createContracts(75); // Creates 3 pages
 
+        $this->refreshPriceFixtures();
+
         Livewire::test('contracts-list')
             ->set('page', 2)
             ->assertSeeHtml('aria-current="page"'); // Accessibility attribute for current page
+    }
+
+    private function refreshPriceFixtures(): void
+    {
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
     }
 }

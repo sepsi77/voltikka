@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\DataFreshnessCheckpoint;
 use App\Models\ElectricityFuturesEodPrice;
+use App\Services\Caching\ContractPriceCacheLifecycle;
 use App\Services\ContractListCacheService;
 use App\Services\MorningFreshness\MorningJobFreshnessService;
 use Carbon\Carbon;
@@ -161,7 +162,8 @@ class FetchEexFuturesCommandTest extends TestCase
             'long_name' => 'EEX Finnish Power Base Year Future',
         ]);
         $this->assertSame(2, ElectricityFuturesEodPrice::count());
-        $this->assertSame($initialCacheVersion + 1, app(ContractListCacheService::class)->getVersion());
+        $this->assertSame($initialCacheVersion, app(ContractListCacheService::class)->getVersion());
+        $this->assertTrue(app(ContractPriceCacheLifecycle::class)->pending());
         $this->assertDatabaseCount('data_freshness_checkpoints', 0);
     }
 

@@ -9,8 +9,14 @@ use App\Models\ElectricityContract;
 use App\Models\ElectricitySource;
 use App\Models\Municipality;
 use App\Models\PriceComponent;
+use App\Services\Caching\PublicPriceCalculationPolicy;
+use App\Services\CompanyListCacheService;
+use App\Services\ContractListCacheService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Testing\TestResponse;
+use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -153,7 +159,7 @@ class SeoContractsListTest extends TestCase
         }
 
         foreach (['FixedPrice', 'GeneralElectricity'] as $type) {
-            $component = Livewire::test('seo-contracts-list', ['pricingType' => $type]);
+            $component = $this->mountWithPrices('seo-contracts-list', ['pricingType' => $type]);
             $contracts = $component->viewData('contracts')->keyBy('id');
             $this->assertCount(2, $contracts);
             $this->assertSame(6, $contracts['phased-six']->calculated_cost['term_months']);
@@ -181,7 +187,7 @@ class SeoContractsListTest extends TestCase
         foreach ([false, true] as $canonical) {
             config()->set('canonical_pricing.enabled', $canonical);
             app()->forgetScopedInstances();
-            $component = Livewire::test('seo-contracts-list', ['offerType' => 'promotion']);
+            $component = $this->mountWithPrices('seo-contracts-list', ['offerType' => 'promotion']);
             $intro = $component->viewData('seoIntroText');
             $this->assertStringNotContainsString('12 kuukauden kokonaiskustannuksen', $intro);
             if ($canonical) {
@@ -233,7 +239,7 @@ class SeoContractsListTest extends TestCase
 
         DB::enableQueryLog();
 
-        Livewire::test('seo-contracts-list')
+        $this->mountWithPrices('seo-contracts-list')
             ->assertStatus(200);
 
         $queries = collect(DB::getQueryLog())->pluck('query');
@@ -259,7 +265,7 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('c1', 'Test Energia Oy', 'Basic Electricity');
 
-        Livewire::test('seo-contracts-list')
+        $this->mountWithPrices('seo-contracts-list')
             ->assertStatus(200);
     }
 
@@ -267,7 +273,7 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('c1', 'Test Energia Oy', 'Basic Electricity');
 
-        Livewire::test('seo-contracts-list', ['pricingType' => 'TimeOfUse'])
+        $this->mountWithPrices('seo-contracts-list', ['pricingType' => 'TimeOfUse'])
             ->set('activeTab', 'calculator')
             ->set('calcLivingArea', 100)
             ->set('calcNumPeople', 3)
@@ -281,7 +287,7 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('c1', 'Test Energia Oy', 'Basic Electricity');
 
-        Livewire::test('seo-contracts-list', ['pricingType' => 'TimeOfUse'])
+        $this->mountWithPrices('seo-contracts-list', ['pricingType' => 'TimeOfUse'])
             ->set('activeTab', 'calculator')
             ->set('calcLivingArea', '')
             ->set('calcNumPeople', '')
@@ -296,7 +302,7 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('c1', 'Test Energia Oy', 'Basic Electricity');
 
-        Livewire::test('seo-contracts-list', [
+        $this->mountWithPrices('seo-contracts-list', [
             'housingType' => 'omakotitalo',
             'energySource' => 'tuulisahko',
             'city' => 'helsinki',
@@ -315,7 +321,7 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('c1', 'Test Energia Oy', 'Basic Electricity');
 
-        Livewire::test('seo-contracts-list', ['housingType' => 'omakotitalo'])
+        $this->mountWithPrices('seo-contracts-list', ['housingType' => 'omakotitalo'])
             ->assertSet('consumption', 18000);
     }
 
@@ -326,7 +332,7 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('c1', 'Test Energia Oy', 'Basic Electricity');
 
-        Livewire::test('seo-contracts-list', ['housingType' => 'kerrostalo'])
+        $this->mountWithPrices('seo-contracts-list', ['housingType' => 'kerrostalo'])
             ->assertSet('consumption', 5000);
     }
 
@@ -337,7 +343,7 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('c1', 'Test Energia Oy', 'Basic Electricity');
 
-        Livewire::test('seo-contracts-list', ['housingType' => 'rivitalo'])
+        $this->mountWithPrices('seo-contracts-list', ['housingType' => 'rivitalo'])
             ->assertSet('consumption', 10000);
     }
 
@@ -345,6 +351,12 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('c1', 'Test Energia Oy', 'Basic Electricity');
 
+        $this->warmPrices();
+        $request = request();
+        $this->app->instance('request', Request::create('/fixture', 'POST'));
+        app(PublicPriceCalculationPolicy::class)->allowUserAction();
+        app(ContractListCacheService::class)->prepareComparisonForConsumption(7500);
+        $this->app->instance('request', $request);
         Livewire::withQueryParams(['consumption' => 7500])
             ->test('seo-contracts-list', ['housingType' => 'omakotitalo'])
             ->assertSet('consumption', 7500)
@@ -377,7 +389,7 @@ class SeoContractsListTest extends TestCase
             'nuclear_total' => 0.0,
         ]);
 
-        $component = Livewire::test('seo-contracts-list', ['energySource' => 'tuulisahko']);
+        $component = $this->mountWithPrices('seo-contracts-list', ['energySource' => 'tuulisahko']);
         $contracts = $component->viewData('contracts');
 
         $this->assertCount(1, $contracts);
@@ -407,7 +419,7 @@ class SeoContractsListTest extends TestCase
             'nuclear_total' => 0.0,
         ]);
 
-        $component = Livewire::test('seo-contracts-list', ['energySource' => 'aurinkosahko']);
+        $component = $this->mountWithPrices('seo-contracts-list', ['energySource' => 'aurinkosahko']);
         $contracts = $component->viewData('contracts');
 
         $this->assertCount(1, $contracts);
@@ -443,7 +455,7 @@ class SeoContractsListTest extends TestCase
             'nuclear_total' => 0.0,
         ]);
 
-        $component = Livewire::test('seo-contracts-list', ['energySource' => 'vihrea-sahko']);
+        $component = $this->mountWithPrices('seo-contracts-list', ['energySource' => 'vihrea-sahko']);
         $contracts = $component->viewData('contracts');
 
         $this->assertCount(1, $contracts);
@@ -459,7 +471,7 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('c1', 'Test Energia Oy', 'Basic Electricity');
 
-        $component = Livewire::test('seo-contracts-list', ['housingType' => 'omakotitalo']);
+        $component = $this->mountWithPrices('seo-contracts-list', ['housingType' => 'omakotitalo']);
         $seoData = $component->viewData('seoData');
 
         $this->assertArrayHasKey('title', $seoData);
@@ -478,7 +490,7 @@ class SeoContractsListTest extends TestCase
             'nuclear_total' => 0.0,
         ]);
 
-        $component = Livewire::test('seo-contracts-list', ['energySource' => 'tuulisahko']);
+        $component = $this->mountWithPrices('seo-contracts-list', ['energySource' => 'tuulisahko']);
         $seoData = $component->viewData('seoData');
 
         $this->assertArrayHasKey('title', $seoData);
@@ -492,7 +504,7 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('c1', 'Test Energia Oy', 'Basic Electricity');
 
-        $component = Livewire::test('seo-contracts-list', ['city' => 'helsinki']);
+        $component = $this->mountWithPrices('seo-contracts-list', ['city' => 'helsinki']);
         $seoData = $component->viewData('seoData');
 
         $this->assertArrayHasKey('title', $seoData);
@@ -509,7 +521,7 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('c1', 'Test Energia Oy', 'Basic Electricity');
 
-        $component = Livewire::test('seo-contracts-list', ['housingType' => 'omakotitalo']);
+        $component = $this->mountWithPrices('seo-contracts-list', ['housingType' => 'omakotitalo']);
         $seoData = $component->viewData('seoData');
 
         $this->assertArrayHasKey('description', $seoData);
@@ -530,7 +542,7 @@ class SeoContractsListTest extends TestCase
             'nuclear_total' => 0.0,
         ]);
 
-        $component = Livewire::test('seo-contracts-list', ['energySource' => 'tuulisahko']);
+        $component = $this->mountWithPrices('seo-contracts-list', ['energySource' => 'tuulisahko']);
         $seoData = $component->viewData('seoData');
 
         $this->assertArrayHasKey('description', $seoData);
@@ -547,7 +559,7 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('c1', 'Test Energia Oy', 'Basic Electricity');
 
-        $component = Livewire::test('seo-contracts-list', ['housingType' => 'omakotitalo']);
+        $component = $this->mountWithPrices('seo-contracts-list', ['housingType' => 'omakotitalo']);
         $seoData = $component->viewData('seoData');
 
         $this->assertArrayHasKey('canonical', $seoData);
@@ -566,7 +578,7 @@ class SeoContractsListTest extends TestCase
             'nuclear_total' => 0.0,
         ]);
 
-        $component = Livewire::test('seo-contracts-list', ['energySource' => 'tuulisahko']);
+        $component = $this->mountWithPrices('seo-contracts-list', ['energySource' => 'tuulisahko']);
         $seoData = $component->viewData('seoData');
 
         $this->assertStringContainsString('tuulisahko', $seoData['canonical']);
@@ -581,7 +593,7 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('c1', 'Test Energia Oy', 'Basic Electricity');
 
-        $component = Livewire::test('seo-contracts-list', ['housingType' => 'omakotitalo']);
+        $component = $this->mountWithPrices('seo-contracts-list', ['housingType' => 'omakotitalo']);
         $seoData = $component->viewData('seoData');
 
         $this->assertArrayHasKey('jsonLd', $seoData);
@@ -595,7 +607,7 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('c1', 'Test Energia Oy', 'Basic Electricity');
 
-        $component = Livewire::test('seo-contracts-list', ['housingType' => 'omakotitalo']);
+        $component = $this->mountWithPrices('seo-contracts-list', ['housingType' => 'omakotitalo']);
         $seoData = $component->viewData('seoData');
 
         $this->assertArrayHasKey('@context', $seoData['jsonLd']);
@@ -616,7 +628,7 @@ class SeoContractsListTest extends TestCase
         $this->createContract('c1', 'Test Energia Oy', 'Basic Electricity');
         $this->createContract('c2', 'Vihreä Voima Ab', 'Green Electricity');
 
-        $component = Livewire::test('seo-contracts-list');
+        $component = $this->mountWithPrices('seo-contracts-list');
         $seoData = $component->viewData('seoData');
 
         $itemList = collect($seoData['jsonLd']['@graph'])
@@ -634,7 +646,7 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('c1', 'Test Energia Oy', 'Basic Electricity', 5.0, 3.0);
 
-        $component = Livewire::test('seo-contracts-list');
+        $component = $this->mountWithPrices('seo-contracts-list');
         $seoData = $component->viewData('seoData');
 
         $itemList = collect($seoData['jsonLd']['@graph'])
@@ -659,7 +671,7 @@ class SeoContractsListTest extends TestCase
         $this->createContract('spot-contract', 'Test Energia Oy', 'Spot Electricity', 0.5, 3.0, null, 'Spot');
         $this->createContract('fixed-contract', 'Vihreä Voima Ab', 'Fixed Electricity', 5.0, 3.0, null, 'FixedPrice', 'FixedTerm');
 
-        $component = Livewire::test('seo-contracts-list')
+        $component = $this->mountWithPrices('seo-contracts-list')
             ->set('pricingModelFilter', 'Spot');
 
         $contracts = $component->viewData('contracts');
@@ -685,7 +697,7 @@ class SeoContractsListTest extends TestCase
             'nuclear_total' => 0.0,
         ]);
 
-        $component = Livewire::test('seo-contracts-list')
+        $component = $this->mountWithPrices('seo-contracts-list')
             ->set('renewableFilter', true);
 
         $contracts = $component->viewData('contracts');
@@ -703,7 +715,7 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('c1', 'Test Energia Oy', 'Basic Electricity');
 
-        Livewire::test('seo-contracts-list', ['housingType' => 'omakotitalo'])
+        $this->mountWithPrices('seo-contracts-list', ['housingType' => 'omakotitalo'])
             ->assertSee('Sähkösopimukset omakotitaloon');
     }
 
@@ -719,7 +731,7 @@ class SeoContractsListTest extends TestCase
             'nuclear_total' => 0.0,
         ]);
 
-        Livewire::test('seo-contracts-list', ['energySource' => 'tuulisahko'])
+        $this->mountWithPrices('seo-contracts-list', ['energySource' => 'tuulisahko'])
             ->assertSee('Tuulisähkösopimukset');
     }
 
@@ -730,7 +742,7 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('c1', 'Test Energia Oy', 'Basic Electricity');
 
-        Livewire::test('seo-contracts-list', ['city' => 'helsinki'])
+        $this->mountWithPrices('seo-contracts-list', ['city' => 'helsinki'])
             ->assertSee('Sähkösopimukset Helsingissä');
     }
 
@@ -743,7 +755,7 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('c1', 'Test Energia Oy', 'Basic Electricity');
 
-        $component = Livewire::test('seo-contracts-list');
+        $component = $this->mountWithPrices('seo-contracts-list');
         $contracts = $component->viewData('contracts');
 
         $this->assertCount(1, $contracts);
@@ -756,7 +768,7 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('c1', 'Test Energia Oy', 'Basic Electricity');
 
-        $component = Livewire::test('seo-contracts-list');
+        $component = $this->mountWithPrices('seo-contracts-list');
         $seoData = $component->viewData('seoData');
 
         $this->assertArrayHasKey('title', $seoData);
@@ -774,7 +786,7 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('c1', 'Test Energia Oy', 'Test Electricity');
 
-        Livewire::test('seo-contracts-list')
+        $this->mountWithPrices('seo-contracts-list')
             ->assertSee('Test Electricity')
             ->assertSee('Test Energia Oy');
     }
@@ -786,7 +798,7 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('c1', 'Test Energia Oy', 'Basic Electricity');
 
-        Livewire::test('seo-contracts-list', ['housingType' => 'omakotitalo'])
+        $this->mountWithPrices('seo-contracts-list', ['housingType' => 'omakotitalo'])
             ->assertSee('kWh'); // Should mention consumption in intro
     }
 
@@ -797,7 +809,7 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('c1', 'Test Energia Oy', 'Basic Electricity');
 
-        $component = Livewire::test('seo-contracts-list', ['housingType' => 'omakotitalo']);
+        $component = $this->mountWithPrices('seo-contracts-list', ['housingType' => 'omakotitalo']);
         $seoData = $component->viewData('seoData');
 
         // Check that SEO data is available for the layout
@@ -813,7 +825,7 @@ class SeoContractsListTest extends TestCase
         $this->createContract('spot-1', 'Vihreä Voima Ab', 'Pörssisähkö Sopimus', 0.5, 2.0, null, 'Spot');
         $this->createContract('hybrid-1', 'Test Energia Oy', 'Joustosähkö Sopimus', 4.5, 3.0, null, 'Hybrid');
 
-        $component = Livewire::test('seo-contracts-list', ['pricingType' => 'FixedPrice']);
+        $component = $this->mountWithPrices('seo-contracts-list', ['pricingType' => 'FixedPrice']);
         $contracts = $component->viewData('contracts');
 
         $this->assertCount(1, $contracts);
@@ -830,7 +842,7 @@ class SeoContractsListTest extends TestCase
             canonicalStatus: 'estimate_required', recurringReset: true,
         );
 
-        $contracts = Livewire::test('seo-contracts-list', ['pricingType' => 'FixedPrice'])->viewData('contracts');
+        $contracts = $this->mountWithPrices('seo-contracts-list', ['pricingType' => 'FixedPrice'])->viewData('contracts');
 
         $this->assertCount(1, $contracts);
         $this->assertEquals('truly-fixed', $contracts->first()->id);
@@ -840,7 +852,7 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('fixed-1', 'Test Energia Oy', 'Kiinteä Sopimus', 5.0, 3.0, null, 'FixedPrice');
 
-        $component = Livewire::test('seo-contracts-list', ['pricingType' => 'FixedPrice']);
+        $component = $this->mountWithPrices('seo-contracts-list', ['pricingType' => 'FixedPrice']);
         $seoData = $component->viewData('seoData');
 
         $this->assertStringEndsWith('/sahkosopimus/kiintea-hinta', $seoData['canonical']);
@@ -850,7 +862,7 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('fixed-1', 'Test Energia Oy', 'Kiinteä Sopimus', 5.0, 3.0, null, 'FixedPrice');
 
-        Livewire::test('seo-contracts-list', ['pricingType' => 'FixedPrice'])
+        $this->mountWithPrices('seo-contracts-list', ['pricingType' => 'FixedPrice'])
             ->assertSee('Kiinteähintaiset sähkösopimukset');
     }
 
@@ -871,7 +883,7 @@ class SeoContractsListTest extends TestCase
             canonicalStatus: 'estimate_required', consumptionEffectAppliesTo: 'optional_fixing',
         );
 
-        $contracts = Livewire::test('seo-contracts-list', ['pricingType' => 'ConsumptionEffect'])->viewData('contracts');
+        $contracts = $this->mountWithPrices('seo-contracts-list', ['pricingType' => 'ConsumptionEffect'])->viewData('contracts');
 
         $this->assertCount(1, $contracts);
         $this->assertEquals('ce-hybrid', $contracts->first()->id);
@@ -884,7 +896,7 @@ class SeoContractsListTest extends TestCase
             canonicalStatus: 'unsupported', consumptionEffectAppliesTo: 'base_contract',
         );
 
-        $seoData = Livewire::test('seo-contracts-list', ['pricingType' => 'ConsumptionEffect'])
+        $seoData = $this->mountWithPrices('seo-contracts-list', ['pricingType' => 'ConsumptionEffect'])
             ->assertSee('Kulutusvaikutukselliset sähkösopimukset')
             ->viewData('seoData');
 
@@ -901,7 +913,7 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('hybrid-1', 'Test Energia Oy', 'Joustosähkö Sopimus', 5.0, 3.0, null, 'Hybrid');
 
-        Livewire::test('seo-contracts-list', ['pricingType' => 'Hybrid'])
+        $this->mountWithPrices('seo-contracts-list', ['pricingType' => 'Hybrid'])
             ->assertStatus(200);
     }
 
@@ -913,7 +925,7 @@ class SeoContractsListTest extends TestCase
         $this->createContract('hybrid-1', 'Test Energia Oy', 'Joustosähkö Sopimus', 5.0, 3.0, null, 'Hybrid');
         $this->createContract('fixed-1', 'Vihreä Voima Ab', 'Kiinteä Sopimus', 4.0, 2.0, null, 'FixedPrice', 'FixedTerm');
 
-        $component = Livewire::test('seo-contracts-list', ['pricingType' => 'Hybrid']);
+        $component = $this->mountWithPrices('seo-contracts-list', ['pricingType' => 'Hybrid']);
         $contracts = $component->viewData('contracts');
 
         $this->assertCount(1, $contracts);
@@ -927,7 +939,7 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('hybrid-1', 'Test Energia Oy', 'Joustosähkö Sopimus', 5.0, 3.0, null, 'Hybrid');
 
-        $component = Livewire::test('seo-contracts-list', ['pricingType' => 'Hybrid']);
+        $component = $this->mountWithPrices('seo-contracts-list', ['pricingType' => 'Hybrid']);
         $seoData = $component->viewData('seoData');
 
         $this->assertStringContainsString('joustosähkö', mb_strtolower($seoData['title']));
@@ -941,7 +953,7 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('hybrid-1', 'Test Energia Oy', 'Joustosähkö Sopimus', 5.0, 3.0, null, 'Hybrid');
 
-        $component = Livewire::test('seo-contracts-list', ['pricingType' => 'Hybrid']);
+        $component = $this->mountWithPrices('seo-contracts-list', ['pricingType' => 'Hybrid']);
         $seoData = $component->viewData('seoData');
 
         $this->assertStringContainsString('joustosähkö', mb_strtolower($seoData['description']));
@@ -954,7 +966,7 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('hybrid-1', 'Test Energia Oy', 'Joustosähkö Sopimus', 5.0, 3.0, null, 'Hybrid');
 
-        $component = Livewire::test('seo-contracts-list', ['pricingType' => 'Hybrid']);
+        $component = $this->mountWithPrices('seo-contracts-list', ['pricingType' => 'Hybrid']);
         $seoData = $component->viewData('seoData');
 
         $this->assertStringEndsWith('/sahkosopimus/joustosahko', $seoData['canonical']);
@@ -967,7 +979,7 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('hybrid-1', 'Test Energia Oy', 'Joustosähkö Sopimus', 5.0, 3.0, null, 'Hybrid');
 
-        Livewire::test('seo-contracts-list', ['pricingType' => 'Hybrid'])
+        $this->mountWithPrices('seo-contracts-list', ['pricingType' => 'Hybrid'])
             ->assertSee('Joustosähkösopimukset');
     }
 
@@ -996,7 +1008,7 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('biz-1', 'Test Energia Oy', 'Business Electricity', 5.0, 3.0, null, 'FixedPrice', 'OpenEnded', 'Company');
 
-        Livewire::test('seo-contracts-list', ['targetGroup' => 'Company'])
+        $this->mountWithPrices('seo-contracts-list', ['targetGroup' => 'Company'])
             ->assertStatus(200);
     }
 
@@ -1009,7 +1021,7 @@ class SeoContractsListTest extends TestCase
         $this->createContract('biz-2', 'Vihreä Voima Ab', 'Both Electricity', 4.0, 2.0, null, 'FixedPrice', 'OpenEnded', 'Both');
         $this->createContract('home-1', 'Test Energia Oy', 'Home Electricity', 3.0, 2.0, null, 'FixedPrice', 'OpenEnded', 'Household');
 
-        $component = Livewire::test('seo-contracts-list', ['targetGroup' => 'Company']);
+        $component = $this->mountWithPrices('seo-contracts-list', ['targetGroup' => 'Company']);
         $contracts = $component->viewData('contracts');
 
         // Should include Company and Both, but not Household-only
@@ -1026,7 +1038,7 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('biz-1', 'Test Energia Oy', 'Business Electricity', 5.0, 3.0, null, 'FixedPrice', 'OpenEnded', 'Company');
 
-        Livewire::test('seo-contracts-list', ['targetGroup' => 'Company'])
+        $this->mountWithPrices('seo-contracts-list', ['targetGroup' => 'Company'])
             ->assertSet('consumption', 20000)
             ->assertSet('selectedPreset', 'small_office');
     }
@@ -1038,7 +1050,7 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('biz-1', 'Test Energia Oy', 'Business Electricity', 5.0, 3.0, null, 'FixedPrice', 'OpenEnded', 'Company');
 
-        $component = Livewire::test('seo-contracts-list', ['targetGroup' => 'Company']);
+        $component = $this->mountWithPrices('seo-contracts-list', ['targetGroup' => 'Company']);
 
         $this->assertFalse($component->viewData('showCalculatorTab'));
     }
@@ -1050,7 +1062,7 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('biz-1', 'Test Energia Oy', 'Business Electricity', 5.0, 3.0, null, 'FixedPrice', 'OpenEnded', 'Company');
 
-        $component = Livewire::test('seo-contracts-list', ['targetGroup' => 'Company']);
+        $component = $this->mountWithPrices('seo-contracts-list', ['targetGroup' => 'Company']);
         $presets = $component->get('presets');
 
         $this->assertArrayHasKey('small_office', $presets);
@@ -1065,7 +1077,7 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('biz-1', 'Test Energia Oy', 'Business Electricity', 5.0, 3.0, null, 'FixedPrice', 'OpenEnded', 'Company');
 
-        $component = Livewire::test('seo-contracts-list', ['targetGroup' => 'Company']);
+        $component = $this->mountWithPrices('seo-contracts-list', ['targetGroup' => 'Company']);
         $seoData = $component->viewData('seoData');
 
         $this->assertStringContainsString('yrityksille', mb_strtolower($seoData['title']));
@@ -1078,7 +1090,7 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('biz-1', 'Test Energia Oy', 'Business Electricity', 5.0, 3.0, null, 'FixedPrice', 'OpenEnded', 'Company');
 
-        $component = Livewire::test('seo-contracts-list', ['targetGroup' => 'Company']);
+        $component = $this->mountWithPrices('seo-contracts-list', ['targetGroup' => 'Company']);
         $seoData = $component->viewData('seoData');
 
         $this->assertStringEndsWith('/sahkosopimus/yritykselle', $seoData['canonical']);
@@ -1091,7 +1103,7 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('biz-1', 'Test Energia Oy', 'Business Electricity', 5.0, 3.0, null, 'FixedPrice', 'OpenEnded', 'Company');
 
-        Livewire::test('seo-contracts-list', ['targetGroup' => 'Company'])
+        $this->mountWithPrices('seo-contracts-list', ['targetGroup' => 'Company'])
             ->assertSee('Sähkösopimukset yrityksille');
     }
 
@@ -1102,12 +1114,36 @@ class SeoContractsListTest extends TestCase
     {
         $this->createContract('biz-1', 'Test Energia Oy', 'Business Electricity', 5.0, 3.0, null, 'FixedPrice', 'OpenEnded', 'Company');
 
-        $component = Livewire::test('seo-contracts-list', ['targetGroup' => 'Company']);
+        $component = $this->mountWithPrices('seo-contracts-list', ['targetGroup' => 'Company']);
         $pricingModels = $component->get('pricingModels');
 
         $this->assertCount(3, $pricingModels);
         $this->assertArrayHasKey('FixedPrice', $pricingModels);
         $this->assertArrayHasKey('Spot', $pricingModels);
         $this->assertArrayHasKey('Hybrid', $pricingModels);
+    }
+
+    private function warmPrices(): void
+    {
+        $logging = DB::connection()->logging();
+        DB::disableQueryLog();
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
+        if ($logging) {
+            DB::enableQueryLog();
+        }
+    }
+
+    private function mountWithPrices(string $component, array $parameters = []): Testable
+    {
+        $this->warmPrices();
+
+        return Livewire::test($component, $parameters);
+    }
+
+    private function getWithPrices(string $uri): TestResponse
+    {
+        $this->warmPrices();
+
+        return $this->get($uri);
     }
 }

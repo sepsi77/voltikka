@@ -1,6 +1,7 @@
 <?php
 
 use App\Services\Caching\ContractPriceCacheConflict;
+use App\Services\Caching\ContractPriceCacheUnavailable;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -25,8 +26,8 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions) {
         Integration::handles($exceptions);
-        $exceptions->dontReport([ContractPriceCacheConflict::class]);
-        $exceptions->render(function (ContractPriceCacheConflict $exception) {
+        $exceptions->dontReport([ContractPriceCacheConflict::class, ContractPriceCacheUnavailable::class]);
+        $exceptions->render(function (ContractPriceCacheConflict|ContractPriceCacheUnavailable $exception) {
             return response('Hintatiedot ovat tilapäisesti poissa käytöstä. Yritä hetken kuluttua uudelleen.', 503, [
                 'Content-Type' => 'text/plain; charset=UTF-8',
                 'Retry-After' => '30',

@@ -4,14 +4,12 @@ namespace App\Services;
 
 use App\Enums\TargetGroup;
 use App\Models\ElectricityContract;
-use App\Models\SpotPriceAverage;
+use App\Services\Caching\ContractPriceCacheUnavailable;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\CanonicalPricing\CanonicalOfferFacts;
-use App\Services\ContractPricing\CanonicalContractMetric;
+use App\Services\ContractPricing\ContractMetric;
 use App\Services\ContractPricing\ContractPricingViewData;
-use App\Services\DTO\EnergyUsage;
 use Carbon\Carbon;
-use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 
 /**
@@ -22,11 +20,7 @@ use Illuminate\Support\Collection;
  */
 class WeeklyOffersVideoService
 {
-    private const REGION = 'FI';
-
     private const TIMEZONE = 'Europe/Helsinki';
-
-    private const VAT_RATE = 0.255; // 25.5% VAT
 
     // Consumption levels for different housing types (kWh/year)
     private const APARTMENT_CONSUMPTION = 2000;
@@ -82,7 +76,7 @@ class WeeklyOffersVideoService
         $weekEnd = $now->copy()->endOfWeek();
 
         $offers = $this->canonicalPricing->enabled()
-            ? $this->getCanonicalOffers(3, $now->copy()->startOfDay())
+            ? $this->getCanonicalOffers(3)
             : $this->getLegacyOffers(3);
 
         return [
@@ -105,7 +99,7 @@ class WeeklyOffersVideoService
      *
      * @return list<array<string, mixed>>
      */
-    private function getCanonicalOffers(int $limit, CarbonInterface $startDate): array
+    private function getCanonicalOffers(int $limit): array
     {
         $contracts = ElectricityContract::query()
             ->active()
@@ -113,14 +107,7 @@ class WeeklyOffersVideoService
             ->with(['company', 'electricitySource'])
             ->get();
 
-        $metricsByProfile = [];
-        foreach (self::CONSUMPTIONS as $profile => $consumption) {
-            $metricsByProfile[$profile] = $this->canonicalPricing->metricsForContracts(
-                $contracts,
-                new EnergyUsage(total: $consumption, basicLiving: $consumption),
-                $startDate,
-            );
-        }
+        $metricsByProfile = $this->cachedProfiles();
 
         return $contracts
             ->map(fn (ElectricityContract $contract): ?array => $this->transformCanonicalContractToOffer(
@@ -149,7 +136,7 @@ class WeeklyOffersVideoService
     }
 
     /**
-     * @param  array<string, array<string, CanonicalContractMetric>>  $metricsByProfile
+     * @param  array<string, array<string, ContractMetric>>  $metricsByProfile
      * @return array<string, mixed>|null
      */
     private function transformCanonicalContractToOffer(
@@ -157,7 +144,7 @@ class WeeklyOffersVideoService
         array $metricsByProfile,
     ): ?array {
         $selectionMetric = $metricsByProfile[self::SELECTION_PROFILE][$contract->id] ?? null;
-        if (! $selectionMetric instanceof CanonicalContractMetric) {
+        if (! $selectionMetric instanceof ContractMetric) {
             return null;
         }
         $selectionPricing = $selectionMetric->pricing();
@@ -165,6 +152,7 @@ class WeeklyOffersVideoService
 
         if ($offerFacts === null
             || ! $selectionMetric->isListed()
+            || $selectionMetric->integrity() === null
             || $selectionMetric->integrity()->detected
             || $selectionMetric->sortKey() === null) {
             return null;
@@ -173,8 +161,9 @@ class WeeklyOffersVideoService
         $consumptions = [];
         foreach (self::CONSUMPTIONS as $profile => $consumption) {
             $metric = $metricsByProfile[$profile][$contract->id] ?? null;
-            if (! $metric instanceof CanonicalContractMetric
+            if (! $metric instanceof ContractMetric
                 || ! $metric->isListed()
+                || $metric->integrity() === null
                 || $metric->integrity()->detected) {
                 return null;
             }
@@ -193,7 +182,7 @@ class WeeklyOffersVideoService
             'pricing_model' => $contract->pricing_model,
             'pricing_basis' => 'canonical',
             'benefit_is_estimate' => $selectionPricing->benefitIsEstimate(),
-            'comparability' => $selectionMetric->comparability()->value,
+            'comparability' => $selectionMetric->comparability(),
             'offer' => [
                 ...$offerFacts,
                 'benefit_eur' => $this->money($offerFacts['benefit_eur']),
@@ -219,7 +208,7 @@ class WeeklyOffersVideoService
     /**
      * @return array<string, mixed>
      */
-    private function canonicalConsumptionOutput(CanonicalContractMetric $metric, int $consumption): array
+    private function canonicalConsumptionOutput(ContractMetric $metric, int $consumption): array
     {
         $pricing = $metric->pricing();
         $offer = CanonicalOfferFacts::fromPricing($pricing);
@@ -231,7 +220,7 @@ class WeeklyOffersVideoService
             'annual_consumption_kwh' => $consumption,
             'pricing_basis' => 'canonical',
             'availability' => $metric->isListed() ? 'available' : 'unavailable',
-            'comparability' => $metric->comparability()->value,
+            'comparability' => $metric->comparability(),
             'total_cost' => $this->money($pricing->total()),
             'normal_total_cost' => $this->money($pricing->baseTotal()),
             'avg_monthly_cost' => $this->money($pricing->averageMonthlyCost()),
@@ -285,17 +274,17 @@ class WeeklyOffersVideoService
     }
 
     /**
-     * Keep the feature-off relational offer path unchanged.
+     * Keep feature-off offer selection and transport; read retained annual prices.
      *
      * @return list<array<string, mixed>>
      */
     private function getLegacyOffers(int $limit): array
     {
         $contracts = $this->getContractsWithActiveDiscounts($limit);
-        $spotPrices = $this->getSpotPriceAverages();
+        $profiles = $this->cachedProfiles();
 
         return $contracts
-            ->map(fn (ElectricityContract $contract) => $this->transformContractToOffer($contract, $spotPrices))
+            ->map(fn (ElectricityContract $contract) => $this->transformContractToOffer($contract, $profiles))
             ->filter()
             ->values()
             ->all();
@@ -347,26 +336,9 @@ class WeeklyOffersVideoService
     }
 
     /**
-     * Get spot price averages for cost calculations.
-     */
-    private function getSpotPriceAverages(): array
-    {
-        $rolling30d = SpotPriceAverage::latestRolling30Days(self::REGION);
-
-        // Calculate day/night averages from the average
-        // Assume flat rate for simplicity (day = night = average)
-        $avgPrice = $rolling30d?->avg_price_without_tax ?? 5.0; // Default 5 c/kWh if no data
-
-        return [
-            'day' => $avgPrice,
-            'night' => $avgPrice,
-        ];
-    }
-
-    /**
      * Transform a contract to the offer format.
      */
-    private function transformContractToOffer(ElectricityContract $contract, array $spotPrices): ?array
+    private function transformContractToOffer(ElectricityContract $contract, array $profiles): ?array
     {
         $discountInfo = $contract->getActiveDiscountInfo();
         if (! $discountInfo) {
@@ -388,17 +360,14 @@ class WeeklyOffersVideoService
             }
         }
 
-        // Contract data for calculator
-        $contractData = [
-            'pricing_model' => $contract->pricing_model,
-            'metering' => $contract->metering,
-        ];
-
-        $pricingResults = $this->calculateCostsForAllConsumptions(
-            $priceComponents,
-            $contractData,
-            $spotPrices,
-        );
+        $pricingResults = [];
+        foreach (self::CONSUMPTIONS as $profile => $consumption) {
+            $metric = $profiles[$profile][$contract->id] ?? null;
+            if ($metric === null || ! $metric->isListed() || $metric->pricing()->total() === null) {
+                return null;
+            }
+            $pricingResults[$profile] = $metric->pricing()->toArray();
+        }
 
         $costsWithDiscount = [
             'apartment' => round($pricingResults['apartment']['total_cost']),
@@ -443,30 +412,24 @@ class WeeklyOffersVideoService
         ];
     }
 
-    /**
-     * Calculate costs for all consumption levels.
-     */
-    private function calculateCostsForAllConsumptions(
-        array $priceComponents,
-        array $contractData,
-        array $spotPrices,
-    ): array {
-        $costs = [];
-        foreach (self::CONSUMPTIONS as $key => $consumption) {
-            $usage = new EnergyUsage(total: $consumption, basicLiving: $consumption);
+    /** @return array<string, array<string, ContractMetric>> */
+    private function cachedProfiles(): array
+    {
+        $cache = app(ContractListCacheService::class);
+        for ($attempt = 0; $attempt < 2; $attempt++) {
+            $generation = $cache->getGeneration();
+            $profiles = [];
+            foreach (self::CONSUMPTIONS as $profile => $consumption) {
+                $profiles[$profile] = $cache->getCachedMetrics($consumption)?->metrics() ?? [];
+                if ($generation !== $cache->getGeneration()) {
+                    continue 2;
+                }
+            }
 
-            $result = $this->priceCalculator->calculate(
-                priceComponents: $priceComponents,
-                contractData: $contractData,
-                usage: $usage,
-                spotPriceDay: $spotPrices['day'],
-                spotPriceNight: $spotPrices['night'],
-            );
-
-            $costs[$key] = $result->toArray();
+            return $profiles;
         }
 
-        return $costs;
+        throw new ContractPriceCacheUnavailable;
     }
 
     /**

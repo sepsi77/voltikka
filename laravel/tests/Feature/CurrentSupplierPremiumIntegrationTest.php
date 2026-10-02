@@ -22,8 +22,10 @@ use App\Services\CanonicalPricing\PricingMode;
 use App\Services\CanonicalPricing\SupplierAdjusted\DTO\PriceEpisodeAnchor;
 use App\Services\CanonicalPricing\SupplierAdjusted\Enums\PriceEpisodeEvidenceBasis;
 use App\Services\CanonicalPricing\SupplierAdjusted\SupplierAdjustedEstimateCopy;
+use App\Services\CompanyListCacheService;
 use App\Services\ContractCard\ContractCardCopy;
 use App\Services\ContractCard\PricingCategoryResolver;
+use App\Services\ContractListCacheService;
 use App\Services\ContractPricing\ContractPricingViewData;
 use App\Services\DTO\EnergyUsage;
 use Carbon\CarbonImmutable;
@@ -35,6 +37,14 @@ use Tests\TestCase;
 
 class CurrentSupplierPremiumIntegrationTest extends TestCase
 {
+    private function warmPrices(): void
+    {
+        // Build verified fixture prices before public reads, not in the GET request.
+        app()->forgetScopedInstances();
+        app()->instance(MarketReferenceCurveProvider::class, $this->curve);
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
+    }
+
     use RefreshDatabase;
 
     private SupplierPremiumCurve $curve;
@@ -932,6 +942,7 @@ class CurrentSupplierPremiumIntegrationTest extends TestCase
         try {
             $target = $this->contract('hybrid-api', 'Seller', '2026-02-01', ['energy_general' => 8], baseEffectModel: 'Hybrid');
             $this->contract('hybrid-peer', 'Seller', '2026-06-15', ['energy_general' => 8], baseEffectModel: 'Hybrid');
+            $this->warmPrices();
             $response = $this->getJson('/api/contracts/'.$target->id.'?consumption=5000');
             $response->assertOk()->assertJsonPath('data.calculated_cost.comparability', 'base_only_hybrid')
                 ->assertJsonPath('data.calculated_cost.estimate_method', 'supplier_adjusted_forward_premium')

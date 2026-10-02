@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Services\Caching\PublicPriceCalculationPolicy;
 use App\Services\CanonicalPricing\CanonicalContractPriceCalculator;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\CanonicalPricing\MarketReset\DTO\ResetEstimatorSettings;
@@ -42,6 +43,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->scoped(PricingMode::class, fn () => PricingMode::fromConfig());
 
         $this->app->scoped(ContractListCacheService::class);
+        $this->app->scoped(PublicPriceCalculationPolicy::class);
 
         $this->app->scoped(ResetEstimatorSettings::class, fn ($app) => ResetEstimatorSettings::fromConfig(
             $app->make(PricingMode::class)->resetForwardShiftEnabled(),

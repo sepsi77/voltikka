@@ -7,6 +7,9 @@ use App\Models\ActiveContract;
 use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\PriceComponent;
+use App\Services\CanonicalPricing\CanonicalContractPricingService;
+use App\Services\CompanyListCacheService;
+use App\Services\ContractListCacheService;
 use App\Services\WeeklyOffersPromptFormatter;
 use App\Services\WeeklyOffersVideoService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -29,6 +32,13 @@ class WeeklyOffersCanonicalPricingTest extends TestCase
                 'company_url' => 'https://example.test',
             ]);
         }
+    }
+
+    private function warmPrices(): void
+    {
+        // Run the private producer before HTTP initialization and pricing spies.
+        app()->forgetScopedInstances();
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
     }
 
     #[DataProvider('additionalPlainContractCounts')]
@@ -99,6 +109,13 @@ class WeeklyOffersCanonicalPricingTest extends TestCase
             $this->createContract('plain-'.$i, 'Other Energy Oy', 'Plain '.$i, $this->plainPhase());
         }
 
+        $this->warmPrices();
+
+        $pricing = $this->partialMock(CanonicalContractPricingService::class);
+        $pricing->shouldReceive('enabled')->andReturn(true);
+        $pricing->shouldNotReceive('evaluate');
+        $pricing->shouldNotReceive('metricsForContracts');
+
         $queries = [];
         DB::listen(function ($query) use (&$queries): void {
             $queries[] = $query->sql;
@@ -136,11 +153,10 @@ class WeeklyOffersCanonicalPricingTest extends TestCase
 
         $ids = collect($response->json('data.offers'))->pluck('id')->all();
         $this->assertSame(['canonical-conflict', 'canonical-only'], $ids);
-        // Four contract/relation/Spot reads, four dated episode reads, and one
-        // shared available-futures-vintage read, for all three consumptions.
-        // This count stays constant as the supplier candidate count increases.
-        $this->assertCount(9, $queries, implode("\n", $queries));
-        $this->assertCount(1, array_filter(
+        // Three contract/relation reads and one scalar availability read per profile.
+        // No market curve or annual pricing work runs on the public GET.
+        $this->assertCount(6, $queries, implode("\n", $queries));
+        $this->assertCount(0, array_filter(
             $queries,
             fn (string $sql): bool => str_contains($sql, 'electricity_futures_eod_prices'),
         ));
@@ -167,6 +183,8 @@ class WeeklyOffersCanonicalPricingTest extends TestCase
             $this->offerPhase(),
         );
         $contract->update(['target_group' => TargetGroup::Unknown->value]);
+
+        $this->warmPrices();
 
         $data = app(WeeklyOffersVideoService::class)->getWeeklyOffersData();
 
@@ -205,6 +223,8 @@ class WeeklyOffersCanonicalPricingTest extends TestCase
         }
         $this->createRelationalDiscount($contract, price: 1.0, discount: 99.0);
 
+        $this->warmPrices();
+
         $data = app(WeeklyOffersVideoService::class)->getWeeklyOffersData();
         $offer = $data['offers'][0];
         $townhouse = $offer['consumptions']['townhouse'];
@@ -235,6 +255,8 @@ class WeeklyOffersCanonicalPricingTest extends TestCase
         app()->forgetScopedInstances();
         $this->createContract('actual-only-six', 'Alpha Energy Oy', 'Actual only', $this->plainPhase(),
             contractType: 'FixedTerm', fixedTimeRange: 'Fixed6');
+        $this->warmPrices();
+
         $data = app(WeeklyOffersVideoService::class)->getWeeklyOffersData();
         $this->assertSame([], $data['offers']);
     }
@@ -257,6 +279,8 @@ class WeeklyOffersCanonicalPricingTest extends TestCase
             $this->plainPhase(),
         );
         $this->createRelationalDiscount($legacy, price: 8.0, discount: 2.0);
+
+        $this->warmPrices();
 
         $response = $this->getJson('/api/video/weekly-offers');
 

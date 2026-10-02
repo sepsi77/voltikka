@@ -6,6 +6,8 @@ use App\Enums\MeteringType;
 use App\Models\ElectricityContract;
 use App\Models\PriceComponent;
 use App\Models\SpotPriceAverage;
+use App\Services\Caching\ContractPriceCacheUnavailable;
+use App\Services\Caching\PublicPriceCalculationPolicy;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\CO2EmissionsCalculator;
 use App\Services\ContractCard\Enums\PricingBucket;
@@ -194,20 +196,28 @@ class ContractListingPipeline
 
     /**
      * Attach annual metrics, remove canonical exclusions, and sort by annual cost.
-     * Local cards request legacy component relations, so that path uses the cold
-     * calculation once and reuses the same latest-component batch.
+     * Local cards use the same metrics and load latest display components separately.
      */
     public function enrichAndSortAnnual(
         Collection $contracts,
         int $consumption,
         bool $loadLegacyCardPrices = false,
     ): Collection {
-        if (! $loadLegacyCardPrices) {
-            $cached = $this->applyCachedMetrics($contracts, $consumption);
+        $cached = $this->applyCachedMetrics($contracts, $consumption);
 
-            if ($cached !== null) {
-                return $cached;
+        if ($cached !== null) {
+            if ($loadLegacyCardPrices && ! $this->canonicalPricing->enabled()) {
+                $components = ElectricityContract::getLatestPriceComponentsForCalculationByContractIds($cached->pluck('id'));
+                foreach ($cached as $contract) {
+                    $this->setLatestPriceComponentsRelation($contract, $components[$contract->id] ?? []);
+                }
             }
+
+            return $cached;
+        }
+
+        if (! app(PublicPriceCalculationPolicy::class)->allowsCalculation()) {
+            throw new ContractPriceCacheUnavailable;
         }
 
         $usage = new EnergyUsage(total: $consumption, basicLiving: $consumption);
@@ -372,10 +382,6 @@ class ContractListingPipeline
 
         $contractsById = $contracts->keyBy('id');
 
-        if ($contractsById->keys()->diff(array_keys($cached->metrics()))->isNotEmpty()) {
-            return null;
-        }
-
         $sortedContracts = [];
 
         foreach ($cached->sortedIds() as $contractId) {
@@ -386,8 +392,8 @@ class ContractListingPipeline
             $contract = $contractsById->get($contractId);
             $metric = $cached->metric($contractId);
 
-            if ($metric === null) {
-                return null;
+            if ($metric === null || ! $metric->isListed()) {
+                continue;
             }
 
             $contract->calculated_cost = $metric->pricing()->toArray();

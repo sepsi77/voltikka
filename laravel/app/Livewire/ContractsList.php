@@ -8,18 +8,22 @@ use App\Enums\BuildingType;
 use App\Enums\HeatingMethod;
 use App\Enums\SupplementaryHeatingMethod;
 use App\Livewire\Concerns\BillComparisonInputs;
+use App\Models\ContractPercentile;
 use App\Models\ElectricityContract;
 use App\Models\Postcode;
 use App\Services\BillComparison\BillComparisonService;
 use App\Services\Caching\ContractPageCacheVersion;
+use App\Services\Caching\PublicPriceCalculationPolicy;
 use App\Services\CanonicalPricing\PricingMode;
 use App\Services\CO2EmissionsCalculator;
 use App\Services\ContractCard\Enums\PricingBucket;
 use App\Services\ContractListing\ContractListingPipeline;
 use App\Services\ContractMarketInsights\ContractMarketInsightService;
+use App\Services\DTO\BillComparisonRow;
 use App\Services\DTO\EnergyCalculatorRequest;
 use App\Services\EnergyCalculator;
 use Carbon\Carbon;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -423,6 +427,7 @@ class ContractsList extends Component
         $this->selectedPreset = $preset;
 
         if (isset($this->presets[$preset])) {
+            app(PublicPriceCalculationPolicy::class)->allowUserAction();
             $this->consumption = $this->presets[$preset]['consumption'];
             // Clear the free-text field so it shows only its placeholder while a
             // preset is the active choice (no contradictory second value).
@@ -451,6 +456,7 @@ class ContractsList extends Component
     {
         $previousConsumption = $this->selectedConsumptionValue();
 
+        app(PublicPriceCalculationPolicy::class)->allowUserAction();
         $this->consumption = $value;
         $this->directConsumption = $value;
         $this->selectedPreset = null;
@@ -469,6 +475,8 @@ class ContractsList extends Component
     public function updatedDirectConsumption($value): void
     {
         if (! is_numeric($value)) {
+            app(PublicPriceCalculationPolicy::class)->allowUserAction();
+
             return;
         }
 
@@ -480,11 +488,14 @@ class ContractsList extends Component
             : null;
 
         if ($clean <= 0) {
+            app(PublicPriceCalculationPolicy::class)->allowUserAction();
+
             return;
         }
 
         $previousConsumption = $this->selectedConsumptionValue();
 
+        app(PublicPriceCalculationPolicy::class)->allowUserAction();
         $this->consumption = $clean;
         $this->selectedPreset = null;
         $this->resetPage();
@@ -582,6 +593,7 @@ class ContractsList extends Component
      */
     public function clearBill(): void
     {
+        app(PublicPriceCalculationPolicy::class)->allowUserAction();
         $this->billActive = false;
         $this->billKwh = null;
         $this->billTotalEur = null;
@@ -597,6 +609,7 @@ class ContractsList extends Component
      */
     protected function recomputeBill(): void
     {
+        app(PublicPriceCalculationPolicy::class)->allowUserAction();
         $wasActive = $this->billActive;
 
         $this->billActive = $this->isBillInputValid();
@@ -648,7 +661,7 @@ class ContractsList extends Component
         $request = $this->buildBillRequest();
         $data = app(BillComparisonService::class)->periodRowsForContracts($contracts, $request);
 
-        /** @var array<int, \App\Services\DTO\BillComparisonRow> $rows */
+        /** @var array<int, BillComparisonRow> $rows */
         $rows = $data['rows'];
 
         // Only contracts with an available period row participate (spot without
@@ -780,6 +793,7 @@ class ContractsList extends Component
         $result = $calculator->estimate($request);
         $previousConsumption = $this->selectedConsumptionValue();
 
+        app(PublicPriceCalculationPolicy::class)->allowUserAction();
         $this->consumption = $result->total;
         $this->directConsumption = $result->total;
         $this->selectedPreset = null;
@@ -994,6 +1008,7 @@ class ContractsList extends Component
      */
     public function setContractTypeFilter(string $type): void
     {
+        app(PublicPriceCalculationPolicy::class)->allowUserAction();
         $newValue = $this->contractTypeFilter === $type ? '' : $type;
         $this->contractTypeFilter = $newValue;
         $this->resetPage();
@@ -1015,6 +1030,7 @@ class ContractsList extends Component
      */
     public function setPricingModelFilter(string $model): void
     {
+        app(PublicPriceCalculationPolicy::class)->allowUserAction();
         $newValue = $this->pricingModelFilter === $model ? '' : $model;
         $this->pricingModelFilter = $newValue;
         $this->resetPage();
@@ -1098,6 +1114,7 @@ class ContractsList extends Component
      */
     public function togglePricingBucket(string $bucket): void
     {
+        app(PublicPriceCalculationPolicy::class)->allowUserAction();
         $target = PricingBucket::tryFrom($bucket);
 
         if ($target === null) {
@@ -1166,6 +1183,7 @@ class ContractsList extends Component
      */
     public function setMeteringFilter(string $type): void
     {
+        app(PublicPriceCalculationPolicy::class)->allowUserAction();
         $this->meteringFilter = $this->meteringFilter === $type ? '' : $type;
         $this->resetPage();
     }
@@ -1175,6 +1193,7 @@ class ContractsList extends Component
      */
     public function selectPostcode(string $postcode): void
     {
+        app(PublicPriceCalculationPolicy::class)->allowUserAction();
         $this->applyValidatedPostcode($postcode, resetPage: true);
     }
 
@@ -1191,6 +1210,7 @@ class ContractsList extends Component
      */
     public function applyPostcodeSearch(): void
     {
+        app(PublicPriceCalculationPolicy::class)->allowUserAction();
         $this->applyValidatedPostcode($this->postcodeSearch, resetPage: true);
     }
 
@@ -1207,6 +1227,7 @@ class ContractsList extends Component
      */
     public function clearPostcodeFilter(): void
     {
+        app(PublicPriceCalculationPolicy::class)->allowUserAction();
         $this->postcodeFilter = '';
         $this->postcodeSearch = '';
         $this->postcodeError = null;
@@ -1289,6 +1310,7 @@ class ContractsList extends Component
      */
     public function toggleRenewableFilter(): void
     {
+        app(PublicPriceCalculationPolicy::class)->allowUserAction();
         $this->renewableFilter = ! $this->renewableFilter;
         $this->resetPage();
 
@@ -1309,6 +1331,7 @@ class ContractsList extends Component
      */
     public function toggleNuclearFilter(): void
     {
+        app(PublicPriceCalculationPolicy::class)->allowUserAction();
         $this->nuclearFilter = ! $this->nuclearFilter;
         $this->resetPage();
     }
@@ -1318,6 +1341,7 @@ class ContractsList extends Component
      */
     public function toggleFossilFreeFilter(): void
     {
+        app(PublicPriceCalculationPolicy::class)->allowUserAction();
         $this->fossilFreeFilter = ! $this->fossilFreeFilter;
         $this->resetPage();
 
@@ -1338,6 +1362,7 @@ class ContractsList extends Component
      */
     public function resetFilters(): void
     {
+        app(PublicPriceCalculationPolicy::class)->allowUserAction();
         $clearsPostcode = $this->postcodeFilter !== '';
 
         $this->contractTypeFilter = '';
@@ -1375,6 +1400,7 @@ class ContractsList extends Component
      */
     public function updatedPage(mixed $value): void
     {
+        app(PublicPriceCalculationPolicy::class)->allowUserAction();
         $this->normalizePageProperty();
         $this->contractsCache = null;
     }
@@ -1775,7 +1801,7 @@ class ContractsList extends Component
             return $this->percentileCache;
         }
 
-        $rows = \App\Models\ContractPercentile::all()->keyBy('component');
+        $rows = ContractPercentile::all()->keyBy('component');
 
         $this->percentileCache = [];
         foreach ($rows as $component => $row) {
@@ -2010,7 +2036,7 @@ class ContractsList extends Component
             '@type' => 'WebSite',
             'name' => 'Voltikka',
             'url' => config('app.url'),
-            'description' => 'Vertailussa '.\App\Livewire\AboutPage::cachedContractCount().' sähkösopimusta — yksi Suomen kattavimmista riippumattomista vertailuista. Vertaile hintoja ja löydä edullisin sähkösopimus.',
+            'description' => 'Vertailussa '.AboutPage::cachedContractCount().' sähkösopimusta — yksi Suomen kattavimmista riippumattomista vertailuista. Vertaile hintoja ja löydä edullisin sähkösopimus.',
             'potentialAction' => [
                 '@type' => 'SearchAction',
                 'target' => [
@@ -2070,7 +2096,7 @@ class ContractsList extends Component
             return Cache::lock($key.':lock', 30)->block(2, function () use ($key, $callback) {
                 return Cache::remember($key, Carbon::tomorrow(), $callback);
             });
-        } catch (\Illuminate\Contracts\Cache\LockTimeoutException) {
+        } catch (LockTimeoutException) {
             return $callback();
         }
     }

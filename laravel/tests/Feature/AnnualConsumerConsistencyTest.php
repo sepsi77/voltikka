@@ -119,6 +119,7 @@ class AnnualConsumerConsistencyTest extends TestCase
         $statistics = app(ContractPriceStatisticsService::class);
         $statistics->calculateForDate('2026-08-31', ['promo', 'competitor'], useCanonical: true);
         $statsBefore = ContractPriceSnapshot::where('contract_id', 'promo')->whereDate('snapshot_date', '2026-08-31')->value('annual_cost_5000_kwh');
+        $list->refresh($companies);
         $before = $list->getCachedMetrics(5000);
         $companyBefore = $companies->getCachedCompanies()->keyBy('company.name')['promo']['lowestPrice'];
         $bucketBefore = $ranking->getBucketCostSummary('competitor', 5000, PricingBucket::Fixed);
@@ -196,6 +197,8 @@ class AnnualConsumerConsistencyTest extends TestCase
         $companies = app(CompanyListCacheService::class);
         $ranking = app(ContractRankingService::class);
         $page = app(ContractPageCacheVersion::class);
+        $list->refresh($companies);
+        $retained = $list->getCachedMetrics(5000)->toArray();
         $metric = $list->getCachedMetrics(5000)->metric($contract->id);
         $this->assertTrue($metric->isListed());
         $this->assertGreaterThan(700, $metric->pricing()->total());
@@ -216,9 +219,10 @@ class AnnualConsumerConsistencyTest extends TestCase
         $next->save();
         $contract->update(['current_source_observation_id' => $next->id]);
         $this->assertNotSame($fingerprint, $page->hash());
-        $this->assertNull($ranking->getContractRank($contract->id));
-        $this->assertNull($list->getCachedMetrics(5000)->metric($contract->id)->pricing()->total());
-        // Even a successful cache rebuild must not turn an old publication into current facts.
+        $this->assertSame(1, $ranking->getContractRank($contract->id));
+        $this->assertSame(serialize($retained), serialize($list->getCachedMetrics(5000)->toArray()));
+        $this->assertCount(1, $companies->getCachedCompanies());
+        // A fresh build must not turn an old publication into current facts.
         $list->refresh($companies);
         $this->assertNull($list->getCachedMetrics(5000)->metric($contract->id)->pricing()->total());
         $this->assertCount(0, $companies->getCachedCompanies());

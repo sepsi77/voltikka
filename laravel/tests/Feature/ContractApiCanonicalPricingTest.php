@@ -16,6 +16,8 @@ use App\Services\CanonicalPricing\Enums\MisleadingState;
 use App\Services\CanonicalPricing\Enums\PhaseKind;
 use App\Services\CanonicalPricing\Enums\PriceRole;
 use App\Services\CanonicalPricing\MarketReset\MarketReferenceCurveProvider;
+use App\Services\CompanyListCacheService;
+use App\Services\ContractListCacheService;
 use Carbon\CarbonImmutable;
 use Database\Factories\Support\CanonicalPricingFixture;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -40,6 +42,13 @@ class ContractApiCanonicalPricingTest extends TestCase
             'name_slug' => 'canonical-energy-oy',
             'company_url' => 'https://example.test',
         ]);
+    }
+
+    private function warmPrices(): void
+    {
+        // Run the private producer before HTTP initialization and pricing spies.
+        app()->forgetScopedInstances();
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
     }
 
     public function test_list_and_show_publish_corrected_canonical_prices_without_relational_rows(): void
@@ -73,6 +82,8 @@ class ContractApiCanonicalPricingTest extends TestCase
                 ],
             ],
         );
+
+        $this->warmPrices();
 
         $list = $this->getJson('/api/contracts?consumption=5000');
         $list->assertOk()
@@ -117,6 +128,8 @@ class ContractApiCanonicalPricingTest extends TestCase
             ]],
         );
 
+        $this->warmPrices();
+
         $response = $this->getJson('/api/contracts/missing-rate-api?consumption=5000');
 
         $response->assertOk()
@@ -140,6 +153,8 @@ class ContractApiCanonicalPricingTest extends TestCase
                 ],
             ),
         ]);
+
+        $this->warmPrices();
 
         $withoutCalculation = $this->getJson('/api/contracts');
         $withoutCalculation->assertOk()
@@ -179,6 +194,8 @@ class ContractApiCanonicalPricingTest extends TestCase
             ]],
         );
 
+        $this->warmPrices();
+
         foreach (['/api/contracts?consumption=5000' => 'data.0', '/api/contracts/excluded-api?consumption=5000' => 'data'] as $url => $path) {
             $response = $this->getJson($url);
             $response->assertOk()
@@ -207,6 +224,8 @@ class ContractApiCanonicalPricingTest extends TestCase
                 excessRateCentsPerKwh: 16.6,
             ),
         ]);
+
+        $this->warmPrices();
 
         $response = $this->getJson('/api/contracts?consumption=5000');
 
@@ -251,6 +270,8 @@ class ContractApiCanonicalPricingTest extends TestCase
             ],
         );
 
+        $this->warmPrices();
+
         $response = $this->getJson('/api/contracts/short-term-api?consumption=5000');
 
         $response->assertOk()
@@ -283,6 +304,8 @@ class ContractApiCanonicalPricingTest extends TestCase
                 'name' => 'Contract legacy-api',
             ]);
 
+        $this->warmPrices();
+
         $response = $this->getJson('/api/contracts/legacy-api?consumption=5000');
 
         $response->assertOk()
@@ -310,6 +333,8 @@ class ContractApiCanonicalPricingTest extends TestCase
             ),
         ], CalculationStatus::EstimateRequired, attributes: ['pricing_model' => 'Spot']);
 
+        $this->warmPrices();
+
         $response = $this->getJson('/api/contracts/spot-forward-api?consumption=5000');
 
         $response->assertOk()
@@ -336,6 +361,8 @@ class ContractApiCanonicalPricingTest extends TestCase
                 ],
             ),
         ], CalculationStatus::EstimateRequired, attributes: ['pricing_model' => 'Spot']);
+
+        $this->warmPrices();
 
         $response = $this->getJson('/api/contracts/spot-fallback-api?consumption=5000');
 
@@ -404,6 +431,13 @@ class ContractApiCanonicalPricingTest extends TestCase
             ]);
         }
 
+        $this->warmPrices();
+
+        $pricing = $this->partialMock(CanonicalContractPricingService::class);
+        $pricing->shouldReceive('enabled')->andReturn(true);
+        $pricing->shouldNotReceive('evaluate');
+        $pricing->shouldNotReceive('metricsForContracts');
+
         $queries = [];
         DB::listen(function ($query) use (&$queries): void {
             $queries[] = $query->sql;
@@ -411,9 +445,9 @@ class ContractApiCanonicalPricingTest extends TestCase
 
         $this->getJson('/api/contracts?consumption=5000&per_page=100')->assertOk()->assertJsonCount($size, 'data');
 
-        // Five list/Spot reads, four dated episode reads, and one available-vintage
-        // preflight. A missing current curve must not load any peer universe.
-        $this->assertCount(10, $queries, implode("\n", $queries));
+        // Four paginated contract/relation reads and one scalar availability read.
+        // Retained pricing must not read the current market or peer universe.
+        $this->assertCount(5, $queries, implode("\n", $queries));
         $this->assertCount(0, array_filter($queries, fn (string $sql): bool => str_contains($sql, 'premium_observation')));
         $this->assertSame([], array_values(array_filter(
             $queries,

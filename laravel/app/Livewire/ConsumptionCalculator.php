@@ -8,12 +8,16 @@ use App\Enums\BuildingType;
 use App\Enums\HeatingMethod;
 use App\Enums\SupplementaryHeatingMethod;
 use App\Models\ContractPriceDailyStatistic;
+use App\Services\Caching\ContractPriceCacheUnavailable;
+use App\Services\Caching\PublicPriceCalculationPolicy;
 use App\Services\CanonicalPricing\PricingMode;
+use App\Services\ContractListCacheService;
 use App\Services\DTO\EnergyCalculatorRequest;
 use App\Services\EnergyCalculator;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 
@@ -62,6 +66,7 @@ class ConsumptionCalculator extends Component
     public bool $cooling = false;
 
     // Results (stored as array for Livewire serialization)
+    #[Locked]
     public array $calculationResult = [];
 
     /** @var array<string, string> Field-specific notices for corrected negative values. */
@@ -617,6 +622,23 @@ class ConsumptionCalculator extends Component
 
     public function compareContracts(): void
     {
+        $this->resetValidation('comparisonConsumption');
+        $validated = validator(
+            ['comparisonConsumption' => $this->calculationResult['total'] ?? null],
+            ['comparisonConsumption' => 'required|integer|min:1|max:'.ContractListCacheService::MAX_COMPARISON_CONSUMPTION],
+            ['comparisonConsumption.*' => 'Sopimusvertailu on saatavilla vuosikulutukselle 1–'.number_format(ContractListCacheService::MAX_COMPARISON_CONSUMPTION, 0, ',', ' ').' kWh. Tarkista laskurin tiedot.']
+        )->validate();
+        $consumption = (int) $validated['comparisonConsumption'];
+
+        app(PublicPriceCalculationPolicy::class)->allowUserAction();
+        try {
+            app(ContractListCacheService::class)->prepareComparisonForConsumption($consumption);
+        } catch (ContractPriceCacheUnavailable) {
+            $this->addError('comparisonConsumption', 'Sopimusvertailu ei ole juuri nyt saatavilla tällä kulutuksella. Yritä myöhemmin uudelleen.');
+
+            return;
+        }
+
         // Track compare button click
         $this->dispatch('track',
             eventName: 'Energy Compare Clicked',
@@ -626,7 +648,7 @@ class ConsumptionCalculator extends Component
             ]
         );
 
-        $this->redirect('/sahkosopimus?consumption='.$this->totalConsumption);
+        $this->redirect('/sahkosopimus?consumption='.$consumption);
     }
 
     public function getPageHeadingProperty(): string

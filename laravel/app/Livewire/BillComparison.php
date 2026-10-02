@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Services\BillComparison\BillComparisonService;
+use App\Services\Caching\PublicPriceCalculationPolicy;
 use App\Services\DTO\BillComparisonRequest;
 use App\Services\DTO\BillComparisonResult;
 use Carbon\Carbon;
@@ -68,10 +69,10 @@ class BillComparison extends Component
      * deep-array dehydration produces a snapshot whose checksum its own verify
      * step cannot reproduce, which raised `CorruptComponentPayloadException` on
      * every update (the page silently froze on stale numbers). It is also
-     * recomputed from the inputs on every request via `calculate()`, so syncing
+     * recomputed from the inputs on explicit user actions via `calculate()`, so syncing
      * it across the wire bought nothing while shipping ~168 KB per keystroke.
      * Keeping these protected drops the snapshot to a few hundred bytes and the
-     * result is rebuilt each request and handed to the view from `render()`.
+     * result is rebuilt on authorized requests and handed to the view from `render()`.
      */
     protected bool $calculated = false;
 
@@ -96,8 +97,6 @@ class BillComparison extends Component
 
         $this->acceptedKwh = (float) $this->kwh;
         $this->acceptedTotalEur = (float) $this->totalEur;
-
-        $this->calculate();
     }
 
     public function updatedPeriodPreset(): void
@@ -202,6 +201,8 @@ class BillComparison extends Component
 
     public function calculate(): void
     {
+        app(PublicPriceCalculationPolicy::class)->allowUserAction();
+
         $this->errorMessage = null;
         $this->resetValidation(['kwh', 'totalEur']);
 
@@ -349,12 +350,10 @@ class BillComparison extends Component
 
     public function render()
     {
-        // The result is no longer persisted in the snapshot, so it must exist
-        // for every render path. All interactive hooks call calculate(), but
-        // this guard keeps any other re-render safe; it early-returns cheaply
-        // when inputs are incomplete and never re-dispatches analytics once a
-        // calculation has succeeded.
-        if (! $this->calculated && $this->errorMessage === null) {
+        // Protected results can be rebuilt only after an explicit user action.
+        // A GET or an unrelated Livewire POST must not compare the sample bill.
+        if (! $this->calculated && $this->errorMessage === null
+            && app(PublicPriceCalculationPolicy::class)->allowsCalculation()) {
             $this->calculate();
         }
 

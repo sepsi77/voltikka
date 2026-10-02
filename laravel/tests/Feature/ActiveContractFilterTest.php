@@ -6,6 +6,8 @@ use App\Models\ActiveContract;
 use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\PriceComponent;
+use App\Services\CompanyListCacheService;
+use App\Services\ContractListCacheService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -33,7 +35,7 @@ class ActiveContractFilterTest extends TestCase
     private function createContract(array $attributes = []): ElectricityContract
     {
         $defaults = [
-            'id' => 'contract-' . uniqid(),
+            'id' => 'contract-'.uniqid(),
             'company_name' => 'Test Energia Oy',
             'name' => 'Test Sähkö',
             'contract_type' => 'OpenEnded',
@@ -47,7 +49,7 @@ class ActiveContractFilterTest extends TestCase
 
         // Add basic price components
         PriceComponent::create([
-            'id' => 'pc-general-' . $contract->id,
+            'id' => 'pc-general-'.$contract->id,
             'electricity_contract_id' => $contract->id,
             'price_component_type' => 'General',
             'price_date' => now()->format('Y-m-d'),
@@ -56,7 +58,7 @@ class ActiveContractFilterTest extends TestCase
         ]);
 
         PriceComponent::create([
-            'id' => 'pc-monthly-' . $contract->id,
+            'id' => 'pc-monthly-'.$contract->id,
             'electricity_contract_id' => $contract->id,
             'price_component_type' => 'Monthly',
             'price_date' => now()->format('Y-m-d'),
@@ -147,6 +149,8 @@ class ActiveContractFilterTest extends TestCase
 
         $this->markAsActive($activeContract);
 
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test('contracts-list');
         $contracts = $component->viewData('contracts');
 
@@ -161,6 +165,8 @@ class ActiveContractFilterTest extends TestCase
     {
         $this->createContract(['id' => 'inactive-1']);
         $this->createContract(['id' => 'inactive-2']);
+
+        $this->refreshPriceFixtures();
 
         $component = Livewire::test('contracts-list');
         $contracts = $component->viewData('contracts');
@@ -180,6 +186,8 @@ class ActiveContractFilterTest extends TestCase
         $inactiveContract = $this->createContract(['id' => 'inactive-contract', 'name' => 'Inactive Sähkö']);
 
         // The contract should still be accessible (not 404)
+        $this->refreshPriceFixtures();
+
         Livewire::test('contract-detail', ['contractId' => 'inactive-contract'])
             ->assertStatus(200)
             ->assertSee('Inactive Sähkö');
@@ -192,6 +200,8 @@ class ActiveContractFilterTest extends TestCase
     {
         $inactiveContract = $this->createContract(['id' => 'inactive-contract', 'name' => 'Inactive Sähkö']);
 
+        $this->refreshPriceFixtures();
+
         Livewire::test('contract-detail', ['contractId' => 'inactive-contract'])
             ->assertSee('Tämä sopimus ei ole enää tarjolla.');
     }
@@ -203,6 +213,8 @@ class ActiveContractFilterTest extends TestCase
     {
         $activeContract = $this->createContract(['id' => 'active-contract', 'name' => 'Active Sähkö']);
         $this->markAsActive($activeContract);
+
+        $this->refreshPriceFixtures();
 
         Livewire::test('contract-detail', ['contractId' => 'active-contract'])
             ->assertDontSee('Tämä sopimus ei ole enää tarjolla.');
@@ -219,6 +231,8 @@ class ActiveContractFilterTest extends TestCase
         $this->markAsActive($activeContract);
 
         // Active contract
+        $this->refreshPriceFixtures();
+
         $component = Livewire::test('contract-detail', ['contractId' => 'active-contract']);
         $this->assertTrue($component->get('isActive'));
 
@@ -242,6 +256,8 @@ class ActiveContractFilterTest extends TestCase
 
         $this->markAsActive($activeContract1);
         $this->markAsActive($activeContract2);
+
+        $this->refreshPriceFixtures();
 
         $component = Livewire::test('home-page');
         $contractCount = $component->viewData('contractCount');
@@ -296,5 +312,10 @@ class ActiveContractFilterTest extends TestCase
         // Refresh the model to clear relationship cache
         $contract->refresh();
         $this->assertFalse($contract->isActive());
+    }
+
+    private function refreshPriceFixtures(): void
+    {
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
     }
 }

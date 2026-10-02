@@ -2,6 +2,7 @@
 
 namespace App\Services\Caching;
 
+use Illuminate\Contracts\Cache\Lock;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -13,9 +14,21 @@ class ContractPriceCacheLifecycle
 
     public const LOCK_KEY = 'contract_price_cache_transition';
 
+    public const DEMAND_KEY = 'contract_price_cache_demand_v1';
+
+    public const PRODUCER_LOCK_KEY = 'contract_price_cache_producer';
+
+    public const PRODUCER_LEASE_SECONDS = 1800;
+
     public const GRACE_SECONDS = 3600;
 
     public const RETIRED_KEY = 'contract_price_cache_retired_v1';
+
+    public const CUSTOM_TTL_SECONDS = 1800;
+
+    public const MAX_CUSTOM_PROFILES = 64;
+
+    private const CUSTOM_EXPIRATIONS = 'custom_expirations';
 
     private const CLEANUP_KEY_LIMIT = 100;
 
@@ -42,36 +55,114 @@ class ContractPriceCacheLifecycle
 
     public function candidate(array $starting): array
     {
-        return $this->descriptor($starting['version'] + 1);
+        return [...$this->descriptor($starting['version'] + 1), 'demand_revision' => $this->demandRevision()];
     }
 
     public function invalidate(): int
     {
         $this->active();
-        [$previous, $next] = Cache::lock(self::LOCK_KEY, 30)->block(10, function (): array {
-            $previous = Cache::get(self::ACTIVE_KEY);
-            $next = $this->descriptor($previous['version'] + 1);
-            $this->trackRetirement($previous, extendGrace: true);
-            $this->store(self::ACTIVE_KEY, $next);
 
-            return [$previous, $next];
+        return Cache::lock(self::LOCK_KEY, 30)->block(10, function (): int {
+            $revision = $this->demandRevision() + 1;
+            $this->store(self::DEMAND_KEY, $revision);
+
+            return $revision;
         });
-        $this->retire($previous);
-
-        return $next['version'];
     }
 
-    public function write(array $generation, string $key, mixed $payload, bool $candidate = false): void
+    public function demandRevision(): int
     {
-        $write = function () use ($generation, $key, $payload, $candidate): void {
+        // The active descriptor retains the satisfied floor if only demand metadata is lost.
+        // Read it directly: callers can already hold the transition lock.
+        $active = Cache::get(self::ACTIVE_KEY);
+
+        return max((int) Cache::get(self::DEMAND_KEY, 0), (int) ($active['demand_revision'] ?? 0));
+    }
+
+    public function pending(): bool
+    {
+        return $this->demandRevision() > ($this->active()['demand_revision'] ?? 0);
+    }
+
+    /** Missing payload requests coalesce without superseding an in-progress repair. */
+    public function requestRepair(): void
+    {
+        $this->active();
+        Cache::lock(self::LOCK_KEY, 30)->block(10, function (): void {
+            if ($this->demandRevision() <= (Cache::get(self::ACTIVE_KEY)['demand_revision'] ?? 0)) {
+                $this->store(self::DEMAND_KEY, $this->demandRevision() + 1);
+            }
+        });
+    }
+
+    public function checkCustomCapacity(array $generation, string $key): void
+    {
+        Cache::lock(self::LOCK_KEY, 30)->block(10, function () use ($generation, $key): void {
+            if (Cache::get(self::ACTIVE_KEY) !== $generation) {
+                throw ContractPriceCacheConflict::generationChanged();
+            }
+            $this->customManifest($generation, $key);
+        });
+    }
+
+    /** Caller holds the transition lock. Failed deletion leaves exact cleanup ownership intact. */
+    private function customManifest(array $generation, string $key): array
+    {
+        $manifestKey = $this->manifestKey($generation);
+        $manifest = Cache::get($manifestKey, []);
+        $expirations = $manifest[self::CUSTOM_EXPIRATIONS] ?? [];
+        foreach ($expirations as $expiredKey => $expiresAt) {
+            if ($expiresAt > now()->timestamp) {
+                continue;
+            }
+            if (! Cache::forget($expiredKey)) {
+                // An expired GET can already remove a file/array entry. A short null marker
+                // proves deletion on retry without restoring a price or losing ownership.
+                if (! Cache::put($expiredKey, null, 1) || ! Cache::forget($expiredKey)) {
+                    throw ContractPriceCacheStorageException::writeFailed();
+                }
+            }
+            unset($expirations[$expiredKey], $manifest[self::CUSTOM_EXPIRATIONS]);
+            $manifest = array_values(array_diff($manifest, [$expiredKey]));
+            $manifest[self::CUSTOM_EXPIRATIONS] = $expirations;
+            $this->store($manifestKey, $manifest);
+        }
+        if (! isset($expirations[$key]) && count($expirations) >= self::MAX_CUSTOM_PROFILES) {
+            throw new ContractPriceCacheUnavailable;
+        }
+
+        return $manifest;
+    }
+
+    public function write(array $generation, string $key, mixed $payload, bool $candidate = false, bool $custom = false): void
+    {
+        if ($candidate && $custom) {
+            throw new RuntimeException('Custom profiles require an active generation.');
+        }
+        $write = function () use ($generation, $key, $payload, $candidate, $custom): void {
             if (! $candidate && Cache::get(self::ACTIVE_KEY) !== $generation) {
                 throw ContractPriceCacheConflict::generationChanged();
             }
             $manifestKey = $this->manifestKey($generation);
-            $keys = Cache::get($manifestKey, []);
+            $keys = $custom ? $this->customManifest($generation, $key) : Cache::get($manifestKey, []);
+            $expirations = $keys[self::CUSTOM_EXPIRATIONS] ?? [];
+            unset($keys[self::CUSTOM_EXPIRATIONS]);
             $keys[] = $key;
-            $this->store($manifestKey, array_values(array_unique($keys)));
-            $this->store($key, $payload);
+            $keys = array_values(array_unique($keys));
+            if ($custom) {
+                $expirations[$key] = now()->timestamp + self::CUSTOM_TTL_SECONDS;
+            }
+            if ($expirations !== []) {
+                $keys[self::CUSTOM_EXPIRATIONS] = $expirations;
+            }
+            $this->store($manifestKey, $keys);
+            if ($custom) {
+                if (! Cache::put($key, $payload, self::CUSTOM_TTL_SECONDS)) {
+                    throw ContractPriceCacheStorageException::writeFailed();
+                }
+            } else {
+                $this->store($key, $payload);
+            }
         };
         if ($candidate) {
             // Private builds never hold the transition lock during payload writes.
@@ -82,7 +173,7 @@ class ContractPriceCacheLifecycle
         }
     }
 
-    public function promote(array $starting, array $candidate, array $expected): void
+    public function promote(array $starting, array $candidate, array $expected, ?Lock $producer = null): void
     {
         // Validate every required entry, not only the most recently written preset.
         foreach ($expected as $key => $digest) {
@@ -90,8 +181,11 @@ class ContractPriceCacheLifecycle
                 throw ContractPriceCacheStorageException::readbackFailed();
             }
         }
-        Cache::lock(self::LOCK_KEY, 30)->block(10, function () use ($starting, $candidate): void {
-            if (Cache::get(self::ACTIVE_KEY) !== $starting) {
+        Cache::lock(self::LOCK_KEY, 30)->block(10, function () use ($starting, $candidate, $producer): void {
+            if ($producer !== null && ! $producer->isOwnedByCurrentProcess()) {
+                throw new RuntimeException('Price cache producer lease lost.');
+            }
+            if ($this->demandRevision() !== $candidate['demand_revision'] || Cache::get(self::ACTIVE_KEY) !== $starting) {
                 throw ContractPriceCacheConflict::generationChanged();
             }
             // Persist cleanup ownership before switching. A failed write leaves the old active.
@@ -135,6 +229,8 @@ class ContractPriceCacheLifecycle
                 $manifestKey = $this->manifestKey(['generation' => $id]);
                 try {
                     $keys = Cache::get($manifestKey, []);
+                    // Custom keys are already in the owned key list; expiry metadata is not a key.
+                    unset($keys[self::CUSTOM_EXPIRATIONS]);
                     foreach ($keys as $index => $key) {
                         if ($attempted >= self::CLEANUP_KEY_LIMIT) {
                             break;
