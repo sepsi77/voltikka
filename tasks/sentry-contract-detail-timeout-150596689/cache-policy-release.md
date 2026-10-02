@@ -6,7 +6,7 @@ The user explicitly authorised commit and push to deploy. Target: `main`, `git p
 
 Read-only Railway preflight confirms GitHub `sepsi77/voltikka`, branch `main`, one app replica, existing `/app/storage` volume, no staged platform changes, and a successful previous deployment. Local branch matches refreshed `origin/main` before the release commit. Stage only this cache task; retain unrelated annual-history task/context hunks in the worktree. Final deployment and public HTTP acceptance must be recorded separately; a successful push is not deployment proof.
 
-Local implementation and final regression verification are complete: 2,953 PHP tests / 24,174 assertions, 12 JavaScript tests, production asset build, changed-file Pint, whitespace and 50 context mirrors pass. See `cache-policy-final-verification.md` for evidence and limits. No release approval, production writer invocation, commit or push has occurred for this change.
+Local implementation and final regression verification are complete: 2,953 PHP tests / 24,174 assertions, 12 JavaScript tests, production asset build, changed-file Pint, whitespace and 50 context mirrors pass. See `cache-policy-final-verification.md` for evidence and limits. That local checkpoint preceded release authorisation. The subsequently approved commit `6d43357` is deployed with Railway SUCCESS and passing public checks; see `cache-policy-production-release.md`. The automatic startup producer activated version 808. No separate manual production producer or history rebuild was run.
 
 ## Scope
 

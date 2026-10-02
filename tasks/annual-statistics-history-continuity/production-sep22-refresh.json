@@ -1,0 +1,217 @@
+{
+  "success": true,
+  "date": "2026-09-22",
+  "mode": "apply",
+  "commit": "61b0be0115311a4359321fdba3a55316eb19cb6c",
+  "runtimeBefore": {
+    "commit": "61b0be0115311a4359321fdba3a55316eb19cb6c",
+    "environment": "production",
+    "activeMethod": "annual_cost_as_of_v3",
+    "todayHelsinki": "2026-09-22",
+    "driver": "mysql",
+    "canonical": true,
+    "reset": true,
+    "beta": 1.0,
+    "memoryLimit": "512M",
+    "nice": 15,
+    "cacheStore": "file",
+    "queueConnection": "database"
+  },
+  "runtimeAfter": {
+    "commit": "61b0be0115311a4359321fdba3a55316eb19cb6c",
+    "environment": "production",
+    "activeMethod": "annual_cost_as_of_v3",
+    "todayHelsinki": "2026-09-22",
+    "driver": "mysql",
+    "canonical": true,
+    "reset": true,
+    "beta": 1.0,
+    "memoryLimit": "512M",
+    "nice": 15,
+    "cacheStore": "file",
+    "queueConnection": "database"
+  },
+  "runnerSha256": "b99849fe5485c3a12b4366d3f2f071b3b864cfd2c77e728b5b0e8277e86c7711",
+  "commonSha256": "19f6d63e38df822e1a66a2bd91c1ebe3918bdf5c982ab8559940a440b0624aff",
+  "beforeProofSha256": "fe6b393d8bc8ff24a4d67d1813f09633b51f1fb27f7b5a16b7ebb236a7344f0c",
+  "afterProofSha256": "bacde04c71929e6058e02cdfcb7a659bfc6f947cab048aff628aa98228a614c2",
+  "protectedBefore": {
+    "annual_cost_as_of_v1_annual_all_dates": {
+      "count": 196256,
+      "sha256": "b0698538466a5e873ea74103c58e9da0b01c311124f97a370a2e96dff870708d",
+      "minDate": "2026-01-21",
+      "maxDate": "2026-09-11"
+    },
+    "annual_cost_as_of_v1_aggregates_all_dates": {
+      "count": 6639,
+      "sha256": "cf64e2619e658b04c39d5a00c910e427d2be1ab990b1a5396c5f246da3a78ec6",
+      "minDate": "2026-01-21",
+      "maxDate": "2026-09-11"
+    },
+    "annual_cost_as_of_v2_annual_all_dates": {
+      "count": 222221,
+      "sha256": "e9fd7a9ac9b29859ec054cb595ea9380295a2cec991b008e1888cb6f3f10d43e",
+      "minDate": "2026-01-21",
+      "maxDate": "2026-09-22"
+    },
+    "annual_cost_as_of_v2_aggregates_all_dates": {
+      "count": 7948,
+      "sha256": "bed621f5454f39cc6169ee7be7e9a40254f33707e8dac5ef4432e270c67e5710",
+      "minDate": "2026-01-21",
+      "maxDate": "2026-09-22"
+    },
+    "earlier_v3_annual": {
+      "count": 221376,
+      "sha256": "5f62eb37563bd4529313ef34a8c6865f272db5eadbbe6867aa7e28b9f3d8b1cd",
+      "minDate": "2026-01-21",
+      "maxDate": "2026-09-21"
+    },
+    "earlier_v3_aggregates": {
+      "count": 7305,
+      "sha256": "76f22318106bd9965efb5b7944d51423ac09938723291ec51d9fc79074f9b6cb",
+      "minDate": "2026-01-21",
+      "maxDate": "2026-09-21"
+    },
+    "all_earlier_annual": {
+      "count": 639097,
+      "sha256": "9bc4d6b273b6ad61cd5fae653ad0368ac5e01ffad2edde46157ba5242fe5f032",
+      "minDate": "2026-01-21",
+      "maxDate": "2026-09-21"
+    },
+    "all_earlier_aggregates": {
+      "count": 36909,
+      "sha256": "020aa13612224df0695da891d4aeae62d2f6398c56b74c6ea9d832ed41cb4d6d",
+      "minDate": "2026-01-21",
+      "maxDate": "2026-09-21"
+    },
+    "all_earlier_snapshots": {
+      "count": 78073,
+      "sha256": "7e3cf460569036e5e00adc0ca581866602a2dfc2b0dff27126002cc1544c1f3e",
+      "minDate": "2026-01-21",
+      "maxDate": "2026-09-21"
+    }
+  },
+  "protectedAfter": {
+    "annual_cost_as_of_v1_annual_all_dates": {
+      "count": 196256,
+      "sha256": "b0698538466a5e873ea74103c58e9da0b01c311124f97a370a2e96dff870708d",
+      "minDate": "2026-01-21",
+      "maxDate": "2026-09-11"
+    },
+    "annual_cost_as_of_v1_aggregates_all_dates": {
+      "count": 6639,
+      "sha256": "cf64e2619e658b04c39d5a00c910e427d2be1ab990b1a5396c5f246da3a78ec6",
+      "minDate": "2026-01-21",
+      "maxDate": "2026-09-11"
+    },
+    "annual_cost_as_of_v2_annual_all_dates": {
+      "count": 222221,
+      "sha256": "e9fd7a9ac9b29859ec054cb595ea9380295a2cec991b008e1888cb6f3f10d43e",
+      "minDate": "2026-01-21",
+      "maxDate": "2026-09-22"
+    },
+    "annual_cost_as_of_v2_aggregates_all_dates": {
+      "count": 7948,
+      "sha256": "bed621f5454f39cc6169ee7be7e9a40254f33707e8dac5ef4432e270c67e5710",
+      "minDate": "2026-01-21",
+      "maxDate": "2026-09-22"
+    },
+    "earlier_v3_annual": {
+      "count": 221376,
+      "sha256": "5f62eb37563bd4529313ef34a8c6865f272db5eadbbe6867aa7e28b9f3d8b1cd",
+      "minDate": "2026-01-21",
+      "maxDate": "2026-09-21"
+    },
+    "earlier_v3_aggregates": {
+      "count": 7305,
+      "sha256": "76f22318106bd9965efb5b7944d51423ac09938723291ec51d9fc79074f9b6cb",
+      "minDate": "2026-01-21",
+      "maxDate": "2026-09-21"
+    },
+    "all_earlier_annual": {
+      "count": 639097,
+      "sha256": "9bc4d6b273b6ad61cd5fae653ad0368ac5e01ffad2edde46157ba5242fe5f032",
+      "minDate": "2026-01-21",
+      "maxDate": "2026-09-21"
+    },
+    "all_earlier_aggregates": {
+      "count": 36909,
+      "sha256": "020aa13612224df0695da891d4aeae62d2f6398c56b74c6ea9d832ed41cb4d6d",
+      "minDate": "2026-01-21",
+      "maxDate": "2026-09-21"
+    },
+    "all_earlier_snapshots": {
+      "count": 78073,
+      "sha256": "7e3cf460569036e5e00adc0ca581866602a2dfc2b0dff27126002cc1544c1f3e",
+      "minDate": "2026-01-21",
+      "maxDate": "2026-09-21"
+    }
+  },
+  "protectedExactMatch": true,
+  "currentSnapshotsBefore": {
+    "count": 261,
+    "sha256": "2a304dd5f436c13cd9ff93afe9438e0284ea4601b04839c157c3c0a1ec0ac24c",
+    "minDate": "2026-09-22",
+    "maxDate": "2026-09-22",
+    "minId": 162381,
+    "maxId": 162641
+  },
+  "currentSnapshotsAfter": {
+    "count": 261,
+    "sha256": "c976e7eb17896899fa7cce92471bae5c5bd3b21dc0a63fff28cb553069e01a7f",
+    "minDate": "2026-09-22",
+    "maxDate": "2026-09-22",
+    "minId": 162642,
+    "maxId": 162902
+  },
+  "snapshotCaveat": "Current-snapshot-IDs-replaced: unchanged v1/v2 financial rows do not prove that old current-date snapshot provenance IDs still resolve or that company date/contract joins retain excluded contracts. Earlier snapshots are protected.",
+  "totals": {
+    "annual": {
+      "count": 756,
+      "sha256": "36136a9c6f0f45c36ce6c04b2f244ae2891d660a12529b183386dbda536604f9",
+      "minDate": "2026-09-22",
+      "maxDate": "2026-09-22"
+    },
+    "aggregates": {
+      "count": 30,
+      "sha256": "a7f1c8ecfd3a44c7df3ead95f7dbef611c3e6887e8f298b5b93299f9fee3befd",
+      "minDate": "2026-09-22",
+      "maxDate": "2026-09-22"
+    },
+    "consumptions": [
+      {
+        "consumptionKwh": 2000,
+        "annualCount": 257,
+        "aggregateCount": 10,
+        "annualCostSumEur": 76073.7996,
+        "annualCostMinEur": 200.3823,
+        "annualCostMaxEur": 670.8,
+        "aggregateContractCountSum": 257
+      },
+      {
+        "consumptionKwh": 5000,
+        "annualCount": 251,
+        "aggregateCount": 10,
+        "annualCostSumEur": 162196.5684,
+        "annualCostMinEur": 391.6957,
+        "annualCostMaxEur": 1085.9553,
+        "aggregateContractCountSum": 251
+      },
+      {
+        "consumptionKwh": 18000,
+        "annualCount": 248,
+        "aggregateCount": 10,
+        "annualCostSumEur": 543101.103,
+        "annualCostMinEur": 1220.7205,
+        "annualCostMaxEur": 3767.4789,
+        "aggregateContractCountSum": 248
+      }
+    ]
+  },
+  "commandCounts": {
+    "snapshots": 261,
+    "dailyStatisticRows": 57
+  },
+  "cacheWarm": "Normal command dispatch retained; public completion requires separate verification.",
+  "completedUtc": "2026-09-22T10:59:07+00:00"
+}

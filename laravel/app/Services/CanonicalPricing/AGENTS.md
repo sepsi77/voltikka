@@ -143,7 +143,16 @@ exact-source reconstruction that passes full stored-profile validation at the ta
 latest timely or first later interpretation. Local validation covers 242 dates at all three
 consumptions; July's processing seam is repaired, with 11 documented real reference/membership
 transitions retained. Same-input fixtures and endpoint dominance are not full-store amount parity
-or proof of forecast improvement. Defaults/public v2 and production remain unchanged.
+or proof of forecast improvement. Production explicitly activated v3 on 2026-09-22 after the
+approved 242-date apply through September 20. Code defaults are unchanged. Separately approved
+catch-up is complete through September 22: 222,132 annual rows, 7,335 aggregates and 244 evidence
+dates (February 12 absent). The original 242-date history is unchanged. The manually invoked standard
+current producer is verified, not scheduler execution. All retained v1/v2 annual financial/aggregate
+rows, earlier v3 rows and earlier snapshots retain exact full-column hashes. Today's snapshots and
+unit statistics were deliberately replaced; old current-day provenance snapshot IDs are not preserved.
+Public HTTP/CSV checks pass through September 22, not browser interaction. No automatic rebuild is added.
+See `../../../../tasks/annual-statistics-history-continuity/production-rollout.md` for the manager's
+final checkpoint, backup and scoped preservation proof, and public HTTP/CSV checks.
 
 Historical-policy statements below apply to v1/v2, not explicit annual v3. Dated release records
 remain records of those releases. V3 still lacks dated V5 validation, trusted replacement lineage

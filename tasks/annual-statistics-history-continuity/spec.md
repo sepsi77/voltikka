@@ -1,5 +1,29 @@
 # Annual statistics history continuity
 
+## Current production status — 2026-09-22
+
+The approved 242-date v3 apply through September 20 and the separate activation are complete.
+Production uses `annual_cost_as_of_v3`; runtime and public HTTP/CSV checks passed. See
+[production-rollout.md](production-rollout.md) for the manager's final checkpoint and evidence.
+Earlier dated local/release sections below remain historical records.
+
+The production release task is complete. After a verified fresh full backup and explicit approval,
+September 21's guarded historical apply completed at 10:43:48 UTC: 748 annual rows and 30 aggregates.
+The same 11 missing-component pairs as September 20 remain excluded; this is not a new defect.
+The user then confirmed the explicitly described standard current command
+`contracts:calculate-price-statistics --date=2026-09-22 --overwrite`. One 512M, nice-15 worker
+completed at 10:59:07 UTC: 756 annual rows, 30 aggregates, 261 snapshots and 57 daily statistics rows.
+
+The original 242-date history remains unchanged. V3 now has 222,132 annual rows, 7,335 aggregates
+and 244 evidence dates through September 22; February 12 is absent. Full-column hashes preserve
+all retained v1/v2 annual financial and aggregate rows, earlier v3 rows and earlier snapshots.
+Today's snapshots and unit statistics were deliberately replaced; retained v2 financial rows do
+not preserve old current-day snapshot provenance IDs. Public CSV has 7,335 active-v3 rows through
+September 22. Daily/weekly statistics, canonical Oomi and editorial returned HTTP 200 with that date.
+The manually invoked standard producer proves current-v3 production, not scheduler execution.
+Neither activation nor deployment performs automatic catch-up. No full current economic parity
+or browser interaction verification is claimed. This documentation update is uncommitted.
+
 ## Problem
 
 The annual-cost chart on `/sahkosopimus/tilastot` shows gaps, mostly in the

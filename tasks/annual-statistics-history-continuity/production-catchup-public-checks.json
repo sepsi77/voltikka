@@ -1,0 +1,46 @@
+{
+  "checks": [
+    {
+      "page": "csv",
+      "path": "/sahkosopimus/tilastot.csv",
+      "http": "200"
+    },
+    {
+      "page": "weekly",
+      "path": "/sahkosopimus/tilastot",
+      "http": "200",
+      "september22_mentions": 18,
+      "title": "Sähkösopimusten hintakehitys ja hintatilastot Suomessa | Voltikka"
+    },
+    {
+      "page": "daily",
+      "path": "/sahkosopimus/tilastot?jakso=daily",
+      "http": "200",
+      "september22_mentions": 18,
+      "title": "Sähkösopimusten hintakehitys ja hintatilastot Suomessa | Voltikka"
+    },
+    {
+      "page": "company",
+      "path": "/sahkosopimus/sahkoyhtiot/oomi-oy",
+      "http": "200",
+      "september22_mentions": 3,
+      "title": "Oomi Oy: sähkön hinta verrattuna markkinaan | Voltikka"
+    },
+    {
+      "page": "editorial",
+      "path": "/sahkosopimus/kannattaako-porssisahko",
+      "http": "200",
+      "september22_mentions": 4,
+      "title": "Kannattaako pörssisähkö? Markkinavertailu 2026 | Voltikka"
+    }
+  ],
+  "active_method": "annual_cost_as_of_v3",
+  "active_aggregate_rows": 7335,
+  "evidence_dates": 244,
+  "latest_date": "2026-09-22",
+  "catchup_date_counts": {
+    "2026-09-21": 30,
+    "2026-09-22": 30
+  },
+  "limits": "HTTP, dated HTML and CSV verified; no interactive browser test. Normal producer was invoked manually, not observed under the scheduler."
+}

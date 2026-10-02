@@ -7,5 +7,5 @@
   {"name":"Finish remaining listing and SEO integration fixtures without GET exceptions","status":"completed"},
   {"name":"Verify cached GET behavior, retained price parity, producer races and custom actions","status":"completed"},
   {"name":"Update root and local policy contexts and release requirements","status":"completed"},
-  {"name":"Deploy only with separate explicit production approval","status":"pending"}
+  {"name":"Deploy only with separate explicit production approval","status":"completed"}
 ]

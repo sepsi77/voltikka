@@ -17,7 +17,7 @@ own:
 
 - `contract_price_daily_statistics` — the market p20 / median / p80 band
 - `contract_price_snapshots` — legacy seller annual values plus company identity and observed unit evidence
-- `contract_price_annual_costs` — versioned seller annual values for both `annual_cost_as_of_v1` and `annual_cost_as_of_v2`
+- `contract_price_annual_costs` — versioned seller annual values for `annual_cost_as_of_v1`, `annual_cost_as_of_v2`, and `annual_cost_as_of_v3`
 
 The service branches on `ContractPriceDailyStatistic::activeAnnualMethodVersion()`.
 The legacy branch keeps its old snapshot-column behavior. `isAsOf()` selects the shared branch for
@@ -47,7 +47,18 @@ An AsOf pair older than the latest same-basis unit date sets
 is canonical. The existing dated presentation states that it is not today's comparison. Unit
 collection can advance beyond a retained active-method annual endpoint. This check compares stored
 endpoints; it does not reclassify ordinary yesterday data by clock age.
-Public `annual_cost_as_of_v2` has been active since the explicitly approved activation on 2026-09-12.
+Public `annual_cost_as_of_v3` is active after approved activation on 2026-09-22. Separately approved
+catch-up is complete through September 22: 222,132 annual rows, 7,335 aggregates and 244 evidence dates
+(February 12 absent). The manually invoked standard current producer is verified, not scheduler execution.
+Full-column hashes preserve all retained v1/v2 annual financial/aggregate rows, earlier v3 rows and earlier
+snapshots. Today's snapshots and unit statistics were deliberately replaced; old current-day provenance
+snapshot IDs and company joins for excluded contracts are not guaranteed by financial preservation.
+No automatic rebuild is permitted. Canonical Oomi
+`/sahkosopimus/sahkoyhtiot/oomi-oy` returned HTTP 200 with September 22 dated copy; no browser interaction
+is proved. The initial
+`/oomi` 404 was a wrong probe URL. See
+`../../../../tasks/annual-statistics-history-continuity/production-rollout.md` for proof and limits.
+The earlier v2 activation was on 2026-09-12.
 Historical v2 was applied for 233 evidence dates from 2026-01-21 through 2026-09-11 (no evidence date
 on February 12). V1 remains retained at 2026-09-11 with its snapshot joins preserved; historical
 snapshots and price components are unchanged. See

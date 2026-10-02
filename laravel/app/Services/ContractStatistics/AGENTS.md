@@ -53,7 +53,25 @@ Statements below about the `ComparisonPolicy::Historical` path apply to retained
 not explicit annual v3. V3 uses shared Current semantics on dated evidence. Earlier dated release
 records remain evidence of those releases, not current v3 policy.
 
-## V3 reconstruction (local; production not activated)
+## V3 reconstruction (production active 2026-09-22)
+
+Production uses `annual_cost_as_of_v3`. The separately approved catch-up is complete: September 21's
+guarded historical apply wrote 748 annual rows and 30 aggregates at 10:43:48 UTC; its 11 missing-component
+pairs are the same exclusions as September 20, not a new bug. September 22 was today in Helsinki, so
+its historical guard was not bypassed. The user explicitly confirmed the standard current command
+`contracts:calculate-price-statistics --date=2026-09-22 --overwrite`. One 512M, nice-15 worker completed
+at 10:59:07 UTC with 756 annual rows, 30 aggregates, 261 snapshots and 57 daily statistics rows.
+The manually invoked standard producer is proved, not scheduler execution.
+
+V3 totals are 222,132 annual rows and 7,335 aggregates across 244 evidence dates through September 22;
+February 12 remains absent. The original 242-date history is unchanged. Full-column before/after hashes
+exactly preserve all retained v1/v2 annual financial and aggregate rows, earlier v3 rows/aggregates and
+earlier snapshots. Today's snapshots and unit statistics were deliberately replaced: retained v2
+financial rows do not preserve old current-day provenance snapshot IDs or guarantee company date/contract
+joins for excluded contracts. Public HTTP/HTML/CSV checks pass through September 22, not browser interaction.
+See `../../../../tasks/annual-statistics-history-continuity/production-rollout.md` for backup and proof.
+No automatic rebuild is added. The config fallback remains `annual_cost_legacy_v1`; the rebuild command
+and current factory default to v2. Production activation does not change those code defaults.
 
 The first v3 unit adds method-aware `resolveDate/resolveForDates`; defaults and other callers
 remain strict v1. V3 verifies source ownership and covering observation IDs, keeps validation and
@@ -86,11 +104,11 @@ it passes from typed evidence to typed results and writer JSON only for v3 sourc
 NULL binding does not prove completion within the observation episode.
 V3 inherits all v2 audience, consumption-proof, energy and uniform-monthly fallback protections.
 The rebuild command permits explicit v3 preview/apply, warns about remaining release checks, and
-keeps its v2 default. Writes preserve stored v1/v2 rows. Public method remains v2; the current
+keeps its v2 default. Writes preserve stored v1/v2 rows. Public method is now v3; the current
 producer selects v3 only when the configured active method explicitly equals v3. V3 dated left-censored anchors and date-local supplier/reset premiums now feed the shared
 Current candidate and calculation policy. Shared estimators are unchanged. Local full-history
-coverage and median review are complete. Production approval and active-method selection remain
-pending. No automatic rebuild, schedule, deployment, or public switch is added.
+coverage and median review are complete. The approved production range and activation are complete;
+the catch-up and manually invoked standard current producer checks above are complete. Scheduler execution is not proved. No automatic rebuild is added.
 
 Final local evidence: `tasks/annual-statistics-history-continuity/v3-repaired-preview.md` covers
 242 dates at 2,000/5,000/18,000 kWh. July's processing seam is repaired; all 11 remaining post-May
@@ -108,7 +126,8 @@ one `nice -n 15` worker per date, sequentially. The 144.5 MiB measured allocated
 
 Release requires separate explicit Git push approval, a current verified full production backup,
 production apply approval, and active-method switch approval. A push to main deploys code; it does
-not authorize or automatically run a history rebuild. Default/public v2 remains unchanged.
+not authorize or automatically run a history rebuild. Code defaults remain unchanged; production
+explicitly selects v3.
 
 Local current-writer evidence is in `tasks/annual-statistics-history-continuity/v3-current-writer.md`
 (repository root). Bounded calculator tests share exact selected source data, target, full tariff,

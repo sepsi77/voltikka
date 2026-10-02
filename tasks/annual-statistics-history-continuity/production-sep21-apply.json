@@ -1,0 +1,139 @@
+{
+  "success": true,
+  "date": "2026-09-21",
+  "mode": "apply",
+  "commit": "61b0be0115311a4359321fdba3a55316eb19cb6c",
+  "runnerSha256": "c10b190999d3d4dcdd48ad57fff3ac6c053864bbb5e13999fc3c358fa5999f0d",
+  "manifestSha256": "1708c5a95d9a2f6831625f7073fbbd742bac946ff92181facab8af16dd5eaff5",
+  "expectedSha256": "233b7e4c5e4a18d52f5d7cb8ccba2bfadc2674f16604578c87df08df02bce9ce",
+  "dates": 1,
+  "failed": 0,
+  "summary": {
+    "evidenceResultCount": 1134,
+    "availableCount": 748,
+    "unavailableCount": 386,
+    "basisCounts": {
+      "pricing_basis": {
+        "canonical_calculation": 786,
+        "observed_seller_data": 348
+      },
+      "calculation_basis": {
+        "canonical_outcome": 750,
+        "observed_relational_components": 384
+      },
+      "estimate_method": {
+        "forward_curve_spot": 147,
+        "hybrid_base_only": 112,
+        "none": 684,
+        "recurring_forward_curve_shift": 58,
+        "supplier_adjusted_forward_curve_shift": 49,
+        "supplier_adjusted_forward_premium": 54,
+        "term_price_annualized": 30
+      },
+      "estimate_basis": {
+        "canonical_disclosed_phase_timeline": 416,
+        "exact_date_components_held_flat": 9,
+        "forward_curve": 147,
+        "market_reset_forward_curve_shift": 58,
+        "none": 386,
+        "relational_open_ended_conservative_hold_flat": 15,
+        "supplier_adjusted_forward_curve_shift": 49,
+        "supplier_adjusted_forward_premium": 54
+      },
+      "unavailable_reasons": {
+        "exact_date_components_unavailable": 11,
+        "historical_consumption_out_of_range": 26,
+        "legacy_annual_cost_mask_unavailable": 1,
+        "missing_historical_snapshot_identity": 348
+      }
+    }
+  },
+  "runtimeBefore": {
+    "commit": "61b0be0115311a4359321fdba3a55316eb19cb6c",
+    "activeMethod": "annual_cost_as_of_v3",
+    "todayHelsinki": "2026-09-22",
+    "contract_price_annual_costs": [
+      {
+        "method_version": "annual_cost_as_of_v1",
+        "max_date": "2026-09-11",
+        "row_count": 196256
+      },
+      {
+        "method_version": "annual_cost_as_of_v2",
+        "max_date": "2026-09-22",
+        "row_count": 222221
+      },
+      {
+        "method_version": "annual_cost_as_of_v3",
+        "max_date": "2026-09-20",
+        "row_count": 220628
+      }
+    ],
+    "contract_price_daily_statistics": [
+      {
+        "method_version": "annual_cost_as_of_v1",
+        "max_date": "2026-09-11",
+        "row_count": 6639
+      },
+      {
+        "method_version": "annual_cost_as_of_v2",
+        "max_date": "2026-09-22",
+        "row_count": 7948
+      },
+      {
+        "method_version": "annual_cost_as_of_v3",
+        "max_date": "2026-09-20",
+        "row_count": 7275
+      },
+      {
+        "method_version": "annual_cost_legacy_v1",
+        "max_date": "2026-09-22",
+        "row_count": 8040
+      },
+      {
+        "method_version": "unit_statistics_v1",
+        "max_date": "2026-09-22",
+        "row_count": 7064
+      }
+    ],
+    "snapshotMax": "2026-09-22",
+    "componentMax": "2026-09-22"
+  },
+  "storedEvidence": {
+    "annual": {
+      "count": 748,
+      "sha256": "a772e76d5d1eed6c09c9af7629859e9fb084e455377451465945cf5c6b618455"
+    },
+    "aggregates": {
+      "count": 30,
+      "sha256": "a18d9c20f6921f8ed703d9cf68c45e227a9f766247a9f2ea8883e665e9a978f7"
+    }
+  },
+  "protectedEvidence": {
+    "annual_non_v3": {
+      "count": 759,
+      "sha256": "e17da2c5f71f117675f465e9a40c04955c7305c7ff018e6e4e71fcfc58a5a723"
+    },
+    "daily_non_v3": {
+      "count": 87,
+      "sha256": "0ebf91354e8e0e667130abfdb865368e8f761e223089a054cc916723b6d5fd20"
+    },
+    "components": {
+      "count": 844,
+      "sha256": "5f1083abce289379ac245633d7cd02e1f8bc4371efb7a9c40268ed7518017904"
+    },
+    "earlier_v3_annual": {
+      "count": 220628,
+      "sha256": "0e0313e58d2225a1b985dc5a7cb49446e627f959bdb9b60cc526fb7762d278f9"
+    },
+    "earlier_v3_daily": {
+      "count": 7275,
+      "sha256": "8d9ec79d02c689b5633c6473d7533410338e0a630fbf3649113ff165091d3f1d"
+    },
+    "snapshots": {
+      "count": 262,
+      "sha256": "fa3c82507f58e78452680d1a4467afaf26001b00edda951acff9f19cf6c01ef5"
+    }
+  },
+  "completedUtc": "2026-09-22T10:43:48+00:00"
+}

@@ -414,3 +414,71 @@ Only local context cleanup is complete. Release prerequisites remain separate: e
 approval (main pushes deploy), a current verified full production backup, production apply approval,
 and active-method switch approval. No automatic deployment-time rebuild, commit, push, production
 operation or authorization is part of this unit.
+
+## Final production catch-up decisions — 2026-09-22
+
+The manager completed the separately approved catch-up. See `production-rollout.md` and
+`production-catchup-backup.json`, `production-sep21-apply.json`, `production-sep22-refresh.json`,
+and `production-catchup-public-checks.json`. The fresh encrypted full backup covers all 39 tables;
+ZIP CRC and complete gzip checks passed. No restore is claimed.
+
+September 21 is historical: the existing guarded historical command completed at 10:43:48 UTC
+with 748 annual rows and 30 aggregates. The 11 missing-component pairs are the same exclusions
+as September 20, not a new bug. September 22 was today in Helsinki: do not bypass the historical
+guard. The user's “Continue” confirmed the explicitly described standard command
+`contracts:calculate-price-statistics --date=2026-09-22 --overwrite` and its current-day effects.
+One 512M, nice-15 worker completed at 10:59:07 UTC with 756 annual rows, 30 annual aggregates,
+261 snapshots and 57 daily statistics rows. This proves the manually invoked standard current
+producer, not scheduler transport. Both remaining tasks are complete on that explicit basis.
+
+Full-column before/after hashes exactly preserve ALL retained v1/v2 annual financial and annual
+aggregate rows, earlier v3 rows/aggregates and earlier snapshots. Today's snapshots and unit
+statistics were deliberately replaced. Financial preservation does not preserve old current-day
+snapshot provenance IDs or guarantee company date/contract joins for excluded contracts. Do not
+extend historical snapshot preservation claims to today's refresh.
+
+The original 242-date history remains. V3 totals are 222,132 annual rows (220,628 + 748 + 756),
+7,335 aggregates and 244 evidence dates through September 22; February 12 remains absent.
+Public CSV has 7,335 active-v3 rows. Daily/weekly statistics, canonical Oomi and editorial checks
+returned HTTP 200 and show September 22. These are HTTP/HTML/CSV checks, not browser interaction
+or full economic parity proof. Production release is complete. No automatic rebuild is added.
+This documentation-only update is uncommitted; it made no production calls or application changes.
+Earlier dated records below retain the status at their stated checkpoint.
+
+## Earlier production completion record — 2026-09-22
+
+The manager completed the approved operations, not this documentation executor. See
+`production-rollout.md` for the final checkpoint, full backup proof, exact deployments and artifacts.
+Commit `61b0be0115311a4359321fdba3a55316eb19cb6c` deployed successfully. The verified encrypted
+full Spatie archive covers all 39 tables. All 242 approved dates through September 20 passed
+reviewed-result checks before writes and final stored amount/method/per-date hash verification:
+220,628 annual rows and 7,275 aggregates. Contract evidence and scoped retained v1/v2 financial
+hashes are unchanged. Scheduled imports changed only metadata in scoped Spot averages/futures;
+economic values match the reviewed snapshot, but their whole-row hashes are not equal.
+
+Setting only `CONTRACT_STATISTICS_ANNUAL_METHOD_VERSION=annual_cost_as_of_v3` triggered same-commit
+deployment `c1a933ac-8e20-415f-a48f-d18690953d56`, SUCCESS on September 22. Runtime confirms v3.
+Public CSV exposes 7,275 active-v3 aggregates through September 20. Daily/weekly statistics, home,
+CSV, canonical Oomi, calculator and editorial checks returned HTTP 200. Dated September 20 copy
+is visible. The initial `/oomi` 404 was an incorrect probe, not a site defect. These checks do not
+prove browser interaction or full current economic parity.
+
+Keep the task open. Runtime v2 reaches September 22 because normal collection ran before
+activation; v3 stops September 20. September 21–22 catch-up needs fresh dated previews, reviewed
+results, separate explicit approval and the required verified backup before apply. The manager
+has told the user this approval is needed. Normal current-v3 production must also be proved from
+normal collection; no manual current overwrite or automatic catch-up is authorized. These are
+active pending tasks, not a future reminder. Code configuration defaults are unchanged.
+
+This unit changes documentation only. No production call, PHP worker, test, commit or push ran.
+
+## Earlier production preflight preparation — deployment still BUILDING
+
+See `production-rollout.md`. One explicitly scoped MCP read found approved commit
+`61b0be0115311a4359321fdba3a55316eb19cb6c` in deployment
+`44dd307a-9db5-4fa9-855c-9cb745269984`, status BUILDING. The manager owns polling.
+The executor prepared the backup checks and sequential apply/verification plan locally.
+No post-SUCCESS runtime check, preview, backup, apply or activation ran. Existing production
+progress tasks remain pending. The manager reports user approvals; the executor's higher-priority
+no-production-mutation limit still prevents it from running the manual backup. An authorized
+operator must perform that step. No new backup object or hash proof exists from this unit.

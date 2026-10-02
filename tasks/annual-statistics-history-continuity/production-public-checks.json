@@ -1,0 +1,48 @@
+{
+  "additional_checks": [
+    {
+      "page": "company",
+      "path": "/sahkosopimus/sahkoyhtiot/oomi-oy",
+      "http_status": "200",
+      "exit": 0,
+      "title": "Oomi Oy: sähkön hinta verrattuna markkinaan | Voltikka",
+      "bytes": 336218,
+      "dated_20_september": 2
+    },
+    {
+      "page": "calculator",
+      "path": "/sahkosopimus/laskuri",
+      "http_status": "200",
+      "exit": 0,
+      "title": "Sähkön hinta laskuri 2026 – laske kulutus ja vuosihinta",
+      "bytes": 123264,
+      "dated_20_september": 0
+    },
+    {
+      "page": "editorial",
+      "path": "/sahkosopimus/kannattaako-porssisahko",
+      "http_status": "200",
+      "exit": 0,
+      "title": "Kannattaako pörssisähkö? Markkinavertailu 2026 | Voltikka",
+      "bytes": 233391,
+      "dated_20_september": 4
+    },
+    {
+      "page": "weekly_statistics",
+      "path": "/sahkosopimus/tilastot",
+      "http_status": "200",
+      "exit": 0,
+      "title": "Sähkösopimusten hintakehitys ja hintatilastot Suomessa | Voltikka",
+      "bytes": 318143,
+      "dated_20_september": 11
+    }
+  ],
+  "statistics_daily_http": 200,
+  "home_http": 200,
+  "csv_http": 200,
+  "active_csv_method": "annual_cost_as_of_v3",
+  "active_csv_rows": 7275,
+  "first_date": "2026-01-21",
+  "latest_date": "2026-09-20",
+  "note": "Initial /oomi URL was invalid (404); canonical /oomi-oy route succeeds. No browser interaction test or full-store same-date current pricing parity claimed."
+}

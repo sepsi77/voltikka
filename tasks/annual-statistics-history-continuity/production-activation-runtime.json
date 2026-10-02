@@ -1,0 +1,24 @@
+{
+    "commit": "61b0be0115311a4359321fdba3a55316eb19cb6c",
+    "active_method": "annual_cost_as_of_v3",
+    "annual": [
+        {
+            "method_version": "annual_cost_as_of_v1",
+            "n": 196256,
+            "first_date": "2026-01-21",
+            "last_date": "2026-09-11"
+        },
+        {
+            "method_version": "annual_cost_as_of_v2",
+            "n": 222221,
+            "first_date": "2026-01-21",
+            "last_date": "2026-09-22"
+        },
+        {
+            "method_version": "annual_cost_as_of_v3",
+            "n": 220628,
+            "first_date": "2026-01-21",
+            "last_date": "2026-09-20"
+        }
+    ]
+}

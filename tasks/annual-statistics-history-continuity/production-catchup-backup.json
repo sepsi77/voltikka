@@ -1,0 +1,22 @@
+{
+  "verified": true,
+  "object_key": "Voltikka/voltikka-2026-09-22-10-04-59.zip",
+  "created_at": "2026-09-22T10:08:48+00:00",
+  "size": 76950472,
+  "sha256": "f1eca54e09e6756369ab348665356c602bc60f1be2abf5b81504e66ca4a6d621",
+  "entries": [
+    {
+      "entry": "db-dumps/mysql-railway-2026-09-22-10-04-59.sql.gz",
+      "encrypted": true,
+      "compressed_sql_bytes": 79070067,
+      "sql_bytes": 1419256196,
+      "zip_crc_verified": true,
+      "gzip_complete": true
+    }
+  ],
+  "table_count": 39,
+  "all_tables_covered": true,
+  "password_available": true,
+  "storage_access_verified": true,
+  "restore_note": "Use this exact encrypted object, protected S3 access and BACKUP_ARCHIVE_PASSWORD; restore only to separately approved MySQL target."
+}

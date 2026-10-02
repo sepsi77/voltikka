@@ -16,6 +16,8 @@
   {"name":"Decide the display rule for the first point after a regime transition","status":"completed"},
   {"name":"Document the policy that history follows the current method in the AGENTS.md files","status":"completed"},
   {"name":"After v3 is complete, replace the known-gap notes in the context files with the implemented as-of rules","status":"completed"},
-  {"name":"Obtain approval, verified backup, and apply v3 history in production","status":"pending"},
-  {"name":"Obtain approval and switch the public active annual method to v3; verify the public page","status":"pending"}
+  {"name":"Obtain approval, verified backup, and apply the approved 242-date v3 production range through 2026-09-20","status":"completed"},
+  {"name":"Obtain approval and switch the public active annual method to v3; verify runtime and public output","status":"completed"},
+  {"name":"Review September 21 historical preview and September 22 current refresh, obtain separate approval and verified backup, then apply and verify both dates with their date-appropriate commands","status":"completed"},
+  {"name":"Verify current-v3 writes, stored results and public endpoint through the explicitly approved manually invoked standard producer; scheduler execution is not proved","status":"completed"}
 ]

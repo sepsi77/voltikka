@@ -1,0 +1,90 @@
+{
+    "commit": "61b0be0115311a4359321fdba3a55316eb19cb6c",
+    "active": "annual_cost_as_of_v2",
+    "protected": [
+        {
+            "table": "contract_price_snapshots",
+            "scope": "snapshot_date < '2026-09-21'",
+            "rows": 77811,
+            "sha256": "27ad30ab232b7c3e2ed0a4fd2be24084f0be40e0bb140aa68f3868805f5d6276"
+        },
+        {
+            "table": "price_components",
+            "scope": "price_date < '2026-09-21'",
+            "rows": 247459,
+            "sha256": "de76b0e3dbe4e01e9da9a9da8ad0bc726d8dfeb4e9998ec66ef1f59d0c311779"
+        },
+        {
+            "table": "contract_source_snapshots",
+            "scope": "1=1",
+            "rows": 2787,
+            "sha256": "e3a0c802506f34127f882131af7db1bb70168b96e47871c41b7b3db45b64941c"
+        },
+        {
+            "table": "contract_source_observations",
+            "scope": "1=1",
+            "rows": 2787,
+            "sha256": "0c81b0e3a382470d831558af2f44a62f918df02f1d07bc45ea9b2e61a4df3398"
+        },
+        {
+            "table": "contract_interpretations",
+            "scope": "1=1",
+            "rows": 4150,
+            "sha256": "8f989cdbd5cdb269c101b76052ed8de32a4cad99ba3040edacb3484179fbfae4"
+        },
+        {
+            "table": "contract_historical_interpretation_episodes",
+            "scope": "1=1",
+            "rows": 6534,
+            "sha256": "34aa7eb40b02ae2a3e13591dcc35937a13105f32803ddd75bc07ca6a22acc1a6"
+        },
+        {
+            "table": "contract_historical_interpretations",
+            "scope": "1=1",
+            "rows": 6534,
+            "sha256": "5ebe05130544758b40c5c4774f16f461c762beb4fe80191b5a57308552c89c24"
+        },
+        {
+            "table": "contract_price_annual_costs",
+            "scope": "method_version='annual_cost_as_of_v1'",
+            "rows": 196256,
+            "sha256": "bc365d9bf7e2b623e1302ef8be5dde6908c997aedd2c6f568aee47cf64e52162"
+        },
+        {
+            "table": "contract_price_annual_costs",
+            "scope": "method_version='annual_cost_as_of_v2' AND snapshot_date < '2026-09-21'",
+            "rows": 220706,
+            "sha256": "caf803861d076ae8a4148d2821a8692a1b262409e7163d357d9ad082ea09bc23"
+        },
+        {
+            "table": "contract_price_daily_statistics",
+            "scope": "method_version='annual_cost_as_of_v1'",
+            "rows": 6639,
+            "sha256": "b1d291b723ea39083a8fca63db6949534512887153a7b8ac538c6e8c765a79e8"
+        },
+        {
+            "table": "contract_price_daily_statistics",
+            "scope": "method_version='annual_cost_as_of_v2' AND stat_date < '2026-09-21'",
+            "rows": 7888,
+            "sha256": "5b3ce86915dd63a4d4957bedbf4b0376b2b07f7320831c57dcbd88c5f03e198c"
+        },
+        {
+            "table": "spot_prices_hour",
+            "scope": "utc_datetime < '2026-09-21'",
+            "rows": 28439,
+            "sha256": "b75dde2064d564367887bb54030b5d1949a64158a44f6085e5ddfc33b631a6f3"
+        },
+        {
+            "table": "spot_price_averages",
+            "scope": "period_end < '2026-09-21'",
+            "rows": 1753,
+            "sha256": "f39ef3d2a2c14439e480cb31c362ee498fcf44788a599b9bf14b8e3e69426310"
+        },
+        {
+            "table": "electricity_futures_eod_prices",
+            "scope": "trade_date < '2026-09-21'",
+            "rows": 31343,
+            "sha256": "62176510077a047df8e818d3bbb66e19eeea5159a6d8630e56e07f99fd96b3a2"
+        }
+    ]
+}

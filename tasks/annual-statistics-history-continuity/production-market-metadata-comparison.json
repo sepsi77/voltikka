@@ -1,0 +1,171 @@
+{
+  "row_counts": {
+    "spot_price_averages": 1753,
+    "electricity_futures_eod_prices": 31343
+  },
+  "local_row_counts": {
+    "spot_price_averages": 1753,
+    "electricity_futures_eod_prices": 31343
+  },
+  "changed_fields": [
+    {
+      "table": "spot_price_averages",
+      "column": "updated_at",
+      "count": 1272
+    },
+    {
+      "table": "electricity_futures_eod_prices",
+      "column": "updated_at",
+      "count": 8040
+    },
+    {
+      "table": "electricity_futures_eod_prices",
+      "column": "last_update",
+      "count": 7832
+    }
+  ],
+  "new_ids": [],
+  "examples": [
+    {
+      "table": "spot_price_averages",
+      "id": 1,
+      "field": "updated_at",
+      "old": "2026-09-21 06:00:50",
+      "new": "2026-09-22 05:01:11"
+    },
+    {
+      "table": "spot_price_averages",
+      "id": 2,
+      "field": "updated_at",
+      "old": "2026-09-21 06:00:50",
+      "new": "2026-09-22 05:01:11"
+    },
+    {
+      "table": "spot_price_averages",
+      "id": 3,
+      "field": "updated_at",
+      "old": "2026-09-21 06:00:50",
+      "new": "2026-09-22 05:01:11"
+    },
+    {
+      "table": "spot_price_averages",
+      "id": 4,
+      "field": "updated_at",
+      "old": "2026-09-21 06:00:50",
+      "new": "2026-09-22 05:01:11"
+    },
+    {
+      "table": "spot_price_averages",
+      "id": 5,
+      "field": "updated_at",
+      "old": "2026-09-21 06:00:50",
+      "new": "2026-09-22 05:01:11"
+    },
+    {
+      "table": "spot_price_averages",
+      "id": 6,
+      "field": "updated_at",
+      "old": "2026-09-21 06:00:50",
+      "new": "2026-09-22 05:01:11"
+    },
+    {
+      "table": "spot_price_averages",
+      "id": 7,
+      "field": "updated_at",
+      "old": "2026-09-21 06:00:50",
+      "new": "2026-09-22 05:01:11"
+    },
+    {
+      "table": "spot_price_averages",
+      "id": 8,
+      "field": "updated_at",
+      "old": "2026-09-21 06:00:50",
+      "new": "2026-09-22 05:01:11"
+    },
+    {
+      "table": "spot_price_averages",
+      "id": 9,
+      "field": "updated_at",
+      "old": "2026-09-21 06:00:50",
+      "new": "2026-09-22 05:01:11"
+    },
+    {
+      "table": "spot_price_averages",
+      "id": 10,
+      "field": "updated_at",
+      "old": "2026-09-21 06:00:50",
+      "new": "2026-09-22 05:01:11"
+    },
+    {
+      "table": "spot_price_averages",
+      "id": 11,
+      "field": "updated_at",
+      "old": "2026-09-21 06:00:50",
+      "new": "2026-09-22 05:01:12"
+    },
+    {
+      "table": "spot_price_averages",
+      "id": 12,
+      "field": "updated_at",
+      "old": "2026-09-21 06:00:50",
+      "new": "2026-09-22 05:01:12"
+    },
+    {
+      "table": "spot_price_averages",
+      "id": 13,
+      "field": "updated_at",
+      "old": "2026-09-21 06:00:50",
+      "new": "2026-09-22 05:01:12"
+    },
+    {
+      "table": "spot_price_averages",
+      "id": 14,
+      "field": "updated_at",
+      "old": "2026-09-21 06:00:50",
+      "new": "2026-09-22 05:01:12"
+    },
+    {
+      "table": "spot_price_averages",
+      "id": 15,
+      "field": "updated_at",
+      "old": "2026-09-21 06:00:50",
+      "new": "2026-09-22 05:01:12"
+    },
+    {
+      "table": "spot_price_averages",
+      "id": 16,
+      "field": "updated_at",
+      "old": "2026-09-21 06:00:50",
+      "new": "2026-09-22 05:01:12"
+    },
+    {
+      "table": "spot_price_averages",
+      "id": 17,
+      "field": "updated_at",
+      "old": "2026-09-21 06:00:50",
+      "new": "2026-09-22 05:01:12"
+    },
+    {
+      "table": "spot_price_averages",
+      "id": 18,
+      "field": "updated_at",
+      "old": "2026-09-21 06:00:50",
+      "new": "2026-09-22 05:01:12"
+    },
+    {
+      "table": "spot_price_averages",
+      "id": 19,
+      "field": "updated_at",
+      "old": "2026-09-21 06:00:50",
+      "new": "2026-09-22 05:01:12"
+    },
+    {
+      "table": "spot_price_averages",
+      "id": 20,
+      "field": "updated_at",
+      "old": "2026-09-21 06:00:50",
+      "new": "2026-09-22 05:01:12"
+    }
+  ],
+  "numeric_normalization": "Decimal 8 places; SQL DATE uses first ten characters"
+}
