@@ -118,6 +118,20 @@ Migration up is retry-safe after MySQL partial DDL commits: each table, annual p
 
 ## Contract price statistics provenance
 
+Migration `2026_10_03_000001` adds only nonunique annual-table fingerprint indexes:
+`contract_annual_costs_method_basis_date_idx` on `(method_version, pricing_basis, snapshot_date)`
+and `contract_annual_costs_method_basis_updated_idx` on `(method_version, pricing_basis, updated_at)`.
+They support exact method/basis MAX reads without changing rows or existing keys. Named
+`Schema::hasIndex` guards permit repeat and partial up/down; a missing required table fails.
+MySQL combines missing indexes in one `ALTER TABLE` with `ALGORITHM=INPLACE, LOCK=NONE` and
+fails if online DDL is unsupported. Both directions set session `lock_wait_timeout` to five
+seconds around DDL and restore the original value in `finally`. SQLite uses Schema operations.
+Focused SQLite and mocked SQL tests passed (14 cases, 112 assertions). The disposable local
+MySQL 9.4 gate preserved 120 complete fixture rows and existing keys through up/down and partial
+retries. A held metadata lock caused failure in 5.01 seconds; the session timeout returned to 37
+seconds after success, failure and retry. Production-scale build duration, disk needs and
+production plans still require release checks by the manager.
+
 `contract_price_snapshots.pricing_basis` and `contract_price_daily_statistics.pricing_basis`
 distinguish `canonical_calculation` forward values from `observed_seller_data` historical or
 feature-off values. Existing rows default to observed. These columns are necessary because the

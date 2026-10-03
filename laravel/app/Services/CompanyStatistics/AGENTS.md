@@ -212,6 +212,14 @@ canonical and observed bases because either can own the payload. A same-day rewr
 therefore creates a new key, and a flag or method flip cannot serve an incompatible
 payload.
 
+Migration `2026_10_03_000001` adds nonunique annual-table indexes on
+`(method_version, pricing_basis, snapshot_date)` and `(method_version, pricing_basis, updated_at)`.
+These match the two fingerprint MAX reads: the previous index could filter only by method,
+leaving a large basis scan. Exact method/basis selection, same-day rewrite detection, observed
+fallback, query semantics and caches stay unchanged. Local MySQL 9.4 EXPLAIN reports
+`Select tables optimized away` for both fixture MAX reads; this is not production latency proof.
+See `database/AGENTS.md` for online DDL and retry limits (path from Laravel root).
+
 The global fingerprint scan is shared by all companies for 10 minutes under its
 own schema-versioned key. That key varies by active annual method, canonical mode,
 and expected pricing basis. Both a cold fingerprint and a cold v11 company payload

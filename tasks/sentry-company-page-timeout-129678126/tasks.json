@@ -1,0 +1,8 @@
+[
+  {"name":"Trace deployed request path and identify next SQL query","status":"completed"},
+  {"name":"Read production indexes, plans, health and bounded query timings","status":"completed"},
+  {"name":"Record evidence, cause limits and recommended next action","status":"completed"},
+  {"name":"Implement guarded online fingerprint index migration and focused tests","status":"completed"},
+  {"name":"Verify SQLite, mocked SQL, Pint and disposable local MySQL 9.4","status":"completed"},
+  {"name":"Manager release gates, commit, push and deployment verification","status":"in_progress"}
+]
