@@ -40,6 +40,9 @@ return [
     // for web transactions, but opt CLI profiling in explicitly if a short diagnostic run needs it.
     'profiles_sampler' => [App\Support\SentryProfilesSampler::class, 'sample'],
 
+    // Group every lost-database-connection event of an outage into one Issue.
+    'before_send' => [App\Support\DatabaseConnectionLost::class, 'beforeSend'],
+
     // Only continue incoming traces when the organization IDs are compatible with this SDK instance.
     'strict_trace_continuation' => env('SENTRY_STRICT_TRACE_CONTINUATION', false),
 

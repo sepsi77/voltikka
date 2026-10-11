@@ -395,6 +395,14 @@ Primary files:
 - `config/sentry.php` — SDK configuration published by `sentry/sentry-laravel`; reads `SENTRY_LARAVEL_DSN`, trace/profiling sample rates, and log settings from env. It uses `App\Support\SentryProfilesSampler` to keep console/queue profiling disabled by default under the 128 MB worker limit. It ignores `Psy\Exception\ParseErrorException` and `Symfony\Component\Console\Exception\RuntimeException` because malformed local `tinker --execute` smoke commands and invalid Artisan options fail before application code runs and otherwise create Sentry noise.
 - `config/logging.php` — defines the `sentry_logs` channel using the Sentry log driver.
 
+### Database unavailability
+
+A MySQL restart or upgrade (for example the Railway-initiated `vuln-remediation` redeploy on 2026-10-10, about 100 seconds of downtime) must fail fast and stay one Issue:
+- `config/database.php` sets `PDO::ATTR_TIMEOUT` (`DB_CONNECT_TIMEOUT`, default 3 s) on `mysql`. The pdo_mysql default is 30 s, equal to `max_execution_time`, so a hanging connect became a fatal timeout. Laravel can try four connects for one query (connector retry, then reconnect retry), so keep 4 × timeout well below 30 s.
+- `App\Support\DatabaseConnectionLost::matches()` accepts only a `QueryException`/`PDOException` in the previous-exception chain whose message Laravel's `DetectsLostConnections` recognizes. The PDO restriction is deliberate: the framework phrase list also matches generic socket text from HTTP clients.
+- `bootstrap/app.php` renders those exceptions as a plain Finnish 503 with `Retry-After: 30` and `no-store`. They are still reported.
+- `config/sentry.php` `before_send` gives those events the fingerprint `database-connection-lost`, so one outage groups into one Issue instead of one Issue per query. Queue-worker lost-connection exits are unchanged; Supervisor restarts the worker.
+
 Production env guidance:
 ```bash
 SENTRY_LARAVEL_DSN=...

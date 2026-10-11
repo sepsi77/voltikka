@@ -60,6 +60,9 @@ return [
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 // PHP 8.4+ deprecated PDO::MYSQL_ATTR_SSL_CA (value 1009), use Pdo\Mysql::ATTR_SSL_CA instead
                 (defined('Pdo\Mysql::ATTR_SSL_CA') ? constant('Pdo\Mysql::ATTR_SSL_CA') : 1009) => env('MYSQL_ATTR_SSL_CA'),
+                // pdo_mysql waits 30 s by default, the same as max_execution_time, so an unreachable
+                // database became a fatal timeout. Laravel can try up to four connects per query.
+                PDO::ATTR_TIMEOUT => (int) env('DB_CONNECT_TIMEOUT', 3),
             ]) : [],
             'dump' => [
                 'useSingleTransaction' => true,

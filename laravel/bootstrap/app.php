@@ -2,6 +2,7 @@
 
 use App\Services\Caching\ContractPriceCacheConflict;
 use App\Services\Caching\ContractPriceCacheUnavailable;
+use App\Support\DatabaseConnectionLost;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -29,6 +30,18 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->dontReport([ContractPriceCacheConflict::class, ContractPriceCacheUnavailable::class]);
         $exceptions->render(function (ContractPriceCacheConflict|ContractPriceCacheUnavailable $exception) {
             return response('Hintatiedot ovat tilapäisesti poissa käytöstä. Yritä hetken kuluttua uudelleen.', 503, [
+                'Content-Type' => 'text/plain; charset=UTF-8',
+                'Retry-After' => '30',
+                'Cache-Control' => 'no-store, private',
+            ]);
+        });
+        // A database restart is temporary: answer with a retryable 503, not a 500 error page.
+        $exceptions->render(function (Throwable $exception) {
+            if (! DatabaseConnectionLost::matches($exception)) {
+                return null;
+            }
+
+            return response('Voltikka on tilapäisesti poissa käytöstä. Yritä hetken kuluttua uudelleen.', 503, [
                 'Content-Type' => 'text/plain; charset=UTF-8',
                 'Retry-After' => '30',
                 'Cache-Control' => 'no-store, private',
