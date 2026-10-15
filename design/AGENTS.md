@@ -35,6 +35,7 @@ If the two disagree, the design system spec wins. Report the conflict to the use
 | `illustrations/wash-aurora-v1.png` | Watercolour wash. Rejected ("smudging"); do not use |
 | `scenes/footer-night-village-v1.png` | Footer scene, the fox asleep in the snow |
 | `illustrations/{sauna,laundry,ev-charging}-v1.png` | "Kannattaako nyt?" illustrations |
+| `scenes/interlude-villagers-*.png` | Transparent villager interlude strips for pauses between page blocks (walk = on the listing board; noticeboard = alternative) |
 | `emblems/emblem-*.png` | Rejected as pricing category signs (meaning unclear); use the inked price-shape glyphs in the spec instead |
 | `.claude/skills/image-gen/` | Image generation skill (ported from Fetchalot; Codex by default, OpenRouter fallback reads `laravel/.env`) |
 
