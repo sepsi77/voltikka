@@ -21,7 +21,7 @@
 },
 {
 "name": "Interim: push to main and verify deployment (needs user confirmation)",
-"status": "pending"
+"status": "completed"
 },
 {
 "name": "After 2026-11-15: fresh sync, export, score holdout, apply decision rule",

@@ -27,3 +27,11 @@
 - New model name so stored old rows stay separately evaluable. Production has no `PRICE_FORECASTING_*` variable, so the config default selects it. The unapplied full mean is saved as `unapplied_historical_mean_change_cents_per_kwh`. Laravel dry run for Oct 15 equals harness M2 for 6/12/24 m.
 - Release gap: a completed scheduled day blocks manual writes for that date, so new rows first appear at the next scheduled run (07:30 Helsinki the day after deploy). The page shows its empty state until then.
 - The holdout and decision rule are unchanged. M2 is now the live baseline; the follow-up decides whether it stays or a refinement replaces it.
+
+## Interim release record (2026-10-15 Helsinki evening, approved by the user)
+
+- Commit `e996b7a` pushed to `origin/main`; Railway deployment `aabb84cc-a303-4398-b6e1-fe016a8d4253` reached SUCCESS. The container reports `fixed_term_futures_only_v1`.
+- Production Helsinki date was still 2026-10-15 (the local clock was ahead). The 2026-10-15 scheduled forecast had completed with the old model, so the user approved reopening it: checkpoint 202 (`morning_forecast`, 2026-10-15) changed only `scheduled_complete` true → false plus a `manual_reopen` note, under a row lock with an exact-state check.
+- Production dry run matched the local values; the manual run `forecasting:run-fixed-contracts --as-of=2026-10-15 --horizon=30 --require-freshness` saved 9 new-model rows. The 9 old-model rows stay. Checkpoint 202 is `ready` (manual, not scheduled-complete). No scheduled tick can run for that date again.
+- Public page verified: all three terms show "Suunnilleen ennallaan" (6 m 14.81 → 14.79, 12 m 11.96 → 11.95, 24 m 10.70 → 10.70).
+- Deploy outage: 502 "connection refused" from 17:57:29 to 17:59:56 UTC while the start script ran (storage link, migrate, config cache). The 2026-10-11 deployment had the same pattern (about 1 min 48 s), so traffic switches before the app listens. This is an existing deploy configuration gap, not caused by this change; manual SSH work on the starting container may have lengthened it.

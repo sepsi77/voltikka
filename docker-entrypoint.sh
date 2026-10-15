@@ -9,9 +9,11 @@ mkdir -p /app/storage/logs \
          /app/storage/app/public/logos \
          /app/bootstrap/cache
 
-# Set permissions
-chmod -R 775 /app/storage /app/bootstrap/cache
-chown -R www-data:www-data /app/storage /app/bootstrap/cache
+# Set permissions. Touch only entries that differ: a recursive chmod/chown rewrote
+# the whole file cache on the volume (116k files, ~2.5 min) on every start, and a
+# volume-backed service serves no traffic until this container is up.
+find /app/storage /app/bootstrap/cache ! -perm 775 -exec chmod 775 {} +
+find /app/storage /app/bootstrap/cache \( ! -user www-data -o ! -group www-data \) -exec chown www-data:www-data {} +
 
 # Create storage symlink (for public access to logos)
 php artisan storage:link --force 2>/dev/null || true
