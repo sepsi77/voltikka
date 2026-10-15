@@ -144,6 +144,7 @@ voltikka/
 │   ├── resources/views/     # Blade templates
 │   ├── database/migrations/ # Database migrations
 │   └── data-investigation/  # API structure documentation
+├── design/                  # Visual redesign: brand guide, design spec, art, Paper link; see design/AGENTS.md
 ├── legacy/                  # Deprecated code (not in active use)
 │   ├── python/              # Old Python services
 │   └── voltikka/            # Old SvelteKit frontend
