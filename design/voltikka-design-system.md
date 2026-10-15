@@ -7,7 +7,7 @@
 
 The user deleted the rejected drafts (v1, v2 BOLD, v3 white panels), so the file contains no old designs.*
 
-The tokens live in the Paper file (88 tokens, Tailwind v4 groups) and in `voltikka-tokens.css`. If the Paper tokens, `voltikka-tokens.css` and this file disagree, fix the one that is wrong and say so. The name, story, fox rules and voice are in `voltikka-brand-guide.md`. This file does not repeat them.
+The tokens live in the Paper file (92 tokens, Tailwind v4 groups) and in `voltikka-tokens.css`. If the Paper tokens, `voltikka-tokens.css` and this file disagree, fix the one that is wrong and say so. The name, story, fox rules and voice are in `voltikka-brand-guide.md`. This file does not repeat them.
 
 The name stays **Voltikka** and the domain stays **voltikka.fi** (user, 2026-10-16).
 
@@ -87,6 +87,7 @@ The glyph shape, not the colour, identifies the category, so the system works fo
 | `--color-warning-ink` | `#6B4A00` | Caution text without alarm (7.4:1) |
 | `--color-forecast` | `#B7C6D9` | Forecast bars (third-party forecast, not the official price). Always with a legend. |
 | `--color-star` | `#E0A21B` | Fill of the inked star on the cheapest hour or the best value. Never text. |
+| `--color-season-ground-{talvi,kevat,kesa,syksy}` | `#E4EAF0` / `#DFE6D0` / `#D5E5C4` / `#EEDCC2` | The painted ground line under villager vignettes, by season (snow, thaw, meadow, fallen leaves). Spring and summer add small inked grass tufts and flowers; autumn adds a few inked leaves. Decoration only. |
 
 A neutral number uses `--color-ink`.
 
@@ -262,10 +263,16 @@ Rules:
 - **What varies:** hero scenes and plates, the footer scene, interlude strips, the snow line under cutouts (fox and villagers), the home illustrations and any vignette with weather or ground. Category glyphs, logos and charts do not vary.
 - **What stays:** the composition (same camera, layout and calm text area; generate each variant with the winter version as `--ref`), the fox design and its green scarf, the aurora sparks at the fox's tail tip (the brand's "fox fire"), and the page's topic object (solar panels, heat pump, meter, telescope).
 - **Aurora** appears only in winter scenes (and a faint one in late autumn at most). Summer nights are bright.
-- **Text on bright skies.** Spring and summer heroes are bright: they use the light hero variant (ink text and top bar on a light shade). Autumn and winter heroes keep white text on a dark sky. Check the contrast of each variant.
+- **Text follows the brightness of the art, not the season name.** Bright art (most spring and summer art, and a golden autumn day) uses the light hero variant: a ground-colour shade (`rgba(245,246,241,…)`, about 82% at the text side falling to 0% at about 900px) plus a light band behind the top bar; logo, H1, active nav item and spot price in `--color-ink`, other nav items and the lead in `--color-ink-body`, accents in `--color-fox-deep`. Dark art (winter, a rainy autumn evening) uses the dark variant: a navy shade (`rgba(20,33,58,…)`) at the text side and behind the top bar, white text. Autumn art with rain and leaves is busy, so it always needs a shade behind white text. Check the contrast of each variant on a screenshot.
+- **Directory heroes with a plain sky** (Paikkakunnat) change the sky colour: pale blue in spring, peach in summer, night blue in autumn and winter.
+- **Strip heights vary by season** (flying birds, clouds): place strips with a fixed width and `object-fit: contain`, and let the height follow.
 - **Selection:** the server selects the season from the current Europe/Helsinki month and serves the matching file. The season is part of the page cache key. Files are named `<name>-<season>-vN.png` (`talvi`, `kevat`, `kesa`, `syksy`); the current winter files count as the `talvi` variants.
 - **Page topics with a season of their own** (solar = summer sun, heat pump = frost) still get four variants. The topic object stays; only the season around it changes.
 - **Activities follow the season.** An interlude strip keeps its villagers and its kind of fun, but a winter-only activity changes to its seasonal counterpart (skating → bark boats in meltwater / diving off rocks / leaf piles; toboggan → wheelbarrow race / rolling down a grassy hill / sliding on leaves; snow lanterns → planting seedlings / watering the garden / raking leaves; postman on skis → postman on a bicycle; spruce lights → Vappu balloons / juhannus birch branches / lanterns in the rain). Never draw a snow activity without snow.
+- **Clothes follow the season**, also indoors: no wool hats, scarves or knitted sweaters on villagers in summer (the fox keeps its green scarf: it is the brand).
+- **Indoor scenes** get variants only when a window shows the season, and then only the window view changes (the Tietoa desk).
+- **Seasonal copy:** where the text names the weather, it changes too (404: "Polku katosi lumeen / sulamisveteen / saniaisiin / lehtien alle").
+- **Status (2026-10-16):** every season-bound art file has talvi, kevät, kesä and syksy versions, and every page group has "Seasons · <page>" boards; page "Seasons" holds the two reference pages and the footer in four seasons. Not every original was winter (solar = kesä, Helsinki hero = syksy, map = kesä, stats and forecast strips = syksy); files are named by what they show.
 - **Pilot (2026-10-16):** the spot hero, listing hero, footer, walk strip and the two fox cutouts exist in all four seasons. Generating each variant with the winter file as `--ref` and "change ONLY the season" kept the compositions, villagers and fox design. The prompt templates are recorded in `seasons-prompts.md`.
 
 ## 8. Accessibility

@@ -53,3 +53,15 @@ The attached images show the Voltikka fox (reference sheet and the current pose)
 ```
 
 For a strip whose activity exists only in winter, replace "Change ONLY the season" with the seasonal counterpart activity (spec, "Activities follow the season").
+
+## Lessons from the full run (2026-10-16)
+
+Add these lines to the prompt when they apply. The model copies details from the winter reference.
+
+- Always: "Only animal villagers, never humans." The model adds people to village scenes.
+- Spring, summer and autumn: "Absolutely no snow or ice anywhere: no snow caps on roofs, posts, rocks or signposts. No Christmas wreaths, no skis, no winter props."
+- Summer (and warm spring): "Light summer clothes; NO wool hats, scarves or sweaters" for villagers. (The fox keeps its green scarf: it is the brand.)
+- A transparent strip has no sky: "No aurora."
+- A winter scene with an ice road or the fox on ice: in other seasons, say where the fox walks instead ("on a stony causeway / the shore, never on open water").
+- Fox cutouts: do not ask for "aurora sparks at the tail tip" in a new pose; Codex can draw them as a flame-like wisp, which the brand forbids. Ask for "a plain white fur tip, no flame, no wisps". Keep sparks only when the result shows small separate stars, as on `fox-sit-skyward` and `fox-walk-lantern`.
+- Check the season of the original first; name each file by the season it shows.

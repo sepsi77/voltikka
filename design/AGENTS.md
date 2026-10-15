@@ -22,7 +22,7 @@ If the two disagree, the design system spec wins. Report the conflict to the use
 |---|---|
 | `voltikka-design-system.md` | Design spec |
 | `voltikka-brand-guide.md` | Brand guide (name, story, fox rules, voice) |
-| `voltikka-tokens.css` | The 88 design tokens as a Tailwind v4 `@theme` block. Must match the Paper tokens |
+| `voltikka-tokens.css` | The 92 design tokens as a Tailwind v4 `@theme` block. Must match the Paper tokens |
 | `seasons-prompts.md` | Prompt templates and season briefs for the talvi/kevät/kesä/syksy art variants |
 | `pages-plan.md` | Plan for the boards of every live page: page groups, hero ideas, rules |
 | `mascot/fox-v2.png` | **Approved fox reference** (user, 2026-10-16): four paws, green Nordic scarf. Give it as `--ref` for every new pose |
@@ -57,6 +57,8 @@ All art is made with the image-gen skill and is production art (user, 2026-10-16
 - `<x-paper-clone>` of the reference top bar (`2J8-0`) stacks its nav items. Use the fixed top bar on the legal board (layer "Top bar" on "Pages · group F") or `duplicate_nodes`. A clone with `position:absolute` in its style passes that style to all descendants; use `duplicate_nodes` for absolute parts. A clone into an absolute hero lands as the first child, under the art: move it to the end.
 - `position: relative` is ignored on frames, but absolute children still position against their parent frame.
 - Paper keeps one style per text node, so a bold lead-in inside a paragraph is lost.
+- Gradient stops must use percent, not px: Paper drops a px stop and spreads the gradient over the whole frame.
+- A text node copied with `duplicate_nodes` can fall back to system-ui; set the font again.
 
 ## Making art
 

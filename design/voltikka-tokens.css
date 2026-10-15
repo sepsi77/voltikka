@@ -32,6 +32,10 @@
   --color-saving: var(--color-aurora);
   --color-forecast: #B7C6D9;
   --color-star: #E0A21B;
+  --color-season-ground-talvi: #E4EAF0;
+  --color-season-ground-kevat: #DFE6D0;
+  --color-season-ground-kesa: #D5E5C4;
+  --color-season-ground-syksy: #EEDCC2;
 
   --font-display: "Bricolage Grotesque", system-ui, sans-serif;
   --font-sans: "Figtree", system-ui, sans-serif;
