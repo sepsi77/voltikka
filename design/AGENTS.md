@@ -31,6 +31,9 @@ If the two disagree, the design system spec wins. Report the conflict to the use
 | `scenes/winter-evening-village-v2.png` | Picture-book hero scene with tiny villagers (hare, badger), ink line + watercolour; the reference for the picture-book feel |
 | `scenes/village-dusk-plate-v1.png` | v2 listing hero: village at dusk with an empty snowfield |
 | `illustrations/home-*.png` | The four consumption homes (studio, apartment, row house, house) |
+| `illustrations/villager-*.png` | Villager vignettes (sauna badger, laundry hare, car-charging bear, owl with pocket watch) |
+| `illustrations/wash-aurora-v1.png` | Watercolour wash. Rejected ("smudging"); do not use |
+| `scenes/footer-night-village-v1.png` | Footer scene, the fox asleep in the snow |
 | `illustrations/{sauna,laundry,ev-charging}-v1.png` | "Kannattaako nyt?" illustrations |
 | `emblems/emblem-*.png` | Pricing category emblems (spot, periodic, usage, fixed) for the category choice chips |
 | `.claude/skills/image-gen/` | Image generation skill (ported from Fetchalot; Codex by default, OpenRouter fallback reads `laravel/.env`) |
@@ -41,7 +44,7 @@ All art is made with the image-gen skill and is production art (user, 2026-10-16
 
 - File **"Voltikka"**, id `01M50B1D4JDT66PK35AAW7BSE4`. Call `get_guide({topic: "paper-mcp-instructions"})` once per session before other Paper tools.
 - The file has design tokens that match the spec §2–§4. Use them as `var(--token)`. Never hard-code a color that has a token. When you add a token, add it in Paper and in the spec in the same change.
-- Page **"Direction · first boards"** (`p-1-0`), desktop 1440. **Reference for the main rule (design at the side, no cards):** "Pörssisähkö — /spot-price v4 picture book". v3 (white rounded panels) is rejected. "Sähkösopimukset — /sahkosopimus v2 BOLD" is the current listing board (home choice tiles, emblem chips). The v1 boards and "/spot-price v2 BOLD" are rejected options kept for comparison; delete them when the user approves the direction.
+- Page **"Direction · first boards"** (`p-1-0`), desktop 1440. **Reference for the main rule (design at the side, no cards):** "Pörssisähkö — /spot-price v4 picture book". v3 (white rounded panels) is rejected. "Sähkösopimukset — /sahkosopimus v4 picture book" is the current listing board (compact controls, ledger entries). The v1 boards and "/spot-price v2 BOLD" are rejected options kept for comparison; delete them when the user approves the direction.
 - Insert local images with `paper-asset:///Users/seppo/code/voltikka/design/…`.
 - Known Paper limits: `margin` and CSS `transform` are ignored (use padding/gap; flip art in the image itself). Screenshots can render late; take a second one before you decide that an image is missing.
 

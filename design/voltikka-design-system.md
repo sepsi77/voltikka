@@ -24,7 +24,26 @@ User decisions that set the direction (2026-10-16):
 
 ### Content sits on the page, not in cards (user, 2026-10-16)
 
-v3 (white rounded panels) "brings back the rounded cards SaaS vibe". Content is laid out like a picture book page: no containers. Structure comes from a display heading with a hand-inked wavy fox-orange underline and an optional small emblem vignette; sections are separated by a small inked snowflake ornament between two hairlines; day numbers sit in one row with ornaments between them; the chart uses the full width with an inked baseline; illustrated items stand on a painted snow line with captions below. Controls (tabs) use a hand-inked underline for the active item. Form controls and the contract listing still need a card-free treatment (open item).
+v3 (white rounded panels) "brings back the rounded cards SaaS vibe". Content is laid out like a picture book page: no containers. Structure comes from a display heading with a hand-inked wavy fox-orange underline and an optional small emblem vignette; sections are separated by a small inked snowflake ornament between two hairlines; day numbers sit in one row with ornaments between them; the chart uses the full width with an inked baseline; illustrated items stand on a painted snow line with captions below. Controls (tabs) use a hand-inked underline for the active item.
+
+
+### No pills, badges or washes (user, 2026-10-16)
+
+- Pills and badges (rounded containers around short labels, such as "Edullinen päivä", "UUDET", "ENNUSTE", the top-bar spot price, the "nyt" bar label and the Preferred Sources button) "still have the SaaS vibe". Use text with a hand-inked mark instead: a small four-point sparkle before the label, small caps in the status colour, or a hand-inked underline under an action.
+- Watercolour washes over headings and data were rejected as "smudging". Do not put paint behind text or numbers. Washes are not used now.
+- The Preferred Sources strip stays directly after the hero on every page (root AGENTS.md); its action is an inked text action, not a pill button.
+
+### Listing pages: contracts high on the page (user, 2026-10-16)
+
+"All of the filters and options push the contract cards down too much." On listing pages the hero is short (about 460px), and the controls are one compact block between hairlines: one row for annual consumption (radio, 44px home icon, name and kWh, own-consumption field, "Arvioi laskurilla"), one row for the pricing types (checkbox, 44px emblem, name and meaning), and one line of disclosure triggers (Saatavuus, Vertaa nykyistä sähkölaskuasi, Rajaa hakua) with "Vertailu kulutuksella". Large illustrated choices belong to hub pages, not listings. Contract entries are ledger rows with no card: category emblem and kicker, name, price parts with dotted leaders, large €/kk price, savings, an inked "Katso →" action, sparkle-mark tags, and a hand-inked hairline between entries. The fox stays in the hero only.
+
+### Live content parity (user, 2026-10-16)
+
+A board must contain all data and texts of the live page. Check the live page (rendered text and a full-page screenshot) before a board is called complete. The spot price v4 board covers: hero (title, lead, current 15-minute price, "Mitä hinta sisältää?", cheap-day mark, averages line), Preferred Sources, day figures (next cheap hour, day low, day high, 30-day average), Kodin energiavinkit (five tasks and the method note), the forecast and realised hourly prices (today, tomorrow, three forecast days, legend, Lataa CSV, 15-minute prices, source line), the 30-day history, the month comparison, October by year, the FAQ and the full footer.
+
+### Picture-book elements outside the hero (user, 2026-10-16: "bring more of the picture-book style on the page")
+
+Place the world in the margins and pauses, never inside data: villager vignettes that do the page's everyday tasks (sauna badger, laundry hare, car-charging bear) above the plain prices; fox paw-print tracks as section dividers; a small vignette at the left of a section heading, where an emblem would go (the owl with a pocket watch heads the hourly chart). Do not float vignettes in open space: the user found a free-floating owl "lost and out of place" (2026-10-16); a painted night-village footer with the fox asleep in the snow. The footer and the logo do not count toward the one-fox-per-page rule. Form controls and the contract listing still need a card-free treatment (open item).
 
 ## 2. Color
 
