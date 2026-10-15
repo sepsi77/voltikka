@@ -373,7 +373,7 @@ Directory:
 - `PriceForecasting/`
 
 Purpose:
-- calculate separate-term/quantile expanding completed retail-change means plus the tested fixed-basket seven-day FI futures adjustment; curves and features are reused within each build
+- calculate separate-term/quantile forecasts from the fixed-basket seven-day FI futures adjustment only (`fixed_term_futures_only_v1`; no historical drift term); curves and features are reused within each build
 - evaluate matured forecasts against realized contract-price statistics so model performance can be tracked over time
 
 Read first:

@@ -107,6 +107,16 @@ Agents should use the task tracking system in `tasks/` when working on this code
 
 Time-triggered work that is not yet possible. Check this list when the date has passed. Each item says what unblocks it and where the detail lives. **Remove an item once it is done**, and do not add anything here that a scheduled command already surfaces on its own.
 
+### After 2026-11-15 — score the falling-market forecast holdout
+
+The old fixed-term forecast (`fixed_term_futures_adjusted_v1`) said `rising` for every term on every day from 2026-09-14, while medians fell, because its expanding drift term dominated. On 2026-10-16 the drift-free model M2 (`fixed_term_futures_only_v1`) replaced it as an interim fix. A pre-declared study froze eight candidate models and a decision rule on 2026-10-16; its 30-day holdout targets end on 2026-11-14 and decide whether M2 stays or a refinement replaces it.
+
+1. Run `scripts/sync-production-database.sh`, then `export.py` into a new `export-YYYYMMDD/` and `harness.py <new export> --frozen export-20261016` in `tasks/forecast-falling-market-study/`.
+2. Check that holdout predictions equal the frozen `results-20261016.json` (or explain listed revisions), then apply the spec's decision rule.
+3. Recommend the result to the user. A production model change needs separate approval.
+
+Interim 7/14-day holdout outcomes exist after 2026-10-22/2026-10-29, but they are secondary and do not replace the 30-day decision. See `tasks/forecast-falling-market-study/spec.md`.
+
 ### After 2026-10-01 — calibrate the market-reset pricing coefficient
 
 Live pricing currently annualises monthly/quarterly market-reset contracts with **one global pass-through coefficient, `beta = 1.0`** (`RESET_FORWARD_SHIFT_ENABLED`, enabled in production since 2026-07-25). That value is measured only for the **monthly** cadence: `retail-premiums:calibrate` on 2026-07-25 gives a gated monthly figure of **0.81** (VAT incl.) / **0.94** (VAT excl.) from the two companies with at least 3 pass-through pairs, which is within the 0.25 review threshold of the configured 1.0. The **27 quarterly lineages use it as an unverified prior** — quarterly products reprice four times a year, and the FI futures curve only exists from 2026-04-08, so each quarterly lineage had just one usable period.
@@ -303,7 +313,7 @@ Retail collection and forecast generation use independent five-minute background
 - **Location**: `app/Services/PriceForecasting/`, `app/Models/FixedContractPriceForecast.php`, `app/Livewire/FixedContractPriceForecast.php`
 - **Route**: `/sahkosopimus/sahkon-hintaennuste`
 - **Commands**: generation, evaluation, and read-only `forecasting:report-fixed-contracts`.
-- The approved local release model is `fixed_term_futures_adjusted_v1`: current price plus the unrestricted expanding mean of completed same-basis retail changes, adjusted by the tested seven-calendar-day fixed-delivery-basket FI Base futures feature with fixed ridge 1. Fit term 6/12/24, p20/median/p80 and horizon independently. Default horizon 30; full and feature cohorts each need max(20, configured minimum) unique starts with targets strictly before issue. Missing futures omits the forecast, never falls back under the new identity. No rolling-window tuning or extra predictors. See `tasks/futures-adjusted-forecast-release/`.
+- The generation model is `fixed_term_futures_only_v1` (2026-10-16): current price plus only the seven-calendar-day fixed-delivery-basket FI Base futures feature with fixed ridge 1. Fit term 6/12/24, p20/median/p80 and horizon independently. Default horizon 30; full and feature cohorts each need max(20, configured minimum) unique starts with targets strictly before issue. Missing futures omits the forecast. The previous `fixed_term_futures_adjusted_v1` also added the expanding mean of past retail changes; that drift said `rising` every day from 2026-09-14 while prices fell, so it was removed. Fitted slopes are near zero, so most forecasts are about unchanged. Do not restore a drift term. See `tasks/forecast-falling-market-study/`.
 - Current input is exact-date unit_statistics_v1 in PricingMode's basis. History uses observed prefix before term-specific canonical presence and canonical continuation after it; both pair endpoints must have the same basis. Latest ID owns a day before finite validation. Invalid presence establishes the boundary; missing/invalid canonical dates never permit observed fallback. Annual methods do not gate this unit history. Zero and negative finite values are valid.
 - Confidence uses accepted current-basis full pairs only, at unchanged 120/365 thresholds. It describes history coverage, not accuracy. Legacy financial/futures columns stay null; real fixed-basket diagnostics and fitted parameters are saved as feature metadata. No new migration is required. Old forecasts and completed evaluations remain intact and evaluable from saved provenance. Forecast freshness again requires current EEX checkpoint/current-run prior-FI proof and recent prior-date FI Base data; retail-premium checks and statistics recovery rules stay unchanged.
 - Public saved-direction outlooks say rise/fall/approximately unchanged, never lock/wait. Dates/horizon and visible uncertainty qualify them; unknown, incomplete and mixed remain distinct. Independently fitted quantiles can cross: the page warns without sorting, and the article keeps its ordered-distribution guard. Median teasers stay independent. p20/p80 are not uncertainty bounds. The offered-price history is separate and must not be truncated by a model switch.
@@ -409,7 +419,7 @@ Retail collection and forecast generation use independent five-minute background
 | `SolarCalculatorService` | Solar calculator orchestration |
 | `CompanyLogoService` | Handles company logo URLs with WebP optimization |
 | `AzureConsumerApiClient` | Fetches contracts from Azure API |
-| `PriceForecasting/FixedTermPriceForecastService` | Adds expanding completed retail-change means to current prices, separately by term and quantile |
+| `PriceForecasting/FixedTermPriceForecastService` | Adds a fitted futures-change adjustment (no drift term) to current prices, separately by term and quantile |
 
 ### Important Fields
 

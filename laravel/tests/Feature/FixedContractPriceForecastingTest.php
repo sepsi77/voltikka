@@ -139,11 +139,12 @@ class FixedContractPriceForecastingTest extends TestCase
     public function test_public_page_and_market_insight_show_current_canonical_forecast(): void
     {
         config()->set('canonical_pricing.enabled', true);
-        config()->set('price_forecasting.fixed_term.model_version', 'fixed_term_futures_adjusted_v1');
+        config()->set('price_forecasting.fixed_term.model_version', 'fixed_term_futures_only_v1');
         Cache::flush();
 
         $this->forecastRow('2026-05-24', 'fixed_term_ewma_gap_v2', 'canonical_calculation', 9.99);
-        $this->forecastRow('2026-05-23', 'fixed_term_futures_adjusted_v1', 'canonical_calculation', 8.88);
+        $this->forecastRow('2026-05-23', 'fixed_term_futures_only_v1', 'canonical_calculation', 8.88);
+        $this->forecastRow('2026-05-24', 'fixed_term_futures_adjusted_v1', 'canonical_calculation', 9.99);
         $this->forecastRow('2026-05-24', 'fixed_term_historical_change_v1', 'canonical_calculation', 9.99);
 
         $this->get('/sahkosopimus/sahkon-hintaennuste')
@@ -237,7 +238,7 @@ class FixedContractPriceForecastingTest extends TestCase
 
     public function test_reserved_model_versions_cannot_generate_or_overwrite(): void
     {
-        foreach (['fixed_term_ewma_gap_v1', 'fixed_term_ewma_gap_v2', 'fixed_term_ewma_gap_v3', 'fixed_term_historical_change_v1', 'unknown'] as $version) {
+        foreach (['fixed_term_ewma_gap_v1', 'fixed_term_ewma_gap_v2', 'fixed_term_ewma_gap_v3', 'fixed_term_historical_change_v1', 'fixed_term_futures_adjusted_v1', 'unknown'] as $version) {
             config()->set('price_forecasting.fixed_term.model_version', $version);
             $row = $this->forecastRow('2026-05-01', $version, null);
             $before = $row->fresh()->getRawOriginal();
@@ -248,11 +249,11 @@ class FixedContractPriceForecastingTest extends TestCase
                 $this->assertStringContainsString('reserved', $exception->getMessage());
             }
             $this->artisan('forecasting:run-fixed-contracts --as-of=2026-05-01 --overwrite --require-freshness')
-                ->expectsOutput('Generation requires fixed_term_futures_adjusted_v1. Other model names are reserved for stored forecasts.')
+                ->expectsOutput('Generation requires fixed_term_futures_only_v1. Other model names are reserved for stored forecasts.')
                 ->assertExitCode(1);
             $this->assertSame($before, $row->fresh()->getRawOriginal());
         }
-        $this->assertSame(5, FixedContractPriceForecast::count());
+        $this->assertSame(6, FixedContractPriceForecast::count());
     }
 
     public function test_evaluation_uses_saved_canonical_basis_threshold_and_baseline_without_runtime_leakage(): void

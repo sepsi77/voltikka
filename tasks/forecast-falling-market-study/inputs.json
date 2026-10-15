@@ -1,0 +1,25 @@
+{
+  "frozen_at": "2026-10-16",
+  "source": "laravel/database/database.sqlite after read-only scripts/sync-production-database.sh on 2026-10-16",
+  "snapshot_cutoff": "2026-10-15",
+  "sha256": {
+    "spec.md": "a6ce00ef9c3fea60d4b04cc5aaf7a4396e0fcd8b6401105d014c8682699db7cb",
+    "export.py": "1ea87b4bfdf68e5335ede0644b035533379e882d7433cbeeb561435cbb262d75",
+    "harness.py": "0b793b29bf1dee118f996efaeac54f666dc93de384a96f7751198fcab05b6a0b",
+    "export-20261016/retail.csv": "ba5096f46d0791bc3c54b67d1b82660c5663b8bd32a6a4e6b1f2ac4492cbc332",
+    "export-20261016/futures.csv": "c51f53c3d5f994cf4d5dc3e1a9c53220fe7dc6d450305852d0840229a4a1c901",
+    "results-20261016.json": "db8bd4f47bf398c6dd8509f12fe52a4cb8fd35fcd70fb09ca559455a4c7bca99",
+    "report-20261016.txt": "05b43f0a974ae198c354294cb903587cf053ae66150909d4d2f1a6ee92b298d0"
+  },
+  "rows": {
+    "export-20261016/retail.csv": 798,
+    "export-20261016/futures.csv": 2699
+  },
+  "holdout_rows": {
+    "median_h30": {"rows": 87, "issues": "2026-09-16..2026-10-15", "last_target": "2026-11-14"},
+    "median_h14": {"rows": 42, "issues": "2026-10-02..2026-10-15", "last_target": "2026-10-29"},
+    "median_h7": {"rows": 21, "issues": "2026-10-09..2026-10-15", "last_target": "2026-10-22"},
+    "p20_h30": {"rows": 87, "last_target": "2026-11-14"},
+    "p80_h30": {"rows": 87, "last_target": "2026-11-14"}
+  }
+}

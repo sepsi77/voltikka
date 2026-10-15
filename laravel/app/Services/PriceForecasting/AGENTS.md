@@ -4,7 +4,7 @@ Fixed-term forecasts, stored evaluation, and `/sahkosopimus/sahkon-hintaennuste`
 
 ## Files
 
-- `FixedTermPriceForecastService.php`: separate-term/quantile completed retail-change mean plus fixed-basket futures adjustment.
+- `FixedTermPriceForecastService.php`: separate-term/quantile fixed-basket futures adjustment on the current price; no drift term.
 - `FixedTermHedgeCostService.php`: calendar-day-weighted FI Base delivery costs. Optional delivery start and build-local curves preserve existing callers' default rolling semantics.
 - `FixedTermForecastEvaluationService.php`: exact-date, saved-basis evaluation.
 - `ForecastOutlook.php`: saved-direction categories, Finnish copy, complete-term summary and four direction outcomes.
@@ -14,16 +14,18 @@ Fixed-term forecasts, stored evaluation, and `/sahkosopimus/sahkon-hintaennuste`
 - `../../Livewire/FixedContractPriceForecast.php` and its Blade template: public page.
 - `../../../config/price_forecasting.php`: defaults.
 
-## Current local generation: fixed_term_futures_adjusted_v1
+## Current generation: fixed_term_futures_only_v1
 
-This replaces `fixed_term_historical_change_v1` for new generation only. It is the tested `production_futures`, **fixed** cohort in `tasks/forecast-futures-increment-test/analyze.py`, not the rolling cohort, old gap/fair-price method, or a futures-led hypothesis. See `../../../../tasks/futures-adjusted-forecast-release/` for replay and release approval requirements.
+This replaces `fixed_term_futures_adjusted_v1` for new generation only (2026-10-16). It is that model WITHOUT the unrestricted expanding mean (the drift term). Reason: after a rising year the mean was a fixed upward drift (+0.66/+0.34/+0.26 c/kWh on 2026-10-15); every stored forecast from 2026-09-14 said `rising` while medians fell, and the futures term was too small to override it. Model M2 in `../../../../tasks/forecast-falling-market-study/`: fewest wrong-way calls in every tested window and lowest error since 2026-08-15 at 7/14 days, but in the summer rise it was less accurate than the drift model at 30 days. The fitted futures slopes are near zero, so most forecasts are "about unchanged". Do not restore a drift term: an average of past changes only repeats the past trend. That study's frozen holdout (after 2026-11-15) decides any further refinement. Earlier history: `../../../../tasks/futures-adjusted-forecast-release/`.
 
 For each 6/12/24-month term, p20/median/p80 quantile and horizon h independently:
 
 1. Keep ALL eligible completed retail changes `y_s = R_q(s+h) - R_q(s)`, with target STRICTLY BEFORE issue t. Full mean is the equal-weight expanding mean of these unique start dates, with no futures-availability restriction and no rolling window.
 2. Feature `x_s` is the seven-calendar-day FI Base wholesale cost change for the SAME duration delivery basket starting next month of s. Current vintage is latest trade strictly before s; lag vintage is latest strictly before s-7. Both price that same basket, including across month roll. Do not move the lag basket to next month of s-7.
 3. From those same eligible retail pairs, retain feature-complete pairs. Compute feature mean, POPULATION standard deviation and their retail-change mean. With `z = (x-xmean)/xstd`, slope is `mean(z*(y-ymean))/(mean(z²)+1)`. Ridge is fixed at 1; intercept is not penalized. Zero standard deviation gives zero contribution.
-4. Raw prediction change is **full unrestricted mean** plus `slope*((current_feature-xmean)/xstd)`. Never substitute the feature cohort's mean for the full mean. Round change to four decimals before inclusive ±0.15 direction thresholds; add that saved change to current price and round the forecast to four decimals.
+4. Raw prediction change is ONLY `slope*((current_feature-xmean)/xstd)`. The intercept (feature-cohort mean) and the full mean are not added. Round change to four decimals before inclusive ±0.15 direction thresholds; add that saved change to current price and round the forecast to four decimals.
+
+Step 1's full mean still gates minimum history and confidence and is saved as `unapplied_historical_mean_change_cents_per_kwh` for diagnosis only.
 
 Each full and feature cohort requires `max(20, configured minimum_history_observations)` unique starts. Current and lag baskets must be complete. Missing futures or feature history omits the row; there is no fallback that claims this identity while using only the old mean. No tuning, extra predictors or shared parameters are used.
 
@@ -39,7 +41,7 @@ Each full and feature cohort requires `max(20, configured minimum_history_observ
 - Confidence counts accepted CURRENT-BASIS full pairs only: 120 gives medium and 365 high, otherwise low. It describes history coverage, not probability or accuracy. Older-basis pairs can satisfy the minimum but cannot raise it.
 - Hedge cost, retail premium, normal premium, fair price, gap, futures trade date and coverage quality database diagnostics remain NULL. Real fixed-basket facts live under explicitly named feature metadata, not legacy financial semantics. Intervals remain NULL. Existing nullable columns suffice; this release adds no migration.
 - Independent quantiles can cross. Never sort, relabel or fabricate them. Formula tests cover all quantiles, but the frozen research validates median predictions only.
-- Generation rejects EVERY other model name, including historical-change and gap versions, before freshness recovery can write statistics. Legacy `consumer_signal` keys remain storage compatibility only; public readers use saved direction through ForecastOutlook.
+- Generation rejects EVERY other model name, including futures-adjusted, historical-change and gap versions, before freshness recovery can write statistics. Legacy `consumer_signal` keys remain storage compatibility only; public readers use saved direction through ForecastOutlook.
 
 ## Storage and evaluation
 

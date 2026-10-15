@@ -14,6 +14,8 @@ class FixedTermPriceForecastService
 
     public const OBSERVED_PRICING_BASIS = 'observed_seller_data';
 
+    public const MODEL_VERSION = 'fixed_term_futures_only_v1';
+
     private const RETAIL_METRIC = 'energy_price';
 
     public const SEGMENTS = [
@@ -101,7 +103,8 @@ class FixedTermPriceForecastService
                 }
                 $slope = $covariance / ($variance + 1.0);
                 $contribution = $featureStd > 0 ? $slope * (($currentFeature['value'] - $featureMean) / $featureStd) : 0.0;
-                $expectedChange = $this->roundPrice($meanChange + $contribution);
+                // No drift term: an average of past retail changes only repeats the past trend.
+                $expectedChange = $this->roundPrice($contribution);
                 $forecastPrice = $current['price'] + $expectedChange;
                 $direction = $this->directionLabel($expectedChange, $directionThreshold);
 
@@ -129,7 +132,7 @@ class FixedTermPriceForecastService
                     'contract_count' => $current['contract_count'],
                     'model_version' => $modelVersion,
                     'source_metadata' => [
-                        'model' => 'fixed_term_futures_adjusted_v1',
+                        'model' => self::MODEL_VERSION,
                         'futures_policy' => 'fi_base_fixed_next_month_basket_7_calendar_days_ridge1_v1',
                         'futures_lag_days' => 7,
                         'ridge' => 1.0,
@@ -150,7 +153,7 @@ class FixedTermPriceForecastService
                         'fitting_policy' => 'expanding_equal_weight_completed_same_basis_pairs_v1',
                         'pair_count' => count($changes),
                         'unique_issue_days' => count($changes),
-                        'mean_change_cents_per_kwh' => $meanChange,
+                        'unapplied_historical_mean_change_cents_per_kwh' => $meanChange,
                         'pair_start_min' => $history['source_start_date'],
                         'pair_start_max' => $history['source_end_date'],
                         'pair_target_min' => $history['target_start_date'],
@@ -184,9 +187,9 @@ class FixedTermPriceForecastService
 
     public function generationModelVersion(): string
     {
-        $modelVersion = (string) config('price_forecasting.fixed_term.model_version', 'fixed_term_futures_adjusted_v1');
-        if ($modelVersion !== 'fixed_term_futures_adjusted_v1') {
-            throw new \InvalidArgumentException('Generation requires fixed_term_futures_adjusted_v1. Other model names are reserved for stored forecasts.');
+        $modelVersion = (string) config('price_forecasting.fixed_term.model_version', self::MODEL_VERSION);
+        if ($modelVersion !== self::MODEL_VERSION) {
+            throw new \InvalidArgumentException('Generation requires '.self::MODEL_VERSION.'. Other model names are reserved for stored forecasts.');
         }
 
         return $modelVersion;

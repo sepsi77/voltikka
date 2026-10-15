@@ -203,9 +203,9 @@ class RunFixedContractPriceForecasts extends Command
 
             if ($this->option('dry-run')) {
                 $metadata = $forecast['source_metadata'];
-                $this->line(sprintf('Pairs %d (minimum %d), mean %+.8f; starts %s–%s; targets %s–%s; current-basis pairs %d.',
+                $this->line(sprintf('Pairs %d (minimum %d), unapplied mean %+.8f; starts %s–%s; targets %s–%s; current-basis pairs %d.',
                     $metadata['pair_count'], $metadata['minimum_history_observations'],
-                    $metadata['mean_change_cents_per_kwh'], $metadata['pair_start_min'], $metadata['pair_start_max'],
+                    $metadata['unapplied_historical_mean_change_cents_per_kwh'], $metadata['pair_start_min'], $metadata['pair_start_max'],
                     $metadata['pair_target_min'], $metadata['pair_target_max'], $metadata['confidence_history_observations'],
                 ));
                 $this->line(sprintf('Futures pairs %d; feature mean %.8f, population std %.8f, ridge-1 slope %+.8f, contribution %+.8f; current/lag trades %s / %s.',

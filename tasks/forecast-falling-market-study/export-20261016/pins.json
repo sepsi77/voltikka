@@ -1,0 +1,10 @@
+{
+  "retail.csv": {
+    "rows": 798,
+    "sha256": "ba5096f46d0791bc3c54b67d1b82660c5663b8bd32a6a4e6b1f2ac4492cbc332"
+  },
+  "futures.csv": {
+    "rows": 2699,
+    "sha256": "c51f53c3d5f994cf4d5dc3e1a9c53220fe7dc6d450305852d0840229a4a1c901"
+  }
+}

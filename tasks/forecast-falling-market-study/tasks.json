@@ -1,0 +1,34 @@
+[
+{
+"name": "Diagnose always-rising forecasts on fresh production copy",
+"status": "completed"
+},
+{
+"name": "Freeze spec, export inputs and pin hashes",
+"status": "completed"
+},
+{
+"name": "Implement harness; verify M1 against stored production forecasts",
+"status": "completed"
+},
+{
+"name": "Record retrospective results and frozen holdout predictions",
+"status": "completed"
+},
+{
+"name": "Interim: implement M2 as fixed_term_futures_only_v1, tests, docs",
+"status": "completed"
+},
+{
+"name": "Interim: push to main and verify deployment (needs user confirmation)",
+"status": "pending"
+},
+{
+"name": "After 2026-11-15: fresh sync, export, score holdout, apply decision rule",
+"status": "pending"
+},
+{
+"name": "Recommend production change to user (separate approval)",
+"status": "pending"
+}
+]

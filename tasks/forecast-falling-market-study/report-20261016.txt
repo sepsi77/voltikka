@@ -1,0 +1,247 @@
+
+===== median_h30 (primary) holdout rows 0/87 scoreable
+
+retrospective_all
+  n=177 issue days=59 2026-06-18..2026-09-15 actual up/flat/down=[146, 20, 11]
+  M0_unchanged                MAE 0.763 bias -0.718  ok/miss/false/wrong 20/157/0/0
+  M1_current                  MAE 0.614 bias -0.396  ok/miss/false/wrong 134/10/20/13
+  M2_futures_only             MAE 0.812 bias -0.715  ok/miss/false/wrong 29/118/0/30
+  M3_rolling60_drift          MAE 0.476 bias -0.122  ok/miss/false/wrong 136/11/19/11
+  M4_premium_return           MAE 1.007 bias -0.923  ok/miss/false/wrong 33/97/0/47
+  M5_premium_return_futures   MAE 0.980 bias -0.906  ok/miss/false/wrong 29/98/0/50
+  M6_half_gap                 MAE 0.865 bias -0.785  ok/miss/false/wrong 34/71/4/68
+  M7_blend                    MAE 0.910 bias -0.819  ok/miss/false/wrong 31/103/0/43
+
+retrospective_before_split
+  n=84 issue days=28 2026-06-18..2026-08-14 actual up/flat/down=[71, 13, 0]
+  M0_unchanged                MAE 0.710 bias -0.710  ok/miss/false/wrong 13/71/0/0
+  M1_current                  MAE 0.511 bias -0.463  ok/miss/false/wrong 59/10/13/2
+  M2_futures_only             MAE 0.766 bias -0.766  ok/miss/false/wrong 17/51/0/16
+  M3_rolling60_drift          MAE 0.264 bias -0.189  ok/miss/false/wrong 62/9/13/0
+  M4_premium_return           MAE 1.123 bias -1.123  ok/miss/false/wrong 21/36/0/27
+  M5_premium_return_futures   MAE 1.064 bias -1.064  ok/miss/false/wrong 21/37/0/26
+  M6_half_gap                 MAE 0.772 bias -0.772  ok/miss/false/wrong 23/32/4/25
+  M7_blend                    MAE 0.945 bias -0.945  ok/miss/false/wrong 19/38/0/27
+
+retrospective_from_split
+  n=93 issue days=31 2026-08-15..2026-09-15 actual up/flat/down=[75, 7, 11]
+  M0_unchanged                MAE 0.810 bias -0.724  ok/miss/false/wrong 7/86/0/0
+  M1_current                  MAE 0.706 bias -0.337  ok/miss/false/wrong 75/0/7/11
+  M2_futures_only             MAE 0.853 bias -0.669  ok/miss/false/wrong 12/67/0/14
+  M3_rolling60_drift          MAE 0.669 bias -0.061  ok/miss/false/wrong 74/2/6/11
+  M4_premium_return           MAE 0.903 bias -0.742  ok/miss/false/wrong 12/61/0/20
+  M5_premium_return_futures   MAE 0.905 bias -0.764  ok/miss/false/wrong 8/61/0/24
+  M6_half_gap                 MAE 0.950 bias -0.797  ok/miss/false/wrong 11/39/0/43
+  M7_blend                    MAE 0.878 bias -0.705  ok/miss/false/wrong 12/65/0/16
+
+retrospective_actual_down
+  n=11 issue days=8 2026-09-08..2026-09-15 actual up/flat/down=[0, 0, 11]
+  M0_unchanged                MAE 0.330 bias +0.330  ok/miss/false/wrong 0/11/0/0
+  M1_current                  MAE 1.229 bias +1.229  ok/miss/false/wrong 0/0/0/11
+  M2_futures_only             MAE 0.726 bias +0.726  ok/miss/false/wrong 0/3/0/8
+  M3_rolling60_drift          MAE 1.745 bias +1.745  ok/miss/false/wrong 0/0/0/11
+  M4_premium_return           MAE 0.653 bias +0.653  ok/miss/false/wrong 0/4/0/7
+  M5_premium_return_futures   MAE 0.569 bias +0.569  ok/miss/false/wrong 1/4/0/6
+  M6_half_gap                 MAE 0.607 bias +0.607  ok/miss/false/wrong 0/4/0/7
+  M7_blend                    MAE 0.690 bias +0.690  ok/miss/false/wrong 0/4/0/7
+
+holdout_all
+  (no scoreable rows)
+
+  DECISION: {'status': 'holdout_not_scoreable_yet'}
+
+===== median_h14 (secondary) holdout rows 0/42 scoreable
+
+retrospective_all
+  n=318 issue days=106 2026-06-02..2026-09-30 actual up/flat/down=[150, 109, 59]
+  M0_unchanged                MAE 0.457 bias -0.257  ok/miss/false/wrong 109/209/0/0
+  M1_current                  MAE 0.410 bias -0.060  ok/miss/false/wrong 176/75/38/29
+  M2_futures_only             MAE 0.421 bias -0.244  ok/miss/false/wrong 147/162/4/5
+  M3_rolling60_drift          MAE 0.427 bias +0.074  ok/miss/false/wrong 169/51/48/50
+  M4_premium_return           MAE 0.513 bias -0.398  ok/miss/false/wrong 130/99/47/42
+  M5_premium_return_futures   MAE 0.485 bias -0.367  ok/miss/false/wrong 129/103/41/45
+  M6_half_gap                 MAE 0.445 bias -0.367  ok/miss/false/wrong 148/89/40/41
+  M7_blend                    MAE 0.453 bias -0.321  ok/miss/false/wrong 145/126/21/26
+
+retrospective_before_split
+  n=180 issue days=60 2026-06-02..2026-08-14 actual up/flat/down=[90, 67, 23]
+  M0_unchanged                MAE 0.398 bias -0.301  ok/miss/false/wrong 67/113/0/0
+  M1_current                  MAE 0.349 bias -0.127  ok/miss/false/wrong 114/40/13/13
+  M2_futures_only             MAE 0.380 bias -0.286  ok/miss/false/wrong 74/106/0/0
+  M3_rolling60_drift          MAE 0.309 bias -0.015  ok/miss/false/wrong 109/35/20/16
+  M4_premium_return           MAE 0.493 bias -0.470  ok/miss/false/wrong 74/59/34/13
+  M5_premium_return_futures   MAE 0.448 bias -0.408  ok/miss/false/wrong 71/67/27/15
+  M6_half_gap                 MAE 0.406 bias -0.375  ok/miss/false/wrong 78/63/27/12
+  M7_blend                    MAE 0.415 bias -0.378  ok/miss/false/wrong 81/71/16/12
+
+retrospective_from_split
+  n=138 issue days=46 2026-08-15..2026-09-30 actual up/flat/down=[60, 42, 36]
+  M0_unchanged                MAE 0.535 bias -0.200  ok/miss/false/wrong 42/96/0/0
+  M1_current                  MAE 0.490 bias +0.029  ok/miss/false/wrong 62/35/25/16
+  M2_futures_only             MAE 0.475 bias -0.189  ok/miss/false/wrong 73/56/4/5
+  M3_rolling60_drift          MAE 0.580 bias +0.190  ok/miss/false/wrong 60/16/28/34
+  M4_premium_return           MAE 0.540 bias -0.305  ok/miss/false/wrong 56/40/13/29
+  M5_premium_return_futures   MAE 0.532 bias -0.313  ok/miss/false/wrong 58/36/14/30
+  M6_half_gap                 MAE 0.495 bias -0.357  ok/miss/false/wrong 70/26/13/29
+  M7_blend                    MAE 0.503 bias -0.247  ok/miss/false/wrong 64/55/5/14
+
+retrospective_actual_down
+  n=59 issue days=31 2026-06-05..2026-09-30 actual up/flat/down=[0, 0, 59]
+  M0_unchanged                MAE 0.473 bias +0.473  ok/miss/false/wrong 0/59/0/0
+  M1_current                  MAE 0.651 bias +0.651  ok/miss/false/wrong 0/30/0/29
+  M2_futures_only             MAE 0.421 bias +0.421  ok/miss/false/wrong 12/46/0/1
+  M3_rolling60_drift          MAE 0.861 bias +0.861  ok/miss/false/wrong 0/9/0/50
+  M4_premium_return           MAE 0.410 bias +0.163  ok/miss/false/wrong 34/25/0/0
+  M5_premium_return_futures   MAE 0.338 bias +0.243  ok/miss/false/wrong 37/22/0/0
+  M6_half_gap                 MAE 0.257 bias +0.130  ok/miss/false/wrong 46/13/0/0
+  M7_blend                    MAE 0.367 bias +0.292  ok/miss/false/wrong 27/32/0/0
+
+holdout_all
+  (no scoreable rows)
+
+===== median_h7 (secondary) holdout rows 0/21 scoreable
+
+retrospective_all
+  n=381 issue days=127 2026-05-26..2026-10-08 actual up/flat/down=[147, 182, 52]
+  M0_unchanged                MAE 0.278 bias -0.156  ok/miss/false/wrong 182/199/0/0
+  M1_current                  MAE 0.232 bias -0.052  ok/miss/false/wrong 242/119/10/10
+  M2_futures_only             MAE 0.245 bias -0.160  ok/miss/false/wrong 223/142/7/9
+  M3_rolling60_drift          MAE 0.241 bias +0.010  ok/miss/false/wrong 243/88/27/23
+  M4_premium_return           MAE 0.283 bias -0.250  ok/miss/false/wrong 194/110/62/15
+  M5_premium_return_futures   MAE 0.277 bias -0.243  ok/miss/false/wrong 198/110/60/13
+  M6_half_gap                 MAE 0.277 bias -0.261  ok/miss/false/wrong 196/86/82/17
+  M7_blend                    MAE 0.259 bias -0.205  ok/miss/false/wrong 207/137/28/9
+
+retrospective_before_split
+  n=222 issue days=74 2026-05-26..2026-08-14 actual up/flat/down=[98, 112, 12]
+  M0_unchanged                MAE 0.264 bias -0.213  ok/miss/false/wrong 112/110/0/0
+  M1_current                  MAE 0.203 bias -0.120  ok/miss/false/wrong 150/72/0/0
+  M2_futures_only             MAE 0.240 bias -0.213  ok/miss/false/wrong 123/88/7/4
+  M3_rolling60_drift          MAE 0.196 bias -0.074  ok/miss/false/wrong 149/64/8/1
+  M4_premium_return           MAE 0.286 bias -0.281  ok/miss/false/wrong 108/75/36/3
+  M5_premium_return_futures   MAE 0.276 bias -0.264  ok/miss/false/wrong 114/74/31/3
+  M6_half_gap                 MAE 0.258 bias -0.254  ok/miss/false/wrong 116/61/42/3
+  M7_blend                    MAE 0.259 bias -0.247  ok/miss/false/wrong 116/85/18/3
+
+retrospective_from_split
+  n=159 issue days=53 2026-08-15..2026-10-08 actual up/flat/down=[49, 70, 40]
+  M0_unchanged                MAE 0.297 bias -0.076  ok/miss/false/wrong 70/89/0/0
+  M1_current                  MAE 0.272 bias +0.042  ok/miss/false/wrong 92/47/10/10
+  M2_futures_only             MAE 0.252 bias -0.085  ok/miss/false/wrong 100/54/0/5
+  M3_rolling60_drift          MAE 0.303 bias +0.128  ok/miss/false/wrong 94/24/19/22
+  M4_premium_return           MAE 0.279 bias -0.208  ok/miss/false/wrong 86/35/26/12
+  M5_premium_return_futures   MAE 0.279 bias -0.215  ok/miss/false/wrong 84/36/29/10
+  M6_half_gap                 MAE 0.303 bias -0.270  ok/miss/false/wrong 80/25/40/14
+  M7_blend                    MAE 0.260 bias -0.147  ok/miss/false/wrong 91/52/10/6
+
+retrospective_actual_down
+  n=52 issue days=29 2026-06-11..2026-10-07 actual up/flat/down=[0, 0, 52]
+  M0_unchanged                MAE 0.348 bias +0.348  ok/miss/false/wrong 0/52/0/0
+  M1_current                  MAE 0.405 bias +0.405  ok/miss/false/wrong 0/42/0/10
+  M2_futures_only             MAE 0.260 bias +0.257  ok/miss/false/wrong 21/31/0/0
+  M3_rolling60_drift          MAE 0.519 bias +0.519  ok/miss/false/wrong 0/29/0/23
+  M4_premium_return           MAE 0.185 bias +0.046  ok/miss/false/wrong 45/7/0/0
+  M5_premium_return_futures   MAE 0.187 bias +0.038  ok/miss/false/wrong 40/12/0/0
+  M6_half_gap                 MAE 0.171 bias -0.063  ok/miss/false/wrong 49/3/0/0
+  M7_blend                    MAE 0.212 bias +0.152  ok/miss/false/wrong 24/28/0/0
+
+holdout_all
+  (no scoreable rows)
+
+===== p20_h30 (secondary) holdout rows 0/87 scoreable
+
+retrospective_all
+  n=177 issue days=59 2026-06-18..2026-09-15 actual up/flat/down=[156, 12, 9]
+  M0_unchanged                MAE 0.732 bias -0.667  ok/miss/false/wrong 12/165/0/0
+  M1_current                  MAE 0.524 bias -0.342  ok/miss/false/wrong 153/3/12/9
+  M2_futures_only             MAE 0.746 bias -0.662  ok/miss/false/wrong 17/151/0/9
+  M3_rolling60_drift          MAE 0.424 bias -0.114  ok/miss/false/wrong 156/0/12/9
+  M4_premium_return           MAE 0.912 bias -0.814  ok/miss/false/wrong 21/110/0/46
+  M5_premium_return_futures   MAE 0.849 bias -0.791  ok/miss/false/wrong 26/106/0/45
+  M6_half_gap                 MAE 0.871 bias -0.779  ok/miss/false/wrong 29/56/0/92
+  M7_blend                    MAE 0.829 bias -0.738  ok/miss/false/wrong 20/117/0/40
+
+retrospective_before_split
+  n=84 issue days=28 2026-06-18..2026-08-14 actual up/flat/down=[79, 5, 0]
+  M0_unchanged                MAE 0.721 bias -0.721  ok/miss/false/wrong 5/79/0/0
+  M1_current                  MAE 0.461 bias -0.440  ok/miss/false/wrong 76/3/5/0
+  M2_futures_only             MAE 0.741 bias -0.741  ok/miss/false/wrong 5/77/0/2
+  M3_rolling60_drift          MAE 0.256 bias -0.222  ok/miss/false/wrong 79/0/5/0
+  M4_premium_return           MAE 1.008 bias -1.008  ok/miss/false/wrong 14/42/0/28
+  M5_premium_return_futures   MAE 0.914 bias -0.914  ok/miss/false/wrong 17/41/0/26
+  M6_half_gap                 MAE 0.820 bias -0.820  ok/miss/false/wrong 18/30/0/36
+  M7_blend                    MAE 0.875 bias -0.875  ok/miss/false/wrong 13/44/0/27
+
+retrospective_from_split
+  n=93 issue days=31 2026-08-15..2026-09-15 actual up/flat/down=[77, 7, 9]
+  M0_unchanged                MAE 0.742 bias -0.618  ok/miss/false/wrong 7/86/0/0
+  M1_current                  MAE 0.581 bias -0.253  ok/miss/false/wrong 77/0/7/9
+  M2_futures_only             MAE 0.750 bias -0.590  ok/miss/false/wrong 12/74/0/7
+  M3_rolling60_drift          MAE 0.576 bias -0.016  ok/miss/false/wrong 77/0/7/9
+  M4_premium_return           MAE 0.825 bias -0.640  ok/miss/false/wrong 7/68/0/18
+  M5_premium_return_futures   MAE 0.791 bias -0.680  ok/miss/false/wrong 9/65/0/19
+  M6_half_gap                 MAE 0.916 bias -0.742  ok/miss/false/wrong 11/26/0/56
+  M7_blend                    MAE 0.787 bias -0.615  ok/miss/false/wrong 7/73/0/13
+
+retrospective_actual_down
+  n=9 issue days=8 2026-09-08..2026-09-15 actual up/flat/down=[0, 0, 9]
+  M0_unchanged                MAE 0.574 bias +0.574  ok/miss/false/wrong 0/9/0/0
+  M1_current                  MAE 1.276 bias +1.276  ok/miss/false/wrong 0/0/0/9
+  M2_futures_only             MAE 0.739 bias +0.739  ok/miss/false/wrong 0/2/0/7
+  M3_rolling60_drift          MAE 1.963 bias +1.963  ok/miss/false/wrong 0/0/0/9
+  M4_premium_return           MAE 0.887 bias +0.887  ok/miss/false/wrong 0/2/0/7
+  M5_premium_return_futures   MAE 0.482 bias +0.482  ok/miss/false/wrong 2/7/0/0
+  M6_half_gap                 MAE 0.827 bias +0.827  ok/miss/false/wrong 0/3/0/6
+  M7_blend                    MAE 0.813 bias +0.813  ok/miss/false/wrong 0/2/0/7
+
+holdout_all
+  (no scoreable rows)
+
+===== p80_h30 (secondary) holdout rows 0/87 scoreable
+
+retrospective_all
+  n=177 issue days=59 2026-06-18..2026-09-15 actual up/flat/down=[150, 21, 6]
+  M0_unchanged                MAE 0.735 bias -0.717  ok/miss/false/wrong 21/156/0/0
+  M1_current                  MAE 0.535 bias -0.399  ok/miss/false/wrong 131/17/21/8
+  M2_futures_only             MAE 0.768 bias -0.715  ok/miss/false/wrong 27/124/6/20
+  M3_rolling60_drift          MAE 0.380 bias -0.123  ok/miss/false/wrong 133/17/21/6
+  M4_premium_return           MAE 0.971 bias -0.945  ok/miss/false/wrong 37/95/1/44
+  M5_premium_return_futures   MAE 0.943 bias -0.916  ok/miss/false/wrong 35/92/3/47
+  M6_half_gap                 MAE 0.839 bias -0.822  ok/miss/false/wrong 38/62/6/71
+  M7_blend                    MAE 0.869 bias -0.830  ok/miss/false/wrong 29/107/6/35
+
+retrospective_before_split
+  n=84 issue days=28 2026-06-18..2026-08-14 actual up/flat/down=[71, 13, 0]
+  M0_unchanged                MAE 0.613 bias -0.613  ok/miss/false/wrong 13/71/0/0
+  M1_current                  MAE 0.434 bias -0.373  ok/miss/false/wrong 52/17/13/2
+  M2_futures_only             MAE 0.677 bias -0.677  ok/miss/false/wrong 16/53/1/14
+  M3_rolling60_drift          MAE 0.296 bias -0.101  ok/miss/false/wrong 54/17/13/0
+  M4_premium_return           MAE 1.070 bias -1.070  ok/miss/false/wrong 22/35/0/27
+  M5_premium_return_futures   MAE 0.994 bias -0.994  ok/miss/false/wrong 21/32/1/30
+  M6_half_gap                 MAE 0.735 bias -0.735  ok/miss/false/wrong 19/25/4/36
+  M7_blend                    MAE 0.874 bias -0.874  ok/miss/false/wrong 18/36/1/29
+
+retrospective_from_split
+  n=93 issue days=31 2026-08-15..2026-09-15 actual up/flat/down=[79, 8, 6]
+  M0_unchanged                MAE 0.845 bias -0.810  ok/miss/false/wrong 8/85/0/0
+  M1_current                  MAE 0.626 bias -0.422  ok/miss/false/wrong 79/0/8/6
+  M2_futures_only             MAE 0.850 bias -0.750  ok/miss/false/wrong 11/71/5/6
+  M3_rolling60_drift          MAE 0.456 bias -0.143  ok/miss/false/wrong 79/0/8/6
+  M4_premium_return           MAE 0.881 bias -0.833  ok/miss/false/wrong 15/60/1/17
+  M5_premium_return_futures   MAE 0.896 bias -0.844  ok/miss/false/wrong 14/60/2/17
+  M6_half_gap                 MAE 0.932 bias -0.900  ok/miss/false/wrong 19/37/2/35
+  M7_blend                    MAE 0.865 bias -0.791  ok/miss/false/wrong 11/71/5/6
+
+retrospective_actual_down
+  n=6 issue days=4 2026-09-12..2026-09-15 actual up/flat/down=[0, 0, 6]
+  M0_unchanged                MAE 0.237 bias +0.237  ok/miss/false/wrong 0/6/0/0
+  M1_current                  MAE 0.552 bias +0.552  ok/miss/false/wrong 0/0/0/6
+  M2_futures_only             MAE 0.297 bias +0.297  ok/miss/false/wrong 0/6/0/0
+  M3_rolling60_drift          MAE 0.546 bias +0.546  ok/miss/false/wrong 0/0/0/6
+  M4_premium_return           MAE 0.222 bias +0.222  ok/miss/false/wrong 0/6/0/0
+  M5_premium_return_futures   MAE 0.234 bias +0.234  ok/miss/false/wrong 0/6/0/0
+  M6_half_gap                 MAE 0.073 bias +0.073  ok/miss/false/wrong 4/2/0/0
+  M7_blend                    MAE 0.259 bias +0.259  ok/miss/false/wrong 0/6/0/0
+
+holdout_all
+  (no scoreable rows)

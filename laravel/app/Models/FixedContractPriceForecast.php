@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Services\ContractStatistics\ContractPriceBasis;
+use App\Services\PriceForecasting\FixedTermPriceForecastService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
@@ -48,7 +49,7 @@ class FixedContractPriceForecast extends Model
     public function scopeEligibleForPublicDisplay(Builder $query, ContractPriceBasis $expectedBasis): Builder
     {
         return $query
-            ->where('model_version', (string) config('price_forecasting.fixed_term.model_version', 'fixed_term_futures_adjusted_v1'))
+            ->where('model_version', (string) config('price_forecasting.fixed_term.model_version', FixedTermPriceForecastService::MODEL_VERSION))
             ->where('source_metadata->current_retail_pricing_basis', $expectedBasis->value);
     }
 

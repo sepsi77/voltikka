@@ -17,7 +17,7 @@ class HistoricalChangeForecastTest extends TestCase
     use RefreshDatabase;
     use SeedsFlatForecastFutures;
 
-    private const MODEL = 'fixed_term_futures_adjusted_v1';
+    private const MODEL = 'fixed_term_futures_only_v1';
 
     protected function setUp(): void
     {
@@ -47,7 +47,7 @@ class HistoricalChangeForecastTest extends TestCase
         return app(FixedTermPriceForecastService::class)->buildForecasts(CarbonImmutable::parse($this->date($day)), $horizon, $terms, $quantiles);
     }
 
-    public function test_hard_floor_and_exact_independent_means_with_zero_futures_variance(): void
+    public function test_hard_floor_and_exact_unapplied_means_with_zero_futures_variance(): void
     {
         config(['price_forecasting.fixed_term.minimum_history_observations' => 10]);
         foreach ([6, 12, 24] as $term) {
@@ -62,9 +62,11 @@ class HistoricalChangeForecastTest extends TestCase
         foreach ($rows as $row) {
             $expected = $row['duration_months'] / ($row['target_quantile'] === 'median' ? 10 : 20);
             $expected *= $row['target_quantile'] === 'p80' ? -1 : 1;
-            $this->assertEqualsWithDelta($expected, $row['expected_change_cents_per_kwh'], 0.00001);
-            $this->assertEqualsWithDelta($row['current_price_cents_per_kwh'] + $expected, $row['forecast_price_cents_per_kwh'], 0.00001);
             $m = $row['source_metadata'];
+            // The historical mean is saved for diagnosis but never moves the forecast.
+            $this->assertEqualsWithDelta($expected, $m['unapplied_historical_mean_change_cents_per_kwh'], 0.00001);
+            $this->assertSame(0.0, $row['expected_change_cents_per_kwh']);
+            $this->assertSame($row['current_price_cents_per_kwh'], $row['forecast_price_cents_per_kwh']);
             $this->assertSame(20, $m['pair_count']);
             $this->assertSame(20, $m['unique_issue_days']);
             $this->assertSame(20, $m['minimum_history_observations']);
@@ -125,7 +127,7 @@ class HistoricalChangeForecastTest extends TestCase
         $this->assertSame(36, $m['pair_count']);
         $this->assertSame(16, $m['confidence_history_observations']);
         $this->assertSame('low', $row['confidence']);
-        $this->assertEqualsWithDelta((20 * 30 + 16 * 60) / 36, $m['mean_change_cents_per_kwh'], 0.00001);
+        $this->assertEqualsWithDelta((20 * 30 + 16 * 60) / 36, $m['unapplied_historical_mean_change_cents_per_kwh'], 0.00001);
         $this->assertSame($this->date(99), $m['pair_target_max']);
         // An invalid latest current row cannot fall back to observed or an older duplicate.
         $this->stat(100, price: null, basis: 'canonical_calculation');
@@ -146,7 +148,8 @@ class HistoricalChangeForecastTest extends TestCase
         $this->assertSame('flat', $after['direction']);
         $this->assertSame($before['source_metadata']['pair_count'], $after['source_metadata']['pair_count']);
         $tomorrow = $this->build(51)->first();
-        $this->assertEqualsWithDelta(100 / 21, $tomorrow['source_metadata']['mean_change_cents_per_kwh'], 0.00001);
+        $this->assertEqualsWithDelta(100 / 21, $tomorrow['source_metadata']['unapplied_historical_mean_change_cents_per_kwh'], 0.00001);
+        $this->assertSame(0.0, $tomorrow['expected_change_cents_per_kwh']);
         $this->assertSame(21, $tomorrow['source_metadata']['pair_count']);
         config(['canonical_pricing.enabled' => true]);
         app()->forgetScopedInstances();
@@ -157,7 +160,7 @@ class HistoricalChangeForecastTest extends TestCase
         $this->assertSame(0, $canonical['source_metadata']['confidence_history_observations']);
     }
 
-    public function test_equal_weight_cancellation_and_stored_precision_direction(): void
+    public function test_historical_drift_never_sets_direction(): void
     {
         for ($day = 0; $day <= 21; $day++) {
             $this->stat($day, price: $day % 2 === 0 ? -1 : 1);
@@ -167,8 +170,9 @@ class HistoricalChangeForecastTest extends TestCase
         $this->assertSame('flat', $row['direction']);
         $this->stat(20, price: 2);
         $row = $this->build(21, 1)->first();
-        $this->assertSame(0.15, $row['expected_change_cents_per_kwh']);
-        $this->assertSame('rising', $row['direction']);
+        $this->assertEqualsWithDelta(0.15, $row['source_metadata']['unapplied_historical_mean_change_cents_per_kwh'], 0.00001);
+        $this->assertSame(0.0, $row['expected_change_cents_per_kwh']);
+        $this->assertSame('flat', $row['direction']);
     }
 
     public function test_persistence_dry_run_rerun_and_nullable_migration_preserve_old_rows(): void
@@ -209,7 +213,7 @@ class HistoricalChangeForecastTest extends TestCase
     public function test_page_discloses_crossed_quantiles_without_reordering_or_null_diagnostic_casts(): void
     {
         for ($day = 0; $day <= 50; $day++) {
-            $this->stat($day, values: [$day < 30 ? 0 : 9, 10, 11]);
+            $this->stat($day, values: [12, 10, 11]);
         }
         foreach ($this->build(50, quantiles: ['p20', 'median', 'p80']) as $row) {
             FixedContractPriceForecast::create($row);
@@ -219,6 +223,6 @@ class HistoricalChangeForecastTest extends TestCase
             ->assertSeeText('Ennuste perustuu sähkösopimusten hintakehitykseen ja sähkön tukkumarkkinoiden hintoihin.')
             ->assertSeeText('Sähköfutuurien hinnat kuvaavat tulevien kuukausien sähkön tukkuhintaa.')
             ->assertDontSeeText('Markkinatason hinta')->assertDontSeeText('Futuuripäivä');
-        $this->assertEquals(18, FixedContractPriceForecast::where('target_quantile', 'p20')->value('forecast_price_cents_per_kwh'));
+        $this->assertEquals(12, FixedContractPriceForecast::where('target_quantile', 'p20')->value('forecast_price_cents_per_kwh'));
     }
 }

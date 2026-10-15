@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\FixedContractPriceForecast;
 use App\Services\PriceForecasting\FixedTermForecastReport;
+use App\Services\PriceForecasting\FixedTermPriceForecastService;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
 
@@ -40,7 +41,7 @@ class ReportFixedContractPriceForecasts extends Command
 
             return self::FAILURE;
         }
-        $version = $this->option('model-version') ?? config('price_forecasting.fixed_term.model_version', 'fixed_term_futures_adjusted_v1');
+        $version = $this->option('model-version') ?? config('price_forecasting.fixed_term.model_version', FixedTermPriceForecastService::MODEL_VERSION);
         $query = FixedContractPriceForecast::query()
             ->where('target_quantile', 'median')
             ->whereNotNull('actual_price_cents_per_kwh')

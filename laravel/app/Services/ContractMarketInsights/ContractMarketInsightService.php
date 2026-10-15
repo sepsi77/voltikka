@@ -8,6 +8,7 @@ use App\Services\CanonicalPricing\PricingMode;
 use App\Services\ContractStatistics\AnnualSeriesCompatibility;
 use App\Services\ContractStatistics\ContractPriceBasis;
 use App\Services\ContractStatistics\SellerSetEnergyPriceIndexService;
+use App\Services\PriceForecasting\FixedTermPriceForecastService;
 use App\Services\PriceForecasting\ForecastOutlook;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -150,7 +151,7 @@ class ContractMarketInsightService
                 $fixedTermDuration,
                 $this->fingerprint(),
                 $this->pricingMode->enabled(),
-                (string) config('price_forecasting.fixed_term.model_version', 'fixed_term_futures_adjusted_v1'),
+                (string) config('price_forecasting.fixed_term.model_version', FixedTermPriceForecastService::MODEL_VERSION),
                 (int) config('price_forecasting.fixed_term.default_horizon_days', 30),
             ])),
             Carbon::tomorrow(),
@@ -188,7 +189,7 @@ class ContractMarketInsightService
                 'payload_schema' => self::FIXED_TERM_ARTICLE_PAYLOAD_SCHEMA,
                 'fingerprint' => $this->fingerprint(),
                 'pricing_basis' => $pricingBasis->value,
-                'forecast_model' => (string) config('price_forecasting.fixed_term.model_version', 'fixed_term_futures_adjusted_v1'),
+                'forecast_model' => (string) config('price_forecasting.fixed_term.model_version', FixedTermPriceForecastService::MODEL_VERSION),
                 'forecast_horizon' => (int) config('price_forecasting.fixed_term.default_horizon_days', 30),
             ])),
             Carbon::tomorrow(),

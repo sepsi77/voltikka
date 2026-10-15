@@ -51,7 +51,7 @@ class FuturesAdjustedForecastTest extends TestCase
         }
     }
 
-    public function test_independent_full_mean_feature_cohort_ridge_and_four_decimal_prediction_for_all_lanes(): void
+    public function test_futures_ridge_alone_sets_four_decimal_prediction_and_full_mean_is_unapplied_for_all_lanes(): void
     {
         $this->statistics();
         for ($d = 10; $d <= 61; $d++) {
@@ -92,13 +92,14 @@ class FuturesAdjustedForecastTest extends TestCase
             $m = $row['source_metadata'];
             $this->assertSame(51, $m['pair_count']);
             $this->assertSame(33, $m['feature_pair_count']);
-            foreach (['mean_change_cents_per_kwh' => $mean, 'feature_mean' => $xm,
+            foreach (['unapplied_historical_mean_change_cents_per_kwh' => $mean, 'feature_mean' => $xm,
                 'feature_population_std' => $std, 'feature_delta_mean' => $ym,
                 'feature_standardized_slope' => $slope, 'futures_contribution_cents_per_kwh' => $contribution] as $key => $expected) {
                 $this->assertEqualsWithDelta($expected, $m[$key], 1e-10, $key);
             }
-            $this->assertSame(round($mean + $contribution, 4), $row['expected_change_cents_per_kwh']);
-            $this->assertSame(round($price(61) + round($mean + $contribution, 4), 4), $row['forecast_price_cents_per_kwh']);
+            $this->assertSame(round($contribution, 4), $row['expected_change_cents_per_kwh']);
+            $this->assertSame(round($price(61) + round($contribution, 4), 4), $row['forecast_price_cents_per_kwh']);
+            $this->assertSame('fixed_term_futures_only_v1', $row['model_version']);
             $feature = $m['current_futures_feature'];
             $this->assertSame('2026-04-01', $feature['current_basket']['delivery_start_month']);
             $this->assertSame('2026-04-01', $feature['lag_basket']['delivery_start_month']);
@@ -149,7 +150,7 @@ class FuturesAdjustedForecastTest extends TestCase
         $this->statistics();
         $this->seedFlatForecastFutures();
         $row = app(FixedTermPriceForecastService::class)->buildForecasts($this->date(51), 10, [12], ['median'])->first();
-        foreach (['fixed_term_futures_adjusted_v1', 'fixed_term_historical_change_v1', 'fixed_term_ewma_gap_v3'] as $model) {
+        foreach (['fixed_term_futures_only_v1', 'fixed_term_futures_adjusted_v1', 'fixed_term_historical_change_v1', 'fixed_term_ewma_gap_v3'] as $model) {
             FixedContractPriceForecast::create(array_replace($row, ['model_version' => $model]));
         }
         $completed = FixedContractPriceForecast::create(array_replace($row, [
@@ -158,7 +159,7 @@ class FuturesAdjustedForecastTest extends TestCase
         ]));
         $before = $completed->fresh()->getRawOriginal();
         $result = app(FixedTermForecastEvaluationService::class)->evaluateMatured($this->date(61));
-        $this->assertSame(3, $result['evaluated']);
+        $this->assertSame(4, $result['evaluated']);
         $this->assertSame(0, $result['unsupported_provenance']);
         $this->assertSame($before, $completed->fresh()->getRawOriginal());
         $this->assertSame(0, app(FixedTermForecastEvaluationService::class)->evaluateMatured($this->date(61))['evaluated']);
