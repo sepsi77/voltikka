@@ -22,6 +22,8 @@ If the two disagree, the design system spec wins. Report the conflict to the use
 |---|---|
 | `voltikka-design-system.md` | Design spec |
 | `voltikka-brand-guide.md` | Brand guide (name, story, fox rules, voice) |
+| `voltikka-tokens.css` | The 88 design tokens as a Tailwind v4 `@theme` block. Must match the Paper tokens |
+| `pages-plan.md` | Plan for the boards of every live page: page groups, hero ideas, rules |
 | `mascot/fox-v2.png` | **Approved fox reference** (user, 2026-10-16): four paws, green Nordic scarf. Give it as `--ref` for every new pose |
 | `mascot/fox-v1.png` | Upright fox with a lantern. Alternative, not chosen |
 | `mascot/fox-sit-skyward-v1.png` | Cutout: the fox sits and looks up (spot price hero, at "now") |
@@ -44,8 +46,9 @@ All art is made with the image-gen skill and is production art (user, 2026-10-16
 ## The Paper file
 
 - File **"Voltikka"**, id `01M50B1D4JDT66PK35AAW7BSE4`. Call `get_guide({topic: "paper-mcp-instructions"})` once per session before other Paper tools.
-- The file has design tokens that match the spec §2–§4. Use them as `var(--token)`. Never hard-code a color that has a token. When you add a token, add it in Paper and in the spec in the same change.
-- Page **"Direction · first boards"** (`p-1-0`), desktop 1440. **Reference for the main rule (design at the side, no cards):** "Pörssisähkö — /spot-price v4 picture book". v3 (white rounded panels) is rejected. "Sähkösopimukset — /sahkosopimus v4 picture book" is the current listing board (compact controls, ledger entries). The v1 boards and "/spot-price v2 BOLD" are rejected options kept for comparison; delete them when the user approves the direction.
+- The file has design tokens that match the spec §2–§4. Use them as `var(--token)`. Never hard-code a color that has a token. When you add or change a token, change it in Paper, in `voltikka-tokens.css` and in the spec in the same change.
+- Page **"Direction · first boards"** (`p-1-0`), desktop 1440. **Reference for the main rule (design at the side, no cards):** "Pörssisähkö — /spot-price v4 picture book". v3 (white rounded panels) is rejected. "Sähkösopimukset — /sahkosopimus v4 picture book" is the current listing board (compact controls, ledger entries). The user deleted the rejected draft boards (v1, v2 BOLD, v3) on 2026-10-16; only the two approved reference boards stay on this page. Pages "Pages · group A–F" hold the boards for the other live pages (see `pages-plan.md`).
+- Page **"Design system"**: boards 01 Foundations, 02 Components, 03 Theme and illustration (like the Fetchalot file).
 - Insert local images with `paper-asset:///Users/seppo/code/voltikka/design/…`.
 - Known Paper limits: `margin` and CSS `transform` are ignored (use padding/gap; flip art in the image itself). Screenshots can render late; take a second one before you decide that an image is missing.
 

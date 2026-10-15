@@ -1,128 +1,241 @@
 # Voltikka design system
 
-*Working draft, 16 October 2026. Paper file "Voltikka", page "Direction · first boards". The v2 boards are the current direction. The v1 boards on the same page are kept only for comparison until the user approves v2.*
+*Working draft, 16 October 2026. Paper file **"Voltikka"** (`01M50B1D4JDT66PK35AAW7BSE4`) has these pages:
+- **Direction · first boards**: the two approved reference boards, "Pörssisähkö — /spot-price v4 picture book" (data page) and "Sähkösopimukset — /sahkosopimus v4 picture book" (listing page).
+- **Design system**: boards 01 Foundations, 02 Components, 03 Theme and illustration.
+- **Pages · group A–F**: the boards for every other live page (see `pages-plan.md`).
 
-The name stays **Voltikka** and the domain stays **voltikka.fi** (user, 2026-10-16). Brand, story, fox rules and voice are in `voltikka-brand-guide.md`.
+The user deleted the rejected drafts (v1, v2 BOLD, v3 white panels), so the file contains no old designs.*
+
+The tokens live in the Paper file (88 tokens, Tailwind v4 groups) and in `voltikka-tokens.css`. If the Paper tokens, `voltikka-tokens.css` and this file disagree, fix the one that is wrong and say so. The name, story, fox rules and voice are in `voltikka-brand-guide.md`. This file does not repeat them.
+
+The name stays **Voltikka** and the domain stays **voltikka.fi** (user, 2026-10-16).
+
+---
 
 ## 1. The idea: a Finnish winter picture book
 
-Voltikka is a picture book about Finnish winter evenings and electricity. The fox, the snow, the homes and the aurora are the world. The data is part of that world, not a white dashboard below it.
+Voltikka is a picture book about Finnish evenings and electricity. The fox, the snow, the homes, the villagers and the aurora are the world. The prices are exact and plain. Electricity prices are a boring subject, so the design makes them a bit more fun (user, 2026-10-16: "Do not be too timid because this app deals in prices").
 
-User decisions that set the direction (2026-10-16):
+1. **The design stays at the side.** The scene, the fox and the art frame the page. They never carry data or controls in a way that costs readability (user: "We are sacrificing readability and usability for the sake of design. We never did that in the Fetchalot redesign.").
+2. **Content sits on the page, not in cards.** No containers. Structure comes from display headings with a hand-inked fox-orange underline, hand-inked hairlines, paw-print dividers and inked text marks.
+3. **Ink, not chrome.** Marks are drawn, not boxed: sparkles, stars, loops, arrows and wavy underlines. No pills, badges, shadows, gradients or glass.
+4. **One fox per page, in the hero.** The sleeping fox in the footer and the logo do not count. The fox is never next to a specific contract, its price or a seller.
+5. **The art and the page use the same snow.** The page ground is the snow of the art, so cutouts and strips sit on the page with no frame.
+6. **Every board shows the whole live page.** A design is complete only when it contains all the content, data and text of the live page.
 
-1. The current site is "quite boring". The redesign must be **bold and brave**, and it must not be "a different flavour of SaaS".
-2. **No standard SaaS cards** (white card, thin border, shadow, 22px radius).
-3. **No hard, sharp corners either.** Use Finnish sources for shape (§4).
-4. The fox and the story belong on **every page type's hero**, including the contract listings. Each page type gets its **own distinct hero** (§6).
-5. The fox never stands next to a specific contract or seller (endorsement risk).
-6. A themed visual must be understood without explanation. Data uses ordinary, readable charts, and choices in a scene must look like controls (§5).
-7. **The fox is approved** (`mascot/fox-v2.png`). All art comes from the image-gen skill; no illustrator redraw.
+### User decisions that set the direction (2026-10-16)
 
-### The main rule: the design stays at the side (user, 2026-10-16)
-
-"We are sacrificing readability and usability for the sake of design. We never did that in the Fetchalot redesign." The scene, the fox and the art frame the page; they never carry data or controls in a way that costs readability. Below the hero, content is plain and usable: ordinary charts, numbers, tables and forms. The spot price **v4 picture book** board is the reference. v2 boards are rejected where they break the rule (data-as-landscape, poster-only price, colour-block categories).
-
-### Content sits on the page, not in cards (user, 2026-10-16)
-
-v3 (white rounded panels) "brings back the rounded cards SaaS vibe". Content is laid out like a picture book page: no containers. Structure comes from a display heading with a hand-inked wavy fox-orange underline and an optional small emblem vignette; sections are separated by a small inked snowflake ornament between two hairlines; day numbers sit in one row with ornaments between them; the chart uses the full width with an inked baseline; illustrated items stand on a painted snow line with captions below. Controls (tabs) use a hand-inked underline for the active item.
-
-
-### No pills, badges or washes (user, 2026-10-16)
-
-- Pills and badges (rounded containers around short labels, such as "Edullinen päivä", "UUDET", "ENNUSTE", the top-bar spot price, the "nyt" bar label and the Preferred Sources button) "still have the SaaS vibe". Use text with a hand-inked mark instead: a small four-point sparkle before the label, small caps in the status colour, or a hand-inked underline under an action.
-- Watercolour washes over headings and data were rejected as "smudging". Do not put paint behind text or numbers. Washes are not used now.
-- The Preferred Sources strip stays directly after the hero on every page (root AGENTS.md); its action is an inked text action, not a pill button.
-
-### Listing pages: contracts high on the page (user, 2026-10-16)
-
-"All of the filters and options push the contract cards down too much." On listing pages the hero is short (about 460px), and the controls are one compact block between hairlines: one row for annual consumption (radio, 44px home icon, name and kWh, own-consumption field, "Arvioi laskurilla"), one row for the pricing types (checkbox, 44px price-shape glyph, name and meaning), and one line of disclosure triggers (Saatavuus, Vertaa nykyistä sähkölaskuasi, Rajaa hakua) with "Vertailu kulutuksella". Large illustrated choices belong to hub pages, not listings. Contract entries are ledger rows with no card: a large display rank number (1 in fox-deep, others in ink) above the real company logo in the left lane (logos cropped to their content, multiply blend on the ground; company name in display type when no logo exists), category glyph and kicker, name, price parts with dotted leaders, large €/kk price, savings, an inked "Katso →" action, a hand-drawn fox-orange loop around the cheapest entry's price, sparkle-mark tags, and a hand-inked hairline between entries. The fox stays in the hero only. Do not add per-contract mini charts (for example a 12-month price line) to entries: the user called it "pointless busyness" (2026-10-16). The space between the price parts and the price stays empty. Between the pagination and "Katso myös", a painted villager interlude strip (`scenes/interlude-villagers-walk-v1.png`, about 1000px wide, centred, no frame) gives the page a pause and some warmth.
-
-### Live content parity (user, 2026-10-16)
-
-A board must contain all data and texts of the live page. Check the live page (rendered text and a full-page screenshot) before a board is called complete. The spot price v4 board covers: hero (title, lead, current 15-minute price, "Mitä hinta sisältää?", cheap-day mark, averages line), Preferred Sources, day figures (next cheap hour, day low, day high, 30-day average), Kodin energiavinkit (five tasks and the method note), the forecast and realised hourly prices (today, tomorrow, three forecast days, legend, Lataa CSV, 15-minute prices, source line), the 30-day history, the month comparison, October by year, the FAQ and the full footer.
-
-### Picture-book elements outside the hero (user, 2026-10-16: "bring more of the picture-book style on the page")
-
-Place the world in the margins and pauses, never inside data: villager vignettes that do the page's everyday tasks (sauna badger, laundry hare, car-charging bear) above the plain prices; fox paw-print tracks as section dividers; a small vignette at the left of a section heading, where an emblem would go (the owl with a pocket watch heads the hourly chart). Do not float vignettes in open space: the user found a free-floating owl "lost and out of place" (2026-10-16); a painted night-village footer with the fox asleep in the snow. The footer and the logo do not count toward the one-fox-per-page rule. Form controls and the contract listing still need a card-free treatment (open item).
+- The old site is "quite boring". The redesign is **bold**, and it must not be "a different flavour of SaaS".
+- **No standard SaaS cards** (white card, thin border, shadow, 22px radius) and **no white rounded panels** (v3 "brings back the rounded cards SaaS vibe"). No hard, boxy frames either.
+- **No pills or badges.** Rounded containers around short labels ("Edullinen päivä", "UUDET", the top-bar price, the Preferred Sources button) "still have the SaaS vibe". Use a sparkle mark, small caps in the status colour, or an inked underline.
+- **No watercolour washes behind text or data** ("smudging").
+- **Plain charts.** The data-as-landscape chart was rejected: "nobody will understand the pricing graph". Charts are bar or line charts with an inked baseline.
+- **A choice must look like a control.** Choices placed loosely on a picture look like parts of the image.
+- **Vignettes sit at the left of a heading**, never floating in open space (a floating owl looked "lost and out of place").
+- **Listing pages put contracts high**: "All of the filters and options push the contract cards down too much." Short hero, one compact controls block.
+- **No per-contract mini charts** in entries ("pointless busyness"). The space between price parts and price stays empty.
+- **Category signs must explain the pricing logic.** The painted emblems (stormy peak, moon phases, sun-moon, mossy stone) were rejected because they did not connect to the pricing logic. Use the inked price-shape glyphs (§5).
+- **The fox is approved** (`mascot/fox-v2.png`). All art comes from the image-gen skill; no illustrator redraw.
 
 ## 2. Color
 
-All text pairs pass WCAG AA 4.5:1 (checked 2026-10-16). Paper tokens use the same names.
+The pairs below are measured on `--color-ground` `#F5F6F1` unless the "Use" column says otherwise. Body text needs 4.5:1; large text, glyphs and control edges need 3:1.
+
+### Surfaces and ink
 
 | Token | Value | Use |
 |---|---|---|
-| `--color-ground` | `#F5F6F1` | Page ground: snow |
-| `--color-card` | `#FFFFFF` | Tiles, inputs |
-| `--color-frost` | `#E8ECEA` | Quiet panels |
-| `--color-edge` / `-strong` | `#D9DFDC` / `#B9C2C0` | Rules |
-| `--color-field-edge` | `#8D9893` | Form controls (3:1) |
-| `--color-ink` | `#16202E` | Headings, numbers (15:1) |
-| `--color-ink-body` | `#3A4656` | Body (8.8:1) |
-| `--color-ink-muted` | `#5E6876` | Captions, only on white or ground |
-| `--color-night` | `#14213A` | Night sky |
-| `--color-night-lead` | `#C9D3E3` | Text on night (10.6:1) |
-| `--color-fox` | `#C4501C` | **Primary**: buttons, selection, "now". White text 4.65:1. Keeps Voltikka's orange |
-| `--color-fox-deep` | `#9E3C10` | Fox text on light grounds (6.2:1) |
-| `--color-price-high` | `#B3261E` | Expensive hour, price up |
+| `--color-ground` | `#F5F6F1` | Page ground: snow. All content sits on it. |
+| `--color-snow-white` | `#FFFFFF` | Text and numbers on the night or dusk hero (16:1 on night); checkbox and radio fill. Never a card. |
+| `--color-edge` | `#D9DFDC` | Hand-inked hairlines between entries and rows (decoration, no contrast need) |
+| `--color-edge-strong` | `#B9C2C0` | Dotted leaders in price-part rows |
+| `--color-field-edge` | `#838E89` | Checkbox, radio and field underline (3.1:1). Changed from `#8D9893` (2.7:1) on 2026-10-16. |
+| `--color-ink` | `#16202E` | Headings, numbers, values (15.1:1) |
+| `--color-ink-body` | `#3A4656` | Body text (8.8:1) |
+| `--color-ink-muted` | `#5E6876` | Captions, secondary lines (5.2:1). Not below 13px. |
+| `--color-night` | `#14213A` | Night sky behind hero text |
+| `--color-night-lead` | `#C9D3E3` | Lead text on night (10.6:1) |
 
-### Pricing categories (one color and one knit motif each)
+### Brand
 
-| Category (`PricingBucket`) | Color | Soft fill | Knit motif | Why |
-|---|---|---|---|---|
-| Pörssisähkö | aurora `#1C7A5E` | `#DDF0E8` | zigzag | changes all the time |
-| Jaksoittain vaihtuva | lake `#2B5F8C` | `#E0EAF3` | steps | changes in periods |
-| Kulutusvaikutus | violet `#6A4C9C` | `#ECE6F5` | diamonds | ± effect |
-| Kiinteä hinta | granite `#535D68` | `#E6E9EC` | spruces | steady |
+| Token | Value | Use |
+|---|---|---|
+| `--color-fox` | `#C4501C` | **Primary.** Inked underlines, the selected radio, "nyt", the cheapest loop, arrows. 4.3:1 on ground: use it for marks and text of 24px and up only. |
+| `--color-fox-deep` | `#9E3C10` | Fox-colour text: inked actions ("Katso →"), rank 1, the cheapest price, kicker caps (6.2:1) |
 
-The motif also identifies the category for colour-blind visitors. Never use a category color for decoration.
+### Map colours and pricing categories
+
+Each pricing category (`PricingBucket`) has one colour and one inked price-shape glyph. Use the colour only for that category's glyph, name and checked state. Never use it for decoration.
+
+| Token | Alias of | Value | Category | Glyph | Contrast |
+|---|---|---|---|---|---|
+| `--color-cat-spot` | `--color-aurora` | `#1C7A5E` | Pörssisähkö | uneven hourly bars | 4.8:1 |
+| `--color-cat-periodic` | `--color-lake` | `#2B5F8C` | Jaksoittain vaihtuva hinta | step line with period marks | 6.2:1 |
+| `--color-cat-usage` | `--color-violet` | `#6A4C9C` | Kulutusvaikutus | flat line in a dashed ± band | 6.2:1 |
+| `--color-cat-fixed` | `--color-granite` | `#535D68` | Kiinteä hinta | flat line with a padlock | 6.2:1 |
+
+The glyph shape, not the colour, identifies the category, so the system works for colour-blind visitors.
+
+### Price and data states
+
+| Token | Value | Meaning |
+|---|---|---|
+| `--color-price-low` | aurora | Cheap hour, price down |
+| `--color-price-high` | `#B3261E` | Expensive hour, price up, warning text (6.0:1) |
+| `--color-saving` | aurora | "Säästö 24 € / 12 kk" and other good outcomes |
+| `--color-warning-ink` | `#6B4A00` | Caution text without alarm (7.4:1) |
+| `--color-forecast` | `#B7C6D9` | Forecast bars (third-party forecast, not the official price). Always with a legend. |
+| `--color-star` | `#E0A21B` | Fill of the inked star on the cheapest hour or the best value. Never text. |
+
+A neutral number uses `--color-ink`.
 
 ## 3. Type
 
-- **Bricolage Grotesque** (`--font-display`) 700–800: titles, poster numbers (current spot price up to 240px, contract prices 64px, rank numbers 88px), tight tracking (−0.02 to −0.05em).
-- **Figtree** (`--font-sans`): body, UI, labels, small numbers.
+Two families from Google Fonts:
 
-Big numbers carry the page. A page should have one number that reads from across the room.
+- **Bricolage Grotesque** (`--font-display`), weight 800: H1, section headings, contract and item names, prices, rank numbers, poster numbers and inked actions. Tight tracking.
+- **Figtree** (`--font-sans`), weights 400, 700 and 800: body, labels, values, captions and controls.
 
-## 4. Shape and surface (Finnish sources)
+The approved boards were drawn partly with `system-ui` for sans text. That is a mistake in the boards, not a rule: implementation uses Figtree (open item 1).
 
-- **Knitting (neuleet):** pixel-grid knit bands from the fox's scarf. The category-tile use was rejected; keep the motif for small accents only until a better use is found.
-- **Snowdrifts and lake shores:** section edges are soft waves (hero bottom), not straight lines.
-- **Washed stone (kivi):** corners 20–24px on tiles and entries, 12px on buttons and inputs, pill for small chips. **No borders and no drop shadows** on tiles. Surfaces are filled colour fields.
-- **Organic modernism:** big flat colour fields and illustration that breaks out of its frame (a house stands on top of its choice tile). Inspiration only; copy no product or pattern.
+| Role | Font | Size / line | Weight, tracking | Color |
+|---|---|---|---|---|
+| Poster number in hero (current spot price) | Bricolage | 64 / 66 (`--text-hero`) | 800, −0.03em | snow-white on sky |
+| H1 on hero | Bricolage | 52 / 54 (`--text-page`) | 800, −0.035em | snow-white on dusk/night, ink on light |
+| Contract price €/kk | Bricolage | 52 / 54 (`--text-price`), decimals 30 | 800, −0.04em (`--tracking-price`) | ink; cheapest fox-deep |
+| Rank number | Bricolage | 36 / 34 (`--text-rank`) | 800, −0.03em | rank 1 fox-deep, others ink |
+| Section heading | Bricolage | 34 / 38 (`--text-section`) | 800, −0.02em | ink + fox underline |
+| Key figure in a row | Bricolage | 32 / 36 (`--text-number`) | 800 | ink or state colour |
+| Contract or item name | Bricolage | 22 / 26 (`--text-title`) | 800, −0.01em | ink |
+| Inked action ("Katso →") | Bricolage | 18 / 22 | 800 | fox-deep + wavy underline |
+| Lead | Figtree | 18 / 28 (`--text-lead`), max 720 | 400 | night-lead on night, ink-body on light |
+| Body | Figtree | 16 / 25 (`--text-body`), max 680 | 400 | ink-body |
+| UI, controls, links | Figtree | 15 / 20 (`--text-ui`) | 700–800 | ink |
+| Label, value in a row | Figtree | 14 / 18 (`--text-label`) | 400 label, 800 value | ink-body / ink |
+| Caption, kicker caps | Figtree | 13 / 16 (`--text-caption`) | 400; caps 800, +0.1em (`--tracking-caps`) | ink-muted; kicker in state colour |
 
-## 5. Readability rules for themed visuals
+Big numbers carry the page. Each page has one number that reads from across the room.
 
-- **Charts are plain bar charts, not landscapes.** The data-as-landscape idea (a price ridge, also with grid lines and hour posts) was rejected: "nobody will understand the pricing graph" (user, 2026-10-16). The spot price hero uses one bar per hour, the price printed on each bar, every hour labelled, a dashed day-average line, the current hour in fox orange with "nyt", and a legend. The art frames the chart; it does not carry the data. Tomorrow is a toggle, not a second series.
-- **A choice in a scene is a control.** Choices sit in a row of equal tiles with a radio circle, a name and a value, under a numbered step label ("1 Valitse kotisi"). The selected tile has a fox-orange frame and a check. User feedback 2026-10-16: items placed loosely on the picture look like parts of the image.
-- Text on art must sit on calm sky or on a solid tile.
+## 4. Shape, line and space
 
-## 6. Hero map (one distinct hero per page type)
+- **No containers.** There are no card, panel, pill or tag radii. The only radii are `--radius-swatch` 3 (legend swatches, bar tops), `--radius-control` 5 (checkbox) and `--radius-button` 12 (a rare filled submit button).
+- **No shadows, no gradients, no blur.** Depth comes from the art.
+- **Line language** (all hand-drawn, slightly uneven):
+  - **Inked underline**: a wavy 3.5px fox stroke under a section heading; a 2.6px stroke under an inked action; ink under the active tab or page.
+  - **Hairline**: a hand-inked 1.5px `--color-edge` line between ledger entries and FAQ rows.
+  - **Dotted leader**: 2px dotted `--color-edge-strong` between a label and its value.
+  - **Inked baseline**: 1.6px ink line under every chart and glyph.
+  - **Paw-print divider**: a short track of fox paw prints between major sections.
+- **Spacing scale (px):** 4, 8, 12, 16, 20, 24, 32, 40, 48, 64, plus `--spacing-section` 88 between major sections.
+- **Layout (desktop 1440):** content 1232 wide (`--container-content`), gutter 104 (`--spacing-gutter`). Reading text max 680 (`--container-text`), hero text max 720.
+- **Breakpoints:** mobile 390, tablet 768, laptop 1024, desktop 1440. Mobile boards are an open item.
 
-| Page type | Hero | Fox pose | Status |
-|---|---|---|---|
-| `/spot-price` | Night sky + aurora; poster price; plain hourly bar chart on the dark snow | Sits on the snowdrift beside the chart, looks up: `fox-sit-skyward-v1.png` | Board v2 |
-| `/sahkosopimus` and household SEO listings | Village at dusk; four homes are the consumption choice | Walks with a lantern toward the chosen home: `fox-walk-lantern-v1.png` | Board v2 |
-| SEO variants (housing type, pricing type) | Same village; the page's home or category is preselected and named in the H1 | Same | To draw |
-| City pages | Same village with the municipality name on a road sign | Same | To draw |
-| `/sahkosopimus/tilastot` | Almanac on a table by lamplight, seasons strip | Reads the almanac | To make |
-| Price forecast | Fell top, weathervane and sky | Sniffs the wind | To make |
-| `/maksatko-liikaa` | Cabin porch, the bill under a lantern | Holds the lantern over the bill | To make |
-| Solar calculator | Summer: midnight sun over a lake | Summer coat, no scarf | To make |
-| Company pages, contract detail | **No fox** (sellers) | — | Plain world header |
+## 5. Components
 
-## 7. Components (v2)
+The Paper page "Design system", board 02, shows each component cloned from the reference boards.
 
-- **Choice tile (home):** illustration on top, then a white tile (radius 20): radio, name, detail, value. Selected = fox frame 3px + filled radio with check.
-- **Pricing category glyphs:** each pricing category uses a small inked price-shape picture that shows how the price moves over time, on a hand-inked baseline, in the category colour: Pörssisähkö = uneven hourly bars; Jaksoittain vaihtuva = a step line that changes at period marks; Kulutusvaikutus = a flat line inside a dashed ± band; Kiinteä hinta = a flat line with a padlock. Use the same glyph in the choice row (44px) and on contract entries (34px). The glyphs have a hand-drawn texture: a sketchy ink outline over a slightly offset flat colour (like misregistered print), with light pencil hatching. The painted emblems in `emblems/` (stormy peak, moon phases, sun-moon, mossy stone) were rejected because the user could not connect them to the pricing logic (2026-10-16); do not use them as category signs. Meaning comes first for any sign that stands for a data category.
-- **Category choice chip:** white tile with a checkbox, the category glyph, name and one-line meaning; the category colour is only a thin accent and the checked state. Full-colour category blocks with knit bands were rejected (user, 2026-10-16: "pretty horrible").
-- **Contract entry:** soft category fill, radius 24, rank number 88px in category colour, kicker in category colour caps, name 30px, price parts (label/value rows), price 64px + "€/kk", annual line with "arvio". One primary (fox) button for the first entry; others outline.
-- **Buttons:** primary fox fill, radius 12; secondary 2px ink outline, radius 12.
+### Top bar
+Sits on the hero art. Logo (fox mark + "Voltikka" wordmark), navigation, and the current spot price as plain text with a sparkle mark, not a pill.
 
-## 8. Open items
+### Hero
+Painted scene for the page type (§6), the fox once, H1, lead and the page's poster number on calm sky. Listing heroes are about 460px high; data and hub heroes can be taller. Text sits on calm sky, never on busy art.
 
-1. User approval of the v2 direction. After approval, delete the v1 boards. (The fox is approved.)
-2. Mobile (390px) boards for both pages.
-3. The knit band inside contract entries (removed from the board; needs a better place).
-4. The remaining heroes in §6.
-5. Logo: the tail-and-spark mark next to the wordmark is a placeholder.
-6. Performance plan for hero art (AVIF/WebP, sizes, no layout shift, mobile crops) before implementation.
+### Preferred Sources strip
+Directly after every hero (root `AGENTS.md`). Short text and an inked text action "Valitse suosikkilähteeksi" with a wavy fox underline, not a button.
+
+### Breadcrumbs
+One line of 13px caption text with "/" separators.
+
+### Section heading
+Bricolage 34 with a wavy fox underline. An optional 96px vignette (villager or object) sits at its left. Optional actions (for example "Lataa CSV") sit at the right on the same baseline.
+
+### Day-figures row
+Key numbers in one row with labels above and small inked ornaments between them. No boxes.
+
+### Consumption choice row (listing)
+Radio, 44px home illustration, name and kWh. The selected radio is fox with a white check; the kWh value turns fox-deep. Ends with the own-consumption field and "Arvioi laskurilla →".
+
+### Pricing-category choice row
+Checkbox, 44px category glyph, name in the category colour and a one-line meaning in ink-body.
+
+### Field
+No box: an inked `--color-field-edge` underline, the value in ink, the unit in ink-muted. Focus: the underline turns fox and 2px.
+
+### Disclosure trigger
+Text in ink 800 plus a chevron. The current state is in the label ("Saatavuus: koko Suomi").
+
+### Results heading
+Count in Bricolage 52 ("224 sopimusta."), the note line and the category legend with sparkle marks.
+
+### Ledger contract entry
+No card. One row per contract, separated by hand-inked hairlines:
+1. Optional kicker: sparkle + small caps ("HALVIN SÄHKÖSOPIMUS").
+2. Category line: 34px glyph, category name, a short meaning, and "Arvio ⓘ" at the right.
+3. Main row: rank number above the logo (left lane 90); name and company line; price parts with dotted leaders (330); €/kk price, €/v line, savings and "ilman tarjousta" (right); "Katso →" inked action (120).
+4. Tag line: sparkle-mark tags ("Tarjous", "Päästötön") or a warning mark ("! Ei sisällä kulutusvaikutusta") in price-high.
+The cheapest entry gets the fox-deep price and a hand-drawn fox loop around it. Logos are cropped to their content and use multiply blend; a company without a logo shows its name in Bricolage.
+
+### Inked marks
+- **Sparkle**: four-point star before a tag or kicker.
+- **Star**: `--color-star` fill on the cheapest hour.
+- **Loop**: fox loop around the key number.
+- **Arrow**: a short inked arrow with a two-word label ("nyt", "halvin", "sinun laskusi").
+- **Warning**: "!" + text in price-high.
+
+### Category glyphs
+Inked price-shape pictures on an ink baseline: a sketchy ink outline over a slightly offset flat category colour (misregistered print), with light pencil hatching (`--opacity-hatching`). Sizes: 44 in choice rows, 34 in entries, larger as section art.
+
+### Charts
+Bar or line charts with an inked baseline, a dashed average line, value labels where they fit, every hour or day labelled, `--color-forecast` for forecast bars, fox for "nyt" with an inked arrow, and a legend above. Mini charts (forecast days) use the same rules without labels on each bar.
+
+### FAQ row
+Question in ink 18/800 with a chevron; the open answer in body text, max 680. Hairlines between rows.
+
+### Pagination
+Page numbers in ink 800; the current page in fox-deep with a wavy underline; "‹ Edellinen" and "Seuraava ›".
+
+### Link columns ("Katso myös")
+Column heads in ink 800, links in ink-body; four columns on desktop.
+
+### Villager interlude strip
+A transparent painted strip (about 1000 wide, centred, no frame) between two page blocks. Never inside or next to a contract, seller or seller price.
+
+### Footer
+Painted night village with the fox asleep in the snow; full live footer links on the night sky in night-lead.
+
+## 6. Hero map
+
+One distinct hero per page type. The full list with the fox action for each page is in `pages-plan.md`. The two approved heroes:
+
+| Page type | Hero | Fox |
+|---|---|---|
+| `/spot-price` | Picture-book village at night with aurora; the current price as poster number on the sky | Sits and looks up at the sky (`fox-sit-skyward-v1.png`) |
+| `/sahkosopimus` and listings | Village at dusk, short (460px); energy price index on the sky | Walks with a lantern (`fox-walk-lantern-v1.png`) |
+
+On contract and company pages the fox stays far away in the scene, away from the contract name, price and logo.
+
+## 7. Illustration
+
+- **Style:** fine dark ink outlines with soft watercolour, Finnish everyday life, gentle humour (brand guide §4). Never name an artist in a prompt.
+- **The fox** (`mascot/fox-v2.png`): four paws, green Nordic scarf, an ordinary fox tail. No flame tail, never curled around a round shape.
+- **Villagers** (hare, badger, bear, owl, hedgehog, beaver): small everyday helpers. They can head a section, do the household tasks on the spot page and star in interlude strips. Never next to a contract, a seller or a seller's price.
+- **Scenes:** hero plates, the footer night village and interlude strips. Season can follow the topic (solar = midnight-sun summer).
+- **Production:** image-gen skill (Codex first), `--ref mascot/fox-v2.png` for every fox, transparent cutouts for anything that sits on the ground. Check every result before use. Rejected art stays in the repo only as a record: `emblems/`, `illustrations/wash-aurora-v1.png`.
+
+## 8. Accessibility
+
+- Text pairs meet the ratios in §2. Fox orange is never small text.
+- Category meaning never depends on colour alone (glyph shape + name).
+- Controls look like controls: real radios, checkboxes and underlined fields with a 3:1 edge, visible focus (fox underline or ring).
+- Art is decorative (`alt=""`) unless it carries meaning; data is always in text.
+- Hero text sits on calm sky with at least 4.5:1.
+- Motion (if any) respects `prefers-reduced-motion`.
+
+## 9. Open items
+
+1. Replace the `system-ui` text on the reference boards with Figtree, and replace hard-coded colours with tokens (after the page groups are done, to avoid conflicts).
+2. Mobile (390px) boards for every page type.
+3. Open-state boards for the listing disclosures (postcode field, bill comparison form, Rajaa hakua options).
+4. Logo: the mark next to the wordmark is a placeholder.
+5. Performance plan for the art (AVIF/WebP, sizes, no layout shift, mobile crops) before implementation.
