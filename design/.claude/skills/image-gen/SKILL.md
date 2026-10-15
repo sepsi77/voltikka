@@ -57,6 +57,8 @@ Add `--transparent`. Codex then asks for a real alpha channel, and OpenRouter se
 
 The Codex transparent result is about 99% opaque inside the subject (alpha 253, not 255). You cannot see this on a plain background.
 
+To crop a transparent strip or cutout to its painted area, run `uv run --with pillow python -I .claude/skills/image-gen/scripts/crop_alpha.py IN OUT [margin]`.
+
 ## Check every result
 
 Look at each image before you report it (open it with the file-read tool). Check the subject, the pose, the props, the brand rules and any text. With a reference, compare the face, the proportions, the markings and the props side by side. When something is wrong, make one targeted change to the description and generate again as a new version. Report the saved paths, the backend, the cost and anything that is still wrong.

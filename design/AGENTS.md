@@ -23,6 +23,7 @@ If the two disagree, the design system spec wins. Report the conflict to the use
 | `voltikka-design-system.md` | Design spec |
 | `voltikka-brand-guide.md` | Brand guide (name, story, fox rules, voice) |
 | `voltikka-tokens.css` | The 88 design tokens as a Tailwind v4 `@theme` block. Must match the Paper tokens |
+| `seasons-prompts.md` | Prompt templates and season briefs for the talvi/kevät/kesä/syksy art variants |
 | `pages-plan.md` | Plan for the boards of every live page: page groups, hero ideas, rules |
 | `mascot/fox-v2.png` | **Approved fox reference** (user, 2026-10-16): four paws, green Nordic scarf. Give it as `--ref` for every new pose |
 | `mascot/fox-v1.png` | Upright fox with a lantern. Alternative, not chosen |
@@ -39,6 +40,7 @@ If the two disagree, the design system spec wins. Report the conflict to the use
 | `illustrations/{sauna,laundry,ev-charging}-v1.png` | "Kannattaako nyt?" illustrations |
 | `scenes/interlude-villagers-*.png` | Transparent villager interlude strips for pauses between page blocks (walk = on the listing board; noticeboard = alternative) |
 | `emblems/emblem-*.png` | Rejected as pricing category signs (meaning unclear); use the inked price-shape glyphs in the spec instead |
+| `*-{talvi,kevat,kesa,syksy}-v1.png` | Season variants of an art file (spec "Seasons"); the old file without a season name is the talvi (or original-season) version |
 | `.claude/skills/image-gen/` | Image generation skill (ported from Fetchalot; Codex by default, OpenRouter fallback reads `laravel/.env`) |
 
 All art is made with the image-gen skill and is production art (user, 2026-10-16): no illustrator redraw. New fox poses are image-gen variations of `mascot/fox-v2.png`. Check every result for consistency with the reference.

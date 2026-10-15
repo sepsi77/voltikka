@@ -265,6 +265,8 @@ Rules:
 - **Text on bright skies.** Spring and summer heroes are bright: they use the light hero variant (ink text and top bar on a light shade). Autumn and winter heroes keep white text on a dark sky. Check the contrast of each variant.
 - **Selection:** the server selects the season from the current Europe/Helsinki month and serves the matching file. The season is part of the page cache key. Files are named `<name>-<season>-vN.png` (`talvi`, `kevat`, `kesa`, `syksy`); the current winter files count as the `talvi` variants.
 - **Page topics with a season of their own** (solar = summer sun, heat pump = frost) still get four variants. The topic object stays; only the season around it changes.
+- **Activities follow the season.** An interlude strip keeps its villagers and its kind of fun, but a winter-only activity changes to its seasonal counterpart (skating → bark boats in meltwater / diving off rocks / leaf piles; toboggan → wheelbarrow race / rolling down a grassy hill / sliding on leaves; snow lanterns → planting seedlings / watering the garden / raking leaves; postman on skis → postman on a bicycle; spruce lights → Vappu balloons / juhannus birch branches / lanterns in the rain). Never draw a snow activity without snow.
+- **Pilot (2026-10-16):** the spot hero, listing hero, footer, walk strip and the two fox cutouts exist in all four seasons. Generating each variant with the winter file as `--ref` and "change ONLY the season" kept the compositions, villagers and fox design. The prompt templates are recorded in `seasons-prompts.md`.
 
 ## 8. Accessibility
 
