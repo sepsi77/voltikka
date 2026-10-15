@@ -35,7 +35,7 @@ If the two disagree, the design system spec wins. Report the conflict to the use
 | `illustrations/wash-aurora-v1.png` | Watercolour wash. Rejected ("smudging"); do not use |
 | `scenes/footer-night-village-v1.png` | Footer scene, the fox asleep in the snow |
 | `illustrations/{sauna,laundry,ev-charging}-v1.png` | "Kannattaako nyt?" illustrations |
-| `emblems/emblem-*.png` | Pricing category emblems (spot, periodic, usage, fixed) for the category choice chips |
+| `emblems/emblem-*.png` | Rejected as pricing category signs (meaning unclear); use the inked price-shape glyphs in the spec instead |
 | `.claude/skills/image-gen/` | Image generation skill (ported from Fetchalot; Codex by default, OpenRouter fallback reads `laravel/.env`) |
 
 All art is made with the image-gen skill and is production art (user, 2026-10-16): no illustrator redraw. New fox poses are image-gen variations of `mascot/fox-v2.png`. Check every result for consistency with the reference.
