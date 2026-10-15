@@ -52,4 +52,6 @@ Every other live page gets a board that matches these two. The user asked for a 
 | F | Tietosuoja / Käyttöehdot (legal template) | Quiet: fox asleep under a desk lamp beside a stack of papers. Plain readable text. |
 | F | 404 | Fox lost in a snowy forest with a lantern, looking at two signposts. |
 
+**Status (2026-10-16):** all groups are drawn. The page patterns that came out of them are in `voltikka-design-system.md` §5 "Page patterns". Interlude activities are all different: listing = evening walk, pörssisähkö = ice fishing, Helsinki = sea swim and sauna, Paikkakunnat = ski trip, article = kyykkä, home = skating, cheapest = toboggan, laskuri = firewood, maksatko = postman on skis, lämpöpumppu = snow lanterns, solar = rowing and jetty, tilastot = berry market, hintaennuste = laundry and kite, sähköyhtiöt = spruce lights.
+
 Each group builds its boards on its own Paper page, named "Pages · group X". Art goes into `design/scenes/`, `design/mascot/` or `design/illustrations/` with a page-specific name and a `-v1` suffix. Use the image-gen skill (Codex first) with `mascot/fox-v2.png` as reference for every fox.

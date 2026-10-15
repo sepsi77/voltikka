@@ -51,6 +51,10 @@ All art is made with the image-gen skill and is production art (user, 2026-10-16
 - Page **"Design system"**: boards 01 Foundations, 02 Components, 03 Theme and illustration (like the Fetchalot file).
 - Insert local images with `paper-asset:///Users/seppo/code/voltikka/design/…`.
 - Known Paper limits: `margin` and CSS `transform` are ignored (use padding/gap; flip art in the image itself). Screenshots can render late; take a second one before you decide that an image is missing.
+- Text nodes do not inherit the font from their frame: set `font-family: var(--font-sans)` or `var(--font-display)` on every text node, or it falls back to system-ui.
+- `<x-paper-clone>` of the reference top bar (`2J8-0`) stacks its nav items. Use the fixed top bar on the legal board (layer "Top bar" on "Pages · group F") or `duplicate_nodes`. A clone with `position:absolute` in its style passes that style to all descendants; use `duplicate_nodes` for absolute parts. A clone into an absolute hero lands as the first child, under the art: move it to the end.
+- `position: relative` is ignored on frames, but absolute children still position against their parent frame.
+- Paper keeps one style per text node, so a bold lead-in inside a paragraph is lost.
 
 ## Making art
 

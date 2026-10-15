@@ -30,7 +30,7 @@ The site should feel like a beautifully drawn picture book, **without interferin
 
 - Take: busy, warm everyday Finnish scenes with small humorous details that reward a second look (sauna smoke, snow shovelling, laundry, a coffee pot in a lit window); fine ink outlines with soft watercolour; animal villagers doing ordinary things.
 - Do not take: his characters, his dog people, his compositions or his drawing style. Never name the artist (or any living artist) in an image prompt; describe the traits instead.
-- The fox is the only main character and the only fox. Villagers (hare, badger, bear, owl and others) are tiny background extras in hero scenes, never near contracts, prices, sellers or controls, and never the focus. Exception (user, 2026-10-16): a villager interlude strip may be the focus of a pause between page blocks, for example between the contract list and its pagination and the "Katso myös" links. It never sits inside or next to a contract entry.
+- The fox is the only main character and the only fox. Villagers (hare, badger, bear, owl and others) are tiny background extras in hero scenes, never near contracts, prices, sellers or controls, and never the focus. Exception (user, 2026-10-16): a villager interlude strip may be the focus of a pause between page blocks, for example between the contract list and its pagination and the "Katso myös" links. It never sits inside or next to a contract entry. On contract and company pages the fox stands at the far edge of the hero band, away from the contract name, price and logo. Never draw tents, tepees, traditional costumes or cultural symbols in maps or landscapes.
 
 ## 5. Voice
 

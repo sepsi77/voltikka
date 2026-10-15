@@ -97,7 +97,7 @@ Two families from Google Fonts:
 - **Bricolage Grotesque** (`--font-display`), weight 800: H1, section headings, contract and item names, prices, rank numbers, poster numbers and inked actions. Tight tracking.
 - **Figtree** (`--font-sans`), weights 400, 700 and 800: body, labels, values, captions and controls.
 
-The approved boards were drawn partly with `system-ui` for sans text. That is a mistake in the boards, not a rule: implementation uses Figtree (open item 1).
+All board text uses Figtree (fixed 2026-10-16).
 
 | Role | Font | Size / line | Weight, tracking | Color |
 |---|---|---|---|---|
@@ -204,6 +204,29 @@ A transparent painted strip (about 1000 wide, centred, no frame) between two pag
 ### Footer
 Painted night village with the fox asleep in the snow; full live footer links on the night sky in night-lead.
 
+### Page patterns (from the page boards, 2026-10-16)
+
+These rules come from the boards for every live page (pages "Pages · group A–F"). They are proposals until the user reviews those boards.
+
+- **Hero text needs calm sky behind every text column.** When a hero has a data block at the right, ask the art for "landscape in the bottom ~40%". When the fox fills the right side, the hero's key figure moves inline under the lead.
+- **Hero key figure on the sky.** A data or hub page can put its key figure on the sky as data: the current spot price, the energy price index, the forecast outlook ("Suunnilleen ennallaan").
+- **Light hero variant.** On a bright scene (summer, autumn day), the top bar and hero text use ink on a light shade. Night and dusk scenes keep white text.
+- **Hero heights.** Listing 460; contract and company pages 360–460 (a landscape band); hub, data and directory pages 600–700.
+- **Seller pages.** On contract and company pages, the fox stands at the far edge of a landscape band. The contract name, price and seller sit below the band or on the opposite side. These pages have no villager interlude, because every block is a contract or seller block. A heading of a seller section gets an object vignette (for example an inked map pin), never a villager.
+- **Giant numeral in a sentence.** A hub page can set its key count as a giant fox-orange numeral inside the live sentence, in the live word order ("Vertaa 367 sähkösopimusta puolueettomasti.").
+- **Podium entry.** On the cheapest-contracts page, the first entry is larger: rank about 88, name at section size, price about 96 with a larger loop.
+- **City listings.** Local-company entries show an inked map pin and the distance ("12 km") at the right of the category line, and no rank number.
+- **Company without a logo:** the company name (or its short name) in Bricolage.
+- **Business contracts on a company page** are compact one-line rows.
+- **Tool pages.** A form can be drawn as the real paper object that explains the input (a torn electricity bill, a meter counter). It is not a card: it has no white panel, border or shadow. (Proposal; the user must confirm.)
+- **Result states.** A result board uses the real output of the live tool and states its example inputs in a note on the board.
+- **Charts that explain a calculation:** range bars for p20–p80 with a median tick, a stacked bar for a total against the current cost, cumulative lines for payback, slope charts for forecast quantiles.
+- **Series colours in multi-series charts.** Pricing categories use their category colour. Open-ended (Toistaiseksi) is a dashed `--color-ink-muted` line. Day/night series use fox (day) and lake (night) only in charts that show no pricing categories.
+- **Long reads** (article, Tietoa, legal): a numbered section list at the left (260–300) and a 700 body column at 18/30; charts up to 860 wide; drop cap on the first paragraph; pull quotes in Bricolage.
+- **Tabs on a live page** are drawn with all panels open on the board.
+- **Directory pages** (Paikkakunnat) can use a painted map with live town names as text pins on the art. Map prompts must say "no tents, no tepees, no traditional costumes or cultural symbols".
+- **Seasonal footer.** The footer is a winter scene; the summer solar page may need a summer variant (open item).
+
 ## 6. Hero map
 
 One distinct hero per page type. The full list with the fox action for each page is in `pages-plan.md`. The two approved heroes:
@@ -223,6 +246,26 @@ On contract and company pages the fox stays far away in the scene, away from the
 - **Scenes:** hero plates, the footer night village and interlude strips. Season can follow the topic (solar = midnight-sun summer).
 - **Production:** image-gen skill (Codex first), `--ref mascot/fox-v2.png` for every fox, transparent cutouts for anything that sits on the ground. Check every result before use. Rejected art stays in the repo only as a record: `emblems/`, `illustrations/wash-aurora-v1.png`.
 
+### Seasons (user, 2026-10-16)
+
+"Finland has 4 different seasons and the site should always have the feel of the current season." Every season-bound illustration has four variants. Each variant draws from the mood of its season, not only from its colours.
+
+| Season | Months (Europe/Helsinki) | Mood | Elements |
+|---|---|---|---|
+| **Talvi** (winter) | Dec–Feb | Calm, cosy, blue hour | Deep snow, aurora, kaamos blue hour, warm windows, lanterns, ski tracks, smoke from chimneys |
+| **Kevät** (spring) | Mar–May | Nature wakes up, fresh and hopeful | Melting snow patches and last dirty snowbanks, meltwater streams and puddles, lake ice breaking into floes, birches with small new leaves, coltsfoot (leskenlehti) and pussy willows, swans and cranes flying back, long pale-gold evening light, villagers in rubber boots airing rugs and raking |
+| **Kesä** (summer) | Jun–Aug | Lazy, warm, nightless night | The low midnight sun, gold-peach-pink sky, lush birches and meadow flowers, a mirror-calm lake, rowing boat and sauna jetty, a small midsummer bonfire far away, villagers swimming and fishing |
+| **Syksy** (autumn) | Sep–Nov | Cosy but blustery | Ruska colours (yellow birches, orange aspens, red rowan berries), leaves swirling in strong wind, slanting rain showers and grey rain clouds with a gap of low warm light, wet paths and puddles, lit windows, villagers in raincoats with umbrellas that turn inside out, mushroom baskets |
+
+Rules:
+
+- **What varies:** hero scenes and plates, the footer scene, interlude strips, the snow line under cutouts (fox and villagers), the home illustrations and any vignette with weather or ground. Category glyphs, logos and charts do not vary.
+- **What stays:** the composition (same camera, layout and calm text area; generate each variant with the winter version as `--ref`), the fox design and its green scarf, the aurora sparks at the fox's tail tip (the brand's "fox fire"), and the page's topic object (solar panels, heat pump, meter, telescope).
+- **Aurora** appears only in winter scenes (and a faint one in late autumn at most). Summer nights are bright.
+- **Text on bright skies.** Spring and summer heroes are bright: they use the light hero variant (ink text and top bar on a light shade). Autumn and winter heroes keep white text on a dark sky. Check the contrast of each variant.
+- **Selection:** the server selects the season from the current Europe/Helsinki month and serves the matching file. The season is part of the page cache key. Files are named `<name>-<season>-vN.png` (`talvi`, `kevat`, `kesa`, `syksy`); the current winter files count as the `talvi` variants.
+- **Page topics with a season of their own** (solar = summer sun, heat pump = frost) still get four variants. The topic object stays; only the season around it changes.
+
 ## 8. Accessibility
 
 - Text pairs meet the ratios in §2. Fox orange is never small text.
@@ -234,8 +277,12 @@ On contract and company pages the fox stays far away in the scene, away from the
 
 ## 9. Open items
 
-1. Replace the `system-ui` text on the reference boards with Figtree, and replace hard-coded colours with tokens (after the page groups are done, to avoid conflicts).
+1. Done 2026-10-16: all text uses Figtree, and CSS colours use tokens. Still open: colours inside SVG `fill`/`stroke` attributes (glyphs, inked marks, most charts) and about 20 one-off colours with no token (hero shades, a few on-night text tints). The build must map them to tokens.
 2. Mobile (390px) boards for every page type.
 3. Open-state boards for the listing disclosures (postcode field, bill comparison form, Rajaa hakua options).
 4. Logo: the mark next to the wordmark is a placeholder.
 5. Performance plan for the art (AVIF/WebP, sizes, no layout shift, mobile crops) before implementation.
+6. User review of the page boards (groups A–F) and of the page patterns in §5.
+7. The live 404 is Laravel's default English page. The 404 board has a proposed Finnish text.
+8. A summer footer variant for the solar page.
+9. Bold lead-ins inside a paragraph cannot be drawn in Paper (one style per text node). The build must restore them from the live page.
