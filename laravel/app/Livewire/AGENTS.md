@@ -1297,7 +1297,9 @@ Rules to keep:
   `contractDetailViewDataCacheKey()` was bumped to **v11** with it, to **v15** for the Phase 4
   composition keys, and to **v16** for canonical-only current values, offer notes, metadata,
   and Product JSON-LD, then to **v17** so a package excess-use rate cannot become an ordinary
-  energy price in title/meta/schema. It no longer carries `latestPrices`, `discountedComponents` or
+  energy price in title/meta/schema. It is **v22** since the redesign added `bucket` to
+  `ContractCardView`: **bump this key whenever a cached DTO gains or loses a property**, because an
+  old serialized object leaves a new typed property uninitialized (production fatal 2026-10-16). It no longer carries `latestPrices`, `discountedComponents` or
   `priceChangeInfo`; no template read them after the editorial restructure, and
   `getDiscountedComponentsProperty()`, `getPriceChangeInfoProperty()` and
   `components/contract-price-row.blade.php` were deleted with them.

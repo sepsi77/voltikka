@@ -2855,7 +2855,9 @@ class ContractDetail extends Component
     protected function contractDetailViewDataCacheKey(): string
     {
         // v21: include the unavailable annual-price notice in prepared view data.
-        return 'contract-detail:view-data:v21:'.md5(json_encode([
+        // v22: the cached ContractCardView gained `bucket` (redesign). An older payload
+        // unserializes with that typed property uninitialized and breaks the template.
+        return 'contract-detail:view-data:v22:'.md5(json_encode([
             'contract_id' => $this->contractId,
             'consumption' => $this->consumption,
             'version' => $this->contractPageCacheVersionHash(),
