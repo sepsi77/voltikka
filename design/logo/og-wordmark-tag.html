@@ -1,0 +1,39 @@
+<!doctype html>
+<!--
+  Source of design/logo/og-wordmark-tag.png: the Voltikka wordmark on a paper tag for the Open
+  Graph share images (Paper board "R3 · OG images"). The torn bottom edge is drawn by
+  scripts/design-art/og_image.py, so this page renders only the opaque tag.
+  Render: open this file at 2x device scale, screenshot it and crop to the #tag box
+  (506 × 152 px at 2x), then save it as og-wordmark-tag.png. See scripts/design-art/og.sh.
+-->
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,800&display=block">
+<style>
+  html, body { margin: 0; background: #F5F6F1; }
+  #tag {
+    position: absolute; left: 20px; top: 20px;
+    display: inline-flex; align-items: center; gap: 12px;
+    padding: 16px 26px 14px 22px;
+    background: #FFFFFF;
+    border: 2px solid #16202E; border-bottom: 0; border-radius: 3px 3px 0 0;
+  }
+  #tag span {
+    font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800;
+    font-size: 40px; line-height: 44px; letter-spacing: -0.02em; color: #16202E;
+  }
+</style>
+</head>
+<body>
+<div id="tag">
+  <svg width="40" height="40" viewBox="0 0 34 34" aria-hidden="true">
+    <path d="M5 29 C 6 16, 14 7, 27 5 C 24 12, 22 20, 13 26 C 10 28, 7 29, 5 29 Z" fill="#C4501C"/>
+    <path d="M27 5 C 25.5 9, 24.5 12, 22.5 15 C 21 12.5, 22.5 8, 27 5 Z" fill="#FFFFFF"/>
+    <path d="M29.5 11.5 l1 2.2 2.2 1 -2.2 1 -1 2.2 -1 -2.2 -2.2 -1 2.2 -1 z" fill="#1C7A5E"/>
+    <circle cx="31" cy="4" r="1.6" fill="#6A4C9C"/>
+  </svg>
+  <span>Voltikka</span>
+</div>
+</body>
+</html>

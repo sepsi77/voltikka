@@ -764,6 +764,7 @@ class CompanyDetail extends Component
             'metaDescription' => $this->metaDescription,
             'canonical' => $this->canonicalUrl,
             'heroTone' => Season::heroTone('company-band'),
+            'ogArt' => 'company-band',
         ]);
     }
 }

@@ -96,3 +96,10 @@ Eight area agents (home, detail, company, tools, energy, data, seo-pages, longre
 - Built from Paper boards IF1-0, JEW-0, JQB-0, JST-0 and notes JVC-0 (user approved). Statistics: "Tarkemmin sopimustyypeittäin" is two 584px cells per row (64 column gap, 88 row gap), one column below 1024; Pörssisähkö is cell 1 with its margin chart in place of the Vs. row. Forecast: one full-width row per term, conclusion first.
 - Chart end labels read the key figure through `data-chart-end` (presentation only), because a weekly chart's last point can be an average that rounds differently (live: 11,80 beside a key figure of 11,81).
 - Rhythm: 96px between sections (64px phone); 56px (48px phone) from the strip's edge line to the first block. The statistics controls lost their top rule so only the strip line shows.
+
+## 2026-10-16 — Open Graph share images
+
+- User: Voltikka had no `og:image`. Every page now has a 1200 × 630 JPEG share image and the `twitter:card` `summary_large_image` tags (Paper board "R3 · OG images"). The image is the page's own painted hero for this season, scaled to 1200 wide and centre-cropped, with the Voltikka wordmark on a paper tag (torn bottom edge) in the upper-left sky. No price, contract or seller text in the image; the title comes from `og:title`.
+- One mechanism: pages pass `ogArt` beside `heroTone`; `Season::ogImage()` falls back to the home hero of the season, then `og/default.jpg`. Pages without own art (tietoa, legal, articles, locations map, 404) use the home hero.
+- JPEG, not WebP, for crawler support; quality 72 keeps each file under 200 KB (76 files plus the default, about 11 MB). The 404 art was left out (nobody shares a 404 page). The source is the built 1672 WebP hero, not the PNG, so the art name list in `og.sh` needs no second source mapping; the downscale hides the WebP compression.
+- The alt text is fixed ("Voltikka-logo ja piirretty suomalainen maisema"), because the page title of a contract page contains a price that the image does not show.

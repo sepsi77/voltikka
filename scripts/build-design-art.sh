@@ -70,10 +70,17 @@ season_set_fallback() {
 # can add art without editing this file. Pass a fragment name (for example `home`) to build
 # only that fragment.
 for part in "$root"/scripts/design-art/*.sh; do
+    [[ "$(basename "$part")" == "og.sh" ]] && continue
     if [[ $# -eq 0 || "$(basename "$part" .sh)" == "$1" ]]; then
         # shellcheck source=/dev/null
         source "$part"
     fi
 done
+
+# The Open Graph images read the hero WebP files above, so og.sh always runs last.
+if [[ $# -eq 0 || "$1" == "og" ]]; then
+    # shellcheck source=/dev/null
+    source "$root/scripts/design-art/og.sh"
+fi
 
 du -sh "$out"

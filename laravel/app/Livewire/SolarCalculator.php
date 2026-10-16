@@ -457,6 +457,7 @@ class SolarCalculator extends Component
                 'canonical' => route('solar.calculator'),
                 // Painted hero: the layout puts the top bar over it in this tone (outside any cache).
                 'heroTone' => Season::heroTone('solar-hero'),
+                'ogArt' => 'solar-hero',
             ]);
     }
 }

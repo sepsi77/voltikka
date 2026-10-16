@@ -646,6 +646,9 @@ Pages include JSON-LD structured data for rich search results:
 
 Implementation: Each Livewire component has a `getJsonLdSchema()` method that returns the schema data, rendered via `<x-schema-markup>` component.
 
+### Open Graph images
+Every page sends `og:image` (1200 × 630 JPEG) and `twitter:card` `summary_large_image`. A page passes its hero art name as `ogArt` beside `heroTone`; `App\Support\Season::ogImage()` picks `public/images/og/<art>-<season>.jpg`, else the home hero of this season, else `og/default.jpg`. The images are built by `scripts/build-design-art.sh og` (hero art + the wordmark tag); they contain no price, contract or seller. See `laravel/AGENTS.md` ("Site shell").
+
 ### Filter Links (Dual Behavior)
 The visible pricing-type choices (`resources/views/partials/pricing-bucket-pills.blade.php`) have dual behavior for SEO optimization:
 

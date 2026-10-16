@@ -1442,7 +1442,7 @@ class SeoContractsList extends ContractsList
             'heroArt' => $heroArt,
             'resultsGlyph' => $this->resultsGlyph(),
         ])
-            ->layout('layouts.app', $data['layout'] + ['heroTone' => Season::heroTone($heroArt)])
+            ->layout('layouts.app', $data['layout'] + ['heroTone' => Season::heroTone($heroArt), 'ogArt' => $heroArt])
             ->response(function ($response) {
                 app(SetPublicCacheHeaders::class)->applyCacheHeaders($response);
             });

@@ -65,6 +65,8 @@ All art is made with the image-gen skill and is production art (user, 2026-10-16
 
 Run from `design/`: `python3 .claude/skills/image-gen/scripts/image_gen.py "<description>" <out_dir> --name <name> [--ref mascot/fox-v2.png] [--transparent] [--aspect 1:1]`. Read `.claude/skills/image-gen/SKILL.md` first. Look at every result before you use it. Never draw the fox with a flame tail or curled around a round shape.
 
+Share images (Open Graph, Paper board "R3 · OG images"): `scripts/build-design-art.sh og` makes `laravel/public/images/og/<art>-<season>.jpg` from the built hero WebP files plus the wordmark tag `logo/og-wordmark-tag.png`. That tag is a 2x browser render of `logo/og-wordmark-tag.html`; render it again only when the wordmark changes. The step runs after all other art, because it reads their output.
+
 ## Keep this file true
 
 When you add, remove or rename a Paper page, a key board, a folder or a source document, update this file in the same change.

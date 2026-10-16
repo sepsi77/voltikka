@@ -773,6 +773,7 @@ class ContractPriceStatistics extends Component
             'canonical' => config('app.url').'/sahkosopimus/tilastot',
             // Outside the prepared-data cache: the hero tone follows the current season.
             'heroTone' => Season::heroTone('stats-hero'),
+            'ogArt' => 'stats-hero',
         ]);
     }
 

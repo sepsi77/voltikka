@@ -161,6 +161,17 @@ class ContractDetailBillComparisonTest extends TestCase
             ]);
     }
 
+    public function test_contract_page_shares_the_band_art_without_a_price_in_the_alt_text(): void
+    {
+        $this->createContract('bill-og-contract', 'Perus Kiinteä', 5.0, 3.00);
+        app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
+
+        $content = $this->get('/sahkosopimus/sopimus/bill-og-contract')->assertOk()->getContent();
+
+        OpenGraphImageTest::assertShareImage($content, 'contract-band');
+        $this->assertStringContainsString('<meta property="og:image:alt" content="Voltikka-logo ja piirretty suomalainen maisema">', $content);
+    }
+
     public function test_save_case_shows_a_neutral_slate_delta_and_no_coral_warning(): void
     {
         $this->createContract('bill-detail-contract', 'Perus Kiinteä', 5.0, 3.00);

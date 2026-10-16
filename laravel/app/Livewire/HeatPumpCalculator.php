@@ -543,6 +543,7 @@ class HeatPumpCalculator extends Component
                 'canonical' => route('heatpump.calculator'),
                 // Painted hero: the layout puts the top bar over it in this tone (outside any cache).
                 'heroTone' => Season::heroTone('heatpump-hero'),
+                'ogArt' => 'heatpump-hero',
             ]);
     }
 }

@@ -52,6 +52,7 @@ class CompanyDetailPageTest extends TestCase
         $response = $this->getWithPrices('/sahkosopimus/sahkoyhtiot/test-energy-oy');
 
         $response->assertStatus(200);
+        OpenGraphImageTest::assertShareImage($response->getContent(), 'company-band');
     }
 
     /**

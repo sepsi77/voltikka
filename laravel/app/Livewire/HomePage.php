@@ -36,6 +36,7 @@ class HomePage extends Component
             'metaDescription' => "Vertaile {$contractCount} sähkösopimusta {$companyCount} yhtiöltä puolueettomasti, seuraa pörssihintoja ja laske aurinkopaneelien tuotto ja lämpöpumpun säästöt. Riippumaton palvelu ilman mainosrahaa.",
             // Painted hero: the top bar sits over it in the hero's tone (never cached).
             'heroTone' => Season::heroTone('home-hero'),
+            'ogArt' => 'home-hero',
         ]);
     }
 

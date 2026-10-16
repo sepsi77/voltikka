@@ -83,6 +83,24 @@ final class Season
     }
 
     /**
+     * Absolute URL of the 1200 x 630 Open Graph image of a hero art in this season
+     * (public/images/og/<art>-<season>.jpg, built by scripts/design-art/og.sh). A page whose
+     * art has no share image gets the home hero of this season, then og/default.jpg.
+     */
+    public static function ogImage(?string $art = null): string
+    {
+        foreach (array_filter([$art, 'home-hero']) as $name) {
+            $path = 'images/og/'.$name.'-'.self::current().'.jpg';
+
+            if (is_file(public_path($path))) {
+                return asset($path);
+            }
+        }
+
+        return asset('images/og/default.jpg');
+    }
+
+    /**
      * 'light' when the hero art of this season is bright, otherwise 'dark'.
      */
     public static function heroTone(string $hero): string

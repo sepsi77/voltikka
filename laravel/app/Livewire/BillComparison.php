@@ -371,6 +371,7 @@ class BillComparison extends Component
             'canonical' => route('bill.comparison'),
             // Painted hero: the overlay top bar uses the same tone as the hero text.
             'heroTone' => Season::heroTone('maksatko-hero'),
+            'ogArt' => 'maksatko-hero',
         ]);
     }
 

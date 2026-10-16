@@ -155,6 +155,7 @@ class CheapestContracts extends SeoContractsList
             'canonical' => $this->seoData['canonical'],
             // Painted hero: the top bar sits over it in the hero's tone (never cached).
             'heroTone' => Season::heroTone('cheapest-hero'),
+            'ogArt' => 'cheapest-hero',
         ])->response(function ($response) {
             app(SetPublicCacheHeaders::class)->applyCacheHeaders($response);
         });

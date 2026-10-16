@@ -77,4 +77,32 @@ class SeasonTest extends TestCase
             }
         }
     }
+
+    public function test_og_image_uses_the_art_of_this_season_when_it_exists(): void
+    {
+        $this->assertSame(
+            asset('images/og/stats-hero-'.Season::current().'.jpg'),
+            Season::ogImage('stats-hero'),
+        );
+    }
+
+    public function test_og_image_falls_back_to_the_home_hero_of_this_season(): void
+    {
+        $home = asset('images/og/home-hero-'.Season::current().'.jpg');
+
+        // tietoa-hero has no share image, and a page without art passes nothing.
+        $this->assertSame($home, Season::ogImage('tietoa-hero'));
+        $this->assertSame($home, Season::ogImage(null));
+    }
+
+    public function test_every_og_image_file_exists_for_every_season(): void
+    {
+        $this->assertFileExists(public_path('images/og/default.jpg'));
+
+        foreach (['home-hero', 'listing-hero', 'contract-band', 'company-band', 'stats-hero', 'forecast-hero', 'hero-city', 'hero-city-helsinki', 'hero-city-tampere', 'hero-city-turku', 'hero-city-oulu'] as $art) {
+            foreach (Season::ALL as $season) {
+                $this->assertFileExists(public_path('images/og/'.$art.'-'.$season.'.jpg'));
+            }
+        }
+    }
 }

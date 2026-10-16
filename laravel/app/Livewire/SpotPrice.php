@@ -2639,6 +2639,7 @@ class SpotPrice extends Component
                 'title' => 'Pörssisähkön hinta tänään ja huomenna – hintaennuste | Voltikka',
                 'metaDescription' => 'Pörssisähkön hinta tänään ja huomenna sekä hintaennuste seuraaville päiville. Näe tuntikohtaiset hinnat ja milloin sähkö on halvinta.',
                 'heroTone' => Season::heroTone('spot-hero'),
+                'ogArt' => 'spot-hero',
             ])->response(function ($response) {
                 $response->setPublic();
                 $response->setMaxAge(60);

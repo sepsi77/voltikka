@@ -2880,7 +2880,7 @@ class ContractDetail extends Component
         return view('livewire.contract-detail', array_merge($data['view'], $this->billModuleViewData()))
             // heroTone stays outside the prepared-data cache: the season (and so the tone of
             // the painted hero band) can change while a cached payload is still valid.
-            ->layout('layouts.app', $data['layout'] + ['heroTone' => Season::heroTone('contract-band')])
+            ->layout('layouts.app', $data['layout'] + ['heroTone' => Season::heroTone('contract-band'), 'ogArt' => 'contract-band'])
             ->response(function ($response) {
                 app(SetPublicCacheHeaders::class)->applyCacheHeaders($response);
             });

@@ -1145,6 +1145,7 @@ class SeoContractsListTest extends TestCase
         $response->assertSee('vk-seo-hero--city', false);
         $response->assertSee('images/art/hero-city-helsinki-', false);
         $response->assertDontSee('vk-seo-results-glyph', false);
+        OpenGraphImageTest::assertShareImage($response->getContent(), 'hero-city-helsinki');
     }
 
     public function test_other_city_page_uses_the_general_town_hero(): void
@@ -1167,6 +1168,7 @@ class SeoContractsListTest extends TestCase
         $response->assertSee('vk-seo-hero--city', false);
         $response->assertSee('images/art/hero-city-'.Season::current().'.webp', false);
         $response->assertDontSee('images/art/hero-city-helsinki-', false);
+        OpenGraphImageTest::assertShareImage($response->getContent(), 'hero-city');
     }
 
     public function test_every_city_hero_art_file_exists_for_every_season(): void

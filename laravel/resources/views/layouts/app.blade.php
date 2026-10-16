@@ -40,6 +40,20 @@
         <meta property="og:description" content="{{ $ogDescription ?? $metaDescription }}">
         @endif
         <meta property="og:url" content="{{ url()->current() }}">
+        {{-- Share image: the page's hero art ($ogArt) in this season, see App\Support\Season::ogImage(). --}}
+        @php($ogImage = \App\Support\Season::ogImage($ogArt ?? null))
+        <meta property="og:image" content="{{ $ogImage }}">
+        <meta property="og:image:type" content="image/jpeg">
+        <meta property="og:image:width" content="1200">
+        <meta property="og:image:height" content="630">
+        <meta property="og:image:alt" content="Voltikka-logo ja piirretty suomalainen maisema">
+        <meta name="twitter:image:alt" content="Voltikka-logo ja piirretty suomalainen maisema">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="{{ $ogTitle ?? $title ?? 'Voltikka - Sähkösopimusten vertailu' }}">
+        @if (isset($ogDescription) || isset($metaDescription))
+        <meta name="twitter:description" content="{{ $ogDescription ?? $metaDescription }}">
+        @endif
+        <meta name="twitter:image" content="{{ $ogImage }}">
 
         <!-- Preconnect to required origins for performance -->
         <link rel="preconnect" href="https://fonts.googleapis.com">

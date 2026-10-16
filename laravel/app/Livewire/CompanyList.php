@@ -447,6 +447,7 @@ class CompanyList extends Component
             'metaDescription' => $this->metaDescription,
             'canonical' => $this->canonicalUrl,
             'heroTone' => Season::heroTone('companies-hero'),
+            'ogArt' => 'companies-hero',
         ])->response(function ($response) {
             app(SetPublicCacheHeaders::class)->applyCacheHeaders($response);
         });

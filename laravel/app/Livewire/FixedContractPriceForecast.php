@@ -53,6 +53,7 @@ class FixedContractPriceForecast extends Component
                 'metaDescription' => 'Katso 6, 12 ja 24 kuukauden sähkösopimusten hintaennuste ja vertaa sitä nykyhintoihin. Ennuste yhdistää sopimushintojen kehityksen ja sähkön tukkuhinnat.',
                 'canonical' => config('app.url').'/sahkosopimus/sahkon-hintaennuste',
                 'heroTone' => Season::heroTone('forecast-hero'),
+                'ogArt' => 'forecast-hero',
             ]);
     }
 
