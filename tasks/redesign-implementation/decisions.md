@@ -103,3 +103,10 @@ Eight area agents (home, detail, company, tools, energy, data, seo-pages, longre
 - One mechanism: pages pass `ogArt` beside `heroTone`; `Season::ogImage()` falls back to the home hero of the season, then `og/default.jpg`. Pages without own art (tietoa, legal, articles, locations map, 404) use the home hero.
 - JPEG, not WebP, for crawler support; quality 72 keeps each file under 200 KB (76 files plus the default, about 11 MB). The 404 art was left out (nobody shares a 404 page). The source is the built 1672 WebP hero, not the PNG, so the art name list in `og.sh` needs no second source mapping; the downscale hides the WebP compression.
 - The alt text is fixed ("Voltikka-logo ja piirretty suomalainen maisema"), because the page title of a contract page contains a price that the image does not show.
+
+## 2026-10-16 — Hero crops on wide and narrow screens
+
+- User: on `/sahkosopimus/tilastot` the crop hid the main subject. Cause: full-bleed plates use `width: max(100%, 1440px)` and are anchored at the bottom, so above 1440 the extra plate height was cut from the top, through the subject (statistics fox headless at 1920, gone at 2560). The pörssisähkö, city, solar, laskuri, maksatko and heat-pump heroes had the same fault in a smaller degree.
+- Rule: a full-bleed plate wider than 1440 grows around a focus line (`--plate-focus` / `--seo-plate-focus`, a share of the plate height at the subject's head) that keeps its 1440 position. At 1440 the formulas give exactly the Paper crop. Values are measured on the plate art; all four seasons share one composition.
+- Below 1440 the heat-pump plate keeps its right edge and the seller band keeps its left edge (centred, the fox / the walking fox fell off the edge at 1024).
+- Checked at 390, 1024, 1440, 1920 and 2560 in all four seasons for every hero page. Home, index, cheapest, listing, companies, contract band, spot, long-read and 404 heroes were already right and are unchanged.

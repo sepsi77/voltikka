@@ -60,15 +60,25 @@
     }
 
     /* Paper places the 1440x810 plate at top -250 (river) / -160 (city) in a 460 hero, so it
-       ends 100 / 190px below the hero. Anchored at the bottom, the scene stays in view when the
-       live text makes the hero taller. */
-    .vk-seo-hero .vk-hero-plate {
-        width: max(100%, 1440px);
-        transform: translate(-50%, var(--seo-plate-drop, 12.35%));
+       ends 100 / 190px below the hero (`--seo-plate-drop`, a share of the plate height).
+       Anchored at the bottom, the scene stays in view when the live text makes the hero
+       taller. Wider than 1440 the plate grows: the line of the fox's ears
+       (`--seo-plate-focus`) keeps its 1440 position, so the extra height is cropped below the
+       fox and the head never goes under the top bar. 810px is the plate height at 1440. */
+    .vk-seo-hero {
+        --seo-plate-drop: 0.1235;
+        --seo-plate-focus: 0.35;
     }
 
     .vk-seo-hero--city {
-        --seo-plate-drop: 23.45%;
+        --seo-plate-drop: 0.2345;
+        --seo-plate-focus: 0.33;
+    }
+
+    .vk-seo-hero .vk-hero-plate {
+        bottom: calc((1 - var(--seo-plate-focus) - var(--seo-plate-drop)) * 810px);
+        width: max(100%, 1440px);
+        transform: translate(-50%, calc((1 - var(--seo-plate-focus)) * 100%));
     }
 
     /* The shade sits at the text side only: the fox fills the right half. */

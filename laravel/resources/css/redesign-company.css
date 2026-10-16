@@ -145,8 +145,11 @@
         transform: translate(-50%, 1.24%);
     }
 
+    /* The band's fox walks at the far left of the plate and the text sits at the right, so
+       below 1440 the band keeps the plate's left edge instead of its centre. */
     .vk-co-hero--band .vk-co-hero-plate {
-        transform: translate(-50%, 19.76%);
+        left: 0;
+        transform: translate(0, 19.76%);
     }
 
     /* Paper "Dusk shade" (list): a soft pool behind the text column at the left plus a band

@@ -114,18 +114,27 @@
         mask-image: none;
     }
 
-    /* The 1440×810 plate sits 150px (laskuri) or 110px (maksatko) above the hero top. */
+    /* The 1440×810 plate sits 150px (laskuri) or 110px (maksatko) above the hero top
+       (`--plate-lift`, a share of the plate height). Wider than 1440 the plate grows: the line
+       of the fox's ears (`--plate-focus`) keeps its 1440 position, so the extra height is
+       cropped above and below the fox and not through it. 810px is the plate height at 1440. */
+    .tool-hero {
+        --plate-lift: 0.185;
+        --plate-focus: 0.33;
+    }
+
+    .tool-hero--maksatko-hero {
+        --plate-lift: 0.136;
+        --plate-focus: 0.42;
+    }
+
     .tool-hero-plate {
-        top: 0;
+        top: calc((var(--plate-focus) - var(--plate-lift)) * 810px);
         right: auto;
         bottom: auto;
         left: 50%;
         width: max(100%, 1440px);
-        transform: translate(-50%, -18.5%);
-    }
-
-    .tool-hero--maksatko-hero .tool-hero-plate {
-        transform: translate(-50%, -13.6%);
+        transform: translate(-50%, calc(var(--plate-focus) * -100%));
     }
 
     .tool-hero-shade {

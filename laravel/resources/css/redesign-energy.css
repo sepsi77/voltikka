@@ -118,19 +118,37 @@
     }
 
     /* Board crop: the 1440x810 plate sits from y -20 (solar, 660 hero) or y -150 (heat pump,
-       540 hero). Anchored at the bottom so the landscape stays in view on wide screens. */
-    .energy-hero-plate {
+       540 hero), so 130 / 120px of it is below the hero (`--plate-drop`). Anchored at the
+       bottom. Wider than 1440 the plate grows: a focus line on the fox (`--plate-focus`, a
+       share of the plate height: the solar fox's ears, the heat-pump fox's face in the lower,
+       shorter hero) keeps its 1440 position, so the extra height is cropped around the fox
+       and not through it. 810px is the plate height at 1440. */
+    .energy-hero {
+        --plate-drop: 130px;
+        --plate-focus: 0.21;
+    }
+
+    .energy-hero--heatpump {
+        --plate-drop: 120px;
+        --plate-focus: 0.55;
+    }
+
+    .energy-hero-plate,
+    .energy-hero--heatpump .energy-hero-plate {
         top: auto;
         left: 50%;
         right: auto;
-        bottom: -130px;
+        bottom: calc((1 - var(--plate-focus)) * 810px - var(--plate-drop));
         width: max(100%, 1440px);
-        transform: translateX(-50%);
+        transform: translate(-50%, calc((1 - var(--plate-focus)) * 100%));
     }
 
+    /* The fox and the heat pump fill the right third of the plate, so below 1440 the plate
+       keeps its right edge instead of its centre. */
     .energy-hero--heatpump .energy-hero-plate {
-        right: auto;
-        bottom: -120px;
+        left: auto;
+        right: 0;
+        transform: translateY(calc((1 - var(--plate-focus)) * 100%));
     }
 
     .energy-hero-shade,

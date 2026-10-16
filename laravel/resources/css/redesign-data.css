@@ -100,10 +100,20 @@
 @media (min-width: 1024px) {
     /* Laptop and up: the board composition. 700px high; the 16:9 plate is 1440 wide at 1440
        and 70px (forecast 80px) of it sits below the hero. The plate is anchored at the right
-       and the bottom, so the painted fox stays in view and wider screens crop the sky. */
+       and the bottom. Wider than 1440 the plate grows: its focus line (`--plate-focus`, a
+       share of the plate height at the top of the painted subject: the telescope, the fox's
+       ears) keeps its 1440 position, so the extra height is cropped below the subject and not
+       through it. 810px is the plate height at 1440. */
     .data-hero {
         display: block;
         min-height: 700px;
+        --plate-drop: 70px;
+        --plate-focus: 0.3;
+    }
+
+    .data-hero--forecast {
+        --plate-drop: 80px;
+        --plate-focus: 0.33;
     }
 
     .data-hero-art {
@@ -117,12 +127,9 @@
 
     .data-hero-plate {
         right: 0;
-        bottom: -70px;
+        bottom: calc((1 - var(--plate-focus)) * 810px - var(--plate-drop));
         width: max(100%, 1440px);
-    }
-
-    .data-hero--forecast .data-hero-plate {
-        bottom: -80px;
+        transform: translateY(calc((1 - var(--plate-focus)) * 100%));
     }
 
     .data-hero-shade {
