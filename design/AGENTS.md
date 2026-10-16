@@ -37,8 +37,9 @@ If the two disagree, the design system spec wins. Report the conflict to the use
 | `illustrations/villager-*.png` | Villager vignettes (sauna badger, laundry hare, car-charging bear, owl with pocket watch) |
 | `illustrations/wash-aurora-v1.png` | Watercolour wash. Rejected ("smudging"); do not use |
 | `scenes/footer-night-village-v1.png` | Footer scene, the fox asleep in the snow |
+| `scenes/hero-paikkakunta-{yleinen,helsinki,tampere,turku,oulu}-<season>-v1.png` | City listing heroes (round 3): the fox on a rock looks over the water at the town. Helsinki (cathedral, Uspenski, Suomenlinna), Tampere (Näsinneula, Tammerkoski, factory chimneys), Turku (castle, cathedral, tall ship on the Aura), Oulu (yellow cathedral tower, red storehouses, market hall); `yleinen` = general lakeside town for every other city. The syksy file is the original. `hero-paikkakunta-helsinki-v1.png` is the old generic coastal plate (not used) |
 | `illustrations/{sauna,laundry,ev-charging}-v1.png` | "Kannattaako nyt?" illustrations |
-| `scenes/interlude-villagers-*.png` | Transparent villager interlude strips for pauses between page blocks (walk = on the listing board; noticeboard = alternative) |
+| `scenes/interlude-villagers-*.png` | Transparent villager interlude strips for pauses between page blocks (walk = on the listing board). `interlude-villagers-noticeboard-{,kevat-,kesa-,syksy-}v1.png` = the Preferred Sources strip art (round 3; season files cropped to the painted area) |
 | `emblems/emblem-*.png` | Rejected as pricing category signs (meaning unclear); use the inked price-shape glyphs in the spec instead |
 | `*-{talvi,kevat,kesa,syksy}-v1.png` | Season variants of an art file (spec "Seasons"); the old file without a season name is the talvi (or original-season) version |
 | `.claude/skills/image-gen/` | Image generation skill (ported from Fetchalot; Codex by default, OpenRouter fallback reads `laravel/.env`) |

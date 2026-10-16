@@ -7,6 +7,7 @@ use App\Models\FixedContractPriceForecast as ForecastModel;
 use App\Services\CanonicalPricing\PricingMode;
 use App\Services\PriceForecasting\FixedTermPriceForecastService;
 use App\Services\PriceForecasting\ForecastOutlook;
+use App\Support\Season;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Livewire\Component;
@@ -51,6 +52,7 @@ class FixedContractPriceForecast extends Component
                 'title' => 'Sähkön hintaennuste: mihin määräaikaisten hinnat ovat menossa? | Voltikka',
                 'metaDescription' => 'Katso 6, 12 ja 24 kuukauden sähkösopimusten hintaennuste ja vertaa sitä nykyhintoihin. Ennuste yhdistää sopimushintojen kehityksen ja sähkön tukkuhinnat.',
                 'canonical' => config('app.url').'/sahkosopimus/sahkon-hintaennuste',
+                'heroTone' => Season::heroTone('forecast-hero'),
             ]);
     }
 

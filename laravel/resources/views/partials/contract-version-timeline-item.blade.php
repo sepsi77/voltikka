@@ -6,61 +6,65 @@
     apart. Deltas are always shown in the component's own unit (c/kWh or €/kk),
     never as a percentage: two consecutive "-8 %" rows read as a copy-paste bug.
 
+    Redesign (Paper board 39Y-0 "Price timeline"): date lane, an inked rail with a node
+    (the current active version is a fox ring), then the version content. A falling price is
+    marked in the price-low colour with "↓", a rising one in price-high with "↑", so the
+    direction never depends on colour alone. Layout: .vk-tl-* in resources/css/redesign-detail.css.
+
     @param array  $entry          one row of ContractDetail::$contractHistory + delta_to_previous
-    @param bool   $showConnector  draw the vertical line down to the next node
-    @param string $deltaUnit      unit label for the delta chip
+    @param bool   $showConnector  draw the rail down to the next node
+    @param string $deltaUnit      unit label for the delta mark
     @param string $deltaSubject   what the delta describes, for example "Energianhinta"
+    @param bool   $isOlder        an older version (dashed rail), optional
 --}}
-<li class="relative pl-7 sm:pl-8 {{ $showConnector ? 'pb-6' : 'pb-0' }}">
-    @if ($showConnector)
-        <span aria-hidden="true" class="absolute left-[7px] top-5 bottom-0 w-[2px] bg-slate-200 rounded-full"></span>
-    @endif
-
-    <span aria-hidden="true" class="absolute left-0 top-1.5 flex items-center justify-center w-4 h-4">
-        @if ($entry['is_current'] && $entry['is_active'])
-            <span class="block w-3 h-3 rounded-full bg-slate-900 ring-4 ring-slate-100"></span>
+@php
+    $isCurrent = $entry['is_current'] && $entry['is_active'];
+    $delta = $showConnector ? $entry['delta_to_previous'] : null;
+@endphp
+<li @class([
+    'vk-tl-item',
+    'vk-tl-item--current' => $isCurrent,
+    'vk-tl-item--older' => $isOlder ?? false,
+    'vk-tl-item--last' => ! $showConnector,
+])>
+    <div class="vk-tl-when">
+        <span class="vk-tl-caps">{{ $entry['last_seen_on_sale_date'] ? 'Viimeisin hintahavainto' : 'Hintahavainnot' }}</span>
+        @if ($entry['last_seen_on_sale_date'])
+            <span class="vk-tl-date">
+                <time datetime="{{ $entry['last_seen_on_sale_date']->format('Y-m-d') }}">{{ $entry['last_seen_on_sale_date']->translatedFormat('j.n.Y') }}</time>
+                @if ($isCurrent)
+                    <span class="vk-tl-current">
+                        <x-ink.sparkle size="12" color="currentColor" />
+                        Nykyinen
+                    </span>
+                @endif
+            </span>
         @else
-            <span class="block w-2.5 h-2.5 rounded-full bg-slate-300 ring-[3px] ring-slate-100"></span>
+            <span class="vk-tl-date">Ei tallennettuja hintahavaintoja</span>
         @endif
-    </span>
-
-    <div class="space-y-1.5">
-        <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-            @if ($entry['last_seen_on_sale_date'])
-                <span class="text-xs text-slate-500">Viimeisin hintahavainto</span>
-                <time datetime="{{ $entry['last_seen_on_sale_date']->format('Y-m-d') }}" class="text-sm font-semibold text-slate-900 tabular-nums">
-                    {{ $entry['last_seen_on_sale_date']->translatedFormat('j.n.Y') }}
-                </time>
-            @else
-                <span class="text-sm font-semibold text-slate-500">Ei tallennettuja hintahavaintoja</span>
-            @endif
-
-            @if ($entry['is_current'] && $entry['is_active'])
-                <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700 ring-1 ring-inset ring-slate-300">
-                    Nykyinen
-                </span>
-            @endif
-        </div>
 
         @if ($entry['first_price_date'])
-            <p class="text-xs text-slate-500">
+            <span class="vk-tl-meta">
                 Ensimmäinen hintahavainto
                 <time datetime="{{ $entry['first_price_date']->format('Y-m-d') }}">{{ $entry['first_price_date']->format('j.n.Y') }}</time>
                 · {{ $entry['observation_count'] }} {{ $entry['observation_count'] === 1 ? 'havaintopäivä' : 'havaintopäivää' }}
-            </p>
+            </span>
         @endif
+    </div>
 
-        <div class="text-sm font-medium text-slate-800">{{ $entry['name'] }}</div>
+    <div class="vk-tl-rail" aria-hidden="true"><span class="vk-tl-node"></span></div>
+
+    <div class="vk-tl-what">
+        <p class="vk-tl-name">{{ $entry['name'] }}</p>
 
         @if (! empty($entry['prices']))
-            <p class="text-xs text-slate-500">Viimeisimmät havaitut hinnat. Hinnat ovat voineet muuttua havaintojakson aikana.</p>
-            <dl class="flex flex-wrap gap-x-5 gap-y-1 pt-0.5 tabular-nums">
+            <dl class="vk-tl-prices">
                 @foreach ($entry['prices'] as $price)
-                    <div class="flex items-baseline gap-1.5">
-                        <dt class="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">{{ $price['label'] }}</dt>
-                        <dd class="text-sm font-semibold text-slate-900">
+                    <div>
+                        <dt>{{ $price['label'] }}</dt>
+                        <dd>
                             {{ number_format($price['price'], 2, ',', '') }}
-                            <span class="text-slate-400 font-normal text-[11px] ml-0.5">{{ $price['unit'] === 'EUR/kk' ? '€/kk' : $price['unit'] }}</span>
+                            {{ $price['unit'] === 'EUR/kk' ? '€/kk' : $price['unit'] }}
                         </dd>
                     </div>
                 @endforeach
@@ -68,19 +72,26 @@
         @endif
 
         @if (! empty($entry['promotion']))
-            <p class="mt-1.5 inline-flex items-center gap-1.5 text-xs text-coral-800 bg-coral-50 px-2.5 py-1 rounded-md ring-1 ring-inset ring-coral-200">
+            <p class="vk-tl-promo">
+                <x-ink.sparkle size="11" color="currentColor" />
                 {{ $entry['promotion'] }}
             </p>
         @endif
+
+        @if (! empty($entry['prices']))
+            <p class="vk-tl-fine">Viimeisimmät havaitut hinnat. Hinnat ovat voineet muuttua havaintojakson aikana.</p>
+        @endif
     </div>
 
-    @if ($showConnector && $entry['delta_to_previous'] !== null)
-        <div class="mt-3 -mb-1 inline-flex items-center gap-1.5">
-            <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700 ring-1 ring-inset ring-slate-200 tabular-nums">
-                {{ $entry['delta_to_previous'] > 0 ? '+' : '' }}{{ number_format($entry['delta_to_previous'], 2, ',', '') }}
-                {{ $deltaUnit }}
+    @if ($delta !== null)
+        <div class="vk-tl-delta">
+            <span class="vk-tl-delta-value {{ $delta > 0 ? 'vk-tl-delta-value--up' : 'vk-tl-delta-value--down' }}">
+                <span aria-hidden="true">{{ $delta > 0 ? '↑' : '↓' }}</span>
+                {{ $delta > 0 ? '+' : '' }}{{ number_format($delta, 2, ',', '') }} {{ $deltaUnit }}
             </span>
-            <span class="text-[11px] text-slate-400">{{ $deltaSubject }} muuttui</span>
+            <span class="vk-tl-delta-subject">{{ $deltaSubject }} muuttui</span>
         </div>
+    @else
+        <span class="vk-tl-spacer" aria-hidden="true"></span>
     @endif
 </li>

@@ -6,183 +6,151 @@
     </script>
     @endif
 
-    {{-- SEO Hero Section - Dark slate background with gradient --}}
-    <section class="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 -mx-4 sm:-mx-6 lg:-mx-8 relative overflow-hidden">
-        {{-- Decorative gradient blobs --}}
-        <div class="absolute inset-0 pointer-events-none">
-            <div class="absolute top-0 right-1/4 w-96 h-96 bg-coral-500 rounded-full blur-3xl opacity-20"></div>
-            <div class="absolute bottom-0 left-0 w-72 h-72 bg-coral-400 rounded-full blur-3xl opacity-10 -translate-x-1/2"></div>
-        </div>
+    {{-- Picture-book cheapest hero (Paper board 5VI-0 "Hero · sled hill", seasons FHX-0): the
+         listing hero geometry with the sled-hill plate and the fox on a sled. The aside is the
+         energy price index on the sky (same facts as the old market-insight pills). --}}
+    <x-site.hero
+        art="cheapest-hero"
+        fox="cheapest-fox-sled"
+        fox-class="cheapest-hero-fox"
+        :tone="\App\Support\Season::heroTone('cheapest-hero')"
+        data-comparison-hero
+    >
+        <p class="cheapest-hero-kicker">
+            <x-ink.sparkle size="13" color="var(--tone-accent)" />
+            Edullisimmat sopimukset
+        </p>
+        <h1 class="vk-hero-h1">{{ $pageHeading }}</h1>
+        <p class="vk-hero-lead">{{ $seoIntroText }}</p>
 
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-            <div class="grid max-w-screen-xl py-12 mx-auto lg:gap-8 xl:gap-0 lg:py-20 lg:grid-cols-12">
-                <div class="mx-auto place-self-center col-12 lg:col-span-7">
-                    <div class="inline-flex items-center gap-2 bg-coral-500/20 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium text-coral-300 mb-6 border border-coral-500/20">
-                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
-                        </svg>
-                        Edullisimmat sopimukset
-                    </div>
-                    <h1 class="max-w-2xl mb-4 text-4xl font-extrabold text-white tracking-tight leading-tight md:text-5xl xl:text-6xl">
-                        {{ $pageHeading }}
-                    </h1>
-                    <p class="max-w-2xl mb-5 text-slate-300 md:text-lg lg:text-xl">
-                        {{ $seoIntroText }}
-                    </p>
-                    <x-contract-market-insight-pills :insight="$marketInsight ?? null" class="mb-1" />
-                </div>
-                <div class="lg:mt-0 col-12 lg:col-span-5 lg:flex mx-auto mt-8 lg:mt-0">
-                    {{-- Decorative element placeholder --}}
-                </div>
-            </div>
-        </div>
-    </section>
+        <x-slot:aside>
+            <x-site.price-index :insight="$marketInsight ?? null" />
+        </x-slot:aside>
+    </x-site.hero>
 
     <x-page-action-strip />
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div data-contract-comparison-content class="vk-wrap vk-listing">
 
-    {{-- Breadcrumb Navigation --}}
-    <nav class="mb-6" aria-label="Breadcrumb">
-        <ol class="flex items-center space-x-2 text-sm text-slate-500">
+    {{-- Breadcrumbs (Paper "Breadcrumbs": one line, " / " separators). --}}
+    <nav class="vk-crumbs" aria-label="Breadcrumb">
+        <ol>
             <li>
-                <a href="/" class="hover:text-coral-600">Etusivu</a>
+                <a href="/" class="vk-focus">Etusivu</a>
             </li>
+            <li aria-hidden="true">/</li>
             <li>
-                <svg class="w-4 h-4 mx-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                </svg>
+                <a href="/sahkosopimus" class="vk-focus">Sähkösopimukset</a>
             </li>
-            <li>
-                <a href="/sahkosopimus" class="hover:text-coral-600">Sähkösopimukset</a>
-            </li>
-            <li>
-                <svg class="w-4 h-4 mx-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                </svg>
-            </li>
-            <li class="font-medium text-slate-900" aria-current="page">
+            <li aria-hidden="true">/</li>
+            <li aria-current="page">
                 {{ $pageHeading }}
             </li>
         </ol>
     </nav>
 
-    @include('partials.contract-consumption-selector', [
-        'isBusinessPage' => false,
-        'showCalculatorTab' => true,
-    ])
+    {{-- Controls block (Paper "Controls · compact"): consumption, price behaviour, then the
+         availability disclosure with the current consumption at the right. This page has no
+         filter accordion; the pricing-type choices narrow the cheapest ranking. --}}
+    <div class="vk-controls" data-listing-controls>
+        @include('partials.contract-consumption-selector', [
+            'isBusinessPage' => false,
+            'showCalculatorTab' => true,
+            'showCurrentConsumption' => false,
+        ])
 
-    {{-- Pricing-type pills. This page has its own template (it is not the shared
-         seo-contracts-list view) and carries no filter accordion, so the pill row is
-         included on its own; it narrows the cheapest ranking to one pricing type. --}}
-    @include('partials.pricing-bucket-pills')
+        @include('partials.pricing-bucket-pills')
 
-    @include('partials.contract-postcode-selector')
+        <div class="vk-disclosures">
+            <span class="vk-disclosures-spacer hidden lg:block" aria-hidden="true"></span>
 
-    {{-- Featured Contract (#1 Cheapest) --}}
-    @if ($featuredContract)
-        <section class="mt-6 mb-8">
-            <x-featured-contract-card
-                :contract="$featuredContract"
-                :consumption="$consumption"
-                :prices="$this->getLatestPrices($featuredContract)"
-            />
-        </section>
-    @endif
+            @include('partials.contract-postcode-selector')
 
-    {{-- Remaining Contracts (#2-11) --}}
-    <section class="mt-6">
-        <h2 class="text-2xl font-bold text-slate-900 mb-4">Seuraavaksi edullisimmat</h2>
-        <div class="space-y-6">
-            @forelse ($contracts as $index => $contract)
-                <x-contract-card
-                    :contract="$contract"
-                    :rank="$index + 2"
-                    :consumption="$consumption"
-                    :prices="$this->getLatestPrices($contract)"
-                    :percentiles="$this->getPercentiles()"
-                    :showRank="true"
-                    :showEmissions="true"
-                    :showEnergyBadges="true"
-                    :showSpotBadge="true"
-                />
-            @empty
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-12 text-center">
-                    <p class="text-slate-500">Ei sopimuksia saatavilla.</p>
-                </div>
-            @endforelse
+            <p class="vk-current-consumption">
+                Vertailu kulutuksella: <span class="tabular-nums">{{ number_format($consumption, 0, ',', ' ') }} kWh/v</span>
+            </p>
         </div>
-    </section>
+    </div>
+
+    {{-- Non-blocking recompute feedback (consumption, pricing type, postcode). --}}
+    <div wire:loading.delay class="vk-toast">
+        <x-spinner size="h-4 w-4" color="text-fox" label="Päivitetään vertailua" />
+        <span>Päivitetään…</span>
+    </div>
+
+    <div class="transition-opacity duration-200 motion-reduce:transition-none" wire:loading.delay.class="opacity-50">
+        {{-- Featured Contract (#1 Cheapest): the podium entry (spec §5 "Podium entry"). --}}
+        @if ($featuredContract)
+            <section class="vk-ledger cheapest-podium" aria-label="Halvin sähkösopimus">
+                <x-featured-contract-card
+                    :contract="$featuredContract"
+                    :consumption="$consumption"
+                    :prices="$this->getLatestPrices($featuredContract)"
+                />
+            </section>
+        @endif
+
+        {{-- Remaining Contracts (#2-11) --}}
+        <section class="cheapest-rest" aria-labelledby="cheapest-rest-title">
+            <x-site.section-heading id="cheapest-rest-title" class="cheapest-rest-heading">Seuraavaksi edullisimmat</x-site.section-heading>
+            {{-- Ledger list contract: entries end with a vk-ledger-sep hairline. --}}
+            <div class="vk-ledger">
+                @forelse ($contracts as $index => $contract)
+                    <x-contract-card
+                        :contract="$contract"
+                        :rank="$index + 2"
+                        :consumption="$consumption"
+                        :prices="$this->getLatestPrices($contract)"
+                        :percentiles="$this->getPercentiles()"
+                        :showRank="true"
+                        :showEmissions="true"
+                        :showEnergyBadges="true"
+                        :showSpotBadge="true"
+                    />
+                @empty
+                    <p class="py-10 text-center font-display text-[22px] font-extrabold leading-[26px] text-ink-muted">Ei sopimuksia saatavilla.</p>
+                @endforelse
+            </div>
+        </section>
+    </div>
+
+    {{-- Villager interlude (toboggan in talvi): a pause between the list and the link columns. --}}
+    <x-site.interlude art="cheapest-interlude" class="cheapest-interlude" />
 
     {{-- Internal Links Section (for SEO) --}}
-    <section class="mt-12 bg-white rounded-2xl shadow-sm border border-slate-100 p-8">
-        <h2 class="text-2xl font-bold text-slate-900 mb-6">Katso myös</h2>
+    <section class="vk-block" aria-labelledby="see-also-title">
+        <x-site.section-heading id="see-also-title" size="compact">Katso myös</x-site.section-heading>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {{-- Pricing Types --}}
-            <div>
-                <h3 class="font-semibold text-slate-900 mb-3">Hinnoittelumalli</h3>
-                <ul class="space-y-2 text-slate-600">
-                    <li>
-                        <a href="/sahkosopimus/porssisahko" class="hover:text-coral-600">Pörssisähkösopimukset</a>
-                    </li>
-                    <li>
-                        <a href="/sahkosopimus/yleissahko" class="hover:text-coral-600">Yleissähkösopimukset</a>
-                    </li>
-                </ul>
-            </div>
-
-            {{-- Housing Types --}}
-            <div>
-                <h3 class="font-semibold text-slate-900 mb-3">Asumismuodoittain</h3>
-                <ul class="space-y-2 text-slate-600">
-                    <li>
-                        <a href="/sahkosopimus/omakotitalo" class="hover:text-coral-600">Omakotitalon sähkösopimukset</a>
-                    </li>
-                    <li>
-                        <a href="/sahkosopimus/kerrostalo" class="hover:text-coral-600">Kerrostalon sähkösopimukset</a>
-                    </li>
-                    <li>
-                        <a href="/sahkosopimus/rivitalo" class="hover:text-coral-600">Rivitalon sähkösopimukset</a>
-                    </li>
-                </ul>
-            </div>
-
-            {{-- Energy Sources --}}
-            <div>
-                <h3 class="font-semibold text-slate-900 mb-3">Energialähteittäin</h3>
-                <ul class="space-y-2 text-slate-600">
-                    <li>
-                        <a href="/sahkosopimus/tuulisahko" class="hover:text-coral-600">Tuulisähkösopimukset</a>
-                    </li>
-                    <li>
-                        <a href="/sahkosopimus/aurinkosahko" class="hover:text-coral-600">Aurinkosähkösopimukset</a>
-                    </li>
-                    <li>
-                        <a href="/sahkosopimus/vihrea-sahko" class="hover:text-coral-600">Vihreä sähkö</a>
-                    </li>
-                </ul>
-            </div>
-
-            {{-- Related Links --}}
-            <div>
-                <h3 class="font-semibold text-slate-900 mb-3">Muut palvelut</h3>
-                <ul class="space-y-2 text-slate-600">
-                    <li>
-                        <a href="/sahkosopimus" class="hover:text-coral-600">Vertaile sopimuksia</a>
-                    </li>
-                    <li>
-                        <a href="/" class="hover:text-coral-600">Kaikki sähkösopimukset</a>
-                    </li>
-                    <li>
-                        <a href="/spot-price" class="hover:text-coral-600">Pörssisähkön hinta</a>
-                    </li>
-                    <li>
-                        <a href="{{ route('locations') }}" class="hover:text-coral-600">Paikkakunnat</a>
-                    </li>
-                </ul>
-            </div>
-        </div>
+        <x-site.link-columns :columns="[
+            [
+                ['heading' => 'Hinnoittelumalli', 'links' => [
+                    ['/sahkosopimus/porssisahko', 'Pörssisähkösopimukset'],
+                    ['/sahkosopimus/yleissahko', 'Yleissähkösopimukset'],
+                ]],
+            ],
+            [
+                ['heading' => 'Asumismuodoittain', 'links' => [
+                    ['/sahkosopimus/omakotitalo', 'Omakotitalon sähkösopimukset'],
+                    ['/sahkosopimus/kerrostalo', 'Kerrostalon sähkösopimukset'],
+                    ['/sahkosopimus/rivitalo', 'Rivitalon sähkösopimukset'],
+                ]],
+            ],
+            [
+                ['heading' => 'Energialähteittäin', 'links' => [
+                    ['/sahkosopimus/tuulisahko', 'Tuulisähkösopimukset'],
+                    ['/sahkosopimus/aurinkosahko', 'Aurinkosähkösopimukset'],
+                    ['/sahkosopimus/vihrea-sahko', 'Vihreä sähkö'],
+                ]],
+            ],
+            [
+                ['heading' => 'Muut palvelut', 'links' => [
+                    ['/sahkosopimus', 'Vertaile sopimuksia'],
+                    ['/', 'Kaikki sähkösopimukset'],
+                    ['/spot-price', 'Pörssisähkön hinta'],
+                    [route('locations'), 'Paikkakunnat'],
+                ]],
+            ],
+        ]" />
     </section>
     </div>
 </div>

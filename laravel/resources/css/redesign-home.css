@@ -1,0 +1,968 @@
+/*
+ * Redesign styles owned by the "home" area: the homepage (/) and the cheapest contracts page
+ * (/sahkosopimus/halvin-sahkosopimus). See tasks/redesign-implementation/agent-brief.md.
+ * Values: Paper boards 6HY-0 "Etusivu — / picture book" (+ seasons FHW-0) and 5VI-0
+ * "Halvin sähkösopimus — picture book" (+ seasons FHX-0), read with get_jsx.
+ *
+ * No cards, panels, pills, shadows or gradients behind content: structure comes from display
+ * headings with the wavy fox underline, inked hairlines and big numbers (design spec §1, §4).
+ */
+
+:root {
+    /* Homepage hero shades (board 6HY-0 / FHW-0). One-off night (oklab 25%) and ground colours
+       with no token. Dark: a horizontal shade behind the text column plus a top shade behind
+       the top bar. Light (bright kevät and kesä art): the same with the ground colour. */
+    --home-shade-dark-x: linear-gradient(90deg, oklab(25% -0.007 -0.051 / 55%) 0%, oklab(25% -0.007 -0.051 / 40%) 72%, oklab(25% -0.007 -0.051 / 0%) 100%);
+    --home-shade-dark-top: linear-gradient(180deg, oklab(25% -0.007 -0.051 / 75%) 0%, oklab(25% -0.007 -0.051 / 40%) 55%, oklab(25% -0.007 -0.051 / 0%) 100%);
+    --home-shade-light-x: linear-gradient(90deg, oklab(97.1% -0.003 0.006 / 88%) 0%, oklab(97.1% -0.003 0.006 / 76%) 72%, oklab(97.1% -0.003 0.006 / 0%) 100%);
+    --home-shade-light-top: linear-gradient(180deg, oklab(97.1% -0.003 0.006 / 90%) 0%, oklab(97.1% -0.003 0.006 / 55%) 55%, oklab(97.1% -0.003 0.006 / 0%) 100%);
+    /* Phone: the text column covers most of the hero, so the shade runs top to bottom. */
+    --home-shade-dark-phone: linear-gradient(180deg, oklab(25% -0.007 -0.051 / 66%) 0%, oklab(25% -0.007 -0.051 / 52%) 70%, oklab(25% -0.007 -0.051 / 0%) 100%);
+    --home-shade-light-phone: linear-gradient(180deg, oklab(97.1% -0.003 0.006 / 88%) 0%, oklab(97.1% -0.003 0.006 / 74%) 70%, oklab(97.1% -0.003 0.006 / 0%) 100%);
+}
+
+/* =========================================================================================
+   Homepage hero (x-site.home-hero)
+   ========================================================================================= */
+
+.home-hero {
+    min-height: 640px;
+}
+
+/* Board: a 1440x810 plate at top −10 in a 760 hero, covering the whole hero. */
+.home-hero-plate {
+    position: absolute;
+    left: 0;
+    top: -10px;
+    width: 100%;
+    height: calc(100% + 50px);
+    max-width: none;
+    object-fit: cover;
+    object-position: 62% 60%;
+}
+
+.home-hero-shade,
+.home-hero-top-shade {
+    position: absolute;
+    left: 0;
+    top: 0;
+    pointer-events: none;
+}
+
+.home-hero-shade {
+    width: 100%;
+    height: 100%;
+}
+
+.vk-tone-dark .home-hero-shade {
+    background-image: var(--home-shade-dark-phone);
+}
+
+.vk-tone-light .home-hero-shade {
+    background-image: var(--home-shade-light-phone);
+}
+
+.home-hero-top-shade {
+    display: none;
+}
+
+.home-hero-text {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-width: 900px;
+    padding-top: 96px;
+    padding-bottom: 190px;
+}
+
+.home-hero-now {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.home-hero-now-label {
+    font-size: var(--text-label);
+    line-height: var(--leading-label);
+    font-weight: 800;
+    letter-spacing: var(--tracking-caps);
+    text-transform: uppercase;
+    color: var(--tone-soft);
+}
+
+.home-hero-now-price {
+    font-family: var(--font-display);
+    font-size: 20px;
+    line-height: 24px;
+    font-weight: 800;
+    color: var(--tone-strong);
+}
+
+.home-hero-h1 {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 40px;
+    line-height: 44px;
+    letter-spacing: var(--tracking-display);
+}
+
+.home-hero-lead {
+    max-width: var(--container-text);
+    color: var(--tone-lead);
+    font-size: 17px;
+    line-height: 26px;
+    font-weight: 500;
+}
+
+.home-hero-cta {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 2px;
+    width: fit-content;
+    max-width: 100%;
+    padding-top: 6px;
+    font-family: var(--font-display);
+    font-size: 22px;
+    line-height: 28px;
+    font-weight: 800;
+    color: var(--tone-strong);
+}
+
+.home-hero-cta:hover {
+    color: var(--tone-accent);
+}
+
+/* Board: 270px fox on the hill at x 760 (= the page centre + 40) and 20px above the hero end. */
+.home-hero-fox {
+    position: absolute;
+    right: 4px;
+    bottom: 10px;
+    width: 160px;
+    height: 160px;
+}
+
+@media (min-width: 1024px) {
+    .home-hero {
+        min-height: 760px;
+    }
+
+    .home-hero-plate {
+        object-position: 50% 50%;
+    }
+
+    /* Board: 900px of the 1440 frame with the fade from 55–60%. On the bright kesä and the
+       busy syksy plates the end of the 680px lead fell under 4.5:1 (spec §8), so the shade is
+       980px (the page centre + 260) and holds most of its strength to 72%. */
+    .home-hero-shade {
+        width: calc(50% + 260px);
+        height: 640px;
+    }
+
+    /* The 640px dark shade fades out at its lower end; a hard edge showed on the lake. */
+    .vk-tone-dark .home-hero-shade {
+        background-image: var(--home-shade-dark-x);
+        -webkit-mask-image: linear-gradient(180deg, #000 75%, transparent 100%);
+        mask-image: linear-gradient(180deg, #000 75%, transparent 100%);
+    }
+
+    .vk-tone-light .home-hero-shade {
+        height: 100%;
+        background-image: var(--home-shade-light-x);
+    }
+
+    .home-hero-top-shade {
+        display: block;
+        width: 100%;
+        height: 140px;
+    }
+
+    .vk-tone-dark .home-hero-top-shade {
+        background-image: var(--home-shade-dark-top);
+    }
+
+    .vk-tone-light .home-hero-top-shade {
+        background-image: var(--home-shade-light-top);
+    }
+
+    .home-hero-text {
+        gap: 22px;
+        padding-top: 150px;
+        padding-bottom: 120px;
+    }
+
+    .home-hero-h1 {
+        font-size: var(--text-hero);
+        line-height: var(--leading-hero);
+    }
+
+    .home-hero-lead {
+        font-size: var(--text-lead);
+        line-height: var(--leading-lead);
+    }
+
+    .home-hero-cta {
+        font-size: 26px;
+        line-height: 32px;
+    }
+
+    .home-hero-fox {
+        right: auto;
+        left: calc(50% + 40px);
+        bottom: 20px;
+        width: 270px;
+        height: 270px;
+    }
+}
+
+/* =========================================================================================
+   Homepage body
+   ========================================================================================= */
+
+.home-body {
+    display: flex;
+    flex-direction: column;
+    gap: 64px;
+    padding-top: 56px;
+    padding-bottom: 72px;
+    color: var(--color-ink-body);
+}
+
+.home-section {
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+}
+
+@media (min-width: 1024px) {
+    .home-body {
+        gap: var(--spacing-section);
+        padding-top: var(--spacing-section);
+        padding-bottom: 96px;
+    }
+
+    .home-section {
+        gap: 44px;
+    }
+}
+
+/* A fixed-width wave never overflows a phone column. */
+.home-wave-fluid {
+    max-width: 100%;
+}
+
+/* Section head: kicker caps, Bricolage 52 heading, wavy fox underline (board "Heading"). */
+.home-head {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.home-kicker {
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 800;
+    letter-spacing: var(--tracking-caps);
+    text-transform: uppercase;
+    color: var(--color-fox-deep);
+}
+
+.home-kicker--spot {
+    color: var(--color-aurora);
+}
+
+.home-kicker--muted {
+    color: var(--color-ink-muted);
+}
+
+.home-heading {
+    max-width: 900px;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 34px;
+    line-height: 38px;
+    letter-spacing: var(--tracking-display);
+    color: var(--color-ink);
+}
+
+.home-subheading {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 26px;
+    line-height: 30px;
+    letter-spacing: var(--tracking-display);
+    color: var(--color-ink);
+}
+
+.home-title {
+    display: block;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: var(--text-title);
+    line-height: var(--leading-title);
+    color: var(--color-ink);
+}
+
+.home-lead {
+    max-width: 600px;
+    font-size: 17px;
+    line-height: 26px;
+    color: var(--color-ink-body);
+}
+
+.home-lead--text {
+    max-width: var(--container-text);
+}
+
+.home-text {
+    display: block;
+    max-width: var(--container-text);
+    font-size: var(--text-body);
+    line-height: var(--leading-body);
+    color: var(--color-ink-body);
+}
+
+@media (min-width: 1024px) {
+    .home-heading {
+        font-size: var(--text-page);
+        line-height: var(--leading-page);
+    }
+
+    .home-subheading {
+        font-size: var(--text-section);
+        line-height: var(--leading-section);
+    }
+
+    .home-lead {
+        font-size: var(--text-lead);
+        line-height: var(--leading-lead);
+    }
+}
+
+/* Inked text actions (Bricolage + wavy underline). */
+.home-action {
+    display: inline-flex;
+    flex-direction: column;
+    width: fit-content;
+    max-width: 100%;
+    font-family: var(--font-display);
+    font-weight: 800;
+    color: var(--color-fox-deep);
+}
+
+.home-action:hover {
+    color: var(--color-ink);
+}
+
+.home-action--lg {
+    gap: 2px;
+    padding-top: 6px;
+    font-size: var(--text-title);
+    line-height: 28px;
+}
+
+.home-action--sm {
+    gap: 1px;
+    padding-top: 4px;
+    font-size: 17px;
+    line-height: 22px;
+}
+
+.home-action--ink {
+    gap: 2px;
+    padding-top: 10px;
+    font-size: 20px;
+    line-height: var(--leading-title);
+    color: var(--color-ink);
+}
+
+.home-action--ink:hover {
+    color: var(--color-fox-deep);
+}
+
+/* Inked vertical hairline between two columns (desktop only). */
+.home-vrule {
+    display: none;
+    flex-shrink: 0;
+}
+
+/* ---------- Palvelut: contracts + spot ---------- */
+
+.home-featured {
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+}
+
+.home-contracts {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 14px;
+}
+
+/* "Vertaa 368 sähkösopimusta puolueettomasti." with the count as a giant fox numeral, in the
+   live word order (spec §5 "Giant numeral in a sentence"). */
+.home-count-sentence {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    column-gap: 14px;
+    font-family: var(--font-display);
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+.home-count-word {
+    padding-bottom: 6px;
+    font-size: 26px;
+    line-height: 30px;
+    letter-spacing: var(--tracking-display);
+}
+
+.home-count {
+    font-size: 112px;
+    line-height: 96px;
+    letter-spacing: -0.06em;
+    color: var(--color-fox);
+}
+
+.home-count-tail {
+    max-width: 230px;
+}
+
+.home-spot {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.home-spot-figure {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+}
+
+.home-spot-number {
+    font-family: var(--font-display);
+    font-size: 72px;
+    line-height: 72px;
+    font-weight: 800;
+    letter-spacing: var(--tracking-price);
+}
+
+.home-spot-unit {
+    font-size: 20px;
+    line-height: 24px;
+    font-weight: 800;
+    color: var(--color-ink-body);
+}
+
+/* The price state colour (spec §2 "Price and data states"): cheap = price-low (aurora),
+   expensive = price-high, between = caution ink. The label names the state too. */
+.home-spot--low {
+    color: var(--color-price-low);
+}
+
+.home-spot--medium {
+    color: var(--color-warning-ink);
+}
+
+.home-spot--high {
+    color: var(--color-price-high);
+}
+
+.home-spot-state {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: var(--text-ui);
+    line-height: 18px;
+}
+
+.home-spot-chart {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-top: 10px;
+}
+
+.home-spot-plot {
+    position: relative;
+}
+
+.home-spot-svg {
+    display: block;
+    width: 100%;
+    height: 120px;
+}
+
+/* The arrow tip (22x30 box, tip at 11,28) points at the top of the current bar. */
+.home-spot-now {
+    position: absolute;
+    width: 22px;
+    height: 30px;
+    transform: translate(-11px, calc(-100% - 2px));
+    pointer-events: none;
+}
+
+.home-spot-arrow {
+    display: block;
+}
+
+.home-spot-now-label {
+    position: absolute;
+    right: calc(100% - 2px);
+    top: -12px;
+    font-family: var(--font-display);
+    font-size: 17px;
+    line-height: 22px;
+    font-weight: 800;
+    color: var(--color-fox-deep);
+}
+
+/* Current hour near the left edge: the arrow and the label turn to the right. */
+.home-spot-now--right .home-spot-arrow {
+    transform: scaleX(-1);
+}
+
+.home-spot-now--right .home-spot-now-label {
+    right: auto;
+    left: calc(100% - 2px);
+}
+
+.home-spot-axis {
+    display: flex;
+    justify-content: space-between;
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    color: var(--color-ink-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+@media (min-width: 1024px) {
+    .home-featured {
+        flex-direction: row;
+        gap: 52px;
+    }
+
+    .home-contracts {
+        flex: 0 1 720px;
+    }
+
+    .home-spot {
+        flex: 0 0 400px;
+    }
+
+    .home-vrule {
+        display: block;
+        height: 380px;
+    }
+
+    .home-count-sentence {
+        flex-wrap: nowrap;
+        column-gap: 16px;
+    }
+
+    .home-count-word {
+        padding-bottom: 8px;
+        font-size: var(--text-section);
+        line-height: var(--leading-section);
+    }
+
+    .home-count {
+        font-size: 184px;
+        line-height: 150px;
+    }
+
+    .home-count-tail {
+        max-width: 290px;
+    }
+
+    .home-spot-number {
+        font-size: 96px;
+        line-height: 92px;
+    }
+}
+
+/* ---------- Palvelut: tools with their vignettes ---------- */
+
+.home-tools {
+    display: grid;
+    gap: 28px;
+}
+
+.home-tool {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.home-tool-art {
+    flex-shrink: 0;
+    width: 110px;
+    height: 110px;
+    object-fit: contain;
+}
+
+.home-tool-text {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 8px;
+    padding-top: 8px;
+}
+
+.home-tool-desc {
+    font-size: var(--text-ui);
+    line-height: var(--leading-ui);
+    color: var(--color-ink-body);
+}
+
+@media (min-width: 768px) {
+    .home-tools {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        column-gap: 32px;
+    }
+
+    .home-tool {
+        flex-direction: column;
+    }
+}
+
+@media (min-width: 1200px) {
+    .home-tools {
+        column-gap: 52px;
+        padding-top: 8px;
+    }
+
+    .home-tool {
+        flex-direction: row;
+        gap: 18px;
+    }
+
+    .home-tool-art {
+        width: 150px;
+        height: 150px;
+    }
+
+    .home-tool-text {
+        padding-top: 14px;
+    }
+}
+
+/* ---------- Palvelut: bill comparison between two hairlines ---------- */
+
+.home-bill {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.home-bill-row {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.home-bill-art {
+    width: 140px;
+    height: 140px;
+    flex-shrink: 0;
+    object-fit: contain;
+}
+
+.home-bill-text {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.home-bill-text .home-lead {
+    max-width: var(--container-text);
+}
+
+@media (min-width: 1024px) {
+    .home-bill-row {
+        flex-direction: row;
+        align-items: center;
+        gap: 36px;
+    }
+
+    .home-bill-art {
+        width: 210px;
+        height: 210px;
+    }
+
+    .home-bill-text {
+        flex: 0 1 680px;
+    }
+
+    .home-bill-action {
+        padding-top: 40px;
+    }
+}
+
+/* ---------- Interlude (board: 1040 wide) ---------- */
+
+.home-interlude .vk-interlude-img {
+    width: min(1040px, 100%);
+}
+
+/* ---------- Analyysit ---------- */
+
+.home-analyses {
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+}
+
+.home-trend {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.home-trend-chart {
+    padding-top: 8px;
+}
+
+.home-legend {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 24px;
+    row-gap: 8px;
+    padding-top: 8px;
+    font-size: var(--text-label);
+    line-height: var(--leading-label);
+    color: var(--color-ink-body);
+}
+
+.home-analysis-links {
+    display: flex;
+    flex-direction: column;
+    gap: 36px;
+}
+
+.home-analysis {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.home-analysis-mark {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.home-analysis:hover .home-analysis-title {
+    color: var(--color-fox-deep);
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 4px;
+}
+
+@media (min-width: 1024px) {
+    .home-analyses {
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 40px;
+    }
+
+    .home-trend {
+        flex: 0 1 880px;
+    }
+
+    .home-vrule--tall {
+        display: block;
+        height: 560px;
+    }
+
+    .home-analysis-links {
+        flex: 0 0 264px;
+        gap: 40px;
+        padding-top: 4px;
+    }
+}
+
+/* ---------- Independence statement ---------- */
+
+.home-statement {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    text-align: center;
+}
+
+.home-statement-quote {
+    max-width: 860px;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 22px;
+    line-height: 30px;
+    letter-spacing: -0.015em;
+    color: var(--color-ink);
+}
+
+.home-statement-note {
+    max-width: var(--container-text);
+    font-size: var(--text-body);
+    line-height: var(--leading-body);
+    color: var(--color-ink-muted);
+}
+
+.home-statement-link {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    max-width: 100%;
+    font-size: var(--text-body);
+    line-height: 20px;
+    font-weight: 800;
+    color: var(--color-fox-deep);
+}
+
+.home-statement-link:hover {
+    color: var(--color-ink);
+}
+
+@media (min-width: 1024px) {
+    .home-statement-quote {
+        font-size: 30px;
+        line-height: 40px;
+    }
+}
+
+/* =========================================================================================
+   Cheapest contracts page (board 5VI-0, seasons FHX-0)
+   ========================================================================================= */
+
+/* Hero kicker: sparkle + caps in the hero accent (board "EDULLISIMMAT SOPIMUKSET"). */
+.cheapest-hero-kicker {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 800;
+    letter-spacing: var(--tracking-caps);
+    text-transform: uppercase;
+    color: var(--tone-accent);
+}
+
+/* Fox on a sled: 236x177 at x 760 (the page centre + 40), 3px past the hero end (board). */
+.cheapest-hero-fox {
+    position: absolute;
+    right: 8px;
+    bottom: 4px;
+    width: 150px;
+    height: 113px;
+    object-fit: contain;
+}
+
+@media (min-width: 1024px) {
+    .cheapest-hero-fox {
+        right: auto;
+        left: calc(50% + 40px);
+        bottom: -3px;
+        width: 236px;
+        height: 177px;
+    }
+}
+
+/* Podium entry (spec §5 "Page patterns"): the #1 entry is larger. Rank 88, name at section
+   size, price 96 with a larger loop. Only sizes change; the entry stays the shared ledger
+   entry (contract-card.blade.php via featured-contract-card). */
+.cheapest-podium {
+    padding-top: 16px;
+}
+
+.cheapest-podium .vk-entry-kicker {
+    font-size: var(--text-ui);
+    line-height: var(--leading-ui);
+}
+
+.cheapest-podium .vk-rank {
+    font-size: 64px;
+    line-height: 60px;
+    letter-spacing: -0.05em;
+}
+
+.cheapest-podium .vk-entry-title {
+    font-size: 26px;
+    line-height: 30px;
+}
+
+.cheapest-podium .vk-price-int {
+    font-size: 72px;
+    line-height: 72px;
+}
+
+.cheapest-podium .vk-price-dec {
+    font-size: 40px;
+    line-height: 48px;
+}
+
+.cheapest-podium .vk-price-loop {
+    top: -8px;
+    left: -18px;
+    width: calc(100% + 54px);
+    height: 86px;
+}
+
+@media (min-width: 1024px) {
+    .cheapest-podium .vk-entry-title {
+        font-size: var(--text-section);
+        line-height: var(--leading-section);
+    }
+}
+
+@media (min-width: 1200px) {
+    .cheapest-podium .vk-entry-main {
+        grid-template-columns: 110px minmax(180px, 360fr) minmax(250px, 330fr) minmax(190px, 332fr) 120px;
+    }
+
+    .cheapest-podium .vk-rank {
+        font-size: 88px;
+        line-height: 80px;
+    }
+
+    .cheapest-podium .vk-price-int {
+        font-size: 96px;
+        line-height: 92px;
+    }
+
+    .cheapest-podium .vk-price-dec {
+        font-size: var(--text-page);
+        line-height: 60px;
+    }
+
+    /* Board: a 250x104 loop at right −34, top −8 of the price lane. */
+    .cheapest-podium .vk-price-loop {
+        top: -8px;
+        left: -22px;
+        width: calc(100% + 56px);
+        height: 104px;
+    }
+
+    .cheapest-podium .vk-tags {
+        padding-left: 110px;
+    }
+}
+
+/* "Seuraavaksi edullisimmat": board pt 36, pb 22 inside the list. */
+.cheapest-rest-heading {
+    padding-top: 36px;
+    padding-bottom: 22px;
+}
+
+.cheapest-interlude {
+    padding-top: 40px;
+}

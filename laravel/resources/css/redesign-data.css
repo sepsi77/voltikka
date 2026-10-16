@@ -1,0 +1,2344 @@
+/* Redesign styles owned by the "data" area. See tasks/redesign-implementation/agent-brief.md.
+ * Pages: /sahkosopimus/tilastot (Paper board 6MP-0, seasons FL5-0) and
+ * /sahkosopimus/sahkon-hintaennuste (Paper board D8Q-0, seasons G4L-0).
+ * One-off colours without a token are named variables here, never inline in templates.
+ * No cards, panels, pills, shadows or glass: structure comes from display headings with a
+ * wavy fox underline, inked hairlines and real controls (design spec §1, §4, §5).
+ */
+
+:root {
+    /* Price-up mark on the night sky (Paper #FFB49C): price-high is too dark on navy. */
+    --data-sky-up: #FFB49C;
+}
+
+/* ---------- Hero (x-site.data-hero) ---------- */
+
+.data-hero {
+    position: relative;
+    isolation: isolate;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background-color: var(--color-night);
+}
+
+.data-hero.vk-tone-light {
+    background-color: var(--color-ground);
+}
+
+.data-hero.vk-tone-dark {
+    --data-kicker: var(--mark-aurora-light);
+    --data-up: var(--data-sky-up);
+    --data-down: var(--mark-aurora-light);
+}
+
+.data-hero.vk-tone-light {
+    --data-kicker: var(--color-aurora);
+    --data-up: var(--color-price-high);
+    --data-down: var(--color-saving);
+}
+
+.data-hero.data-hero--forecast {
+    --data-kicker: var(--tone-accent);
+}
+
+/* Phone and tablet: the scene is a band under the text; its sky fades into the tone ground. */
+.data-hero-art {
+    position: relative;
+    order: 2;
+    height: 280px;
+    margin-top: -16px;
+    -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 30%);
+    mask-image: linear-gradient(180deg, transparent 0%, #000 30%);
+}
+
+.data-hero-plate {
+    position: absolute;
+    right: -24px;
+    bottom: -30px;
+    width: 640px;
+    max-width: none;
+    height: auto;
+}
+
+.data-hero-shade {
+    display: none;
+}
+
+/* Paper "Snow blend": the scene melts into the page ground. */
+.data-hero-blend {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 80px;
+    background-image: linear-gradient(180deg, oklab(97.1% -0.003 0.006 / 0%) 0%, oklab(97.1% -0.003 0.006) 100%);
+    pointer-events: none;
+}
+
+.data-hero-body {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    padding-top: 96px;
+    padding-bottom: 8px;
+}
+
+.data-hero-text {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+}
+
+.data-hero-aside {
+    min-width: 0;
+}
+
+@media (min-width: 1024px) {
+    /* Laptop and up: the board composition. 700px high; the 16:9 plate is 1440 wide at 1440
+       and 70px (forecast 80px) of it sits below the hero. The plate is anchored at the right
+       and the bottom, so the painted fox stays in view and wider screens crop the sky. */
+    .data-hero {
+        display: block;
+        min-height: 700px;
+    }
+
+    .data-hero-art {
+        position: absolute;
+        inset: 0;
+        height: auto;
+        margin: 0;
+        -webkit-mask-image: none;
+        mask-image: none;
+    }
+
+    .data-hero-plate {
+        right: 0;
+        bottom: -70px;
+        width: max(100%, 1440px);
+    }
+
+    .data-hero--forecast .data-hero-plate {
+        bottom: -80px;
+    }
+
+    .data-hero-shade {
+        display: block;
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+    }
+
+    /* Side shade behind the text column (Paper "Night shade" 860 wide, forecast "Sky shade"
+       900 wide at 1440) and a top band behind the overlay top bar ("Top bar shade"). */
+    .data-hero-shade::before,
+    .data-hero-shade::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+    }
+
+    .data-hero-shade::before {
+        bottom: 0;
+        width: calc(50% + 140px);
+    }
+
+    .data-hero--forecast .data-hero-shade::before {
+        width: calc(50% + 180px);
+    }
+
+    .data-hero-shade::after {
+        right: 0;
+        height: 120px;
+    }
+
+    .vk-tone-dark .data-hero-shade::before {
+        background-image: linear-gradient(90deg, oklab(25% -0.007 -0.051 / 72%) 0%, oklab(25% -0.007 -0.051 / 45%) 60%, oklab(25% -0.007 -0.051 / 0%) 100%);
+    }
+
+    .vk-tone-dark .data-hero-shade::after {
+        background-image: linear-gradient(180deg, oklab(25% -0.007 -0.051 / 62%) 0%, oklab(25% -0.007 -0.051 / 30%) 55%, oklab(25% -0.007 -0.051 / 0%) 100%);
+    }
+
+    .vk-tone-light .data-hero-shade::before {
+        background-image: linear-gradient(90deg, oklab(97.1% -0.003 0.006 / 86%) 0%, oklab(97.1% -0.003 0.006 / 64%) 56%, oklab(97.1% -0.003 0.006 / 0%) 100%);
+    }
+
+    .vk-tone-light .data-hero-shade::after {
+        background-image: linear-gradient(180deg, oklab(97.1% -0.003 0.006 / 90%) 0%, oklab(97.1% -0.003 0.006 / 65%) 55%, oklab(97.1% -0.003 0.006 / 0%) 100%);
+    }
+
+    .data-hero-body {
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 34px;
+        padding-top: 96px;
+        padding-bottom: 72px;
+    }
+
+    .data-hero-text {
+        flex: 0 1 632px;
+    }
+
+    .data-hero--forecast .data-hero-text {
+        flex-basis: 652px;
+        gap: 12px;
+    }
+
+    .data-hero-aside {
+        flex: 0 0 260px;
+        padding-top: 22px;
+    }
+
+    .data-hero--forecast .data-hero-aside {
+        flex-basis: 380px;
+        padding-top: 54px;
+    }
+}
+
+/* Hero text on the sky (Paper "Hero text"). */
+.data-crumbs ol {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 6px;
+    row-gap: 2px;
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 700;
+    color: var(--tone-soft);
+}
+
+.data-crumbs a:hover {
+    color: var(--tone-strong);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.data-hero-kicker {
+    padding-top: 10px;
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--data-kicker);
+}
+
+.data-hero--forecast .data-hero-kicker {
+    padding-top: 8px;
+}
+
+.data-hero-lead.vk-hero-lead {
+    margin-top: 0;
+}
+
+@media (min-width: 1024px) {
+    .data-hero-h1.vk-hero-h1 {
+        font-size: 50px;
+        line-height: 54px;
+        letter-spacing: -0.025em;
+    }
+
+    .data-hero-lead.vk-hero-lead {
+        font-size: 17px;
+        line-height: 27px;
+    }
+
+    .data-hero--forecast .data-hero-lead.vk-hero-lead {
+        max-width: 620px;
+    }
+}
+
+.data-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 32px;
+    padding-top: 8px;
+}
+
+.data-hero--forecast .data-facts {
+    column-gap: 30px;
+    padding-top: 6px;
+}
+
+.data-facts > div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.data-facts dt {
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--tone-soft);
+}
+
+.data-facts dd {
+    font-family: var(--font-display);
+    font-size: 18px;
+    line-height: 22px;
+    font-weight: 800;
+    color: var(--tone-strong);
+    font-variant-numeric: tabular-nums;
+}
+
+.data-hero-note {
+    max-width: 600px;
+    font-size: 14px;
+    line-height: 21px;
+    color: var(--tone-soft);
+}
+
+.data-hero-links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 22px;
+    padding-top: 4px;
+}
+
+.data-hero-link {
+    font-size: 14px;
+    line-height: 18px;
+    font-weight: 800;
+    color: var(--tone-strong);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+}
+
+.data-hero-license {
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    color: var(--tone-soft);
+}
+
+/* Key figure on the sky (Paper "Index on sky" / "Outlook on sky"). */
+.data-sky-figure {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.data-sky-kicker {
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--tone-soft);
+}
+
+.vk-tone-light .data-sky-kicker {
+    color: var(--tone-strong);
+}
+
+.data-sky-number-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.data-sky-number {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 52px;
+    line-height: 56px;
+    letter-spacing: -0.035em;
+    color: var(--tone-strong);
+    font-variant-numeric: tabular-nums;
+}
+
+.data-sky-unit {
+    font-size: 18px;
+    line-height: 22px;
+    font-weight: 800;
+    color: var(--tone-soft);
+}
+
+.data-sky-change {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-display);
+    font-size: 17px;
+    line-height: 20px;
+    font-weight: 800;
+}
+
+.data-sky-change.is-up,
+.data-sky-wave.is-up {
+    color: var(--data-up);
+}
+
+.data-sky-change.is-down,
+.data-sky-wave.is-down {
+    color: var(--data-down);
+}
+
+.data-sky-change.is-flat,
+.data-sky-wave.is-flat {
+    color: var(--tone-soft);
+}
+
+.data-sky-text {
+    font-size: 15px;
+    line-height: 21px;
+    font-weight: 700;
+    color: var(--tone-soft);
+}
+
+.data-outlook {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.data-outlook-kicker {
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--tone-strong);
+}
+
+.data-outlook-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--tone-strong);
+}
+
+.data-outlook-label {
+    font-family: var(--font-display);
+    font-size: 28px;
+    line-height: 32px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--tone-strong);
+}
+
+.data-outlook-headline {
+    font-family: var(--font-display);
+    font-size: 17px;
+    line-height: 23px;
+    font-weight: 700;
+    color: var(--tone-strong);
+}
+
+@media (min-width: 1024px) {
+    .data-sky-number {
+        font-size: var(--text-hero);
+        line-height: 66px;
+    }
+}
+
+/* ---------- Page body ---------- */
+
+.data-page {
+    background-color: var(--color-ground);
+}
+
+/* Round 3 rhythm (Paper "R3 · Data" notes): 64px between sections on a phone, 96px from 1024.
+   The Preferred Sources strip above ends with its own edge line and 32px / 48px of space, so
+   the body adds 16px / 8px: 48px / 56px from the strip line to the first block. */
+.data-body {
+    display: flex;
+    flex-direction: column;
+    gap: 64px;
+    padding-top: 16px;
+    padding-bottom: 40px;
+    color: var(--color-ink-body);
+}
+
+@media (min-width: 1024px) {
+    .data-body {
+        gap: 96px;
+        padding-top: 8px;
+    }
+}
+
+.data-section {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+}
+
+.data-section-head {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.data-section-aside {
+    font-size: 15px;
+    line-height: 22px;
+    color: var(--color-ink-body);
+}
+
+@media (min-width: 1024px) {
+    .data-section-head {
+        flex-direction: row;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 32px;
+    }
+
+    .data-section-aside {
+        width: 470px;
+        flex-shrink: 0;
+        text-align: right;
+    }
+}
+
+.data-heading svg {
+    max-width: 100%;
+}
+
+.data-lead-text {
+    max-width: 780px;
+    font-size: 15px;
+    line-height: 23px;
+    color: var(--color-ink-body);
+}
+
+.data-lead-text--wide {
+    max-width: 980px;
+}
+
+.data-dateline {
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 800;
+    color: var(--color-ink-muted);
+}
+
+.data-see-also {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 10px;
+    font-size: var(--text-label);
+    line-height: var(--leading-label);
+    font-weight: 700;
+    color: var(--color-ink-muted);
+}
+
+.data-muted {
+    color: var(--color-ink-muted);
+}
+
+.data-muted-caption {
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    color: var(--color-ink-muted);
+}
+
+.data-empty {
+    padding: 64px 0;
+    text-align: center;
+}
+
+.data-empty p {
+    max-width: 40ch;
+    margin-inline: auto;
+    font-size: 16px;
+    line-height: 25px;
+    color: var(--color-ink-body);
+}
+
+/* Change colours (spec §2): up = price-high, down = saving. */
+.data-delta--up { color: var(--color-price-high); }
+.data-delta--down { color: var(--color-saving); }
+.data-delta--flat { color: var(--color-ink-body); }
+.data-delta--none { color: var(--color-ink-muted); }
+.data-delta--ink { color: var(--color-ink); }
+
+/* Inked text link (Paper: Figtree 15/18 800 ink, 1px underline). */
+.data-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--text-ui);
+    line-height: 18px;
+    font-weight: 800;
+    color: var(--color-ink);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+}
+
+.data-link:hover {
+    color: var(--color-fox-deep);
+}
+
+.data-license {
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    color: var(--color-ink-muted);
+}
+
+/* Livewire loading notes: plain text, no pill. */
+.data-busy {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 700;
+    color: var(--color-ink-muted);
+}
+
+.data-busy--float {
+    padding: 4px 10px;
+    background-color: var(--color-ground);
+}
+
+.data-chart-busy {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    align-items: center;
+    justify-content: center;
+    background-color: color-mix(in srgb, var(--color-ground) 70%, transparent);
+}
+
+/* ---------- Controls (Paper 748-0 "Controls · consumption + actions") ---------- */
+
+/* No top line: the Preferred Sources strip directly above already ends with one. */
+.data-controls {
+    border-bottom: 1.5px solid var(--color-edge);
+}
+
+.data-controls-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 28px;
+    padding-block: 14px;
+}
+
+.data-controls-row--links {
+    gap: 10px 26px;
+    padding-block: 12px;
+    border-top: 1.5px solid var(--color-edge);
+}
+
+.data-controls-label {
+    width: 100%;
+    font-size: var(--text-ui);
+    line-height: 18px;
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+.data-controls-note {
+    flex: 1 1 280px;
+    font-size: var(--text-caption);
+    line-height: 19px;
+    color: var(--color-ink-muted);
+}
+
+.data-choices {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 24px;
+}
+
+.data-choice {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 4px 2px 0;
+    background: none;
+    border: 0;
+    border-radius: var(--radius-control);
+    cursor: pointer;
+}
+
+.data-choice:focus-visible,
+.data-tab:focus-visible {
+    outline: 2px solid var(--color-fox);
+    outline-offset: 2px;
+}
+
+.data-choice:disabled {
+    cursor: wait;
+}
+
+.data-choice-text {
+    font-family: var(--font-display);
+    font-size: 20px;
+    line-height: 24px;
+    font-weight: 800;
+    color: var(--color-ink-body);
+    font-variant-numeric: tabular-nums;
+}
+
+.data-choice.is-selected .data-choice-text {
+    color: var(--color-fox-deep);
+}
+
+.data-choice:hover .data-choice-text {
+    color: var(--color-ink);
+}
+
+@media (min-width: 1024px) {
+    .data-controls-label {
+        width: 128px;
+        flex-shrink: 0;
+    }
+
+    .data-controls-row--links {
+        padding-left: 156px;
+    }
+}
+
+/* ---------- Inked tabs (period switcher, citation formats) ---------- */
+
+.data-tabs,
+.data-cite-tabs {
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+}
+
+.data-cite-tabs {
+    gap: 18px;
+}
+
+.data-tabs-label {
+    padding-bottom: 8px;
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 700;
+    color: var(--color-ink-muted);
+}
+
+.data-tab {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 6px 0 0;
+    background: none;
+    border: 0;
+    border-radius: 2px;
+    cursor: pointer;
+    font-size: var(--text-ui);
+    line-height: 18px;
+    font-weight: 700;
+    color: var(--color-ink-body);
+}
+
+.data-cite-tabs .data-tab {
+    font-size: var(--text-label);
+}
+
+.data-tab:hover {
+    color: var(--color-ink);
+}
+
+.data-tab:disabled {
+    cursor: wait;
+}
+
+.data-tab.is-current {
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+.data-tab-wave {
+    height: 8px;
+    visibility: hidden;
+}
+
+.data-tab.is-current .data-tab-wave {
+    visibility: visible;
+}
+
+/* ---------- Legends ---------- */
+
+.data-legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 18px;
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 700;
+    color: var(--color-ink-body);
+}
+
+.data-legend li {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.data-legend li.is-lead {
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+.data-swatch {
+    display: inline-block;
+    flex-shrink: 0;
+    width: 18px;
+    border-top: var(--swatch-width, 3px) solid var(--swatch);
+}
+
+.data-swatch.is-dashed {
+    border-top-style: dashed;
+}
+
+.data-swatch--band {
+    height: 10px;
+    border-top: 0;
+    background-color: color-mix(in srgb, var(--swatch) 16%, transparent);
+}
+
+/* ---------- Energy price index (Paper 7C0-0) ---------- */
+
+.data-index {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+}
+
+.data-index-facts {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.data-index-figure {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.data-index-number {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 56px;
+    line-height: 60px;
+    letter-spacing: -0.04em;
+    color: var(--color-fox-deep);
+    font-variant-numeric: tabular-nums;
+}
+
+.data-index-unit {
+    font-size: 20px;
+    line-height: 24px;
+    font-weight: 800;
+    color: var(--color-ink-body);
+}
+
+.data-index-change {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-display);
+    font-size: 18px;
+    line-height: 22px;
+    font-weight: 800;
+}
+
+.data-index-date {
+    padding-top: 4px;
+    font-size: var(--text-caption);
+    line-height: 18px;
+    font-weight: 700;
+    color: var(--color-ink-muted);
+}
+
+.data-index-counts {
+    display: flex;
+    gap: 28px;
+    padding-top: 10px;
+    border-top: 1.5px solid var(--color-edge);
+}
+
+.data-index-counts dt {
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 700;
+    color: var(--color-ink-body);
+}
+
+.data-index-counts dd {
+    font-family: var(--font-display);
+    font-size: 26px;
+    line-height: 30px;
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+.data-index-block {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-top: 10px;
+    border-top: 1.5px solid var(--color-edge);
+}
+
+.data-index-block-title {
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+.data-weights {
+    display: flex;
+    width: 100%;
+    max-width: 380px;
+    height: 14px;
+}
+
+.data-weights span {
+    display: block;
+    height: 14px;
+}
+
+.data-weight-labels {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 700;
+}
+
+.data-index-hybrid {
+    font-family: var(--font-display);
+    font-size: 24px;
+    line-height: 28px;
+    font-weight: 800;
+    color: var(--color-cat-usage);
+}
+
+.data-index-chart {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+
+.data-index-method {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: var(--text-caption);
+    line-height: 19px;
+    color: var(--color-ink-body);
+}
+
+@media (min-width: 1024px) {
+    .data-index {
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 40px;
+    }
+
+    .data-index-facts {
+        width: 380px;
+        flex-shrink: 0;
+    }
+
+    .data-index-chart {
+        flex: 1 1 0%;
+    }
+
+    .data-index-number {
+        font-size: 72px;
+        line-height: 74px;
+    }
+}
+
+/* ---------- Lead chart: now figures, quotes, reading guide (Paper 7RL-0) ---------- */
+
+.data-now-figures {
+    display: flex;
+    flex-direction: column;
+    border-top: 1.5px solid var(--color-edge);
+    border-bottom: 1.5px solid var(--color-edge);
+}
+
+.data-now-figure {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-block: 12px;
+}
+
+.data-now-figure + .data-now-figure {
+    border-top: 1.5px solid var(--color-edge);
+}
+
+.data-now-label {
+    font-size: var(--text-label);
+    line-height: var(--leading-label);
+    font-weight: 800;
+}
+
+.data-now-value {
+    font-family: var(--font-display);
+    font-size: 30px;
+    line-height: 34px;
+    font-weight: 800;
+    color: var(--color-ink);
+    font-variant-numeric: tabular-nums;
+}
+
+.data-now-word {
+    font-family: var(--font-sans);
+    font-size: var(--text-ui);
+    line-height: 18px;
+    font-weight: 800;
+    color: var(--color-ink-muted);
+}
+
+.data-now-change {
+    font-size: var(--text-caption);
+    line-height: 18px;
+    font-weight: 700;
+    color: var(--color-ink-body);
+}
+
+@media (min-width: 768px) {
+    .data-now-figures {
+        flex-direction: row;
+    }
+
+    .data-now-figure {
+        flex: 1 1 0%;
+        min-width: 0;
+    }
+
+    .data-now-figure + .data-now-figure {
+        border-top: 0;
+        border-left: 1.5px solid var(--color-edge);
+        padding-left: 24px;
+    }
+}
+
+.data-quotes-guide {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+    padding-top: 6px;
+}
+
+.data-quotes {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.data-quote {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.data-quote-mark {
+    font-family: var(--font-display);
+    font-size: 56px;
+    line-height: 44px;
+    font-weight: 800;
+    color: var(--color-fox);
+}
+
+.data-quote-text {
+    font-family: var(--font-display);
+    font-size: 20px;
+    line-height: 28px;
+    font-weight: 700;
+    color: var(--color-ink);
+}
+
+.data-guide {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.data-guide-title {
+    font-size: var(--text-ui);
+    line-height: 18px;
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+.data-guide-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.data-guide-list dt {
+    font-size: var(--text-label);
+    line-height: var(--leading-label);
+    font-weight: 800;
+    color: var(--color-ink-body);
+}
+
+.data-guide-list dd {
+    margin-top: 2px;
+    font-size: var(--text-caption);
+    line-height: 19px;
+    color: var(--color-ink-body);
+}
+
+.data-source {
+    font-size: 12px;
+    line-height: 17px;
+    color: var(--color-ink-muted);
+}
+
+@media (min-width: 1024px) {
+    .data-quotes-guide {
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 48px;
+    }
+
+    .data-quotes {
+        width: 560px;
+        flex-shrink: 0;
+    }
+
+    .data-guide {
+        flex: 1 1 0%;
+    }
+}
+
+/* ---------- Tables (Paper 8IB-0 "Price table", 9KE-0 "Range table") ---------- */
+
+/* The table scrolls inside its own box on a narrow screen; the page never scrolls sideways. */
+.data-table-scroll {
+    /* relative: an absolute sr-only label inside the table must not widen the page. */
+    position: relative;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+}
+
+.data-table--segments {
+    min-width: 960px;
+}
+
+.data-table--range {
+    min-width: 1080px;
+}
+
+.data-table thead th {
+    padding: 0 16px 8px 0;
+    border-bottom: 2px solid var(--color-ink);
+    text-align: left;
+    vertical-align: bottom;
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-ink-muted);
+}
+
+.data-table abbr {
+    text-decoration: none;
+}
+
+.data-table tbody td {
+    padding: 10px 16px 10px 0;
+    border-bottom: 1.5px solid var(--color-edge);
+    vertical-align: middle;
+}
+
+.data-table--range tbody td {
+    padding-block: 8px;
+}
+
+.data-table th:last-child,
+.data-table td:last-child {
+    padding-right: 0;
+}
+
+.data-type {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.data-type-blank {
+    display: inline-block;
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+}
+
+.data-type-blank--small {
+    width: 28px;
+    height: 28px;
+}
+
+.data-type-name {
+    font-size: 16px;
+    line-height: 20px;
+    font-weight: 800;
+}
+
+.data-type-note {
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 400;
+    color: var(--color-ink-muted);
+}
+
+.data-cell-num {
+    font-size: var(--text-ui);
+    line-height: 20px;
+    font-weight: 700;
+    color: var(--color-ink-body);
+    white-space: nowrap;
+}
+
+.data-cell-price {
+    font-family: var(--font-display);
+    font-size: 22px;
+    line-height: 26px;
+    font-weight: 800;
+    color: var(--color-ink);
+    white-space: nowrap;
+}
+
+.data-cell-delta {
+    font-size: var(--text-ui);
+    line-height: 20px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+/* p20–p80 range bars with a median tick, one € scale for every row. */
+.data-range-col {
+    width: 420px;
+    min-width: 300px;
+}
+
+.data-range-axis {
+    position: relative;
+    display: block;
+    height: 16px;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.data-range-axis span {
+    position: absolute;
+    bottom: 0;
+    transform: translateX(-50%);
+    font-size: 11px;
+    line-height: 14px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.data-range-axis span:first-child {
+    transform: none;
+}
+
+.data-range-axis span:last-child {
+    transform: translateX(-100%);
+}
+
+.data-range {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 40px;
+}
+
+.data-range-grid {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background-color: var(--color-edge);
+}
+
+.data-range-bar {
+    position: absolute;
+    top: 13px;
+    height: 14px;
+    border: 1.3px solid var(--range-color);
+    background-color: color-mix(in srgb, var(--range-color) 32%, transparent);
+}
+
+.data-range-median {
+    position: absolute;
+    top: 7px;
+    width: 3px;
+    height: 26px;
+    border-radius: 2px;
+    background-color: var(--color-ink);
+    transform: translateX(-50%);
+}
+
+.data-range-key {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: var(--text-caption);
+    line-height: 18px;
+    font-weight: 700;
+    color: var(--color-ink-body);
+}
+
+.data-notes {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    font-size: var(--text-caption);
+    line-height: 19px;
+    color: var(--color-ink-muted);
+}
+
+@media (min-width: 1024px) {
+    .data-notes {
+        flex-direction: row;
+        gap: 40px;
+    }
+
+    .data-notes > * {
+        flex: 1 1 0%;
+    }
+}
+
+/* ---------- Contract types in detail (round 3, Paper "R3 · Data · Tilastot") ---------- */
+
+/* Head → body 20px on a phone, 32px from 1024 (notes §1). */
+.data-section--roomy {
+    gap: 20px;
+}
+
+@media (min-width: 1024px) {
+    .data-section--roomy {
+        gap: 32px;
+    }
+}
+
+.data-lead-text--intro {
+    max-width: 760px;
+    font-size: var(--text-body);
+    line-height: 26px;
+}
+
+@media (min-width: 1024px) {
+    .data-lead-text--intro {
+        font-size: 17px;
+        line-height: 28px;
+    }
+}
+
+.data-toc {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 2px 22px;
+    padding-bottom: 10px;
+    border-bottom: 1.5px solid var(--color-edge);
+}
+
+.data-toc-link {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 6px 0 10px;
+    border-radius: 2px;
+    font-size: var(--text-ui);
+    line-height: 18px;
+    font-weight: 700;
+    color: var(--color-ink-body);
+}
+
+.data-toc-link:hover {
+    color: var(--color-ink);
+    text-decoration: underline;
+    text-decoration-color: var(--color-fox);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 5px;
+}
+
+.data-toc-change {
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 800;
+}
+
+/* Two columns from 1024 (584 + 64 + 584 at the 1232 content width), row gap 88. An odd count
+   leaves the last cell alone at half width. One column below 1024, 64px between types. */
+.data-types {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 64px;
+}
+
+@media (min-width: 1024px) {
+    .data-types {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 88px 64px;
+    }
+}
+
+.data-type-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-width: 0;
+    padding-top: 20px;
+    border-top: 2px solid var(--color-ink);
+}
+
+@media (min-width: 1024px) {
+    .data-type-cell {
+        gap: 24px;
+    }
+}
+
+/* Titles of one row share a minimum height, so the charts of the row line up. */
+.data-type-head {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+@media (min-width: 1024px) {
+    .data-type-head {
+        min-height: 82px;
+    }
+}
+
+.data-type-title {
+    font-family: var(--font-display);
+    font-size: 21px;
+    line-height: 26px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--color-ink);
+}
+
+@media (min-width: 1024px) {
+    .data-type-title {
+        font-size: 24px;
+        line-height: 29px;
+    }
+}
+
+.data-type-count {
+    font-size: var(--text-label);
+    line-height: var(--leading-label);
+    font-weight: 800;
+    color: var(--color-ink-muted);
+}
+
+/* Key figures (x-site.data-dive-stats): the energy price first and large. On a phone the price
+   takes a full row and the two changes share the next one. */
+.data-stats {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 14px 32px;
+}
+
+.data-stats > div {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.data-stats-lead {
+    flex-basis: 100%;
+}
+
+@media (min-width: 640px) {
+    .data-stats {
+        gap: 14px 48px;
+    }
+
+    .data-stats-lead {
+        flex-basis: auto;
+    }
+}
+
+.data-stats dt {
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 700;
+    color: var(--color-ink-muted);
+}
+
+.data-stats dd {
+    font-family: var(--font-display);
+    font-size: 22px;
+    line-height: 24px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--color-ink);
+    white-space: nowrap;
+}
+
+.data-stats-lead dd {
+    font-size: 38px;
+    line-height: 40px;
+    letter-spacing: -0.04em;
+}
+
+.data-stats-unit {
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: 20px;
+    font-weight: 700;
+    letter-spacing: 0;
+    color: var(--color-ink-body);
+}
+
+@media (min-width: 1024px) {
+    .data-stats dd {
+        font-size: 26px;
+        line-height: 28px;
+    }
+
+    .data-stats-lead dd {
+        font-size: 46px;
+        line-height: 46px;
+    }
+}
+
+.data-stats dd.data-delta--up { color: var(--color-price-high); }
+.data-stats dd.data-delta--down { color: var(--color-saving); }
+.data-stats dd.data-delta--flat { color: var(--color-ink-body); }
+.data-stats dd.data-delta--none { color: var(--color-ink-muted); }
+
+/* Chart: 260px high from 1024, 210px below; caption row with the unit at the right. */
+.data-type-chart,
+.data-type-margin {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+
+.data-type-chart-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 700;
+    color: var(--color-ink-body);
+}
+
+.data-type-chart-unit {
+    flex-shrink: 0;
+    color: var(--color-ink-muted);
+}
+
+.data-type-plot {
+    position: relative;
+    width: 100%;
+    height: 210px;
+    user-select: none;
+}
+
+@media (min-width: 1024px) {
+    .data-type-plot {
+        height: 260px;
+    }
+}
+
+.data-type-margin {
+    padding-top: 8px;
+}
+
+.data-type-margin-title {
+    font-size: var(--text-label);
+    line-height: var(--leading-label);
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+.data-type-margin-plot {
+    position: relative;
+    width: 100%;
+    height: 96px;
+    user-select: none;
+}
+
+/* Lower part of a cell (x-site.data-dive-quote): Vs. pörssisähkö row, slot, note, copy. */
+.data-quote-block {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+@media (min-width: 1024px) {
+    .data-quote-block {
+        gap: 24px;
+    }
+}
+
+.data-vs {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-top: 16px;
+    border-top: 1.5px solid var(--color-edge);
+}
+
+.data-vs-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.data-vs-label {
+    font-size: var(--text-label);
+    line-height: var(--leading-label);
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+.data-vs-figure {
+    flex-shrink: 0;
+    font-family: var(--font-display);
+    font-size: 30px;
+    line-height: 34px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+}
+
+.data-vs-sentence {
+    font-size: 15px;
+    line-height: 24px;
+    color: var(--color-ink-body);
+}
+
+/* From 1024 the figure stands at the right of the label and the sentence. */
+@media (min-width: 1024px) {
+    .data-vs:not(.data-vs--sentence) {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        column-gap: 24px;
+        row-gap: 6px;
+    }
+
+    .data-vs-head {
+        display: contents;
+    }
+
+    .data-vs-label {
+        grid-column: 1;
+        grid-row: 1;
+    }
+
+    .data-vs-figure {
+        grid-column: 2;
+        grid-row: 1 / span 2;
+        font-size: 34px;
+        line-height: 38px;
+    }
+
+    .data-vs-sentence {
+        grid-column: 1;
+    }
+}
+
+.data-type-note {
+    font-size: 15px;
+    line-height: 24px;
+    color: var(--color-ink-muted);
+}
+
+/* Inked copy action (Paper "Kopioi sitaatti" / "Kopioi viittaus"). */
+.data-copy {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    width: fit-content;
+    padding: 0;
+    background: none;
+    border: 0;
+    border-radius: 2px;
+    cursor: pointer;
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 800;
+    color: var(--color-fox-deep);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+}
+
+.data-copy--large {
+    gap: 8px;
+    font-family: var(--font-display);
+    font-size: 17px;
+    line-height: 22px;
+}
+
+/* In a type cell the action is the board's fox-underlined text, no icon. */
+.data-copy--cell {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    min-height: 24px;
+    font-size: var(--text-label);
+    line-height: var(--leading-label);
+    text-decoration: none;
+}
+
+.data-copy:hover {
+    color: var(--color-ink);
+}
+
+/* ---------- Method and citation (Paper CU5-0, E55-0) ---------- */
+
+.data-method {
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+    padding-top: 10px;
+    scroll-margin-top: 96px;
+}
+
+.data-method-main {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.data-prose {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    font-size: 15px;
+    line-height: 24px;
+    color: var(--color-ink-body);
+}
+
+.data-prose code {
+    font-size: 14px;
+    color: var(--color-ink);
+}
+
+.data-cite {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+}
+
+.data-cite-text {
+    font-size: var(--text-label);
+    line-height: 21px;
+    color: var(--color-ink-body);
+}
+
+.data-cite-warning {
+    font-size: var(--text-caption);
+    line-height: 20px;
+    color: var(--color-warning-ink);
+}
+
+.data-cite-box {
+    display: flex;
+    gap: 12px;
+    padding-block: 14px;
+    border-top: 1.5px solid var(--color-edge);
+    border-bottom: 1.5px solid var(--color-edge);
+}
+
+.data-cite-rule {
+    width: 4px;
+    flex-shrink: 0;
+    background-color: var(--color-fox);
+}
+
+.data-cite-pre {
+    margin: 0;
+    min-width: 0;
+    font-family: var(--font-display);
+    font-size: 17px;
+    line-height: 26px;
+    font-weight: 600;
+    color: var(--color-ink);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+@media (min-width: 1024px) {
+    .data-method {
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 56px;
+    }
+
+    .data-method-main {
+        width: 740px;
+        flex-shrink: 0;
+    }
+
+    .data-cite {
+        flex: 1 1 0%;
+    }
+}
+
+/* ---------- Forecast page (Paper D8Q-0) ---------- */
+
+.fc-kicker {
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-fox-deep);
+}
+
+.fc-head-aside {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 15px;
+    line-height: 22px;
+    color: var(--color-ink-body);
+}
+
+@media (min-width: 1024px) {
+    .fc-head-aside {
+        align-items: flex-end;
+        text-align: right;
+    }
+}
+
+.fc-table--compare {
+    min-width: 1000px;
+}
+
+.fc-table--compare tbody td {
+    padding-block: 16px;
+}
+
+.fc-name {
+    font-size: 17px;
+    line-height: 22px;
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+a.fc-name:hover {
+    color: var(--color-fox-deep);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.fc-count {
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 700;
+    color: var(--color-ink-muted);
+}
+
+.fc-big-price {
+    font-family: var(--font-display);
+    font-size: 30px;
+    line-height: 34px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--color-ink);
+    white-space: nowrap;
+}
+
+.fc-unit {
+    font-family: var(--font-sans);
+    font-size: var(--text-ui);
+    font-weight: 700;
+    letter-spacing: 0;
+    color: var(--color-ink-body);
+}
+
+.fc-change {
+    display: flex;
+    flex-direction: column;
+    white-space: nowrap;
+}
+
+.fc-change-value {
+    font-size: var(--text-ui);
+    line-height: 20px;
+    font-weight: 800;
+}
+
+.fc-change-pct {
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 700;
+    color: var(--color-ink-body);
+}
+
+.fc-direction {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--text-ui);
+    line-height: 20px;
+    font-weight: 800;
+    color: var(--color-ink);
+    white-space: nowrap;
+}
+
+/* Round 3 (Paper "R3 · Data · Hintaennuste"): one full-width row per term, 72px apart from
+   1024 (64px below). Header → conclusion → hairline → evidence. */
+.fc-terms {
+    display: flex;
+    flex-direction: column;
+    gap: 64px;
+}
+
+@media (min-width: 1024px) {
+    .fc-terms {
+        gap: 72px;
+    }
+}
+
+.fc-term {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    min-width: 0;
+    padding-top: 20px;
+    border-top: 2px solid var(--color-ink);
+}
+
+@media (min-width: 1024px) {
+    .fc-term {
+        gap: 28px;
+        padding-top: 24px;
+    }
+}
+
+.fc-term-head {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.fc-term-name {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 16px;
+}
+
+@media (min-width: 1024px) {
+    .fc-term-head {
+        flex-direction: row;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 24px;
+    }
+}
+
+.fc-term-title {
+    font-family: var(--font-display);
+    font-size: 23px;
+    line-height: 28px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--color-ink);
+}
+
+@media (min-width: 1024px) {
+    .fc-term-title {
+        font-size: 26px;
+        line-height: 30px;
+    }
+}
+
+.fc-term-count {
+    font-size: var(--text-label);
+    line-height: var(--leading-label);
+    font-weight: 800;
+    color: var(--color-cat-fixed);
+}
+
+.fc-term-text {
+    font-size: 15px;
+    line-height: 22px;
+    color: var(--color-ink-muted);
+}
+
+/* Conclusion: the direction label leads, the typical price at the right from 1024. */
+.fc-conclusion {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+@media (min-width: 1024px) {
+    .fc-conclusion {
+        flex-direction: row;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 48px;
+    }
+}
+
+.fc-conclusion-main {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+}
+
+.fc-signal-kicker {
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 800;
+    letter-spacing: var(--tracking-caps);
+    text-transform: uppercase;
+    color: var(--color-ink-muted);
+}
+
+.fc-verdict {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: var(--font-display);
+    font-size: 36px;
+    line-height: 38px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--color-ink);
+}
+
+.fc-verdict--up { color: var(--color-price-high); }
+.fc-verdict--down { color: var(--color-saving); }
+
+.fc-verdict-arrow {
+    flex-shrink: 0;
+    width: 44px;
+    height: 24px;
+}
+
+@media (min-width: 1024px) {
+    .fc-verdict {
+        gap: 16px;
+        font-size: 52px;
+        line-height: 54px;
+    }
+
+    .fc-verdict-arrow {
+        width: 60px;
+        height: 32px;
+    }
+}
+
+.fc-conclusion-aside {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+@media (min-width: 1024px) {
+    .fc-conclusion-aside {
+        flex-shrink: 0;
+        max-width: 500px;
+        align-items: flex-end;
+        padding-bottom: 4px;
+        text-align: right;
+    }
+}
+
+.fc-typical {
+    font-size: 18px;
+    line-height: 26px;
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+.fc-typical-change {
+    font-size: 15px;
+    line-height: 22px;
+    font-weight: 700;
+    color: var(--color-ink-body);
+}
+
+.fc-signal-body {
+    padding-top: 2px;
+    font-size: var(--text-label);
+    line-height: 21px;
+    color: var(--color-ink-muted);
+}
+
+@media (min-width: 1024px) {
+    .fc-typical {
+        font-size: 20px;
+        line-height: 28px;
+    }
+}
+
+/* Evidence: the slope chart (340 × 220) and the lanes table. */
+.fc-evidence {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    padding-top: 24px;
+    border-top: 1.5px solid var(--color-edge);
+}
+
+@media (min-width: 1024px) {
+    .fc-evidence {
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 96px;
+        padding-top: 28px;
+    }
+}
+
+.fc-slope-figure {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    max-width: 340px;
+    flex-shrink: 0;
+}
+
+.fc-slope {
+    display: block;
+    width: 100%;
+    height: auto;
+    font-variant-numeric: tabular-nums;
+}
+
+.fc-lanes {
+    display: flex;
+    flex: 1 1 0%;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.fc-lanes-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1.5px solid var(--color-ink);
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 800;
+    letter-spacing: var(--tracking-caps);
+    text-transform: uppercase;
+    color: var(--color-ink-muted);
+}
+
+.fc-lane {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding-block: 14px;
+    border-bottom: 1px solid var(--color-edge);
+}
+
+.fc-lane.is-lead {
+    padding-block: 16px;
+}
+
+.fc-lane-name {
+    font-size: 15px;
+    line-height: 20px;
+    font-weight: 800;
+    color: var(--color-ink-body);
+}
+
+.fc-lane.is-lead .fc-lane-name {
+    font-size: 17px;
+    line-height: 22px;
+    color: var(--color-ink);
+}
+
+.fc-lane-sub {
+    font-size: var(--text-caption);
+    line-height: 18px;
+    color: var(--color-ink-muted);
+}
+
+.fc-lane-values {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    flex-shrink: 0;
+    text-align: right;
+}
+
+.fc-lane-prices {
+    font-size: 15px;
+    line-height: 20px;
+    font-weight: 800;
+    color: var(--color-ink-body);
+    white-space: nowrap;
+}
+
+.fc-lane.is-lead .fc-lane-prices {
+    font-size: 17px;
+    line-height: 22px;
+    color: var(--color-ink);
+}
+
+.fc-lane-change {
+    font-size: var(--text-caption);
+    line-height: 18px;
+    font-weight: 700;
+    color: var(--color-ink-muted);
+    white-space: nowrap;
+}
+
+.fc-lane.is-lead .fc-lane-change {
+    color: var(--color-ink-body);
+}
+
+.fc-crossed {
+    padding-top: 14px;
+    font-size: var(--text-label);
+    line-height: 21px;
+    color: var(--color-warning-ink);
+}
+
+.fc-confidence {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 8px;
+    padding-top: 14px;
+}
+
+.fc-confidence dt {
+    font-size: var(--text-caption);
+    line-height: 18px;
+    font-weight: 700;
+    color: var(--color-ink-muted);
+}
+
+.fc-confidence dd {
+    font-size: var(--text-caption);
+    line-height: 18px;
+    font-weight: 800;
+    color: var(--color-warning-ink);
+}
+
+.fc-table--history {
+    min-width: 900px;
+}
+
+.fc-table--history tbody td {
+    padding-block: 12px;
+}
+
+.fc-history-first {
+    font-size: 16px;
+    line-height: 20px;
+    font-weight: 700;
+    color: var(--color-ink-body);
+    white-space: nowrap;
+}
+
+.fc-history-change {
+    font-family: var(--font-display);
+    font-size: 22px;
+    line-height: 26px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.fc-method {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 40px;
+}
+
+@media (min-width: 1024px) {
+    .fc-method {
+        grid-template-columns: 380px 360px minmax(0, 1fr);
+        gap: 48px;
+        align-items: start;
+    }
+}
+
+.fc-method-col {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+    scroll-margin-top: 96px;
+}
+
+.fc-mark-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.fc-mark-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 15px;
+    line-height: 24px;
+    color: var(--color-ink-body);
+}
+
+.fc-mark {
+    flex-shrink: 0;
+    font-family: var(--font-display);
+    font-size: 20px;
+    line-height: 24px;
+    font-weight: 800;
+    color: var(--color-fox);
+}
+
+.data-table--range td:first-child,
+.data-table--range th:first-child {
+    min-width: 250px;
+}
+
+/* The boards break display headings only between words. */
+.data-hero-h1,
+.data-page .vk-section-heading-text,
+.data-page h3 {
+    hyphens: manual;
+}

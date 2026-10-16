@@ -32,6 +32,7 @@ use App\Services\ContractRankingService;
 use App\Services\DTO\EnergyUsage;
 use App\Support\ContractContentSanitizer;
 use App\Support\ContractInternalLinks;
+use App\Support\Season;
 use Carbon\Carbon;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\RedirectResponse;
@@ -1217,7 +1218,7 @@ class ContractDetail extends Component
      * the figure it compares against are always priced at the same consumption,
      * and the sentence names that consumption itself.
      *
-     * @return array{text: string, url: string, label: string}|null
+     * @return array{text: string, url: string, label: string, self_cost: float, reference_cost: float, reference_name: string, reference_bucket: string}|null
      */
     public function getSpotCounterfactualProperty(): ?array
     {
@@ -1237,7 +1238,7 @@ class ContractDetail extends Component
     }
 
     /**
-     * @return array{text: string, url: string, label: string}|null
+     * @return array{text: string, url: string, label: string, self_cost: float, reference_cost: float, reference_name: string, reference_bucket: string}|null
      */
     protected function buildSpotCounterfactual(ElectricityContract $contract, int $basis): ?array
     {
@@ -1284,6 +1285,12 @@ class ContractDetail extends Component
                 'text' => "{$head} {$tail}",
                 'url' => '/sahkosopimus/kiintea-hinta',
                 'label' => 'Katso kiinteähintaiset sopimukset',
+                // Read-only figures for the redesign's two-bar comparison. The sentence
+                // above states the same facts in text.
+                'self_cost' => $selfCost,
+                'reference_cost' => $referenceCost,
+                'reference_name' => 'Halvin kiinteä hinta',
+                'reference_bucket' => PricingBucket::Fixed->value,
             ];
         }
 
@@ -1302,6 +1309,10 @@ class ContractDetail extends Component
             'text' => "{$head} {$tail}",
             'url' => '/sahkosopimus/porssisahko',
             'label' => 'Katso pörssisopimukset',
+            'self_cost' => $selfCost,
+            'reference_cost' => $referenceCost,
+            'reference_name' => 'Tyypillinen pörssisähkö',
+            'reference_bucket' => PricingBucket::Spot->value,
         ];
     }
 
@@ -2867,7 +2878,9 @@ class ContractDetail extends Component
         // so per-user bill state can never be written into the shared prepared
         // payload cache.
         return view('livewire.contract-detail', array_merge($data['view'], $this->billModuleViewData()))
-            ->layout('layouts.app', $data['layout'])
+            // heroTone stays outside the prepared-data cache: the season (and so the tone of
+            // the painted hero band) can change while a cached payload is still valid.
+            ->layout('layouts.app', $data['layout'] + ['heroTone' => Season::heroTone('contract-band')])
             ->response(function ($response) {
                 app(SetPublicCacheHeaders::class)->applyCacheHeaders($response);
             });

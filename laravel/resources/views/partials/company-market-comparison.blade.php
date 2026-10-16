@@ -5,57 +5,92 @@
     $statDate = Carbon::parse($marketComparison['stat_date'])->translatedFormat('j.n.Y');
     $chart = $marketComparison['chart'] ?? null;
     $historicalFallback = ($marketComparison['is_historical_fallback'] ?? false) === true;
+
+    // Redesign: the seller line is drawn in fox (--color-fox, #C4501C) instead of the service's
+    // coral. The renderer draws on a canvas, which cannot read a CSS variable, so the hex is
+    // repeated here; presentation only, the payload data is unchanged.
+    if ($chart) {
+        $chart['leadStroke'] = '#C4501C';
+    }
 @endphp
 
-<section id="hintavertailu" class="mb-10">
-    <h2 class="text-2xl font-bold text-slate-900 mb-2">{{ $company->name }}: sähkön hinta</h2>
+{{-- Market comparison (Paper board AX2-0, "Sähkön hinta"): one ruled row per contract type
+     with an inked range track, then the weekly trend chart. No cards. --}}
+<section id="hintavertailu" class="vk-co-section" aria-labelledby="hintavertailu-title">
+    <div class="vk-co-head vk-co-head--split vk-co-head--top">
+        <div class="vk-co-title-wrap">
+            <h2 id="hintavertailu-title" class="vk-co-title">{{ $company->name }}: sähkön hinta</h2>
+            <x-ink.wave width="280" stroke="3.5" class="max-w-full" />
+        </div>
 
-    <p class="text-slate-600 mb-1 max-w-prose">
-        Sähkön hinta riippuu sopimustyypistä ja vuosikulutuksesta.
-        Jokainen rivi näyttää yhtiön {{ $historicalFallback ? 'päivätyn' : 'nykyisen' }} 12 kuukauden hinta-arvion sekä saman sopimustyypin markkinamediaanin ja keskimmäisen 60 %:n hintahaarukan.
-        Harmaa palkki näyttää hintahaarukan, pystyviiva mediaanin ja oranssi piste yhtiön hinnan.
-    </p>
-    <p class="text-slate-600 mb-6 max-w-prose">
-        @if ($historicalFallback)
-            <span class="font-semibold text-slate-800">Nykyinen laskettu vertailu ei ole saatavilla.</span>
-            Alla on viimeisin yhtenäinen historiallinen hintavertailu {{ $statDate }}. Se ei ole tämän päivän hintavertailu.
-        @elseif (($marketComparison['pricing_basis'] ?? null) === 'canonical_calculation')
-            Vertailu perustuu {{ $statDate }} Voltikan laskemiin nykyhintoihin.
-        @else
-            Vertailu perustuu {{ $statDate }} myyjiltä havaittuihin hintoihin.
-        @endif
-        Luvut ovat 12 kuukauden kokonaishintoja {{ $reference }} kWh vuosikulutuksella, sis. alv 25,5 %. Siirtomaksu ei sisälly.
-        @if ($marketComparison['is_snapped'])
-            Käytämme lähintä laskettua kulutustasoa, {{ $reference }} kWh.
-        @endif
-    </p>
+        <div class="vk-co-intro">
+            <p class="vk-co-intro-lead">Sähkön hinta riippuu sopimustyypistä ja vuosikulutuksesta.</p>
+            <p class="vk-co-intro-text">
+                Jokainen rivi näyttää yhtiön {{ $historicalFallback ? 'päivätyn' : 'nykyisen' }} 12 kuukauden hinta-arvion sekä saman sopimustyypin markkinamediaanin ja keskimmäisen 60 %:n hintahaarukan.
+                Harmaa palkki näyttää hintahaarukan, pystyviiva mediaanin ja oranssi piste yhtiön hinnan.
+            </p>
+            <p class="vk-co-intro-small">
+                @if ($historicalFallback)
+                    <span class="font-bold text-ink">Nykyinen laskettu vertailu ei ole saatavilla.</span>
+                    Alla on viimeisin yhtenäinen historiallinen hintavertailu {{ $statDate }}. Se ei ole tämän päivän hintavertailu.
+                @elseif (($marketComparison['pricing_basis'] ?? null) === 'canonical_calculation')
+                    Vertailu perustuu {{ $statDate }} Voltikan laskemiin nykyhintoihin.
+                @else
+                    Vertailu perustuu {{ $statDate }} myyjiltä havaittuihin hintoihin.
+                @endif
+                Luvut ovat 12 kuukauden kokonaishintoja {{ $reference }} kWh vuosikulutuksella, sis. alv 25,5 %. Siirtomaksu ei sisälly.
+                @if ($marketComparison['is_snapped'])
+                    Käytämme lähintä laskettua kulutustasoa, {{ $reference }} kWh.
+                @endif
+            </p>
+        </div>
+    </div>
 
-    <div class="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
-        <ul class="space-y-6">
-            @foreach ($marketComparison['rows'] as $row)
-                @php
-                    $delta = $row['delta_vs_median'];
-                    $positionLabel = match ($row['position']) {
-                        'below_p20' => 'Markkinan halvimmassa 20 %:ssa',
-                        'above_p80' => 'Markkinan kalleimmassa 20 %:ssa',
-                        default => 'Markkinan tavanomaisessa haarukassa',
-                    };
-                @endphp
-                <li>
-                    <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                        <h3 class="text-sm font-bold text-slate-900">{{ $row['label'] }}</h3>
-                        <p class="text-sm text-slate-500">
+    <ul class="vk-co-legend" aria-label="Selite">
+        <li><span class="vk-co-legend-dot" aria-hidden="true"></span>{{ $company->name }}</li>
+        <li><span class="vk-co-legend-band" aria-hidden="true"></span>Markkinan haarukka</li>
+        <li><span class="vk-co-legend-median" aria-hidden="true"></span>Markkinan mediaani</li>
+    </ul>
+
+    <ul class="vk-co-ranges">
+        @foreach ($marketComparison['rows'] as $row)
+            @php
+                $delta = $row['delta_vs_median'];
+                $positionLabel = match ($row['position']) {
+                    'below_p20' => 'Markkinan halvimmassa 20 %:ssa',
+                    'above_p80' => 'Markkinan kalleimmassa 20 %:ssa',
+                    default => 'Markkinan tavanomaisessa haarukassa',
+                };
+                $positionClass = match ($row['position']) {
+                    'below_p20' => 'text-aurora',
+                    'above_p80' => 'text-price-high',
+                    default => 'text-ink',
+                };
+            @endphp
+            <li class="vk-co-range-row">
+                <div class="vk-co-range-main">
+                    <div class="vk-co-range-name">
+                        <h3>{{ $row['label'] }}</h3>
+                        <p>
                             Yhtiöllä {{ $row['company_contract_count'] }}
                             {{ $row['company_contract_count'] === 1 ? 'sopimus' : 'sopimusta' }}
                         </p>
                     </div>
 
-                    <div class="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                        <p class="text-xl font-extrabold tabular-nums text-slate-900">
-                            {{ number_format($row['company_value'], 0, ',', ' ') }} {{ "\u{20AC}" }}<span class="text-base font-semibold text-slate-500">/v</span>
-                        </p>
-                        <p class="text-sm text-slate-600">
-                            {{ $positionLabel }}.
+                    {{-- Geometry is precomputed in CompanyMarketComparisonService; keep this
+                         presentation-only. Each row has its own scale (p20-p80 spread), so the
+                         track shows no shared euro axis. --}}
+                    <div class="vk-co-track" aria-hidden="true">
+                        <span class="vk-co-track-line"></span>
+                        <span class="vk-co-track-band" style="left: {{ $row['band_left_percent'] }}%; width: {{ $row['band_width_percent'] }}%;"></span>
+                        <span class="vk-co-track-median" style="left: {{ $row['median_percent'] }}%;"></span>
+                        <span class="vk-co-track-marker" style="left: {{ $row['marker_percent'] }}%;"></span>
+                    </div>
+
+                    <div class="vk-co-range-value">
+                        <p class="vk-co-range-price">{{ number_format($row['company_value'], 0, ',', ' ') }} {{ "\u{20AC}" }}/v</p>
+                        <p class="vk-co-range-position {{ $positionClass }}">{{ $positionLabel }}.</p>
+                        <p class="vk-co-range-delta">
                             @if (abs($delta) < 1)
                                 Sama kuin markkinan mediaani.
                             @else
@@ -63,68 +98,36 @@
                             @endif
                         </p>
                     </div>
+                </div>
 
-                    {{-- Geometry is precomputed in CompanyMarketComparisonService; keep this presentation-only. --}}
-                    <div class="relative mt-3 h-8" aria-hidden="true">
-                        <div class="absolute inset-x-0 top-[15px] h-0.5 rounded-full bg-slate-200"></div>
-                        <div
-                            class="absolute top-2 h-4 rounded-md bg-slate-300 ring-1 ring-inset ring-slate-400/40"
-                            style="left: {{ $row['band_left_percent'] }}%; width: {{ $row['band_width_percent'] }}%;"
-                        ></div>
-                        <div
-                            class="absolute top-1.5 h-5 w-0.5 bg-slate-600"
-                            style="left: {{ $row['median_percent'] }}%;"
-                        ></div>
-                        <div
-                            class="absolute top-0.5 -ml-1.5 h-7 w-3 rounded-full border-2 border-white bg-coral-600 shadow-md"
-                            style="left: {{ $row['marker_percent'] }}%;"
-                        ></div>
+                <dl class="vk-co-range-stats">
+                    <div>
+                        <dt>Markkinan halvempi 20 %:</dt>
+                        <dd>{{ number_format($row['market_p20'], 0, ',', ' ') }} {{ "\u{20AC}" }}</dd>
                     </div>
-
-                    <dl class="mt-1 flex flex-wrap gap-x-5 gap-y-1 text-xs text-slate-500">
-                        <div class="flex gap-1">
-                            <dt>Markkinan halvempi 20 %:</dt>
-                            <dd class="font-semibold tabular-nums text-slate-700">{{ number_format($row['market_p20'], 0, ',', ' ') }} {{ "\u{20AC}" }}</dd>
-                        </div>
-                        <div class="flex gap-1">
-                            <dt>Mediaani:</dt>
-                            <dd class="font-semibold tabular-nums text-slate-700">{{ number_format($row['market_median'], 0, ',', ' ') }} {{ "\u{20AC}" }}</dd>
-                        </div>
-                        <div class="flex gap-1">
-                            <dt>Kalliimpi 20 %:</dt>
-                            <dd class="font-semibold tabular-nums text-slate-700">{{ number_format($row['market_p80'], 0, ',', ' ') }} {{ "\u{20AC}" }}</dd>
-                        </div>
-                        <div class="flex gap-1">
-                            <dt>Markkinalla vertailussa:</dt>
-                            <dd class="font-semibold tabular-nums text-slate-700">{{ $row['market_contract_count'] }} sopimusta</dd>
-                        </div>
-                    </dl>
-                </li>
-            @endforeach
-        </ul>
-
-        <ul class="mt-6 flex flex-wrap gap-x-5 gap-y-2 border-t border-slate-100 pt-4 text-xs text-slate-600">
-            <li class="inline-flex items-center gap-2">
-                <span class="h-3 w-3 rounded-full bg-coral-600" aria-hidden="true"></span>
-                {{ $company->name }}
+                    <div>
+                        <dt>Mediaani:</dt>
+                        <dd>{{ number_format($row['market_median'], 0, ',', ' ') }} {{ "\u{20AC}" }}</dd>
+                    </div>
+                    <div>
+                        <dt>Kalliimpi 20 %:</dt>
+                        <dd>{{ number_format($row['market_p80'], 0, ',', ' ') }} {{ "\u{20AC}" }}</dd>
+                    </div>
+                    <div>
+                        <dt>Markkinalla vertailussa:</dt>
+                        <dd>{{ $row['market_contract_count'] }} sopimusta</dd>
+                    </div>
+                </dl>
             </li>
-            <li class="inline-flex items-center gap-2">
-                <span class="h-1 w-6 rounded-full bg-slate-300" aria-hidden="true"></span>
-                Markkinan haarukka
-            </li>
-            <li class="inline-flex items-center gap-2">
-                <span class="h-4 w-px bg-slate-500" aria-hidden="true"></span>
-                Markkinan mediaani
-            </li>
-        </ul>
-    </div>
+        @endforeach
+    </ul>
 
     @if ($chart)
-        <div class="mt-6 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
-            <h3 class="text-base font-bold text-slate-900">
+        <div class="vk-co-trend">
+            <h3 class="vk-co-subtitle">
                 Hintakehitys: {{ $marketComparison['chart_segment_label'] }}
             </h3>
-            <p class="mt-1 text-sm text-slate-600 max-w-prose">
+            <p class="vk-co-intro-text">
                 Viikoittainen vertailu edeltävältä 12 kuukaudelta. Varjostettu alue näyttää markkinan keskimmäisen 60 %:n.
                 @if ($historicalFallback)
                     Pisteet ovat päivättyjä vuosikustannusarvioita. Viimeisin piste on {{ $statDate }}.
@@ -133,33 +136,28 @@
                 @endif
             </p>
 
-            <div class="relative mt-5">
-                <div
-                    wire:key="company-market-chart-{{ $marketComparison['chart_segment_key'] }}-{{ $marketComparison['reference_consumption'] }}-{{ $marketComparison['stat_date'] }}"
-                    wire:ignore
-                    data-line-chart
-                    class="relative h-64 w-full select-none"
-                    role="img"
-                    aria-label="{{ $company->name }} verrattuna markkinan mediaaniin, {{ $marketComparison['chart_segment_label'] }}, {{ $reference }} kilowattitunnin kulutuksella."
-                >
-                    <script type="application/json">{!! json_encode($chart, JSON_UNESCAPED_UNICODE) !!}</script>
-                </div>
+            <ul class="vk-co-legend" aria-label="Kaavion selite">
+                <li>
+                    <svg width="22" height="10" viewBox="0 0 22 10" aria-hidden="true" class="shrink-0">
+                        <line x1="1" y1="5" x2="21" y2="5" style="stroke: var(--color-fox)" stroke-width="3.4" stroke-linecap="round" />
+                    </svg>
+                    {{ $company->name }}
+                </li>
+                <li>
+                    <x-ink.series-line label="Markkinan mediaani" width="22" />
+                    Markkinan mediaani
+                </li>
+            </ul>
 
-                <ul class="mt-3 flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs text-slate-700" aria-label="Kaavion selite">
-                    <li class="inline-flex items-center gap-2">
-                        <svg width="24" height="10" viewBox="0 0 24 10" aria-hidden="true" class="shrink-0">
-                            <line x1="1" y1="5" x2="23" y2="5" stroke="#f97316" stroke-width="2.5" stroke-linecap="round" />
-                        </svg>
-                        <span class="font-semibold text-coral-700">{{ $company->name }}</span>
-                    </li>
-                    <li class="inline-flex items-center gap-2">
-                        <svg width="24" height="10" viewBox="0 0 24 10" aria-hidden="true" class="shrink-0">
-                            {{-- Must match NON_LEAD_STYLES[0] in resources/js/contract-price-statistics.js --}}
-                            <line x1="1" y1="5" x2="23" y2="5" stroke="#1e293b" stroke-width="1.8" stroke-linecap="round" />
-                        </svg>
-                        <span>Markkinan mediaani</span>
-                    </li>
-                </ul>
+            <div
+                wire:key="company-market-chart-{{ $marketComparison['chart_segment_key'] }}-{{ $marketComparison['reference_consumption'] }}-{{ $marketComparison['stat_date'] }}"
+                wire:ignore
+                data-line-chart
+                class="relative h-64 w-full select-none"
+                role="img"
+                aria-label="{{ $company->name }} verrattuna markkinan mediaaniin, {{ $marketComparison['chart_segment_label'] }}, {{ $reference }} kilowattitunnin kulutuksella."
+            >
+                <script type="application/json">{!! json_encode($chart, JSON_UNESCAPED_UNICODE) !!}</script>
             </div>
 
             <table class="sr-only">
@@ -190,8 +188,8 @@
         @endpush
     @endif
 
-    <p class="mt-3 text-xs text-slate-500">
-        Luvut perustuvat Voltikan päivittäiseen hintaseurantaan.
-        <a href="/sahkosopimus/tilastot" class="font-medium text-coral-600 hover:text-coral-700">Avaa koko hintatilasto &rarr;</a>
-    </p>
+    <div class="vk-co-footnote-row">
+        <p class="vk-co-footnote">Luvut perustuvat Voltikan päivittäiseen hintaseurantaan.</p>
+        <a href="/sahkosopimus/tilastot" class="vk-co-ink-link vk-co-ink-link--ui vk-focus">Avaa koko hintatilasto &rarr;</a>
+    </div>
 </section>

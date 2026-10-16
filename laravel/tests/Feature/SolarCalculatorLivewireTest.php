@@ -36,6 +36,17 @@ class SolarCalculatorLivewireTest extends TestCase
             ->assertSee('Aurinkopaneelilaskuri');
     }
 
+    public function test_solar_calculator_renders_the_painted_season_hero(): void
+    {
+        // The page passes heroTone, so the top bar sits over the seasonal solar hero art,
+        // and the address search stays in the hero.
+        $this->get('/aurinkopaneelit/laskuri')
+            ->assertStatus(200)
+            ->assertSee('images/art/solar-hero-', false)
+            ->assertSee('energy-hero--solar', false)
+            ->assertSee('data-search-input', false);
+    }
+
     public function test_component_renders_with_default_values(): void
     {
         Livewire::test(SolarCalculator::class)

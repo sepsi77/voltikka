@@ -7,113 +7,94 @@
     // badge. `hasActiveFilters()` still counts both for the clear action and cache guard.
     $activeFilterCount = $this->activeAccordionFilterCount();
 @endphp
-<div class="mb-6 overflow-hidden rounded-xl border border-slate-200 transition-colors" :class="filtersOpen ? 'border-slate-300' : ''" x-data="{ filtersOpen: @js($this->hasActiveAccordionFilters()) }">
-    {{-- Accordion trigger (all sizes): filters are collapsed by default so the
-         contract list stays high on the page. The trigger anatomy (icon + 14px
-         bold title + chevron) matches the bill-comparison disclosure so the two
-         collapsed tools read as one cluster. --}}
+{{-- "Rajaa hakua" disclosure (Paper board 2J3-0, "Controls · compact", third row). Inside
+     the listing's `.vk-disclosures` row the wrapper is `display: contents`: the trigger sits
+     in the row and the panel opens below the row, without a frame. Used alone (homepage) it
+     is a plain block. The active-filter count is an inked mark, not a badge. --}}
+<div class="vk-disclosure" x-data="{ filtersOpen: @js($this->hasActiveAccordionFilters()) }">
     <button
         type="button"
         @click="filtersOpen = !filtersOpen"
         :aria-expanded="filtersOpen ? 'true' : 'false'"
-        class="w-full px-4 py-2.5 flex items-center justify-between gap-2.5 text-left text-sm font-bold text-slate-900"
+        aria-expanded="{{ $this->hasActiveAccordionFilters() ? 'true' : 'false' }}"
+        class="vk-disclosure-trigger"
     >
-        <span class="flex items-center gap-2.5">
-            <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L14 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 018 21v-7.586L3.293 6.707A1 1 0 013 6V4z"></path>
-            </svg>
-            Rajaa hakua
-            @if ($activeFilterCount > 0)
-                <span class="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-coral-600 text-white text-xs font-bold tabular-nums">{{ $activeFilterCount }}</span>
-            @endif
-        </span>
-        <svg class="w-5 h-5 shrink-0 text-slate-500 transform transition-transform" :class="{ 'rotate-180': filtersOpen }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-        </svg>
+        <span class="vk-disclosure-title">Rajaa hakua</span>
+        @if ($activeFilterCount > 0)
+            <span class="vk-count"><x-ink.sparkle size="11" color="var(--color-fox)" />{{ $activeFilterCount }}<span class="sr-only"> valittua rajausta</span></span>
+        @endif
+        <svg class="vk-chevron" viewBox="0 0 18 18" aria-hidden="true" focusable="false"><path d="M4 7l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
     </button>
 
     {{-- Filter Content (collapses on all sizes).
 
          The "Hinnoittelumalli" section was removed from here: pricing type is the filter
-         visitors actually need on a spot-heavy list, so it is now the always-visible pill
-         row above the list (partials/pricing-bucket-pills.blade.php). The old section also
+         visitors actually need on a spot-heavy list, so it is now the always-visible row
+         above the list (partials/pricing-bucket-pills.blade.php). The old section also
          mixed real pricing mechanisms with metering pseudo-types (Quarterly / TimeOfUse /
          Seasonal name-matching), which are reachable through their own SEO pages. The
          `pricingModelFilter` property and its query logic are intentionally kept so legacy
          `?pricingModelFilter=` links keep working. --}}
-    <div x-show="filtersOpen" x-collapse x-cloak class="lg:flex flex-wrap gap-y-4 pt-3 pb-5 border-t border-slate-100">
-        {{-- Contract Duration Filters --}}
-        <div class="flex flex-col px-4">
-            <h4 class="font-semibold text-slate-900 mb-2">Sopimuksen kesto</h4>
-            <div class="flex flex-col lg:flex-row gap-2">
-                @foreach ($contractTypes as $type => $label)
-                    @php
-                        $icons = [
-                            'OpenEnded' => 'M13 5l7 7-7 7M5 5l7 7-7 7',
-                            'FixedTerm' => 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
-                        ];
-                        $icon = $icons[$type] ?? $icons['OpenEnded'];
-                        $isActive = $contractTypeFilter === $type;
-                    @endphp
-                    <button
-                        wire:click="setContractTypeFilter('{{ $type }}')"
-                        class="flex items-center border focus:outline-none font-medium rounded-lg text-sm px-4 py-2 transition-all {{ $isActive ? 'bg-slate-950 border-slate-950 text-white' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300' }}"
-                    >
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $icon }}"></path>
-                        </svg>
-                        {{ $label }}
-                    </button>
-                @endforeach
+    <div x-show="filtersOpen" x-collapse x-cloak class="vk-disclosure-panel">
+        <div class="flex flex-col gap-5 sm:flex-row sm:gap-12">
+            {{-- Contract duration: one value at a time (radio look). --}}
+            <div>
+                <p class="vk-form-label" id="filter-duration-label">Sopimuksen kesto</p>
+                <div class="vk-choices mt-1" role="group" aria-labelledby="filter-duration-label">
+                    @foreach ($contractTypes as $type => $label)
+                        @php $isActive = $contractTypeFilter === $type; @endphp
+                        <button
+                            type="button"
+                            wire:click="setContractTypeFilter('{{ $type }}')"
+                            aria-pressed="{{ $isActive ? 'true' : 'false' }}"
+                            class="vk-choice"
+                        >
+                            @if ($isActive)
+                                <svg class="vk-mark" viewBox="0 0 22 22" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="9.5" style="fill: var(--color-fox)" /><path d="M6.5 11.5 L9.6 14.3 L15.6 7.8" fill="none" style="stroke: var(--color-snow-white)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                            @else
+                                <svg class="vk-mark" viewBox="0 0 22 22" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="9" style="fill: var(--color-snow-white); stroke: var(--color-field-edge)" stroke-width="2" /></svg>
+                            @endif
+                            {{ $label }}
+                        </button>
+                    @endforeach
+                </div>
+            </div>
+
+            {{-- Energy source: independent toggles (checkbox look). --}}
+            <div>
+                <p class="vk-form-label" id="filter-energy-label">Energialähde</p>
+                <div class="vk-choices mt-1" role="group" aria-labelledby="filter-energy-label">
+                    @foreach (['fossilFreeFilter' => ['Fossiiliton', $fossilFreeFilter], 'renewableFilter' => ['Uusiutuva', $renewableFilter], 'nuclearFilter' => ['Ydinvoima', $nuclearFilter]] as $filterProperty => [$filterLabel, $filterOn])
+                        <button
+                            type="button"
+                            wire:click="$toggle('{{ $filterProperty }}')"
+                            aria-pressed="{{ $filterOn ? 'true' : 'false' }}"
+                            class="vk-choice"
+                        >
+                            @if ($filterOn)
+                                <svg class="vk-mark" viewBox="0 0 22 22" aria-hidden="true" focusable="false"><rect x="1" y="1" width="20" height="20" rx="5" style="fill: var(--color-fox)" /><path d="M6.5 11.5 L9.6 14.3 L15.6 7.8" fill="none" style="stroke: var(--color-snow-white)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                            @else
+                                <svg class="vk-mark" viewBox="0 0 22 22" aria-hidden="true" focusable="false"><rect x="2" y="2" width="18" height="18" rx="5" style="fill: var(--color-snow-white); stroke: var(--color-field-edge)" stroke-width="2" /></svg>
+                            @endif
+                            {{ $filterLabel }}
+                        </button>
+                    @endforeach
+                </div>
             </div>
         </div>
 
-        {{-- Energy Source Filters --}}
-        <div class="mt-4 flex flex-col border-t border-slate-200 px-4 pt-4 lg:mt-0 lg:border-l lg:border-t-0 lg:pt-0">
-            <h4 class="font-semibold text-slate-900 mb-2">Energialähde</h4>
-            <div class="flex flex-col lg:flex-row gap-2">
-                <button
-                    wire:click="$toggle('fossilFreeFilter')"
-                    class="flex items-center border focus:outline-none font-medium rounded-lg text-sm px-4 py-2 transition-all {{ $fossilFreeFilter ? 'bg-slate-950 border-slate-950 text-white' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300' }}"
-                >
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
-                    </svg>
-                    Fossiiliton
-                </button>
-                <button
-                    wire:click="$toggle('renewableFilter')"
-                    class="flex items-center border focus:outline-none font-medium rounded-lg text-sm px-4 py-2 transition-all {{ $renewableFilter ? 'bg-slate-950 border-slate-950 text-white' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300' }}"
-                >
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
-                    </svg>
-                    Uusiutuva
-                </button>
-                <button
-                    wire:click="$toggle('nuclearFilter')"
-                    class="flex items-center border focus:outline-none font-medium rounded-lg text-sm px-4 py-2 transition-all {{ $nuclearFilter ? 'bg-slate-950 border-slate-950 text-white' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300' }}"
-                >
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                    </svg>
-                    Ydinvoima
-                </button>
-            </div>
-        </div>
         {{-- Clear Filters. Inside the collapsible panel on purpose: when the
              accordion holds an active filter, the panel opens by default, and a
              pill or postcode selection already has its own inline clear action.
              Outside the panel this link floated inside the collapsed box. --}}
         @if ($this->hasActiveFilters())
-            <div class="w-full px-4 pt-4">
-                <button
-                    wire:click="resetFilters"
-                    class="text-sm text-coral-600 hover:text-coral-700 font-medium"
-                >
-                    Tyhjennä suodattimet
-                </button>
-            </div>
+            <button
+                type="button"
+                wire:click="resetFilters"
+                class="vk-inked-link vk-focus mt-4"
+            >
+                Tyhjennä suodattimet
+            </button>
         @endif
     </div>
 </div>

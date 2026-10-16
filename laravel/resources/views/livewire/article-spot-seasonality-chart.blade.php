@@ -5,70 +5,62 @@
         : number_format($v, $decimals, ',', ' ');
 @endphp
 
-<section class="not-prose" aria-labelledby="seasonality-heading">
-    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-coral-700">Spot-hinnan kausivaihtelu</p>
-    <h2 id="seasonality-heading" class="mt-2 text-2xl font-bold tracking-tight text-slate-900">
-        Milloin sähkö on halvinta?
-    </h2>
-    <p class="mt-2 max-w-prose text-base leading-7 text-slate-600">
+<section class="vk-lr-figure" aria-labelledby="seasonality-heading">
+    <div class="vk-lr-figure-head">
+        <p class="vk-lr-figure-kicker">Spot-hinnan kausivaihtelu</p>
+        <x-site.section-heading id="seasonality-heading" wave="270">Milloin sähkö on halvinta?</x-site.section-heading>
+    </div>
+    <p class="vk-lr-text">
         Pörssisähkön hinta vaihtelee selvästi vuodenajan mukaan. Kuvaaja näyttää kuukausittaiset keskiarvot
         viimeiseltä 13 kuukaudelta: päivähinnat (klo 7–22) ja yöhinnat (klo 22–7). ALV 25,5 % sisältyy hintoihin.
     </p>
 
     @if (!$hasData)
-        <div class="mt-6 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm text-slate-600">
+        <p class="vk-lr-empty">
             Kausitilastoa ei ole vielä saatavilla.
-        </div>
+        </p>
     @else
-        <p id="seasonality-takeaway" class="mt-6 max-w-prose text-base leading-7 text-slate-700">
+        <p id="seasonality-takeaway" class="vk-lr-text">
             <strong>Aineiston halvin kuukausi oli {{ $metrics['cheapestLabel'] }}</strong>, jolloin keskihinta oli {{ $fmt($metrics['cheapestPrice']) }} c/kWh. Kallein oli {{ $metrics['expensiveLabel'] }}, jolloin keskihinta oli {{ $fmt($metrics['expensivePrice']) }} c/kWh.
         </p>
 
-        {{-- Headline figures --}}
-        <dl class="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-6 border-t border-slate-200 pt-6">
-            <div>
-                <dt class="text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-500">Halvin kuukausi</dt>
-                <dd class="mt-1 text-2xl font-extrabold tabular-nums text-slate-900">
-                    {{ $fmt($metrics['cheapestPrice']) }}<span class="text-sm font-medium text-slate-500"> c/kWh</span>
-                </dd>
-                <p class="mt-1 text-[11px] text-slate-500">{{ $metrics['cheapestLabel'] }}</p>
+        {{-- Headline figures (Paper "Stat row") --}}
+        <dl class="vk-lr-stats">
+            <div class="vk-lr-stat vk-lr-stat--low">
+                <dt>Halvin kuukausi</dt>
+                <dd class="tabular-nums">{{ $fmt($metrics['cheapestPrice']) }}<span class="vk-lr-stat-unit"> c/kWh</span></dd>
+                <p class="vk-lr-stat-sub">{{ $metrics['cheapestLabel'] }}</p>
             </div>
-            <div>
-                <dt class="text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-500">Kallein kuukausi</dt>
-                <dd class="mt-1 text-2xl font-extrabold tabular-nums text-slate-900">
-                    {{ $fmt($metrics['expensivePrice']) }}<span class="text-sm font-medium text-slate-500"> c/kWh</span>
-                </dd>
-                <p class="mt-1 text-[11px] text-slate-500">{{ $metrics['expensiveLabel'] }}</p>
+            <div class="vk-lr-stat vk-lr-stat--high">
+                <dt>Kallein kuukausi</dt>
+                <dd class="tabular-nums">{{ $fmt($metrics['expensivePrice']) }}<span class="vk-lr-stat-unit"> c/kWh</span></dd>
+                <p class="vk-lr-stat-sub">{{ $metrics['expensiveLabel'] }}</p>
             </div>
-            <div>
-                <dt class="text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-500">Päivän keskihinta</dt>
-                <dd class="mt-1 text-2xl font-extrabold tabular-nums text-slate-900">
-                    {{ $fmt($metrics['avgDay']) }}<span class="text-sm font-medium text-slate-500"> c/kWh</span>
-                </dd>
-                <p class="mt-1 text-[11px] text-slate-500">Klo 7–22</p>
+            <div class="vk-lr-stat">
+                <dt>Päivän keskihinta</dt>
+                <dd class="tabular-nums">{{ $fmt($metrics['avgDay']) }}<span class="vk-lr-stat-unit"> c/kWh</span></dd>
+                <p class="vk-lr-stat-sub">Klo 7–22</p>
             </div>
-            <div>
-                <dt class="text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-500">Yön keskihinta</dt>
-                <dd class="mt-1 text-2xl font-extrabold tabular-nums text-slate-900">
-                    {{ $fmt($metrics['avgNight']) }}<span class="text-sm font-medium text-slate-500"> c/kWh</span>
-                </dd>
-                <p class="mt-1 text-[11px] text-slate-500">Klo 22–7</p>
+            <div class="vk-lr-stat">
+                <dt>Yön keskihinta</dt>
+                <dd class="tabular-nums">{{ $fmt($metrics['avgNight']) }}<span class="vk-lr-stat-unit"> c/kWh</span></dd>
+                <p class="vk-lr-stat-sub">Klo 22–7</p>
             </div>
         </dl>
 
-        <div class="relative mt-8">
-            <div class="flex flex-wrap items-center gap-x-5 gap-y-2 mb-4">
-                <span class="flex items-center gap-2 text-sm text-slate-600">
-                    <span class="h-3 w-3 rounded-sm bg-coral-500"></span>
+        <div class="flex flex-col gap-3">
+            <div class="vk-lr-legend">
+                <span class="vk-lr-legend-item">
+                    <span class="vk-lr-swatch" style="--lr-swatch: var(--color-fox)"></span>
                     Päivä (7–22)
                 </span>
-                <span class="flex items-center gap-2 text-sm text-slate-600">
-                    <span class="h-3 w-3 rounded-sm bg-slate-400"></span>
+                <span class="vk-lr-legend-item">
+                    <span class="vk-lr-swatch" style="--lr-swatch: var(--color-lake)"></span>
                     Yö (22–7)
                 </span>
             </div>
 
-            <div class="relative" style="height: 280px;">
+            <div class="vk-lr-chart" style="height: 280px;">
                 <canvas
                     id="seasonalityChart"
                     data-chart="{{ json_encode($chartData) }}"
@@ -79,26 +71,24 @@
             </div>
         </div>
 
-        <details class="mt-6 border-t border-slate-200 pt-4">
-            <summary class="cursor-pointer font-semibold text-slate-700 underline decoration-slate-300 underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-coral-500">
-                Näytä tiedot taulukkona
-            </summary>
-            <div class="mt-4 overflow-x-auto">
-                <table class="min-w-full border-collapse text-left text-sm text-slate-700 tabular-nums">
+        <details class="vk-lr-details">
+            <summary>Näytä tiedot taulukkona</summary>
+            <div class="vk-lr-table-wrap">
+                <table class="vk-lr-table">
                     <caption class="sr-only">Pörssisähkön kuukausittaiset päivä- ja yöhinnat.</caption>
                     <thead>
-                        <tr class="border-b border-slate-200">
-                            <th scope="col" class="whitespace-nowrap px-3 py-2 font-semibold text-slate-900">Kuukausi</th>
-                            <th scope="col" class="whitespace-nowrap px-3 py-2 font-semibold text-slate-900">Päivä klo 7–22 (c/kWh)</th>
-                            <th scope="col" class="whitespace-nowrap px-3 py-2 font-semibold text-slate-900">Yö klo 22–7 (c/kWh)</th>
+                        <tr>
+                            <th scope="col">Kuukausi</th>
+                            <th scope="col">Päivä klo 7–22 (c/kWh)</th>
+                            <th scope="col">Yö klo 22–7 (c/kWh)</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach ($chartData['labels'] as $index => $label)
-                            <tr class="border-b border-slate-100">
-                                <th scope="row" class="whitespace-nowrap px-3 py-2 font-medium text-slate-900">{{ $label }}</th>
-                                <td class="whitespace-nowrap px-3 py-2">{{ $fmt($chartData['day'][$index]) }}</td>
-                                <td class="whitespace-nowrap px-3 py-2">{{ $fmt($chartData['night'][$index]) }}</td>
+                            <tr>
+                                <th scope="row">{{ $label }}</th>
+                                <td>{{ $fmt($chartData['day'][$index]) }}</td>
+                                <td>{{ $fmt($chartData['night'][$index]) }}</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -106,7 +96,7 @@
             </div>
         </details>
 
-        <p class="mt-5 max-w-prose text-base leading-7 text-slate-600">
+        <p class="vk-lr-text vk-lr-text--small">
             Talvipäivinä kysyntäpiikit nostavat hintaa merkittävästi, kun taas yöllä ja viikonloppuisin hinta
             on usein matalampi. Ero päivän ja yön välillä voi olla useita senttejä kilowattitunnilta.
         </p>
@@ -126,6 +116,11 @@
                     ctx.chartInstance.destroy();
                 }
 
+                // Design tokens (resources/css/tokens.css): the canvas cannot read CSS variables itself.
+                const token = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+                const ink = token('--color-ink');
+                const tickFont = { family: 'Figtree, system-ui, sans-serif', size: 12, weight: '700' };
+
                 try {
                     const chartData = JSON.parse(dataAttr);
 
@@ -137,15 +132,17 @@
                                 {
                                     label: 'Päivä (7–22)',
                                     data: chartData.day,
-                                    backgroundColor: '#f97316',
-                                    borderRadius: 4,
+                                    backgroundColor: token('--color-fox'),
+                                    borderRadius: { topLeft: 2, topRight: 2 },
+                                    borderSkipped: 'bottom',
                                     barPercentage: 0.7,
                                 },
                                 {
                                     label: 'Yö (22–7)',
                                     data: chartData.night,
-                                    backgroundColor: '#94a3b8',
-                                    borderRadius: 4,
+                                    backgroundColor: token('--color-lake'),
+                                    borderRadius: { topLeft: 2, topRight: 2 },
+                                    borderSkipped: 'bottom',
                                     barPercentage: 0.7,
                                 }
                             ]
@@ -162,11 +159,11 @@
                                     display: false
                                 },
                                 tooltip: {
-                                    backgroundColor: '#0f172a',
-                                    titleFont: { size: 13, weight: 'bold' },
-                                    bodyFont: { size: 12 },
+                                    backgroundColor: ink,
+                                    titleFont: { family: 'Figtree, system-ui, sans-serif', size: 13, weight: 'bold' },
+                                    bodyFont: { family: 'Figtree, system-ui, sans-serif', size: 12 },
                                     padding: 10,
-                                    cornerRadius: 8,
+                                    cornerRadius: 4,
                                     callbacks: {
                                         label: function(context) {
                                             return context.dataset.label + ': ' + context.parsed.y.toLocaleString('fi-FI', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' c/kWh';
@@ -177,20 +174,26 @@
                             scales: {
                                 x: {
                                     grid: { display: false },
+                                    border: { color: ink, width: 1.8 },
                                     ticks: {
-                                        font: { size: 11 }
+                                        color: token('--color-ink-muted'),
+                                        font: tickFont,
+                                        autoSkip: true,
+                                        maxRotation: 0,
                                     }
                                 },
                                 y: {
                                     beginAtZero: true,
+                                    border: { display: false, dash: [3, 4] },
                                     ticks: {
                                         callback: function(value) {
                                             return value + ' c';
                                         },
-                                        font: { size: 11 }
+                                        color: token('--color-ink-muted'),
+                                        font: tickFont,
                                     },
                                     grid: {
-                                        color: '#f1f5f9'
+                                        color: token('--color-edge'),
                                     }
                                 }
                             }

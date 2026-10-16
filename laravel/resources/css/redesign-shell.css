@@ -1,0 +1,540 @@
+/* Redesign styles owned by the shell agent. Shared rules stay in redesign.css. */
+
+/*
+ * One-off colours from the Paper footer with no token (spec §9 open item 1).
+ */
+:root {
+    /* "Kaikki paikkakunnat →" on night (Paper footer). */
+    --shell-footer-accent: #FFB48A;
+    /* Hairline between the footer link columns and the identity row: night-lead at 25%. */
+    --shell-night-rule: #C9D3E340;
+    /* Legal line on night (Paper footer, 13px). */
+    --shell-footer-legal: #AEB9CC;
+}
+
+/* ---------- Top bar (Paper "Top bar") ---------- */
+
+.vk-topbar {
+    color: var(--tone-strong);
+}
+
+.vk-topbar-wordmark {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 23px;
+    line-height: 28px;
+    letter-spacing: -0.02em;
+    color: var(--tone-strong);
+}
+
+.vk-nav-item {
+    display: inline-block;
+    padding-block: 6px;
+    border-bottom: 2px solid transparent;
+    font-size: var(--text-ui);
+    line-height: 18px;
+    font-weight: 700;
+    color: var(--tone-soft);
+    white-space: nowrap;
+    transition: color 120ms ease;
+}
+
+.vk-nav-item:hover {
+    color: var(--tone-strong);
+}
+
+.vk-nav-item.is-active {
+    font-weight: 800;
+    color: var(--tone-strong);
+    border-bottom-color: var(--color-fox);
+}
+
+/* Dropdown: a ground-colour panel with an inked edge, no card. The transparent padding above
+   the panel fills the space down from the trigger, so the pointer never leaves the hover area. */
+.vk-nav-panel {
+    padding-top: 26px;
+}
+
+.vk-nav-panel-body {
+    display: flex;
+    flex-direction: column;
+    min-width: 240px;
+    padding-block: 10px;
+    background: var(--color-ground);
+    border: 1.5px solid var(--color-ink);
+}
+
+.vk-nav-panel-link {
+    display: block;
+    padding: 7px 18px;
+    font-size: var(--text-ui);
+    line-height: var(--leading-ui);
+    font-weight: 700;
+    color: var(--color-ink-body);
+    white-space: nowrap;
+}
+
+.vk-nav-panel-link:hover {
+    color: var(--color-ink);
+    text-decoration: underline;
+    text-decoration-color: var(--color-fox);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 5px;
+}
+
+.vk-nav-panel-link.is-active {
+    font-weight: 800;
+    color: var(--color-ink);
+    text-decoration: underline;
+    text-decoration-color: var(--color-fox);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 5px;
+}
+
+/* Spot price as plain text (no pill): sparkle + "Spot-hinta" + price. */
+.vk-topbar-spot {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.vk-topbar-spot-mark {
+    align-self: center;
+}
+
+.vk-topbar-spot-label,
+.vk-topbar-spot-loading,
+.vk-topbar-spot-unavailable {
+    font-size: 13px;
+    line-height: 18px;
+    font-weight: 700;
+    color: var(--tone-soft);
+}
+
+.vk-topbar-spot-price {
+    font-family: var(--font-display);
+    font-size: 16px;
+    line-height: 22px;
+    font-weight: 800;
+    color: var(--tone-strong);
+    font-variant-numeric: tabular-nums;
+}
+
+.vk-topbar-spot:hover .vk-topbar-spot-price,
+.vk-topbar-spot:hover .vk-topbar-spot-unavailable {
+    text-decoration: underline;
+    text-decoration-color: var(--color-fox);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 5px;
+}
+
+.vk-topbar-spot-arrow {
+    font-weight: 800;
+    color: var(--tone-strong);
+}
+
+/* Phone: the label is for screen readers only, so logo, price and menu fit in 390px. */
+@media (max-width: 639px) {
+    .vk-topbar-spot-label {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+    }
+
+    .vk-topbar-spot-unavailable {
+        white-space: normal;
+        max-width: 132px;
+        text-align: right;
+        line-height: 16px;
+    }
+}
+
+@media (min-width: 1024px) {
+    .vk-topbar-wordmark {
+        font-size: 28px;
+        line-height: 34px;
+    }
+
+    .vk-topbar-spot {
+        gap: 8px;
+    }
+
+    .vk-topbar-spot-label,
+    .vk-topbar-spot-loading,
+    .vk-topbar-spot-unavailable {
+        font-size: var(--text-ui);
+    }
+
+    .vk-topbar-spot-price {
+        font-size: 18px;
+    }
+}
+
+/* The laptop width (1024–1279) is narrow for logo, five nav items and the price:
+   smaller nav text and no "Spot-hinta" label. */
+@media (min-width: 1024px) and (max-width: 1279px) {
+    .vk-nav-item {
+        font-size: var(--text-label);
+    }
+
+    .vk-topbar-spot-label {
+        display: none;
+    }
+}
+
+.vk-topbar-menu-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    margin-right: -10px;
+    color: var(--tone-strong);
+}
+
+/* Mobile menu: a night panel over the hero. */
+.vk-mobile-menu {
+    max-height: calc(100vh - 64px);
+    overflow-y: auto;
+    background: var(--color-night);
+    border-bottom: 3px solid var(--color-fox);
+}
+
+.vk-mobile-menu-row + .vk-mobile-menu-row {
+    border-top: 1px solid var(--shell-night-rule);
+}
+
+.vk-mobile-menu-item {
+    padding-block: 13px;
+    font-size: 17px;
+    line-height: 22px;
+    font-weight: 700;
+    color: var(--color-snow-white);
+}
+
+.vk-mobile-menu-link {
+    padding-block: 8px;
+    font-size: var(--text-ui);
+    line-height: var(--leading-ui);
+    color: var(--color-night-lead);
+}
+
+.vk-mobile-menu-item.is-active,
+.vk-mobile-menu-link.is-active {
+    font-weight: 800;
+    color: var(--color-snow-white);
+}
+
+.vk-mobile-menu-item.is-active > span,
+a.vk-mobile-menu-item.is-active,
+.vk-mobile-menu-link.is-active {
+    text-decoration: underline;
+    text-decoration-color: var(--color-fox);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 6px;
+}
+
+/* A primary nav link that was clicked and is loading (layout script). */
+.vk-nav-pending {
+    opacity: 0.7;
+}
+
+/* ---------- Preferred Sources strip (Paper "R3 · Strip" boards) ---------- */
+
+/* Directly under every painted hero. Below 1024 there is no art (it does not download either):
+   title, text and the note, about 195px high. From 1024 one centred row: art box 384 × 150 ·
+   title + text · note with its small text, about 155px high. A 1px edge line closes the strip;
+   the next block starts 32px (48px desktop) below it. */
+.vk-strip-wrap {
+    padding-top: 20px;
+    padding-bottom: 32px;
+}
+
+.vk-strip-row {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--color-edge);
+}
+
+.vk-strip-art {
+    display: none;
+}
+
+.vk-strip-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+}
+
+.vk-strip-title {
+    font-family: var(--font-display);
+    font-size: 22px;
+    line-height: 26px;
+    font-weight: 800;
+    letter-spacing: var(--tracking-display);
+    color: var(--color-ink);
+}
+
+.vk-strip-text {
+    font-size: var(--text-ui);
+    line-height: 22px;
+    color: var(--color-ink-body);
+}
+
+.vk-strip-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding-top: 6px;
+}
+
+.vk-strip-small {
+    display: none;
+    max-width: 276px;
+    font-size: var(--text-label);
+    line-height: var(--leading-label);
+    color: var(--color-ink-muted);
+}
+
+@media (min-width: 1024px) {
+    .vk-strip-wrap {
+        padding-top: 4px;
+        padding-bottom: 48px;
+    }
+
+    .vk-strip-row {
+        flex-direction: row;
+        align-items: center;
+        gap: 32px;
+        padding-bottom: 0;
+    }
+
+    /* The art gives way first on a narrow laptop (1024–1279), so the text and note never overflow. */
+    .vk-strip-art {
+        display: block;
+        flex: 0 1 384px;
+        min-width: 0;
+        height: 150px;
+    }
+
+    .vk-strip-art img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        object-position: left bottom;
+    }
+
+    /* min-width auto: the one-line title sets the narrowest text column, the art shrinks instead. */
+    .vk-strip-body {
+        flex: 1 1 auto;
+        min-width: auto;
+        gap: 8px;
+    }
+
+    .vk-strip-title {
+        font-size: 26px;
+        line-height: 30px;
+        white-space: nowrap;
+    }
+
+    .vk-strip-text {
+        max-width: 440px;
+        font-size: var(--text-body);
+        line-height: var(--leading-body);
+    }
+
+    .vk-strip-actions {
+        flex: 0 0 auto;
+        padding-top: 0;
+    }
+
+    .vk-strip-small {
+        display: block;
+    }
+}
+
+@media (min-width: 1280px) {
+    .vk-strip-row {
+        gap: 48px;
+    }
+}
+
+/* The action: a pinned paper note, the real button. Snow-white paper with a 2px ink edge on three
+   sides, a torn bottom edge (the bill form zigzag) and a fox pin on the top edge. Not a pill and
+   no shadow. The loading text uses the same box, so nothing jumps when Google is ready. */
+.vk-strip-note {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    width: 276px;
+    max-width: 100%;
+    padding: 8px 0 9px;
+    background: none;
+    border: 0;
+    color: var(--color-ink);
+    cursor: pointer;
+    text-align: left;
+}
+
+.vk-strip-note::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 9px;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='276' height='9' viewBox='0 0 276 9'%3E%3Cpath d='M1 0V5L7 8L13 4L20 8L26 3L33 7L40 4L46 8L53 3L60 7L66 4L73 8L80 3L86 7L93 4L100 8L106 3L113 7L120 4L126 8L133 3L140 7L146 4L153 8L160 3L166 7L173 4L180 8L186 3L193 7L200 4L206 8L213 3L220 7L226 4L233 8L240 3L246 7L253 4L260 8L266 3L271 7L275 4V0Z' fill='%23FFFFFF'/%3E%3Cpath d='M1 0V5L7 8L13 4L20 8L26 3L33 7L40 4L46 8L53 3L60 7L66 4L73 8L80 3L86 7L93 4L100 8L106 3L113 7L120 4L126 8L133 3L140 7L146 4L153 8L160 3L166 7L173 4L180 8L186 3L193 7L200 4L206 8L213 3L220 7L226 4L233 8L240 3L246 7L253 4L260 8L266 3L271 7L275 4V0' fill='none' stroke='%2316202E' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E") left top / 100% 9px no-repeat;
+}
+
+.vk-strip-note-paper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 47px;
+    padding: 13px 20px 12px;
+    background-color: var(--color-snow-white);
+    border: 2px solid var(--color-ink);
+    border-bottom: 0;
+    border-radius: 3px 3px 0 0;
+}
+
+.vk-strip-note-pin {
+    position: absolute;
+    top: -8px;
+    left: calc(50% - 7px);
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background-color: var(--color-fox);
+    border: 2px solid var(--color-fox-deep);
+}
+
+.vk-strip-note-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    white-space: nowrap;
+    font-size: 17px;
+    line-height: 22px;
+    font-weight: 800;
+}
+
+.vk-strip-note:hover:not(:disabled) {
+    color: var(--color-fox-deep);
+}
+
+.vk-strip-note:hover:not(:disabled) .vk-strip-note-paper {
+    background-color: #FFF8F1;
+    border-color: var(--color-fox-deep);
+}
+
+.vk-strip-note:hover:not(:disabled) .vk-strip-note-label {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.vk-strip-note:hover:not(:disabled)::after {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='276' height='9' viewBox='0 0 276 9'%3E%3Cpath d='M1 0V5L7 8L13 4L20 8L26 3L33 7L40 4L46 8L53 3L60 7L66 4L73 8L80 3L86 7L93 4L100 8L106 3L113 7L120 4L126 8L133 3L140 7L146 4L153 8L160 3L166 7L173 4L180 8L186 3L193 7L200 4L206 8L213 3L220 7L226 4L233 8L240 3L246 7L253 4L260 8L266 3L271 7L275 4V0Z' fill='%23FFF8F1'/%3E%3Cpath d='M1 0V5L7 8L13 4L20 8L26 3L33 7L40 4L46 8L53 3L60 7L66 4L73 8L80 3L86 7L93 4L100 8L106 3L113 7L120 4L126 8L133 3L140 7L146 4L153 8L160 3L166 7L173 4L180 8L186 3L193 7L200 4L206 8L213 3L220 7L226 4L233 8L240 3L246 7L253 4L260 8L266 3L271 7L275 4V0' fill='none' stroke='%239E3C10' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.vk-strip-note:disabled {
+    cursor: wait;
+}
+
+.vk-strip-action-loading {
+    font-size: var(--text-ui);
+    font-weight: 700;
+    color: var(--color-ink-muted);
+}
+
+/* ---------- Footer (Paper "Footer · night village") ---------- */
+
+/* Scene band: 430px at 1440 shows the 1440x810 plate from y 290 to 720 (object-position 76%). */
+.vk-footer-scene {
+    position: relative;
+    height: clamp(250px, 29.86vw, 430px);
+    overflow: hidden;
+    background: var(--color-night);
+}
+
+.vk-footer-scene img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    object-fit: cover;
+    object-position: 50% 76.3%;
+}
+
+.vk-footer-head {
+    font-size: var(--text-body);
+    line-height: 20px;
+    font-weight: 800;
+    color: var(--color-snow-white);
+}
+
+.vk-footer-link {
+    display: block;
+    width: fit-content;
+    font-size: var(--text-label);
+    line-height: var(--leading-label);
+    color: var(--color-night-lead);
+}
+
+.vk-footer-link:hover {
+    color: var(--color-snow-white);
+    text-decoration: underline;
+    text-underline-offset: 4px;
+}
+
+.vk-footer-link-accent {
+    color: var(--shell-footer-accent);
+}
+
+.vk-footer-rule {
+    border-top: 1px solid var(--shell-night-rule);
+}
+
+.vk-footer-wordmark {
+    font-family: var(--font-display);
+    font-size: 24px;
+    line-height: 30px;
+    font-weight: 800;
+    color: var(--color-snow-white);
+}
+
+.vk-footer-text {
+    font-size: var(--text-label);
+    line-height: 21px;
+    color: var(--color-night-lead);
+}
+
+.vk-footer-legal {
+    font-size: var(--text-caption);
+    line-height: 20px;
+    color: var(--shell-footer-legal);
+}
+
+.vk-footer-inline-link {
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-color: var(--shell-night-rule);
+    text-underline-offset: 3px;
+}
+
+.vk-footer-inline-link:hover {
+    color: var(--color-snow-white);
+    text-decoration-color: currentColor;
+}

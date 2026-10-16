@@ -11,6 +11,7 @@ use App\Services\ContractStatistics\AnnualSeriesCompatibility;
 use App\Services\ContractStatistics\ContractPriceBasis;
 use App\Services\ContractStatistics\ContractStatisticsSegmentClassifier;
 use App\Services\ContractStatistics\SellerSetEnergyPriceIndexService;
+use App\Support\Season;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -770,6 +771,8 @@ class ContractPriceStatistics extends Component
             'title' => 'Sähkösopimusten hintakehitys ja hintatilastot Suomessa | Voltikka',
             'metaDescription' => 'Sähkösopimusten hintakehitys ja hintatilastot Suomessa. Seuraa pörssi-, määräaikais- ja toistaiseksi voimassa olevien sopimusten hintojen kehitystä, hintaeroja ja vuosikustannuksia eri kulutustasoilla.',
             'canonical' => config('app.url').'/sahkosopimus/tilastot',
+            // Outside the prepared-data cache: the hero tone follows the current season.
+            'heroTone' => Season::heroTone('stats-hero'),
         ]);
     }
 

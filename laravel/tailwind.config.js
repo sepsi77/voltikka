@@ -13,9 +13,38 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                sans: ['Plus Jakarta Sans', ...defaultTheme.fontFamily.sans],
+                // Redesign type (design/voltikka-design-system.md §3).
+                sans: ['Figtree', ...defaultTheme.fontFamily.sans],
+                display: ['"Bricolage Grotesque"', ...defaultTheme.fontFamily.sans],
+            },
+            maxWidth: {
+                content: 'var(--container-content)',
+                text: 'var(--container-text)',
+                'hero-text': 'var(--container-hero-text)',
             },
             colors: {
+                // Redesign tokens (resources/css/tokens.css). Values are CSS variables, so
+                // opacity modifiers such as bg-ink/50 do not work with these names.
+                ground: 'var(--color-ground)',
+                snow: 'var(--color-snow-white)',
+                edge: { DEFAULT: 'var(--color-edge)', strong: 'var(--color-edge-strong)' },
+                'field-edge': 'var(--color-field-edge)',
+                ink: { DEFAULT: 'var(--color-ink)', body: 'var(--color-ink-body)', muted: 'var(--color-ink-muted)' },
+                night: { DEFAULT: 'var(--color-night)', lead: 'var(--color-night-lead)' },
+                fox: { DEFAULT: 'var(--color-fox)', deep: 'var(--color-fox-deep)' },
+                aurora: 'var(--color-aurora)',
+                lake: 'var(--color-lake)',
+                granite: 'var(--color-granite)',
+                'price-high': 'var(--color-price-high)',
+                'price-low': 'var(--color-price-low)',
+                'warning-ink': 'var(--color-warning-ink)',
+                'cat-spot': 'var(--color-cat-spot)',
+                'cat-periodic': 'var(--color-cat-periodic)',
+                'cat-usage': 'var(--color-cat-usage)',
+                'cat-fixed': 'var(--color-cat-fixed)',
+                saving: 'var(--color-saving)',
+                forecast: 'var(--color-forecast)',
+                star: 'var(--color-star)',
                 // Coral - Primary Accent (Fresh Coral design system)
                 coral: {
                     50: '#fff7ed',

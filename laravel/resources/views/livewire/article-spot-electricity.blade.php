@@ -25,44 +25,34 @@
         {!! json_encode($jsonLdSchema, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!}
     </script>
 
-    {{-- Hero Section --}}
-    <section class="relative -mx-4 overflow-hidden bg-slate-950 sm:-mx-6 lg:-mx-8">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-            <div class="py-12 lg:py-16">
-                <div class="max-w-3xl mx-auto text-center">
-                    <div class="inline-flex items-center gap-2 rounded-full border border-coral-500/20 bg-coral-500/10 px-4 py-2 text-sm font-medium text-coral-300 mb-6">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                        </svg>
-                        Sähkösopimusvertailu
-                    </div>
-                    <h1 class="text-4xl font-extrabold text-white tracking-tight leading-tight md:text-5xl xl:text-6xl mb-6">
-                        Kannattaako pörssisähkö?
-                    </h1>
-                    <p class="text-slate-300 text-lg md:text-xl max-w-2xl mx-auto">
-                        {{ $marketConclusion }} Pörssisähkön hinta vaihtelee silti tunneittain, joten sähkölasku voi muuttua paljon kuukaudesta toiseen.
-                    </p>
-                </div>
-            </div>
+    {{-- Editorial header (Paper 6HX-0 "Editorial hero (fireside)"): no painted plate, so the
+         page passes no heroTone and the top bar sits on its night band above it. --}}
+    <x-site.longread-hero variant="article" tone="light" figure="article-fox-fireside" figure-width="560" figure-height="420" :drift="false">
+        <p class="vk-lr-kicker">Sähkösopimusvertailu</p>
+        <div>
+            <h1 class="vk-lr-title">Kannattaako pörssisähkö?</h1>
+            <x-ink.wave width="560" stroke="5" class="vk-lr-title-wave" />
         </div>
-    </section>
+        <p class="vk-lr-hero-lead">
+            {{ $marketConclusion }} Pörssisähkön hinta vaihtelee silti tunneittain, joten sähkölasku voi muuttua paljon kuukaudesta toiseen.
+        </p>
+    </x-site.longread-hero>
 
     <x-page-action-strip />
 
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="vk-wrap vk-lr-page">
 
-        {{-- Breadcrumb --}}
-        <nav class="mb-6" aria-label="Breadcrumb">
-            <ol class="flex items-center space-x-2 text-sm text-slate-500">
-                <li><a href="/" class="hover:text-coral-600 transition-colors">Etusivu</a></li>
-                <li><svg class="w-4 h-4 mx-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></li>
-                <li><a href="/sahkosopimus" class="hover:text-coral-600 transition-colors">Sähkösopimukset</a></li>
-                <li><svg class="w-4 h-4 mx-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></li>
-                <li class="font-medium text-slate-900" aria-current="page">Kannattaako pörssisähkö</li>
+        <nav class="vk-crumbs" aria-label="Breadcrumb">
+            <ol>
+                <li><a href="/" class="vk-focus">Etusivu</a></li>
+                <li aria-hidden="true">/</li>
+                <li><a href="/sahkosopimus" class="vk-focus">Sähkösopimukset</a></li>
+                <li aria-hidden="true">/</li>
+                <li aria-current="page">Kannattaako pörssisähkö</li>
             </ol>
         </nav>
 
-        {{-- Market Snapshot --}}
+        {{-- Market scoreboard (Paper "Markkinatilanne nyt"): two medians, "vs." and the difference in a fox loop. --}}
         @if($hasMedianComparison)
         @php
             $diff = $fixedMedian - $spotMedian;
@@ -74,199 +64,187 @@
                 ? "Pörssisähkö {$diffPctAbs} % edullisempi"
                 : ($diff < 0 ? "Kiinteä 12 kk {$diffPctAbs} % edullisempi" : 'Sama hintataso');
         @endphp
-        <div id="markkinatilanne" class="not-prose mb-10 scroll-mt-24">
-            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-coral-700 mb-3">Markkinatilanne nyt</p>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div class="rounded-xl border border-slate-200 bg-white p-4">
-                    <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Pörssisähkö</p>
-                    <p class="mt-1 text-2xl font-extrabold text-slate-900 tabular-nums">{{ number_format($marketSnapshot['spot'], 0, ',', ' ') }} €<span class="text-sm font-medium text-slate-500">/v</span></p>
-                    <p class="mt-1 text-xs text-slate-500">Mediaani, 5 000 kWh</p>
+        <div id="markkinatilanne" class="vk-lr-score">
+            <p class="vk-lr-figure-kicker">Markkinatilanne nyt</p>
+            <div class="vk-lr-score-row">
+                <div class="vk-lr-score-item">
+                    <x-ink.glyph bucket="porssisahko" size="56" />
+                    <div class="vk-lr-score-figure">
+                        <p class="vk-lr-score-label text-cat-spot">Pörssisähkö</p>
+                        <p class="vk-lr-score-value tabular-nums">{{ number_format($marketSnapshot['spot'], 0, ',', ' ') }} €/v</p>
+                        <p class="vk-lr-score-sub">Mediaani, 5 000 kWh</p>
+                    </div>
                 </div>
-                <div class="rounded-xl border border-slate-200 bg-white p-4">
-                    <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Kiinteä 12 kk</p>
-                    <p class="mt-1 text-2xl font-extrabold text-slate-900 tabular-nums">{{ number_format($marketSnapshot['fixed'], 0, ',', ' ') }} €<span class="text-sm font-medium text-slate-500">/v</span></p>
-                    <p class="mt-1 text-xs text-slate-500">Mediaani, 5 000 kWh</p>
+                <p class="vk-lr-score-vs" aria-hidden="true">vs.</p>
+                <div class="vk-lr-score-item">
+                    <x-ink.glyph bucket="kiintea" size="56" />
+                    <div class="vk-lr-score-figure">
+                        <p class="vk-lr-score-label text-cat-fixed">Kiinteä 12 kk</p>
+                        <p class="vk-lr-score-value tabular-nums">{{ number_format($marketSnapshot['fixed'], 0, ',', ' ') }} €/v</p>
+                        <p class="vk-lr-score-sub">Mediaani, 5 000 kWh</p>
+                    </div>
                 </div>
-                <div class="rounded-xl border border-coral-200 bg-coral-50 p-4">
-                    <p class="text-xs font-medium text-coral-700 uppercase tracking-wide">Ero</p>
-                    <p class="mt-1 text-2xl font-extrabold text-coral-700 tabular-nums">{{ $diffSign }}{{ number_format($diffAbs, 0, ',', ' ') }} €<span class="text-sm font-medium text-coral-700">/v</span></p>
-                    <p class="mt-1 text-xs text-coral-700">{{ $diffLabel }}</p>
+                <div class="vk-lr-score-figure vk-lr-score-diff">
+                    <p class="vk-lr-score-label text-fox-deep">Ero</p>
+                    <p class="vk-lr-score-value tabular-nums text-fox-deep">{{ $diffSign }}{{ number_format($diffAbs, 0, ',', ' ') }} €/v</p>
+                    <p class="vk-lr-score-sub !font-extrabold {{ $diff == 0 ? '' : 'text-saving' }}">{{ $diffLabel }}</p>
+                    <svg class="vk-lr-score-loop" viewBox="0 0 300 76" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+                        <path d="M262 10 C 214 0, 70 0, 26 12 C 2 22, 6 56, 56 66 C 120 76, 246 72, 278 54 C 300 39, 290 18, 236 7" fill="none" style="stroke: var(--color-fox)" stroke-width="2.6" stroke-linecap="round" vector-effect="non-scaling-stroke" />
+                    </svg>
                 </div>
             </div>
-            <p class="mt-2 text-xs text-slate-500">
-                Tilanne {{ $marketSnapshot['date'] }}. Hinnat sisältävät ALV 25,5 %.
-                {{ ($marketSnapshot['pricing_basis'] ?? null) === 'canonical_calculation' ? 'Spot-vuosikustannus käyttää tulevan 12 kuukauden tukkumarkkinan ennakkohintoja ja sopimusten tarkkoja kuluja; alempien historiallisten kuvaajien Spot-luvut ovat toteutuneita liukuvia hintoja.' : 'Nykyhinnat perustuvat havaittuun myyjädataan.' }}
-            </p>
-            <p class="mt-3 max-w-prose text-sm leading-6 text-slate-600">
-                Mediaani kuvaa sopimustyypin keskitasoa, mutta yksittäinen sopimus voi olla sitä halvempi tai kalliimpi.
-            </p>
+            <div class="flex max-w-[900px] flex-col gap-1">
+                <p class="vk-lr-note">
+                    Tilanne {{ $marketSnapshot['date'] }}. Hinnat sisältävät ALV 25,5 %.
+                    {{ ($marketSnapshot['pricing_basis'] ?? null) === 'canonical_calculation' ? 'Spot-vuosikustannus käyttää tulevan 12 kuukauden tukkumarkkinan ennakkohintoja ja sopimusten tarkkoja kuluja; alempien historiallisten kuvaajien Spot-luvut ovat toteutuneita liukuvia hintoja.' : 'Nykyhinnat perustuvat havaittuun myyjädataan.' }}
+                </p>
+                <p class="vk-lr-note">
+                    Mediaani kuvaa sopimustyypin keskitasoa, mutta yksittäinen sopimus voi olla sitä halvempi tai kalliimpi.
+                </p>
+            </div>
         </div>
         @endif
 
-        {{-- Lead paragraph --}}
-        <article class="prose prose-slate prose-lg max-w-prose">
-            <p class="lead">
+        <div class="vk-lr-layout vk-lr-layout--article">
+            {{-- Short answer with the drop cap (spec "Long reads"). It comes before the section list in
+                 the reading order; on a laptop the grid puts the list at the left. --}}
+            <p class="vk-lr-dropcap vk-lr-lead">
                 <strong>Lyhyt vastaus:</strong> {{ $marketConclusion }} Yksittäisten sopimusten hinnat vaihtelevat, joten markkinoilta voi löytyä mediaania halvempi kiinteä tai pörssisopimus.
             </p>
-        </article>
 
-        {{-- In-page TOC --}}
-        <nav class="mt-10 mb-12 border-l-2 border-slate-200 pl-5" aria-label="Artikkelin sisältö">
-            <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 mb-3">Tässä artikkelissa</p>
-            <ol class="space-y-1.5 text-[15px] text-slate-700">
-                <li><a href="#mika-on" class="hover:text-coral-600 hover:underline underline-offset-4 decoration-coral-300">Mikä on pörssisähkö?</a></li>
-                <li><a href="#sopimushinnat" class="hover:text-coral-600 hover:underline underline-offset-4 decoration-coral-300">Miten pörssisähkö vertautuu muihin sopimuksiin?</a></li>
-                <li><a href="#hintavaihtelu" class="hover:text-coral-600 hover:underline underline-offset-4 decoration-coral-300">Tuntihintojen vaihtelu ja riskit</a></li>
-                <li><a href="#kenelle" class="hover:text-coral-600 hover:underline underline-offset-4 decoration-coral-300">Kenelle pörssisähkö sopii</a></li>
-                <li><a href="#yhteenveto" class="hover:text-coral-600 hover:underline underline-offset-4 decoration-coral-300">Yhteenveto</a></li>
-            </ol>
-        </nav>
+            <x-site.longread-toc title="Tässä artikkelissa" label="Artikkelin sisältö" :items="[
+                ['mika-on', 'Mikä on pörssisähkö?'],
+                ['sopimushinnat', 'Miten pörssisähkö vertautuu muihin sopimuksiin?'],
+                ['hintavaihtelu', 'Tuntihintojen vaihtelu ja riskit'],
+                ['kenelle', 'Kenelle pörssisähkö sopii'],
+                ['yhteenveto', 'Yhteenveto'],
+            ]" />
 
-        {{-- Section: Mikä on pörssisähkö? --}}
-        <section class="mt-14 pt-10 border-t border-slate-100">
-            <article class="prose prose-slate max-w-prose">
-                <h2 id="mika-on" class="scroll-mt-24">Mikä on pörssisähkö?</h2>
-                <p>
-                    Pörssisähkön hinta määräytyy tunneittain Nord Pool -sähköpörssissä ja muodostuu kolmesta osasta:
-                </p>
-                <ul>
-                    <li><strong>Pörssihinta</strong>: vaihtelee kysynnän ja tarjonnan mukaan tunneittain</li>
-                    <li><strong>Marginaali</strong>: sähköyhtiön kiinteä lisä (tyypillisesti 0,2–0,5 c/kWh)</li>
-                    <li><strong>Kuukausimaksu</strong>: kiinteä perusmaksu (tyypillisesti 2–5 €/kk)</li>
-                </ul>
-                <p>
-                    Pörssisähkön hinta voi vaihdella merkittävästi vuorokauden ja vuodenajan mukaan. Yöllä ja viikonloppuisin hinta on usein matalampi, kun taas kylminä talvipäivinä kysyntäpiikit nostavat hintaa.
-                </p>
-            </article>
-        </section>
+            <article class="vk-lr-article vk-lr-article--wide">
+                {{-- Mikä on pörssisähkö? --}}
+                <section class="vk-lr-section">
+                    <x-site.section-heading id="mika-on" wave="250">Mikä on pörssisähkö?</x-site.section-heading>
+                    <p class="vk-lr-text">
+                        Pörssisähkön hinta määräytyy tunneittain Nord Pool -sähköpörssissä ja muodostuu kolmesta osasta:
+                    </p>
+                    <ol class="vk-lr-numlist vk-lr-text">
+                        <li><strong>Pörssihinta</strong>: vaihtelee kysynnän ja tarjonnan mukaan tunneittain</li>
+                        <li><strong>Marginaali</strong>: sähköyhtiön kiinteä lisä (tyypillisesti 0,2–0,5 c/kWh)</li>
+                        <li><strong>Kuukausimaksu</strong>: kiinteä perusmaksu (tyypillisesti 2–5 €/kk)</li>
+                    </ol>
+                    <p class="vk-lr-text">
+                        Pörssisähkön hinta voi vaihdella merkittävästi vuorokauden ja vuodenajan mukaan. Yöllä ja viikonloppuisin hinta on usein matalampi, kun taas kylminä talvipäivinä kysyntäpiikit nostavat hintaa.
+                    </p>
+                </section>
 
-        {{-- Section: Mediaanihinta-vertailu --}}
-        <section class="mt-14 pt-10 border-t border-slate-100">
-            <article class="prose prose-slate max-w-prose">
-                <h2 id="sopimushinnat" class="scroll-mt-24">Miten pörssisähkö vertautuu muihin sopimuksiin?</h2>
-                <p>
-                    Alla oleva kuvaaja perustuu Voltikan keräämiin todellisiin sähkösopimusten hintoihin. Se näyttää, paljonko tyypillinen sopimus olisi maksanut 5&nbsp;000 kWh vuosikulutuksella. Tyypillinen tarkoittaa tässä mediaania: puolet sopimuksista oli halvempia ja puolet kalliimpia.
-                </p>
-            </article>
+                {{-- Mediaanihinta-vertailu --}}
+                <section class="vk-lr-section">
+                    <x-site.section-heading id="sopimushinnat" wave="300">Miten pörssisähkö vertautuu muihin sopimuksiin?</x-site.section-heading>
+                    <p class="vk-lr-text">
+                        Alla oleva kuvaaja perustuu Voltikan keräämiin todellisiin sähkösopimusten hintoihin. Se näyttää, paljonko tyypillinen sopimus olisi maksanut 5&nbsp;000 kWh vuosikulutuksella. Tyypillinen tarkoittaa tässä mediaania: puolet sopimuksista oli halvempia ja puolet kalliimpia.
+                    </p>
+                </section>
 
-            <div class="mt-8">
                 <livewire:article-contract-price-comparison-chart />
-            </div>
 
-            <article class="prose prose-slate max-w-prose mt-8">
-                <p>
-                    Lue kuvaajaa markkinan suuntana, ei halvimpana tarjouksena tai lupauksena tulevasta hinnasta. Pörssisähkön kustannus elää markkinan mukana, kun taas kiinteähintainen sopimus antaa enemmän ennustettavuutta.
-                </p>
-                <p>
-                    Vuotuiset luvut piilottavat kolme asiaa: vuodenaikojen vaikutuksen hintaan, kuinka usein pörssisähkö on käytännössä ollut edullisempi, ja kuinka rajusti tuntihinnat heittelevät pörssissä. Katsotaan ne järjestyksessä.
-                </p>
-            </article>
-        </section>
-
-        {{-- Section: Seasonality --}}
-        <section class="mt-14 pt-10 border-t border-slate-100">
-            <livewire:article-spot-seasonality-chart />
-        </section>
-
-        {{-- Section: Win rate --}}
-        <section class="mt-14 pt-10 border-t border-slate-100">
-            <livewire:article-spot-win-rate-chart />
-        </section>
-
-        {{-- Section: Volatility --}}
-        <section id="hintavaihtelu" class="mt-14 pt-10 border-t border-slate-100 scroll-mt-24">
-            <livewire:article-spot-volatility-chart />
-        </section>
-
-        {{-- Section: Kenelle pörssisähkö sopii --}}
-        <section class="mt-14 pt-10 border-t border-slate-100">
-            <article class="prose prose-slate max-w-prose">
-                <h2 id="kenelle" class="scroll-mt-24">Kenelle pörssisähkö sopii?</h2>
-                <p>
-                    Pörssisähkö on parhaimmillaan kuluttajille, jotka voivat hyödyntää hinnan vaihtelua.
-                    Erityisesti näille ryhmille se voi tuoda merkittäviä säästöjä:
-                </p>
-                <ul>
-                    <li><strong>Voit ajoittaa kulutusta</strong>: esimerkiksi pyykinpesu, astianpesukone ja sähköauton lataus yöllä tai viikonloppuisin</li>
-                    <li><strong>Sinulla on lämpöpumppu</strong>: voit lämmittää taloa edullisimpien tuntien aikana ja hyödyntää talon lämpövarastoa</li>
-                    <li><strong>Lataat sähköautoa kotona</strong>: yölataus on usein merkittävästi edullisempaa</li>
-                    <li><strong>Kulutuksesi on suuri</strong>: omakotitalossa ja suuressa kulutuksessa euromääräiset säästöt ovat suuremmat</li>
-                </ul>
-            </article>
-        </section>
-
-        {{-- Section: Milloin kiinteä on parempi --}}
-        <section class="mt-14 pt-10 border-t border-slate-100">
-            <article class="prose prose-slate max-w-prose">
-                <h2>Milloin kiinteä hinta on parempi?</h2>
-                <p>
-                    Kiinteähintainen sähkösopimus ei ole automaattisesti kalliimpi. Tietyissä tilanteissa se voi olla parempi valinta:
-                </p>
-                <ul>
-                    <li><strong>Haluat ennustettavan sähkölaskun</strong>: tiedät tarkalleen, mitä maksat kuukausittain</li>
-                    <li><strong>Et voi siirtää kulutusta</strong>: jos sähköä kuluu tasaisesti ympäri vuorokauden</li>
-                    <li><strong>Kulutuksesi on pieni</strong>: kerrostaloasunnossa euromääräiset säästöt jäävät pieniksi</li>
-                    <li><strong>Haluat suojautua hintapiikeiltä</strong>: kiinteä hinta suojaa markkinaheilahteluilta</li>
-                </ul>
-            </article>
-        </section>
-
-        {{-- Section: Yhteenveto --}}
-        <section id="yhteenveto" class="mt-14 pt-10 border-t border-slate-100 scroll-mt-24">
-            <article class="prose prose-slate max-w-prose">
-                <h2>Yhteenveto</h2>
-            </article>
-            <div class="mt-5 rounded-xl border border-coral-200 bg-coral-50 p-6">
-                <h3 class="font-bold text-coral-900 mb-4 text-lg">Pörssisähkö vs. kiinteä hinta tiivistettynä</h3>
-                <div class="space-y-3">
-                    <div class="flex items-start gap-3">
-                        <span class="text-coral-700 font-bold text-lg leading-none mt-0.5">1.</span>
-                        <span class="text-slate-700"><strong>{{ $marketSummaryHeading }}</strong> {{ $marketConclusion }}</span>
-                    </div>
-                    <div class="flex items-start gap-3">
-                        <span class="text-coral-700 font-bold text-lg leading-none mt-0.5">2.</span>
-                        <span class="text-slate-700"><strong>Vertaa yksittäisiä sopimuksia.</strong> Markkinoilta voi löytyä sopimustyyppinsä mediaania halvempi kiinteä tai pörssisopimus.</span>
-                    </div>
-                    <div class="flex items-start gap-3">
-                        <span class="text-coral-700 font-bold text-lg leading-none mt-0.5">3.</span>
-                        <span class="text-slate-700"><strong>Vertaa nyt tarjolla olevat sopimukset.</strong> Tarkista hinnat ja sopimusehdot <a href="/sahkosopimus" class="font-semibold text-coral-700 underline decoration-coral-300 underline-offset-4 hover:text-coral-800">sähkösopimusvertailusta</a>.</span>
+                <div class="flex flex-col gap-6">
+                    <p class="vk-lr-text">
+                        Lue kuvaajaa markkinan suuntana, ei halvimpana tarjouksena tai lupauksena tulevasta hinnasta. Pörssisähkön kustannus elää markkinan mukana, kun taas kiinteähintainen sopimus antaa enemmän ennustettavuutta.
+                    </p>
+                    {{-- Pull quote (Paper "Reading + pull quote"): the live paragraph set in Bricolage. --}}
+                    <div class="vk-lr-quote">
+                        <span class="vk-lr-quote-mark" aria-hidden="true">“</span>
+                        <div class="vk-lr-quote-body">
+                            <p class="vk-lr-quote-text">Vuotuiset luvut piilottavat kolme asiaa: vuodenaikojen vaikutuksen hintaan, kuinka usein pörssisähkö on käytännössä ollut edullisempi, ja kuinka rajusti tuntihinnat heittelevät pörssissä.</p>
+                            <p class="vk-lr-quote-after">Katsotaan ne järjestyksessä.</p>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </section>
 
-        {{-- Internal Links Section --}}
-        <section class="mt-16 pt-8 border-t border-slate-200">
-            <h2 class="text-xl font-bold text-slate-900 mb-6">Lue lisää</h2>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-                <a href="/sahkosopimus/porssisahko" class="group flex items-center gap-3 py-2 text-slate-700 hover:text-coral-600 transition-colors">
-                    <svg class="w-5 h-5 text-coral-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                    </svg>
-                    <span class="font-medium">Pörssisähkösopimukset</span>
-                </a>
-                <a href="/sahkosopimus/yleissahko" class="group flex items-center gap-3 py-2 text-slate-700 hover:text-coral-600 transition-colors">
-                    <svg class="w-5 h-5 text-slate-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                    <span class="font-medium">Yleissähkösopimukset</span>
-                </a>
-                <a href="/sahkosopimus/kannattaako-maaraaikainen" class="group flex items-center gap-3 py-2 text-slate-700 hover:text-coral-600 transition-colors">
-                    <svg class="w-5 h-5 text-slate-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                    </svg>
-                    <span class="font-medium">Määräaikainen vs toistaiseksi</span>
-                </a>
-                <a href="/spot-price" class="group flex items-center gap-3 py-2 text-slate-700 hover:text-coral-600 transition-colors">
-                    <svg class="w-5 h-5 text-slate-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
-                    </svg>
-                    <span class="font-medium">Spot-hinta nyt</span>
-                </a>
-            </div>
-        </section>
+                {{-- Seasonality --}}
+                <livewire:article-spot-seasonality-chart />
 
-        <x-methodology-byline updated="29.5.2026" date-label="Sisältö tarkistettu" class="mt-12 pt-6 border-t border-slate-200" />
+                {{-- Win rate --}}
+                <livewire:article-spot-win-rate-chart />
 
+                {{-- Villager interlude (Paper "Villager interlude · ice fishing"): a pause between two charts, far from any contract. --}}
+                <x-site.interlude art="interlude-kyykka" class="vk-lr-interlude" />
+
+                {{-- Volatility --}}
+                <section id="hintavaihtelu" class="vk-lr-section">
+                    <livewire:article-spot-volatility-chart />
+                </section>
+
+                {{-- Kenelle pörssisähkö sopii / Milloin kiinteä hinta on parempi (side by side) --}}
+                <div class="vk-lr-duo">
+                    <section class="vk-lr-duo-col">
+                        <x-ink.glyph bucket="porssisahko" size="56" />
+                        <div class="flex flex-col gap-0.5">
+                            <h2 id="kenelle" class="vk-lr-duo-title scroll-mt-6">Kenelle pörssisähkö sopii?</h2>
+                            <x-ink.wave width="200" stroke="3" color="var(--color-cat-spot)" />
+                        </div>
+                        <p class="vk-lr-text vk-lr-text--small">
+                            Pörssisähkö on parhaimmillaan kuluttajille, jotka voivat hyödyntää hinnan vaihtelua.
+                            Erityisesti näille ryhmille se voi tuoda merkittäviä säästöjä:
+                        </p>
+                        <ul class="vk-lr-list vk-lr-list--spot">
+                            <li><strong class="text-ink">Voit ajoittaa kulutusta</strong>: esimerkiksi pyykinpesu, astianpesukone ja sähköauton lataus yöllä tai viikonloppuisin</li>
+                            <li><strong class="text-ink">Sinulla on lämpöpumppu</strong>: voit lämmittää taloa edullisimpien tuntien aikana ja hyödyntää talon lämpövarastoa</li>
+                            <li><strong class="text-ink">Lataat sähköautoa kotona</strong>: yölataus on usein merkittävästi edullisempaa</li>
+                            <li><strong class="text-ink">Kulutuksesi on suuri</strong>: omakotitalossa ja suuressa kulutuksessa euromääräiset säästöt ovat suuremmat</li>
+                        </ul>
+                    </section>
+                    <section class="vk-lr-duo-col">
+                        <x-ink.glyph bucket="kiintea" size="56" />
+                        <div class="flex flex-col gap-0.5">
+                            <h2 class="vk-lr-duo-title">Milloin kiinteä hinta on parempi?</h2>
+                            <x-ink.wave width="200" stroke="3" color="var(--color-cat-fixed)" />
+                        </div>
+                        <p class="vk-lr-text vk-lr-text--small">
+                            Kiinteähintainen sähkösopimus ei ole automaattisesti kalliimpi. Tietyissä tilanteissa se voi olla parempi valinta:
+                        </p>
+                        <ul class="vk-lr-list vk-lr-list--fixed">
+                            <li><strong class="text-ink">Haluat ennustettavan sähkölaskun</strong>: tiedät tarkalleen, mitä maksat kuukausittain</li>
+                            <li><strong class="text-ink">Et voi siirtää kulutusta</strong>: jos sähköä kuluu tasaisesti ympäri vuorokauden</li>
+                            <li><strong class="text-ink">Kulutuksesi on pieni</strong>: kerrostaloasunnossa euromääräiset säästöt jäävät pieniksi</li>
+                            <li><strong class="text-ink">Haluat suojautua hintapiikeiltä</strong>: kiinteä hinta suojaa markkinaheilahteluilta</li>
+                        </ul>
+                    </section>
+                </div>
+
+                {{-- Yhteenveto --}}
+                <section id="yhteenveto" class="vk-lr-section">
+                    <x-site.section-heading wave="160">Yhteenveto</x-site.section-heading>
+                    <h3 class="vk-lr-steps-title">Pörssisähkö vs. kiinteä hinta tiivistettynä</h3>
+                    <ol class="vk-lr-steps">
+                        <li class="vk-lr-step">
+                            <span class="vk-lr-step-num" aria-hidden="true">1</span>
+                            <p class="vk-lr-step-body"><strong class="vk-lr-step-title">{{ $marketSummaryHeading }}</strong> <span>{{ $marketConclusion }}</span></p>
+                        </li>
+                        <li class="vk-lr-step">
+                            <span class="vk-lr-step-num" aria-hidden="true">2</span>
+                            <p class="vk-lr-step-body"><strong class="vk-lr-step-title">Vertaa yksittäisiä sopimuksia.</strong> <span>Markkinoilta voi löytyä sopimustyyppinsä mediaania halvempi kiinteä tai pörssisopimus.</span></p>
+                        </li>
+                        <li class="vk-lr-step">
+                            <span class="vk-lr-step-num" aria-hidden="true">3</span>
+                            <p class="vk-lr-step-body"><strong class="vk-lr-step-title">Vertaa nyt tarjolla olevat sopimukset.</strong> <span>Tarkista hinnat ja sopimusehdot <a href="/sahkosopimus" class="vk-text-link vk-focus">sähkösopimusvertailusta</a>.</span></p>
+                        </li>
+                    </ol>
+                </section>
+
+                {{-- Lue lisää + ylläpito --}}
+                <section class="vk-lr-more">
+                    <h2 class="vk-lr-more-title">Lue lisää</h2>
+                    <div class="vk-lr-more-links">
+                        <a href="/sahkosopimus/porssisahko" class="vk-focus">Pörssisähkösopimukset</a>
+                        <a href="/sahkosopimus/yleissahko" class="vk-focus">Yleissähkösopimukset</a>
+                        <a href="/sahkosopimus/kannattaako-maaraaikainen" class="vk-focus">Määräaikainen vs toistaiseksi</a>
+                        <a href="/spot-price" class="vk-focus">Spot-hinta nyt</a>
+                    </div>
+                    <x-methodology-byline updated="29.5.2026" date-label="Sisältö tarkistettu" :inked="true" class="pt-2" />
+                </section>
+
+            </article>
+        </div>
     </div>
 </div>

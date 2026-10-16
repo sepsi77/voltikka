@@ -83,9 +83,10 @@ class ContractDetailPriceDevelopmentTest extends TestCase
         $this->assertNotSame('', $development['chart']['reference_path']);
 
         $test
-            // The contract is slate-900 ink, the median a dashed slate-500
-            // reference with a direct label. Coral is never a data series.
-            ->assertSeeHtml('stroke="#0f172a"')
+            // Redesign (Paper board 39Y-0): the contract is the fox line, the
+            // median a dashed granite reference with a direct label and a legend.
+            ->assertSeeHtml('style="stroke: var(--color-fox)"')
+            ->assertSeeHtml('style="stroke: var(--color-granite)"')
             ->assertSeeHtml('stroke-dasharray="6 5"')
             ->assertSee('Mediaani, toistaiseksi voimassa oleva')
             ->assertSee('mediaani 8,70')

@@ -1,0 +1,2696 @@
+/* Redesign styles owned by the "energy" area. See tasks/redesign-implementation/agent-brief.md.
+ *
+ * Pages: /aurinkopaneelit/laskuri (Paper boards 3WH-0, EKC-0) and /lampopumput/laskuri
+ * (boards C1D-0, EBU-0). Exact values come from the boards. One-off colours that have no
+ * token are named variables here, never inline in a template.
+ */
+
+:root {
+    /* Solar chart: the middle tier of the sun-gold bars (Paper #E9C46A, no token). */
+    --energy-sun-mid: #E9C46A;
+    /* Kicker and "Aloita tästä" on the dark solar hero (Paper #FFB49C). */
+    --energy-kicker-on-night: #FFB49C;
+    /* Warning text on the dark hero (same tint as the /spot-price "expensive" verdict). */
+    --energy-warn-on-night: #FFA39B;
+    /* Ground at 85% behind the "Lasketaan..." status over a result. */
+    --energy-ground-veil: oklab(97.1% -0.003 0.006 / 85%);
+}
+
+/* ---------- Hero (x-site.energy-hero) ---------- */
+
+.energy-hero {
+    position: relative;
+    /* Above the page blocks, so the address suggestions can open over them. */
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--color-night);
+}
+
+.energy-hero.vk-tone-light {
+    background-color: var(--color-ground);
+}
+
+.energy-hero.vk-tone-dark {
+    --energy-kicker: var(--energy-kicker-on-night);
+    --energy-help: var(--color-night-lead);
+    --energy-note: var(--color-night-lead);
+    --energy-ok: var(--mark-aurora-light);
+    --energy-warn: var(--energy-warn-on-night);
+}
+
+.energy-hero.vk-tone-light {
+    --energy-kicker: var(--color-fox-deep);
+    --energy-help: var(--color-ink-body);
+    --energy-note: var(--color-ink-muted);
+    --energy-ok: var(--color-aurora);
+    --energy-warn: var(--color-price-high);
+}
+
+/* Phone and tablet: the scene is a band under the text; its sky fades into the tone ground.
+   The plate is placed so the painted fox (on the roof, at the heat pump) stays in the band. */
+.energy-hero-art {
+    position: relative;
+    order: 2;
+    height: 300px;
+    margin-top: -12px;
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 22%);
+    mask-image: linear-gradient(180deg, transparent 0%, #000 22%);
+}
+
+.energy-hero-plate {
+    position: absolute;
+    top: 0;
+    right: -100px;
+    width: max(640px, calc(100% + 100px));
+    max-width: none;
+    height: auto;
+}
+
+.energy-hero--heatpump .energy-hero-plate {
+    top: auto;
+    right: -60px;
+    bottom: -40px;
+    width: max(640px, calc(100% + 60px));
+}
+
+.energy-hero-shade,
+.energy-hero-topshade {
+    display: none;
+}
+
+.energy-hero-text {
+    position: relative;
+    z-index: 2;
+    padding-top: 96px;
+    padding-bottom: 8px;
+}
+
+.energy-hero-ground {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+    height: 56px;
+    pointer-events: none;
+    background-image: linear-gradient(180deg, oklab(97.1% -0.003 0.006 / 0%) 0%, var(--color-ground) 100%);
+}
+
+@media (min-width: 1024px) {
+    .energy-hero {
+        display: block;
+        min-height: 660px;
+    }
+
+    .energy-hero--heatpump {
+        min-height: 540px;
+    }
+
+    .energy-hero-art {
+        position: absolute;
+        inset: 0;
+        height: auto;
+        margin: 0;
+        -webkit-mask-image: none;
+        mask-image: none;
+    }
+
+    /* Board crop: the 1440x810 plate sits from y -20 (solar, 660 hero) or y -150 (heat pump,
+       540 hero). Anchored at the bottom so the landscape stays in view on wide screens. */
+    .energy-hero-plate {
+        top: auto;
+        left: 50%;
+        right: auto;
+        bottom: -130px;
+        width: max(100%, 1440px);
+        transform: translateX(-50%);
+    }
+
+    .energy-hero--heatpump .energy-hero-plate {
+        right: auto;
+        bottom: -120px;
+    }
+
+    .energy-hero-shade,
+    .energy-hero-topshade {
+        display: block;
+        position: absolute;
+        top: 0;
+        left: 0;
+        pointer-events: none;
+    }
+
+    /* Sky shade behind the text column: 900 of 1440 at the board width. */
+    .energy-hero-shade {
+        bottom: 0;
+        width: calc(50% + 180px);
+    }
+
+    .energy-hero-topshade {
+        right: 0;
+        height: 120px;
+    }
+
+    .energy-hero--solar.vk-tone-light .energy-hero-shade {
+        background-image: linear-gradient(90deg, oklab(95.9% 0.004 0.023 / 78%) 0%, oklab(95.9% 0.004 0.023 / 55%) 55%, oklab(95.9% 0.004 0.023 / 0%) 100%);
+    }
+
+    .energy-hero--solar.vk-tone-light .energy-hero-topshade {
+        background-image: linear-gradient(180deg, oklab(95.9% 0.004 0.023 / 92%) 0%, oklab(95.9% 0.004 0.023 / 70%) 55%, oklab(95.9% 0.004 0.023 / 0%) 100%);
+    }
+
+    .energy-hero--solar.vk-tone-dark .energy-hero-shade {
+        background-image: linear-gradient(90deg, oklab(25% -0.007 -0.051 / 74%) 0%, oklab(25% -0.007 -0.051 / 48%) 58%, oklab(25% -0.007 -0.051 / 0%) 100%);
+    }
+
+    .energy-hero--solar.vk-tone-dark .energy-hero-topshade {
+        background-image: linear-gradient(180deg, oklab(25% -0.007 -0.051 / 62%) 0%, oklab(25% -0.007 -0.051 / 30%) 55%, oklab(25% -0.007 -0.051 / 0%) 100%);
+    }
+
+    .energy-hero--heatpump.vk-tone-light .energy-hero-shade {
+        background-image: linear-gradient(90deg, oklab(97.1% -0.003 0.006 / 82%) 0%, oklab(97.1% -0.003 0.006 / 60%) 55%, oklab(97.1% -0.003 0.006 / 0%) 100%);
+    }
+
+    .energy-hero--heatpump.vk-tone-light .energy-hero-topshade {
+        background-image: linear-gradient(180deg, oklab(97.1% -0.003 0.006 / 85%) 0%, oklab(97.1% -0.003 0.006 / 0%) 100%);
+    }
+
+    .energy-hero--heatpump.vk-tone-dark .energy-hero-shade {
+        background-image: linear-gradient(90deg, oklab(25% -0.007 -0.051 / 60%) 0%, oklab(25% -0.007 -0.051 / 35%) 55%, oklab(25% -0.007 -0.051 / 0%) 100%);
+    }
+
+    .energy-hero--heatpump.vk-tone-dark .energy-hero-topshade {
+        background-image: linear-gradient(180deg, oklab(25% -0.007 -0.051 / 60%) 0%, oklab(25% -0.007 -0.051 / 0%) 100%);
+    }
+
+    .energy-hero-text {
+        padding-top: 112px;
+        padding-bottom: 64px;
+    }
+
+    .energy-hero--heatpump .energy-hero-text {
+        padding-top: 132px;
+    }
+
+    .energy-hero-ground {
+        height: 80px;
+    }
+}
+
+/* Hero text column (Paper "Hero text": 612 wide on solar, 640 on the heat pump). */
+.energy-hero-copy {
+    display: flex;
+    max-width: 612px;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.energy-hero-copy--heatpump {
+    max-width: 640px;
+    gap: 16px;
+}
+
+.energy-kicker {
+    color: var(--energy-kicker);
+    font-size: var(--text-caption);
+    font-weight: 800;
+    line-height: 16px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.energy-hero-h1 {
+    font-family: var(--font-display);
+    font-weight: 800;
+    color: var(--tone-strong);
+    font-size: 40px;
+    line-height: 42px;
+    letter-spacing: -0.03em;
+}
+
+.energy-hero-lead {
+    max-width: 580px;
+    color: var(--tone-lead);
+    font-size: 17px;
+    line-height: 26px;
+    font-weight: 500;
+}
+
+@media (min-width: 1024px) {
+    .energy-hero-copy {
+        gap: 14px;
+    }
+
+    .energy-hero-copy--heatpump {
+        gap: 16px;
+    }
+
+    .energy-hero-h1 {
+        font-size: var(--text-hero);
+        line-height: var(--leading-hero);
+    }
+
+    .energy-hero--heatpump .energy-hero-h1 {
+        line-height: 64px;
+        letter-spacing: -0.035em;
+    }
+
+    .energy-hero--solar .energy-hero-lead {
+        max-width: 560px;
+        font-size: 19px;
+        line-height: 29px;
+    }
+
+    .energy-hero--heatpump .energy-hero-lead {
+        font-size: 20px;
+        line-height: 30px;
+    }
+}
+
+/* ---------- Solar address step (in the hero) ---------- */
+
+.energy-address {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 600px;
+    padding-top: 14px;
+}
+
+.energy-start {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--energy-kicker);
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 800;
+    line-height: 20px;
+}
+
+.energy-address-title {
+    color: var(--tone-strong);
+    font-family: var(--font-display);
+    font-size: 24px;
+    font-weight: 800;
+    line-height: 28px;
+    letter-spacing: -0.015em;
+}
+
+/* The search field is the one boxed control on the page (Paper "Address step": white 86%,
+   2px ink edge, radius 14), so the first step reads as an input on the painted sky. */
+.energy-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 60px;
+    padding-inline: 18px;
+    border: 2px solid var(--color-ink);
+    border-radius: 14px;
+    background-color: color-mix(in srgb, var(--color-snow-white) 86%, transparent);
+}
+
+.energy-search:focus-within {
+    border-color: var(--color-fox);
+    outline: 2px solid var(--color-fox);
+    outline-offset: 0;
+}
+
+.energy-search-pin {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+}
+
+.energy-search-input {
+    min-width: 0;
+    flex: 1 1 0%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--color-ink);
+    font-size: 17px;
+    line-height: 24px;
+}
+
+.energy-search-input::placeholder {
+    color: var(--color-ink-muted);
+    opacity: 1;
+}
+
+.energy-search-input:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+.energy-search-status,
+.energy-search-clear {
+    display: inline-flex;
+    flex-shrink: 0;
+    color: var(--color-ink-muted);
+}
+
+.energy-search-status {
+    color: var(--color-fox);
+}
+
+.energy-search-clear:hover {
+    color: var(--color-ink);
+}
+
+/* Suggestion list: a plain list under the field with the same ink edge, no shadow. */
+.energy-suggestions {
+    position: absolute;
+    z-index: 20;
+    left: 0;
+    right: 0;
+    top: calc(100% + 6px);
+    max-height: 240px;
+    overflow-y: auto;
+    border: 2px solid var(--color-ink);
+    border-radius: 14px;
+    background-color: var(--color-snow-white);
+}
+
+.energy-suggestion {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--color-edge);
+    color: var(--color-ink);
+    font-size: 15px;
+    line-height: 20px;
+    text-align: left;
+}
+
+.energy-suggestion:last-child {
+    border-bottom: 0;
+}
+
+.energy-suggestion:hover,
+.energy-suggestion:focus-visible {
+    background-color: var(--color-ground);
+    outline: none;
+}
+
+.energy-suggestion-pin {
+    display: inline-flex;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    color: var(--color-ink-muted);
+}
+
+.energy-located {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--energy-ok);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 20px;
+}
+
+.energy-hero-notice {
+    color: var(--energy-warn);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 20px;
+}
+
+.energy-address-help {
+    color: var(--energy-help);
+    font-size: 15px;
+    line-height: 22px;
+}
+
+.energy-address-note {
+    max-width: 560px;
+    color: var(--energy-note);
+    font-size: 14px;
+    line-height: 21px;
+}
+
+@media (min-width: 1024px) {
+    .energy-address {
+        padding-top: 18px;
+    }
+
+    .energy-address-title {
+        font-size: 28px;
+        line-height: 32px;
+    }
+
+    .energy-search-input {
+        font-size: 19px;
+    }
+}
+
+/* ---------- Shared bits ---------- */
+
+.energy-spinner {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    animation: energy-spin 0.9s linear infinite;
+}
+
+@keyframes energy-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .energy-spinner {
+        animation: none;
+    }
+}
+
+.energy-radio {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.energy-page {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    padding-top: 16px;
+    padding-bottom: 40px;
+}
+
+.energy-page--heatpump {
+    gap: 28px;
+    padding-bottom: 56px;
+}
+
+.energy-caps {
+    color: var(--color-ink-muted);
+    font-size: var(--text-caption);
+    font-weight: 800;
+    line-height: 16px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.energy-caps--good {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--color-aurora);
+}
+
+.energy-small-label {
+    color: var(--color-ink-muted);
+    font-size: var(--text-caption);
+    font-weight: 700;
+    line-height: 16px;
+}
+
+.energy-disclaimer {
+    color: var(--color-ink-muted);
+    font-size: var(--text-caption);
+    line-height: 20px;
+}
+
+.energy-notice {
+    color: var(--color-price-high);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 20px;
+}
+
+.energy-error {
+    display: flex;
+    gap: 8px;
+    padding-top: 14px;
+    color: var(--color-price-high);
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 22px;
+}
+
+.energy-error > span {
+    font-family: var(--font-display);
+    font-weight: 800;
+}
+
+.energy-link {
+    color: var(--color-fox-deep);
+    font-weight: 700;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+}
+
+/* Underlined field (spec §5 "Field"): no box, a 2px ink underline that turns fox on focus. */
+.energy-field {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 4px 2px 6px;
+    border-bottom: 2px solid var(--color-ink);
+}
+
+.energy-field:focus-within {
+    border-bottom-color: var(--color-fox);
+}
+
+.energy-field-input {
+    min-width: 0;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 32px;
+    -moz-appearance: textfield;
+}
+
+.energy-field-input::-webkit-outer-spin-button,
+.energy-field-input::-webkit-inner-spin-button {
+    margin: 0;
+    -webkit-appearance: none;
+}
+
+.energy-field-input:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+.energy-field-input::placeholder {
+    color: var(--color-ink-muted);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    font-weight: 400;
+    opacity: 1;
+}
+
+.energy-field-unit {
+    flex-shrink: 0;
+    color: var(--color-ink-muted);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 18px;
+}
+
+.energy-labelled {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.energy-label {
+    color: var(--color-ink-body);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 18px;
+}
+
+.energy-labelled--lg .energy-field-input {
+    font-size: 28px;
+    line-height: 34px;
+}
+
+.energy-labelled--sm .energy-field-input {
+    font-size: 20px;
+    line-height: 26px;
+}
+
+.energy-labelled--sm .energy-label {
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 18px;
+}
+
+/* Underlined select with an inked chevron. */
+.energy-field--select {
+    position: relative;
+    align-items: center;
+    padding: 0;
+}
+
+.energy-field--select svg {
+    position: absolute;
+    right: 2px;
+    pointer-events: none;
+}
+
+.energy-select {
+    width: 100%;
+    padding: 6px 26px 8px 2px;
+    border: 0;
+    background: transparent;
+    background-image: none;
+    color: var(--color-ink);
+    font-size: 18px;
+    font-weight: 800;
+    line-height: 24px;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.energy-select:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+/* ---------- Solar settings (Paper "Settings") ---------- */
+
+.energy-settings-head {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-bottom: 14px;
+}
+
+.energy-optional {
+    color: var(--color-ink-muted);
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: 0;
+}
+
+.energy-settings-intro {
+    color: var(--color-ink-body);
+    font-size: 15px;
+    line-height: 22px;
+}
+
+.energy-row {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding-block: 18px;
+    border-top: 1.5px solid var(--color-edge);
+}
+
+.energy-row--last {
+    border-bottom: 1.5px solid var(--color-edge);
+}
+
+.energy-row-label {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.energy-row-title {
+    color: var(--color-ink);
+    font-size: 16px;
+    font-weight: 800;
+    line-height: 20px;
+}
+
+.energy-row-sub {
+    color: var(--color-ink-body);
+    font-size: 14px;
+    line-height: 18px;
+}
+
+.energy-row-desc {
+    padding-top: 4px;
+    color: var(--color-ink-body);
+    font-size: var(--text-caption);
+    line-height: 19px;
+}
+
+.energy-row-status {
+    position: absolute;
+    top: 1px;
+    right: 0;
+    color: var(--color-fox);
+}
+
+.energy-row-help {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    color: var(--color-ink-body);
+    font-size: 14px;
+    line-height: 21px;
+}
+
+.energy-sizes {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 26px;
+}
+
+.energy-size {
+    position: relative;
+    display: inline-flex;
+    min-width: 44px;
+    height: 52px;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-ink-muted);
+    font-family: var(--font-display);
+    font-size: 30px;
+    font-weight: 800;
+    line-height: 40px;
+}
+
+.energy-size:hover {
+    color: var(--color-ink);
+}
+
+.energy-size.is-selected {
+    width: 60px;
+    color: var(--color-fox-deep);
+}
+
+.energy-size-loop {
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    width: 64px;
+    height: 56px;
+    pointer-events: none;
+}
+
+.energy-size-custom {
+    display: flex;
+    width: 96px;
+    padding: 4px 2px;
+    border-bottom: 2px solid var(--color-field-edge);
+}
+
+.energy-size-custom:focus-within {
+    border-bottom-color: var(--color-fox);
+}
+
+.energy-field-input--small {
+    font-size: 18px;
+    line-height: 22px;
+}
+
+.energy-size-unit {
+    color: var(--color-ink-body);
+    font-size: 16px;
+    font-weight: 800;
+    line-height: 20px;
+}
+
+.energy-choices {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.energy-choice {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-align: left;
+}
+
+.energy-choice--share {
+    align-items: flex-start;
+}
+
+.energy-choice--share .energy-radio {
+    margin-top: 10px;
+}
+
+.energy-choice-icon {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+}
+
+.energy-choice-name {
+    color: var(--color-ink-body);
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 18px;
+}
+
+.energy-choice.is-selected .energy-choice-name {
+    color: var(--color-ink);
+    font-weight: 800;
+}
+
+.energy-choice--share .energy-choice-name {
+    font-weight: 800;
+}
+
+.energy-choice:hover .energy-choice-name {
+    color: var(--color-ink);
+}
+
+.energy-share {
+    color: var(--color-ink-muted);
+    font-family: var(--font-display);
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 36px;
+    letter-spacing: -0.02em;
+}
+
+.energy-choice.is-selected .energy-share {
+    color: var(--color-fox-deep);
+}
+
+.energy-choice-desc {
+    color: var(--color-ink-body);
+    font-size: var(--text-caption);
+    line-height: 18px;
+}
+
+.energy-field--price {
+    width: 150px;
+}
+
+@media (min-width: 1024px) {
+    .energy-settings-head {
+        flex-direction: row;
+        align-items: flex-end;
+        justify-content: space-between;
+    }
+
+    .energy-optional {
+        font-size: 22px;
+    }
+
+    .energy-settings-intro {
+        width: 520px;
+        flex-shrink: 0;
+        text-align: right;
+    }
+
+    .energy-row {
+        flex-direction: row;
+        align-items: center;
+        gap: 24px;
+    }
+
+    .energy-row--top {
+        align-items: flex-start;
+    }
+
+    .energy-row-label {
+        width: 200px;
+        flex-shrink: 0;
+    }
+
+    .energy-row-status {
+        right: -20px;
+    }
+
+    .energy-row-help {
+        min-width: 0;
+        flex: 1 1 0%;
+    }
+
+    .energy-sizes {
+        flex-wrap: nowrap;
+        gap: 34px;
+    }
+
+    .energy-size {
+        font-size: 34px;
+    }
+
+    .energy-choices {
+        flex-direction: row;
+        gap: 24px;
+    }
+
+    .energy-choice {
+        width: 300px;
+        flex-shrink: 0;
+    }
+
+    .energy-row-desc {
+        padding-top: 4px;
+    }
+
+    .energy-share {
+        font-size: 36px;
+        line-height: 40px;
+    }
+}
+
+/* ---------- Solar result (Paper "Result") ---------- */
+
+.energy-result {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 26px;
+}
+
+.energy-result-loading {
+    position: absolute;
+    inset: -8px;
+    z-index: 5;
+    background-color: var(--energy-ground-veil);
+    color: var(--color-ink);
+    font-size: 18px;
+    font-weight: 800;
+}
+
+.energy-result-loading .energy-spinner {
+    width: 24px;
+    height: 24px;
+    color: var(--color-fox);
+}
+
+.energy-calculating {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-block: 32px;
+    color: var(--color-ink-body);
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.energy-calculating .energy-spinner {
+    color: var(--color-fox);
+}
+
+.energy-example {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 12px;
+}
+
+.energy-example-kicker {
+    color: var(--color-fox-deep);
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 24px;
+}
+
+.energy-example-text {
+    color: var(--color-ink-body);
+    font-size: 16px;
+    line-height: 22px;
+}
+
+.energy-example-text strong {
+    color: var(--color-ink);
+    font-weight: 800;
+}
+
+.energy-keyfigures {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+}
+
+.energy-figure-label {
+    color: var(--color-ink-body);
+    font-size: 14px;
+    font-weight: 800;
+    line-height: 18px;
+}
+
+.energy-annual {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.energy-annual-value,
+.energy-savings-value {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    font-variant-numeric: tabular-nums;
+}
+
+.energy-annual-number {
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    font-size: 72px;
+    font-weight: 800;
+    line-height: 72px;
+    letter-spacing: -0.045em;
+}
+
+.energy-annual-unit {
+    color: var(--color-ink-body);
+    font-family: var(--font-display);
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 30px;
+}
+
+.energy-annual-wave {
+    width: min(330px, 80%);
+    height: 14px;
+}
+
+.energy-savings {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-self: flex-start;
+    gap: 4px;
+    padding: 18px 28px 22px 24px;
+}
+
+.energy-savings-loop {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.energy-savings-number {
+    color: var(--color-fox-deep);
+    font-family: var(--font-display);
+    font-size: 56px;
+    font-weight: 800;
+    line-height: 58px;
+    letter-spacing: -0.04em;
+}
+
+.energy-savings-unit {
+    color: var(--color-ink-body);
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 24px;
+}
+
+@media (min-width: 1024px) {
+    .energy-figure-label {
+        font-size: 15px;
+    }
+
+    .energy-keyfigures {
+        flex-direction: row;
+        align-items: flex-end;
+        justify-content: space-between;
+    }
+
+    .energy-annual-number {
+        font-size: 112px;
+        line-height: 108px;
+    }
+
+    .energy-annual-unit {
+        font-size: 32px;
+        line-height: 36px;
+    }
+
+    .energy-savings {
+        align-self: auto;
+        align-items: flex-end;
+        margin-right: 0;
+        padding: 30px 40px 32px 52px;
+    }
+
+    .energy-savings-number {
+        font-size: 76px;
+        line-height: 78px;
+    }
+
+    .energy-savings-unit {
+        font-size: 22px;
+        line-height: 26px;
+    }
+}
+
+/* Monthly production chart. */
+.energy-monthly {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 6px;
+}
+
+.energy-monthly-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.energy-monthly-title {
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    font-size: 24px;
+    font-weight: 800;
+    line-height: 28px;
+}
+
+.energy-monthly-unit {
+    color: var(--color-ink-muted);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 18px;
+}
+
+.energy-bar {
+    position: relative;
+    display: block;
+    background-color: color-mix(in srgb, var(--energy-bar) 85%, transparent);
+}
+
+.energy-bar--high {
+    --energy-bar: var(--color-star);
+}
+
+.energy-bar--mid {
+    --energy-bar: var(--energy-sun-mid);
+}
+
+.energy-bar--low {
+    --energy-bar: var(--color-forecast);
+}
+
+.energy-bars {
+    display: none;
+}
+
+.energy-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-variant-numeric: tabular-nums;
+}
+
+.energy-rows li {
+    display: grid;
+    grid-template-columns: 56px minmax(0, 1fr) 44px;
+    align-items: center;
+    gap: 10px;
+}
+
+.energy-rows-month {
+    color: var(--color-ink-body);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 18px;
+}
+
+.energy-rows-track {
+    display: block;
+    border-left: 1.6px solid var(--color-ink);
+}
+
+.energy-rows-track .energy-bar {
+    height: 16px;
+    outline: 1.3px solid var(--color-ink);
+    outline-offset: -1.3px;
+}
+
+.energy-rows-value {
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 18px;
+    text-align: right;
+}
+
+@media (min-width: 640px) {
+    .energy-rows {
+        display: none;
+    }
+
+    .energy-bars {
+        display: block;
+    }
+
+    .energy-bars-plot {
+        position: relative;
+        display: flex;
+        height: 250px;
+        align-items: flex-end;
+        gap: 2.6%;
+        padding-inline: 1.5%;
+    }
+
+    .energy-bars-grid {
+        position: absolute;
+        left: 0;
+        right: 0;
+        border-top: 1px dashed var(--color-edge);
+    }
+
+    .energy-bars-grid span {
+        position: absolute;
+        right: 0;
+        bottom: 4px;
+        color: var(--color-ink-muted);
+        font-size: 12px;
+        line-height: 14px;
+    }
+
+    .energy-bars-col {
+        position: relative;
+        display: flex;
+        height: 100%;
+        min-width: 0;
+        flex: 1 1 0%;
+        align-items: flex-end;
+    }
+
+    .energy-bars-col .energy-bar {
+        width: 100%;
+    }
+
+    /* Misregistered ink outline: the sketch sits 1.5px up and left of the flat colour. */
+    .energy-bars-col .energy-bar::before {
+        content: "";
+        position: absolute;
+        inset: -1.5px 1.5px 0 -1.5px;
+        border: 1.3px solid var(--color-ink);
+        border-bottom: 0;
+    }
+
+    .energy-bar-value {
+        position: absolute;
+        bottom: calc(100% + 8px);
+        left: 50%;
+        transform: translateX(-50%);
+        color: var(--color-ink);
+        font-family: var(--font-display);
+        font-size: 15px;
+        font-weight: 800;
+        line-height: 18px;
+        white-space: nowrap;
+    }
+
+    .energy-bars-note {
+        display: none;
+    }
+
+    .energy-bars-baseline {
+        position: absolute;
+        left: 0;
+        bottom: -2px;
+        width: 100%;
+        height: 6px;
+    }
+
+    .energy-bars-months {
+        display: flex;
+        gap: 2.6%;
+        padding: 12px 1.5% 0;
+    }
+
+    .energy-bars-months span {
+        min-width: 0;
+        flex: 1 1 0%;
+        color: var(--color-ink-body);
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 18px;
+        text-align: center;
+    }
+}
+
+@media (min-width: 1024px) {
+    .energy-bar-value {
+        font-size: 17px;
+        line-height: 20px;
+    }
+
+    .energy-bars-months span {
+        font-size: 14px;
+    }
+
+    .energy-bars-note {
+        position: absolute;
+        bottom: calc(100% + 34px);
+        left: calc(100% + 4px);
+        display: flex;
+        align-items: flex-start;
+        gap: 2px;
+        color: var(--color-fox-deep);
+        font-family: var(--font-display);
+        font-size: 16px;
+        font-weight: 800;
+        line-height: 20px;
+        white-space: nowrap;
+    }
+
+    .energy-bars-note svg {
+        margin-top: 4px;
+        margin-left: -40px;
+        transform: translateY(14px);
+    }
+}
+
+/* Summary figures and the savings formula. */
+.energy-figures {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px 20px;
+    padding-top: 14px;
+    border-top: 1.5px solid var(--color-edge);
+}
+
+.energy-figure {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.energy-figure .energy-figure-label,
+.energy-formula .energy-figure-label {
+    font-size: 13px;
+}
+
+.energy-figure-value {
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 800;
+    line-height: 28px;
+    font-variant-numeric: tabular-nums;
+}
+
+.energy-formula {
+    display: flex;
+    grid-column: 1 / -1;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.energy-formula-text {
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 24px;
+    font-variant-numeric: tabular-nums;
+}
+
+.energy-assumptions {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.energy-assumptions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.energy-assumptions-title {
+    color: var(--color-ink);
+    font-size: 14px;
+    font-weight: 800;
+    line-height: 18px;
+}
+
+.energy-assumptions-list ul {
+    display: flex;
+    flex-direction: column;
+    color: var(--color-ink-body);
+    font-size: 14px;
+    line-height: 21px;
+}
+
+.energy-assumptions-list li::before {
+    content: "· ";
+}
+
+@media (min-width: 1024px) {
+    .energy-figures {
+        display: flex;
+        align-items: flex-start;
+        gap: 48px;
+    }
+
+    .energy-figure {
+        width: 170px;
+        flex-shrink: 0;
+    }
+
+    .energy-figure .energy-figure-label,
+    .energy-formula .energy-figure-label {
+        font-size: 14px;
+    }
+
+    .energy-figure-value {
+        font-size: var(--text-number);
+        line-height: 38px;
+    }
+
+    .energy-formula {
+        min-width: 0;
+        flex: 1 1 0%;
+    }
+
+    .energy-formula-text {
+        font-size: 19px;
+        line-height: 26px;
+    }
+
+    .energy-assumptions {
+        flex-direction: row;
+        gap: 48px;
+    }
+
+    .energy-assumptions-list {
+        width: 400px;
+        flex-shrink: 0;
+    }
+
+    .energy-assumptions .energy-disclaimer {
+        min-width: 0;
+        flex: 1 1 0%;
+    }
+}
+
+/* ---------- Solar: Tietoa laskurista, FAQ, article ---------- */
+
+.energy-info {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.energy-info-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.energy-info-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    color: var(--color-ink-body);
+    font-size: var(--text-body);
+    line-height: 24px;
+}
+
+.energy-sun-mark {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    margin-top: 3px;
+}
+
+.energy-faq-block {
+    display: flex;
+    max-width: 820px;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.energy-article {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding-top: 16px;
+}
+
+.energy-article-columns {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    color: var(--color-ink-body);
+    font-size: var(--text-body);
+    line-height: 26px;
+}
+
+/* Drop cap on the first paragraph (Paper: Bricolage 76/66 in fox). */
+.energy-dropcap::first-letter {
+    float: left;
+    margin: 4px 12px 0 0;
+    color: var(--color-fox);
+    font-family: var(--font-display);
+    font-size: 76px;
+    font-weight: 800;
+    line-height: 58px;
+}
+
+@media (min-width: 1024px) {
+    .energy-info {
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 56px;
+    }
+
+    .energy-info-head {
+        width: 360px;
+        flex-shrink: 0;
+    }
+
+    .energy-info-list {
+        min-width: 0;
+        flex: 1 1 0%;
+    }
+
+    .energy-article-columns {
+        flex-direction: row;
+        gap: 48px;
+    }
+
+    .energy-article-columns p {
+        width: 380px;
+        flex-shrink: 0;
+    }
+}
+
+/* ---------- Heat pump calculator (Paper "Calculator") ---------- */
+
+.energy-intro {
+    max-width: 860px;
+    color: var(--color-ink-body);
+    font-size: 17px;
+    line-height: 28px;
+}
+
+.energy-calculator {
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+}
+
+.energy-inputs {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 28px;
+}
+
+.energy-group {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.energy-group-title {
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 24px;
+}
+
+.energy-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px 32px;
+}
+
+@media (min-width: 640px) {
+    .energy-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.energy-modes {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px 32px;
+}
+
+@media (min-width: 640px) {
+    .energy-modes {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.energy-mode {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    text-align: left;
+}
+
+.energy-mode .energy-radio {
+    width: 22px;
+    height: 22px;
+}
+
+.energy-mode-name {
+    color: var(--color-ink);
+    font-size: 16px;
+    font-weight: 800;
+    line-height: 22px;
+}
+
+.energy-mode.is-selected .energy-mode-name {
+    color: var(--color-fox-deep);
+}
+
+.energy-mode-hint {
+    color: var(--color-ink-muted);
+    font-size: var(--text-caption);
+    line-height: 18px;
+}
+
+.energy-heating {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.energy-heating-option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding-block: 12px;
+    border-bottom: 2px solid var(--color-edge);
+    text-align: center;
+}
+
+.energy-heating-option:hover {
+    border-bottom-color: var(--color-edge-strong);
+}
+
+.energy-heating-option.is-selected {
+    padding-bottom: 11px;
+    border-bottom: 3px solid var(--color-fox);
+}
+
+.energy-heating-name {
+    color: var(--color-ink);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 18px;
+}
+
+.energy-heating-option.is-selected .energy-heating-name {
+    color: var(--color-fox-deep);
+    font-weight: 800;
+}
+
+.energy-bill {
+    display: flex;
+    max-width: 284px;
+    flex-direction: column;
+    gap: 6px;
+    padding-top: 6px;
+}
+
+.energy-hint {
+    color: var(--color-ink-muted);
+    font-size: var(--text-caption);
+    line-height: 18px;
+}
+
+.energy-advanced {
+    border-top: 1.5px solid var(--color-edge);
+    border-bottom: 1.5px solid var(--color-edge);
+}
+
+.energy-advanced-trigger {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    padding-block: 14px;
+    color: var(--color-ink);
+    font-size: 16px;
+    font-weight: 800;
+    line-height: 22px;
+}
+
+.energy-advanced-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    padding: 4px 0 20px;
+}
+
+.energy-subgroup-title {
+    padding-bottom: 10px;
+    color: var(--color-ink);
+    font-size: 14px;
+    font-weight: 800;
+    line-height: 18px;
+}
+
+/* The answer column (Paper "Results column"): a 2px rule at its left, no panel. */
+.energy-answer {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 24px;
+    transition: opacity 0.2s;
+}
+
+.energy-need {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.energy-need-total {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    font-variant-numeric: tabular-nums;
+}
+
+.energy-need-number {
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    font-size: 48px;
+    font-weight: 800;
+    line-height: 52px;
+    letter-spacing: -0.04em;
+}
+
+.energy-need-unit {
+    color: var(--color-ink-body);
+    font-size: 16px;
+    font-weight: 800;
+    line-height: 20px;
+}
+
+.energy-need-bar {
+    display: flex;
+    height: 18px;
+    border: 1.3px solid var(--color-ink);
+}
+
+.energy-need-heating {
+    display: block;
+    border-right: 1.3px solid var(--color-ink);
+    background-color: color-mix(in srgb, var(--color-fox) 70%, transparent);
+}
+
+.energy-need-water {
+    display: block;
+    flex: 1 1 0%;
+    background-color: color-mix(in srgb, var(--color-lake) 60%, transparent);
+}
+
+.energy-need-parts {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 6px 16px;
+}
+
+.energy-need-parts div {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    color: var(--color-ink-body);
+    font-size: 14px;
+    line-height: 18px;
+}
+
+.energy-need-part {
+    order: -1;
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 24px;
+    font-variant-numeric: tabular-nums;
+}
+
+.energy-need-part--heating {
+    color: var(--color-fox-deep);
+}
+
+.energy-need-part--water {
+    color: var(--color-lake);
+}
+
+.energy-recommendation {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 18px;
+    border-top: 2px solid var(--color-ink);
+}
+
+.energy-recommendation-name {
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    font-size: 30px;
+    font-weight: 800;
+    line-height: 34px;
+    letter-spacing: -0.025em;
+}
+
+.energy-recommendation-none {
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    font-size: 24px;
+    font-weight: 800;
+    line-height: 30px;
+}
+
+.energy-recommendation-figures {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px 26px;
+    padding-top: 4px;
+}
+
+.energy-recommendation-figures > div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.energy-recommendation-saving {
+    color: var(--color-aurora);
+    font-family: var(--font-display);
+    font-size: 48px;
+    font-weight: 800;
+    line-height: 52px;
+    letter-spacing: -0.04em;
+    font-variant-numeric: tabular-nums;
+}
+
+.energy-recommendation-figure {
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 32px;
+    font-variant-numeric: tabular-nums;
+}
+
+.energy-recommendation-why {
+    color: var(--color-ink-body);
+    font-size: 15px;
+    line-height: 23px;
+}
+
+@media (min-width: 1024px) {
+    .energy-calculator {
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 56px;
+    }
+
+    .energy-inputs {
+        width: 600px;
+        flex-shrink: 0;
+    }
+
+    .energy-answer {
+        position: sticky;
+        top: 24px;
+        flex: 1 1 0%;
+        padding-left: 36px;
+        border-left: 2px solid var(--color-edge);
+    }
+
+    .energy-heating-name {
+        font-size: 15px;
+        line-height: 20px;
+    }
+
+    .energy-need-number {
+        font-size: 56px;
+        line-height: 58px;
+    }
+
+    .energy-recommendation-name {
+        font-size: 36px;
+        line-height: 40px;
+    }
+
+    .energy-recommendation-saving {
+        font-size: var(--text-price);
+        line-height: var(--leading-page);
+    }
+
+    .energy-recommendation-figure {
+        font-size: 28px;
+    }
+}
+
+/* Recalculation status: a small night label at the bottom right, no pill or shadow. */
+.energy-updating {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 40;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: var(--radius-button);
+    background-color: var(--color-night);
+    color: var(--color-snow-white);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 18px;
+}
+
+.energy-updating .energy-spinner {
+    width: 16px;
+    height: 16px;
+    color: var(--mark-aurora-light);
+}
+
+/* ---------- Heat pump: Lämmitysratkaisut ---------- */
+
+.energy-options {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.energy-options-head {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.energy-current {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px 28px;
+}
+
+.energy-current > div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.energy-current-name,
+.energy-current-figure {
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 800;
+    line-height: 26px;
+    font-variant-numeric: tabular-nums;
+}
+
+.energy-current-figure--cost {
+    color: var(--color-price-high);
+}
+
+.energy-options-intro {
+    color: var(--color-ink-body);
+    font-size: var(--text-body);
+    line-height: 25px;
+}
+
+/* Total cost per year: stacked bars on one scale, the current cost as a dashed line. */
+.energy-totals {
+    display: flex;
+    flex-direction: column;
+    padding-top: 6px;
+}
+
+.energy-totals-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+        "name value"
+        "track track"
+        "tag tag";
+    align-items: center;
+    gap: 4px 12px;
+    padding-block: 6px;
+}
+
+.energy-totals-name {
+    grid-area: name;
+    color: var(--color-ink);
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 18px;
+}
+
+.energy-totals-track {
+    position: relative;
+    display: block;
+    grid-area: track;
+    height: 22px;
+}
+
+.energy-totals-bar {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    border: 1.3px solid var(--color-ink);
+    background-color: color-mix(in srgb, var(--color-field-edge) 45%, transparent);
+}
+
+.energy-totals-energy {
+    display: block;
+    height: 100%;
+    border-right: 1.3px solid var(--color-ink);
+    background-color: color-mix(in srgb, var(--color-aurora) 70%, transparent);
+}
+
+.energy-totals-current {
+    position: absolute;
+    top: -4px;
+    bottom: -4px;
+    border-left: 2px dashed var(--color-price-high);
+}
+
+.energy-totals-value {
+    grid-area: value;
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 26px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.energy-totals-tag {
+    display: inline-flex;
+    grid-area: tag;
+    align-items: center;
+    gap: 6px;
+    color: var(--color-aurora);
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 800;
+    line-height: 20px;
+}
+
+.energy-totals-tag:empty {
+    display: none;
+}
+
+.energy-totals-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 22px;
+    padding-top: 8px;
+    color: var(--color-ink-body);
+    font-size: var(--text-caption);
+    font-weight: 700;
+    line-height: 16px;
+}
+
+.energy-totals-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.energy-swatch {
+    display: inline-block;
+    width: 14px;
+    height: 12px;
+    border-radius: var(--radius-swatch);
+}
+
+.energy-swatch--energy {
+    background-color: color-mix(in srgb, var(--color-aurora) 70%, transparent);
+}
+
+.energy-swatch--investment {
+    background-color: color-mix(in srgb, var(--color-field-edge) 60%, transparent);
+}
+
+.energy-swatch--current {
+    width: 18px;
+    height: 0;
+    border-top: 2px dashed var(--color-price-high);
+    border-radius: 0;
+}
+
+@media (min-width: 1024px) {
+    .energy-options-head {
+        flex-direction: row;
+        align-items: flex-end;
+        justify-content: space-between;
+    }
+
+    .energy-current {
+        flex-wrap: nowrap;
+        padding-bottom: 8px;
+    }
+
+    .energy-totals-row {
+        display: flex;
+        gap: 0;
+    }
+
+    .energy-totals-name {
+        width: 250px;
+        flex-shrink: 0;
+    }
+
+    .energy-totals-track {
+        width: 640px;
+        flex-shrink: 0;
+    }
+
+    .energy-totals-value {
+        width: 140px;
+        flex-shrink: 0;
+        font-size: 22px;
+        line-height: 28px;
+    }
+
+    .energy-totals-tag {
+        width: 202px;
+        flex-shrink: 0;
+        justify-content: flex-end;
+        font-size: 18px;
+        line-height: 22px;
+    }
+
+    .energy-totals-tag:empty {
+        display: block;
+    }
+
+    .energy-totals-legend {
+        padding-left: 250px;
+    }
+}
+
+/* Alternative rows: rank, name, figures and cost build-up between inked rules. */
+.energy-alternatives {
+    display: flex;
+    flex-direction: column;
+    border-bottom: 1.5px solid var(--color-edge);
+}
+
+.energy-alt {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding-block: 22px;
+    border-top: 1.5px solid var(--color-edge);
+}
+
+.energy-alt:first-child {
+    border-top: 2px solid var(--color-ink);
+}
+
+.energy-alt-main {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.energy-alt-title {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.energy-alt-name {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 800;
+    line-height: 26px;
+}
+
+.energy-alt-rank {
+    width: 22px;
+    flex-shrink: 0;
+    font-size: var(--text-rank);
+    line-height: 36px;
+    letter-spacing: -0.03em;
+}
+
+.energy-alt-rank.is-first {
+    color: var(--color-fox-deep);
+}
+
+.energy-alt-tag,
+.energy-alt-notes {
+    padding-left: 34px;
+}
+
+.energy-alt-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--color-aurora);
+    font-size: var(--text-caption);
+    font-weight: 800;
+    line-height: 16px;
+}
+
+.energy-alt-notes {
+    color: var(--color-ink-muted);
+    font-size: 14px;
+    line-height: 20px;
+}
+
+.energy-alt-figures {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 30px;
+}
+
+.energy-alt-figures > div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.energy-alt-figure {
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 34px;
+    font-variant-numeric: tabular-nums;
+}
+
+.energy-alt-figure.is-saving {
+    color: var(--color-saving);
+}
+
+.energy-alt-figure.is-cost {
+    color: var(--color-price-high);
+}
+
+.energy-alt-figure.is-muted {
+    color: var(--color-ink-muted);
+}
+
+.energy-alt-co2 {
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 800;
+    line-height: 28px;
+    font-variant-numeric: tabular-nums;
+}
+
+.energy-alt-co2-delta {
+    font-size: var(--text-caption);
+    font-weight: 800;
+    line-height: 16px;
+    font-variant-numeric: tabular-nums;
+}
+
+.energy-alt-co2-delta.is-down {
+    color: var(--color-aurora);
+}
+
+.energy-alt-co2-delta.is-up {
+    color: var(--color-price-high);
+}
+
+.energy-alt-costs {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-variant-numeric: tabular-nums;
+}
+
+.energy-alt-cost {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    color: var(--color-ink-body);
+    font-size: 14px;
+    line-height: 18px;
+}
+
+.energy-alt-cost strong {
+    color: var(--color-ink);
+    font-size: 15px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.energy-alt-cost-note {
+    color: var(--color-ink-muted);
+    font-size: 12px;
+    line-height: 16px;
+}
+
+.energy-alt-total {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    padding-top: 6px;
+    border-top: 3px double var(--color-ink);
+    color: var(--color-ink);
+    font-size: 14px;
+    font-weight: 800;
+    line-height: 18px;
+}
+
+.energy-alt-total strong {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 800;
+    line-height: 28px;
+    white-space: nowrap;
+}
+
+@media (min-width: 1024px) {
+    .energy-alt-main {
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 40px;
+    }
+
+    .energy-alt-title {
+        width: 330px;
+        flex-shrink: 0;
+    }
+
+    .energy-alt-name {
+        font-size: 24px;
+        line-height: 28px;
+    }
+
+    .energy-alt-figures {
+        width: 430px;
+        flex-shrink: 0;
+        flex-wrap: nowrap;
+    }
+
+    .energy-alt-figure {
+        font-size: var(--text-number);
+        line-height: 36px;
+    }
+
+    .energy-alt-costs {
+        min-width: 0;
+        flex: 1 1 0%;
+    }
+}
+
+/* Payback chart: toggle and legend at the left, the chart in the middle. */
+.energy-payback {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-left: 34px;
+}
+
+.energy-payback-side {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.energy-payback-toggle {
+    display: inline-flex;
+    align-self: flex-start;
+    align-items: center;
+    gap: 6px;
+    color: var(--color-fox-deep);
+    font-size: 14px;
+    font-weight: 800;
+    line-height: 18px;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+}
+
+.energy-payback-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    color: var(--color-ink-body);
+    font-size: var(--text-caption);
+    font-weight: 700;
+    line-height: 16px;
+}
+
+.energy-payback-legend li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.energy-line {
+    display: inline-block;
+    width: 20px;
+    flex-shrink: 0;
+}
+
+.energy-line--current {
+    border-top: 2.5px solid var(--color-field-edge);
+}
+
+.energy-line--option {
+    border-top: 3px solid var(--color-fox);
+}
+
+.energy-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-inline: 2px 8px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background-color: var(--color-aurora);
+}
+
+.energy-payback-chart {
+    max-width: 560px;
+}
+
+.energy-chart-label {
+    fill: var(--color-ink-muted);
+    font-family: var(--font-sans);
+    font-size: 12px;
+}
+
+@media (min-width: 1024px) {
+    .energy-payback {
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 40px;
+    }
+
+    .energy-payback-side {
+        width: 296px;
+        flex-shrink: 0;
+    }
+
+    .energy-payback-chart {
+        width: 560px;
+        flex-shrink: 0;
+    }
+}
+
+.energy-footnote {
+    padding-top: 12px;
+    color: var(--color-ink-muted);
+    font-size: var(--text-caption);
+    line-height: 20px;
+}
+
+/* ---------- Heat pump: notes, CO2, FAQ, related, article ---------- */
+
+.energy-notes {
+    display: flex;
+    flex-direction: column;
+    gap: 36px;
+    padding-top: 8px;
+}
+
+.energy-notes-col {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 12px;
+    color: var(--color-ink-body);
+    font-size: 15px;
+    line-height: 23px;
+}
+
+.energy-notes-title {
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    font-size: 24px;
+    font-weight: 800;
+    line-height: 30px;
+}
+
+.energy-notes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.energy-notes-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.energy-factors {
+    display: flex;
+    flex-direction: column;
+}
+
+.energy-factors li {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 4px 12px;
+    padding-block: 8px;
+    border-bottom: 1px solid var(--color-edge);
+}
+
+.energy-factor-name {
+    color: var(--color-ink);
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 18px;
+}
+
+.energy-factor-bar {
+    display: block;
+    height: 8px;
+    background-color: color-mix(in srgb, var(--color-granite) 60%, transparent);
+}
+
+.energy-factor-text {
+    color: var(--color-ink-body);
+    font-size: 14px;
+    line-height: 20px;
+}
+
+.energy-factor-text strong {
+    color: var(--color-ink);
+    font-weight: 800;
+}
+
+.energy-notes-foot {
+    color: var(--color-ink-muted);
+    font-size: 14px;
+    line-height: 22px;
+}
+
+@media (min-width: 1024px) {
+    .energy-notes {
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 56px;
+    }
+
+    .energy-notes-col {
+        width: 560px;
+        flex-shrink: 0;
+    }
+
+    .energy-notes-col--co2 {
+        width: auto;
+        flex: 1 1 0%;
+    }
+
+    .energy-factors li {
+        grid-template-columns: 150px 140px minmax(0, 1fr);
+        align-items: center;
+        padding-block: 6px;
+    }
+}
+
+.energy-faq-related {
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+}
+
+.energy-related {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 6px;
+}
+
+.energy-related-title {
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 800;
+    line-height: 28px;
+}
+
+.energy-related ul {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.energy-related-link {
+    color: var(--color-fox-deep);
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 800;
+    line-height: 26px;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+}
+
+.energy-related-link:hover {
+    color: var(--color-ink);
+}
+
+@media (min-width: 1024px) {
+    .energy-faq-related {
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 56px;
+    }
+
+    .energy-faq-block--narrow {
+        width: 640px;
+        flex-shrink: 0;
+    }
+
+    .energy-related {
+        min-width: 0;
+        flex: 1 1 0%;
+    }
+}
+
+.energy-longread {
+    display: flex;
+    max-width: 760px;
+    flex-direction: column;
+    gap: 14px;
+    padding-top: 14px;
+    color: var(--color-ink-body);
+    font-size: 17px;
+    line-height: 28px;
+}
+
+.energy-longread h3 {
+    padding-top: 8px;
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    font-size: var(--text-title);
+    font-weight: 800;
+    line-height: 28px;
+}

@@ -6,6 +6,7 @@
     'linkText' => null,
     'ariaLabel' => null,
     'triggerClass' => '',
+    'variant' => 'pill',
 ])
 {{--
     Interactive disclosure: a pill button that opens a panel which the pointer can enter,
@@ -113,10 +114,20 @@
         :aria-expanded="open"
         :aria-controls="panelId"
         aria-label="{{ $ariaLabel ?? 'Miten vuosihinnan arvio lasketaan' }}"
-        class="{{ $triggerClass }} inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-semibold text-slate-600 transition-colors hover:border-coral-400 hover:text-coral-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-coral-500 cursor-help"
+        @if ($variant === 'inked')
+            {{-- Redesign: inked text trigger, no pill (ledger contract entry). --}}
+            class="{{ $triggerClass }} vk-arvio vk-focus"
+        @else
+            class="{{ $triggerClass }} inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-semibold text-slate-600 transition-colors hover:border-coral-400 hover:text-coral-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-coral-500 cursor-help"
+        @endif
     >
-        {{ $label }}
-        <svg class="h-3.5 w-3.5 opacity-70" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 112 0v4a1 1 0 11-2 0V9zm1-5.5a1.25 1.25 0 100 2.5 1.25 1.25 0 000-2.5z" clip-rule="evenodd"/></svg>
+        @if ($variant === 'inked')
+            <span class="vk-arvio-text">{{ $label }}</span>
+            <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><circle cx="8" cy="8" r="6.6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 7.2v4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="8" cy="4.9" r="0.95" fill="currentColor"/></svg>
+        @else
+            {{ $label }}
+            <svg class="h-3.5 w-3.5 opacity-70" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 112 0v4a1 1 0 11-2 0V9zm1-5.5a1.25 1.25 0 100 2.5 1.25 1.25 0 000-2.5z" clip-rule="evenodd"/></svg>
+        @endif
     </button>
 
     <template x-teleport="body">

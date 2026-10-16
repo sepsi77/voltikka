@@ -1,9 +1,11 @@
-{{-- One heating-alternative result card.
-     Expects: $alt. Optional: $isRecommended (bool). Reads $this->currentSystem,
-     $calculationPeriod from the parent scope. --}}
+{{-- One heating-alternative ledger row (Paper board C1D-0 "Alternative · …"). No card: a rank
+     number, the name, the outcome figures and the cost build-up with dotted leaders, separated
+     by inked rules. Expects: $alt. Optional: $isRecommended (bool), $rank (int). Reads
+     $this->currentSystem, $calculationPeriod and $interestRate from the parent scope. --}}
 @php
     $savingsPositive = $alt['annualSavings'] > 0;
     $isRecommended = $isRecommended ?? false;
+    $rank = $rank ?? null;
     $co2Diff = $this->currentSystem['co2KgPerYear'] - $alt['co2KgPerYear'];
     // Break the total into its two visible parts so it adds up on screen:
     // energy cost + investment annuity = total annual cost.
@@ -11,69 +13,73 @@
     $totalCost = round($alt['annualizedTotalCost']);
     $investmentAnnuity = $totalCost - $energyCost;
 @endphp
-<div class="bg-white rounded-2xl border {{ $isRecommended ? 'border-coral-300 ring-1 ring-coral-200' : 'border-slate-200' }} p-6 hover:shadow-lg transition-shadow">
-    <div class="flex items-start justify-between gap-3 mb-4">
-        <h4 class="text-lg font-bold text-slate-900">{{ $alt['label'] }}</h4>
-        @if ($isRecommended)
-            <span class="shrink-0 text-xs font-semibold uppercase tracking-wide text-coral-700 bg-coral-50 border border-coral-200 rounded-full px-3 py-1">Suositeltu</span>
-        @endif
-    </div>
-
-    {{-- Outcome metrics --}}
-    <div class="space-y-3">
-        <div class="flex justify-between items-center">
-            <span class="text-slate-600">{{ $savingsPositive ? 'Vuosisäästö' : 'Lisäkustannus/v' }}</span>
-            <span class="text-lg font-bold text-slate-900 tabular-nums whitespace-nowrap">
-                {{ $savingsPositive ? '+' : '' }}{{ number_format($alt['annualSavings'], 0, ',', ' ') }} €
-            </span>
-        </div>
-        <div class="flex justify-between items-center">
-            <span class="text-slate-600">Takaisinmaksuaika</span>
-            <span class="text-lg font-semibold text-slate-900 tabular-nums whitespace-nowrap">
-                @if ($alt['paybackYears'])
-                    {{ number_format($alt['paybackYears'], 1, ',', ' ') }} v
-                @else
-                    –
+<li @class(['energy-alt', 'is-recommended' => $isRecommended])>
+    <div class="energy-alt-main">
+        <div class="energy-alt-title">
+            <h4 class="energy-alt-name">
+                @if ($rank)
+                    <span @class(['energy-alt-rank', 'is-first' => $rank === 1])>{{ $rank }}</span>
                 @endif
-            </span>
+                <span>{{ $alt['label'] }}</span>
+            </h4>
+            @if ($isRecommended)
+                <p class="energy-alt-tag"><x-ink.sparkle size="12" color="var(--color-aurora)" /> Suositeltu</p>
+            @endif
+            @if (!empty($alt['notes']))
+                <p class="energy-alt-notes">{{ $alt['notes'] }}</p>
+            @endif
         </div>
-        <div class="flex justify-between items-center">
-            <span class="text-slate-600">CO₂-päästöt</span>
-            <div class="text-right">
-                <span class="text-lg font-semibold text-slate-900 tabular-nums whitespace-nowrap">{{ number_format($alt['co2KgPerYear'], 0, ',', ' ') }} kg</span>
+
+        {{-- Outcome metrics --}}
+        <dl class="energy-alt-figures">
+            <div>
+                <dt class="energy-small-label">{{ $savingsPositive ? 'Vuosisäästö' : 'Lisäkustannus/v' }}</dt>
+                <dd @class(['energy-alt-figure', 'is-saving' => $savingsPositive, 'is-cost' => ! $savingsPositive])>
+                    {{ $savingsPositive ? '+' : '' }}{{ number_format($alt['annualSavings'], 0, ',', ' ') }} €
+                </dd>
+            </div>
+            <div>
+                <dt class="energy-small-label">Takaisinmaksuaika</dt>
+                <dd @class(['energy-alt-figure', 'is-muted' => ! $alt['paybackYears']])>
+                    @if ($alt['paybackYears'])
+                        {{ number_format($alt['paybackYears'], 1, ',', ' ') }} v
+                    @else
+                        –
+                    @endif
+                </dd>
+            </div>
+            <div>
+                <dt class="energy-small-label">CO₂-päästöt</dt>
+                <dd class="energy-alt-co2">{{ number_format($alt['co2KgPerYear'], 0, ',', ' ') }} kg</dd>
                 @if ($co2Diff > 0)
-                    <span class="block text-sm text-green-600 font-medium tabular-nums">−{{ number_format($co2Diff, 0, ',', ' ') }} kg ({{ number_format(($co2Diff / $this->currentSystem['co2KgPerYear']) * 100, 0) }}%)</span>
+                    <dd class="energy-alt-co2-delta is-down">−{{ number_format($co2Diff, 0, ',', ' ') }} kg ({{ number_format(($co2Diff / $this->currentSystem['co2KgPerYear']) * 100, 0) }}%)</dd>
                 @elseif ($co2Diff < 0)
-                    <span class="block text-sm text-red-600 font-medium tabular-nums">+{{ number_format(abs($co2Diff), 0, ',', ' ') }} kg</span>
+                    <dd class="energy-alt-co2-delta is-up">+{{ number_format(abs($co2Diff), 0, ',', ' ') }} kg</dd>
                 @endif
             </div>
+        </dl>
+
+        {{-- Cost build-up: energy cost + investment annuity = total annual cost --}}
+        <div class="energy-alt-costs">
+            <p class="energy-alt-cost">
+                <span>Energiakustannus/v</span>
+                <span class="vk-leader" aria-hidden="true"></span>
+                <strong>{{ number_format($energyCost, 0, ',', ' ') }} €</strong>
+            </p>
+            <p class="energy-alt-cost">
+                <span>Investoinnin osuus/v</span>
+                <span class="vk-leader" aria-hidden="true"></span>
+                <strong>+ {{ number_format($investmentAnnuity, 0, ',', ' ') }} €</strong>
+            </p>
+            <p class="energy-alt-cost-note">{{ number_format($alt['investment'], 0, ',', ' ') }} € jaettuna {{ $calculationPeriod }} vuodelle ({{ number_format($interestRate, 1, ',', ' ') }} % korko)</p>
+            <p class="energy-alt-total">
+                <span>Kokonaiskustannus/v*</span>
+                <strong>{{ number_format($totalCost, 0, ',', ' ') }} €</strong>
+            </p>
         </div>
     </div>
-
-    {{-- Cost build-up: energy cost + investment annuity = total annual cost --}}
-    <div class="border-t border-slate-100 pt-3 mt-4 space-y-2">
-        <div class="flex justify-between items-center">
-            <span class="text-slate-600">Energiakustannus/v</span>
-            <span class="text-slate-900 font-semibold tabular-nums whitespace-nowrap">{{ number_format($energyCost, 0, ',', ' ') }} €</span>
-        </div>
-        <div class="flex justify-between items-start gap-2">
-            <span class="text-slate-600">
-                Investoinnin osuus/v
-                <span class="block text-xs text-slate-400">{{ number_format($alt['investment'], 0, ',', ' ') }} € jaettuna {{ $calculationPeriod }} vuodelle ({{ number_format($interestRate, 1, ',', ' ') }} % korko)</span>
-            </span>
-            <span class="text-slate-900 font-semibold tabular-nums whitespace-nowrap">+ {{ number_format($investmentAnnuity, 0, ',', ' ') }} €</span>
-        </div>
-        <div class="flex justify-between items-baseline gap-2 border-t border-slate-200 pt-2">
-            <span class="text-slate-900 font-semibold">Kokonaiskustannus/v*</span>
-            <span class="text-xl font-bold text-slate-900 tabular-nums whitespace-nowrap">{{ number_format($totalCost, 0, ',', ' ') }} €</span>
-        </div>
-    </div>
-
-    @if (!empty($alt['notes']))
-        <p class="mt-4 text-sm text-slate-500 bg-slate-50 rounded-lg p-3">{{ $alt['notes'] }}</p>
-    @endif
 
     @if ($alt['annualSavings'] > 0)
         @include('livewire.partials.heat-pump-payback-chart', ['alt' => $alt])
     @endif
-</div>
+</li>

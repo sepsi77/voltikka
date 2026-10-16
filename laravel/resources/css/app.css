@@ -1,3 +1,18 @@
+@import './tokens.css';
+@import './redesign.css';
+@import './redesign-shell.css';
+@import './redesign-listing.css';
+@import './redesign-ledger.css';
+@import './redesign-spot.css';
+@import './redesign-home.css';
+@import './redesign-detail.css';
+@import './redesign-company.css';
+@import './redesign-tools.css';
+@import './redesign-energy.css';
+@import './redesign-data.css';
+@import './redesign-seo-pages.css';
+@import './redesign-longread.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -58,7 +73,7 @@
      ======================================== */
 
   /* Font Family */
-  --font-family-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family-sans: 'Figtree', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
   /* Font Sizes */
   --font-size-xs: 0.75rem;     /* 12px */

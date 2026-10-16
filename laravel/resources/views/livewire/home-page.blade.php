@@ -1,218 +1,216 @@
 <div>
-    <!-- Hero: comprehensive energy service with independence frame -->
-    <section class="bg-slate-950 -mx-4 sm:-mx-6 lg:-mx-8">
-        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24 lg:pt-28 lg:pb-32">
-            @if($currentSpotPrice)
-                <p class="inline-flex items-center gap-2.5 text-sm font-semibold text-slate-300 uppercase tracking-wider mb-10">
-                    <span class="relative flex h-2 w-2">
-                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-coral-500 opacity-60"></span>
-                        <span class="relative inline-flex rounded-full h-2 w-2 bg-coral-500"></span>
-                    </span>
-                    <span class="tabular-nums">Pörssi nyt {{ number_format($currentSpotPrice['price_with_tax'], 2, ',', ' ') }} c/kWh</span>
-                </p>
-            @endif
-            <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.1] mb-8 max-w-4xl">
-                <span class="text-white">Sähkö, aurinko, lämpö.</span><br>
-                <span class="text-coral-400">Yksi riippumaton palvelu.</span>
-            </h1>
-            <p class="text-lg lg:text-xl text-slate-300 mb-10 max-w-2xl leading-relaxed">
-                Vertaile sähkösopimuksia, seuraa pörssihintoja, arvioi aurinkopaneelien tuotto ja lämpöpumpun säästöt. {{ $contractCount }}+ sopimusta. Päivittäin päivittyvät hinnat. Ei mainosrahaa.
+    {{-- Picture-book homepage (Paper board 6HY-0 "Etusivu — / picture book", seasons FHW-0).
+         No cards: structure comes from display headings with the wavy fox underline, inked
+         hairlines, big numbers and the tool vignettes at the left of their headings. --}}
+    <x-site.home-hero :tone="\App\Support\Season::heroTone('home-hero')">
+        @if($currentSpotPrice)
+            <p class="home-hero-now">
+                <x-ink.sparkle size="14" color="var(--mark-aurora-light)" />
+                <span class="home-hero-now-label">Pörssi nyt</span>
+                <span class="home-hero-now-price tabular-nums">{{ number_format($currentSpotPrice['price_with_tax'], 2, ',', ' ') }} c/kWh</span>
             </p>
-            <a href="/sahkosopimus" class="inline-flex items-center px-7 py-4 bg-coral-500 text-white font-bold rounded-xl hover:bg-coral-400 transition-colors shadow-lg shadow-coral-500/25">
-                Vertaile sopimuksia
-                <svg class="w-5 h-5 ml-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
-                </svg>
-            </a>
-        </div>
-    </section>
+        @endif
+        <h1 class="home-hero-h1">
+            <span class="block text-[var(--tone-strong)]">Sähkö, aurinko, lämpö.</span>
+            <span class="block text-[var(--tone-accent)]">Yksi riippumaton palvelu.</span>
+        </h1>
+        <p class="home-hero-lead">
+            Vertaile sähkösopimuksia, seuraa pörssihintoja, arvioi aurinkopaneelien tuotto ja lämpöpumpun säästöt. {{ $contractCount }}+ sopimusta. Päivittäin päivittyvät hinnat. Ei mainosrahaa.
+        </p>
+        <a href="/sahkosopimus" class="home-hero-cta vk-focus">
+            <span>Vertaile sopimuksia <span aria-hidden="true">→</span></span>
+            <x-ink.wave width="270" stroke="3.6" color="var(--tone-underline)" class="home-wave-fluid" />
+        </a>
+    </x-site.home-hero>
 
     <x-page-action-strip />
 
-    <!-- Palvelut: one bento grid with featured tile + supporting tiles -->
-    <section class="max-w-7xl mx-auto px-4 pt-20 sm:px-6 lg:px-8 lg:pt-28 mb-24 lg:mb-32">
-        <p class="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">
-            Palvelut
-        </p>
-        <h2 class="text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight mb-12 max-w-3xl leading-tight">
-            Vertaile sopimuksia. Seuraa pörssiä. Laske säästöt.
-        </h2>
+    <div class="vk-wrap home-body">
+        {{-- Palvelut: the contract comparison with the count as a giant numeral, the live spot
+             price with today's hours, the three tool vignettes and the bill comparison. --}}
+        <section class="home-section" aria-labelledby="home-services-title">
+            <header class="home-head">
+                <p class="home-kicker">Palvelut</p>
+                <h2 id="home-services-title" class="home-heading">Vertaile sopimuksia. Seuraa pörssiä. Laske säästöt.</h2>
+                <x-ink.wave width="360" stroke="3.5" class="home-wave-fluid" />
+            </header>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <!-- Featured: Sähkösopimukset (wide, dark) -->
-            <a href="/sahkosopimus" class="group md:col-span-2 lg:col-span-2 bg-slate-900 rounded-2xl p-8 lg:p-10 text-white block transition-transform hover:-translate-y-0.5">
-                <p class="text-sm font-semibold text-coral-400 uppercase tracking-wider mb-4">Sähkösopimukset</p>
-                <h3 class="text-2xl lg:text-3xl font-extrabold mb-4 leading-tight">
-                    Vertaa {{ $contractCount }} sähkösopimusta puolueettomasti.
-                </h3>
-                <p class="text-slate-300 mb-6 max-w-xl leading-relaxed">
-                    Pörssi, määräaikainen, hybridi. Suodata kotisi kulutuksen mukaan ja näe vuosikustannukset samalla logiikalla kaikille sopimuksille.
-                </p>
-                <span class="inline-flex items-center gap-2 font-bold text-coral-400 group-hover:text-coral-300 transition-colors">
-                    Aloita vertailu
-                    <svg class="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
-                    </svg>
-                </span>
-            </a>
-
-            <!-- Pörssisähkö: with live price -->
-            <a href="/spot-price" class="group bg-white border border-slate-200 rounded-2xl p-8 hover:border-slate-300 transition-colors block">
-                <p class="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">Pörssisähkö</p>
-                @if($currentSpotPrice)
-                    @php
-                        $price = $currentSpotPrice['price_with_tax'];
-                        $tier = $price < 10 ? 'low' : ($price < 20 ? 'medium' : 'high');
-                        $tierColor = $tier === 'low' ? 'text-emissions-low' : ($tier === 'medium' ? 'text-emissions-medium' : 'text-emissions-high');
-                        $tierLabel = $tier === 'low' ? 'Halpa hetki' : ($tier === 'medium' ? 'Keskihinta' : 'Kallis hetki');
-                    @endphp
-                    <div class="flex items-baseline mb-1 tabular-nums leading-none">
-                        <span class="text-5xl font-extrabold {{ $tierColor }}">{{ number_format($price, 2, ',', ' ') }}</span>
-                        <span class="text-lg text-slate-500 font-bold ml-2">c/kWh</span>
-                    </div>
-                    <p class="text-sm text-slate-500 font-medium mb-4">{{ $tierLabel }} &middot; juuri nyt</p>
-                @else
-                    <h3 class="text-xl font-extrabold text-slate-900 mb-6 leading-tight">
-                        Päivän pörssihinnat ja laitelaskurit
+            <div class="home-featured">
+                <div class="home-contracts">
+                    <p class="home-kicker">Sähkösopimukset</p>
+                    <h3 class="home-count-sentence">
+                        <span class="home-count-word">Vertaa</span>
+                        <span class="home-count tabular-nums">{{ $contractCount }}</span>
+                        <span class="home-count-word home-count-tail">sähkösopimusta puolueettomasti.</span>
                     </h3>
-                @endif
-
-                @if(!empty($todaysSpotPrices))
-                    @php
-                        $tierFill = ['low' => '#22c55e', 'medium' => '#f59e0b', 'high' => '#ef4444'];
-                        $prices = array_column($todaysSpotPrices, 'price');
-                        $maxPrice = max($prices);
-                        $minBase = min(0, min($prices));
-                        $range = max(1, $maxPrice - $minBase);
-                        $barWidth = 9;
-                        $barGap = 3;
-                        $chartHeight = 48;
-                        $totalWidth = count($todaysSpotPrices) * ($barWidth + $barGap) - $barGap;
-                        $svgHeight = $chartHeight + 10;
-                    @endphp
-                    <svg viewBox="0 0 {{ $totalWidth }} {{ $svgHeight }}" class="w-full h-14 mb-6" preserveAspectRatio="none" aria-label="Tämän päivän pörssihinnat tunneittain">
-                        @foreach($todaysSpotPrices as $i => $h)
-                            @php
-                                $heightRatio = max(0.05, ($h['price'] - $minBase) / $range);
-                                $barHeight = $heightRatio * $chartHeight;
-                                $x = $i * ($barWidth + $barGap);
-                                $y = $chartHeight - $barHeight;
-                                $fill = $tierFill[$h['tier']];
-                            @endphp
-                            <rect x="{{ $x }}" y="{{ $y }}" width="{{ $barWidth }}" height="{{ $barHeight }}" rx="1.5" fill="{{ $fill }}" opacity="{{ $h['is_current'] ? '1' : '0.55' }}"/>
-                            @if($h['is_current'])
-                                <circle cx="{{ $x + $barWidth / 2 }}" cy="{{ $svgHeight - 3 }}" r="2.5" fill="#f97316"/>
-                            @endif
-                        @endforeach
-                    </svg>
-                @endif
-                <span class="inline-flex items-center gap-2 font-bold text-slate-900">
-                    Näe hintakehitys
-                    <svg class="w-4 h-4 text-coral-500 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
-                    </svg>
-                </span>
-            </a>
-
-            <!-- Sähkölaskuri -->
-            <a href="/sahkosopimus/laskuri" class="group bg-white border border-slate-200 rounded-2xl p-6 lg:p-7 hover:border-slate-300 transition-colors block">
-                <h3 class="text-lg font-extrabold text-slate-900 mb-2 leading-tight">
-                    Sähkölaskuri
-                </h3>
-                <p class="text-slate-600 mb-4 text-sm leading-relaxed">
-                    Arvioi kotisi vuosikulutus ja löydä sopivan kokoinen sopimus.
-                </p>
-                <span class="inline-flex items-center gap-2 text-sm font-bold text-slate-900">
-                    Laske kulutus
-                    <svg class="w-4 h-4 text-coral-500 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
-                    </svg>
-                </span>
-            </a>
-
-            <!-- Aurinkopaneelit -->
-            <a href="/aurinkopaneelit/laskuri" class="group bg-white border border-slate-200 rounded-2xl p-6 lg:p-7 hover:border-slate-300 transition-colors block">
-                <h3 class="text-lg font-extrabold text-slate-900 mb-2 leading-tight">
-                    Aurinkopaneelit
-                </h3>
-                <p class="text-slate-600 mb-4 text-sm leading-relaxed">
-                    Laske paneelien tuotto ja takaisinmaksuaika osoitteellesi.
-                </p>
-                <span class="inline-flex items-center gap-2 text-sm font-bold text-slate-900">
-                    Laske tuotto
-                    <svg class="w-4 h-4 text-coral-500 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
-                    </svg>
-                </span>
-            </a>
-
-            <!-- Lämpöpumput -->
-            <a href="/lampopumput/laskuri" class="group bg-white border border-slate-200 rounded-2xl p-6 lg:p-7 hover:border-slate-300 transition-colors block">
-                <h3 class="text-lg font-extrabold text-slate-900 mb-2 leading-tight">
-                    Lämpöpumput
-                </h3>
-                <p class="text-slate-600 mb-4 text-sm leading-relaxed">
-                    Vertaile pumppuja ja arvioi säästöt nykyiseen lämmitykseen.
-                </p>
-                <span class="inline-flex items-center gap-2 text-sm font-bold text-slate-900">
-                    Vertaile vaihtoehtoja
-                    <svg class="w-4 h-4 text-coral-500 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
-                    </svg>
-                </span>
-            </a>
-
-            <!-- Maksatko liikaa: full-width closing tile -->
-            <a href="{{ route('bill.comparison') }}" class="group md:col-span-2 lg:col-span-3 bg-white border border-slate-200 rounded-2xl p-6 lg:p-8 hover:border-slate-300 transition-colors flex flex-col sm:flex-row sm:items-center gap-5 sm:gap-7">
-                <span class="flex-shrink-0 flex items-center justify-center w-12 h-12 rounded-xl bg-coral-50">
-                    <svg class="w-6 h-6 text-coral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                    </svg>
-                </span>
-                <div class="flex-1 min-w-0">
-                    <h3 class="text-lg lg:text-xl font-extrabold text-slate-900 mb-1.5 leading-tight">
-                        Maksatko sähköstäsi liikaa?
-                    </h3>
-                    <p class="text-slate-600 text-sm leading-relaxed">
-                        Syötä yhden sähkölaskusi tiedot, niin näet mitä olisit maksanut muilla sopimuksilla samalla laskutusjaksolla.
+                    <p class="home-lead">
+                        Pörssi, määräaikainen, hybridi. Suodata kotisi kulutuksen mukaan ja näe vuosikustannukset samalla logiikalla kaikille sopimuksille.
                     </p>
+                    <a href="/sahkosopimus" class="home-action home-action--lg vk-focus">
+                        <span>Aloita vertailu <span aria-hidden="true">→</span></span>
+                        <x-ink.wave width="190" stroke="3" />
+                    </a>
                 </div>
-                <span class="inline-flex items-center gap-2 font-bold text-coral-600 group-hover:text-coral-500 transition-colors whitespace-nowrap">
-                    Vertaa laskuasi
-                    <svg class="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
-                    </svg>
-                </span>
-            </a>
-        </div>
-    </section>
 
-    <!-- Analyysit: editorial asymmetric layout (distinct treatment from grid above) -->
-    <section class="bg-slate-50 -mx-4 sm:-mx-6 lg:-mx-8 py-20 lg:py-24 mb-24 lg:mb-32">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <p class="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">
-                Analyysit
-            </p>
-            <h2 class="text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight mb-6 max-w-3xl leading-tight">
-                Tutki mihin sähkön hinta on menossa.
-            </h2>
-            <p class="text-lg text-slate-600 max-w-2xl mb-12 leading-relaxed">
-                Riippumattomat analyysit Suomen sähkömarkkinoista. Päätä faktojen, ei mutu-tuntuman pohjalta.
-            </p>
+                <svg class="home-vrule" width="8" height="380" viewBox="0 0 8 380" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+                    <path d="M4 4 C 2.6 90, 5.4 190, 3.6 280 S 4.6 350, 4 376" fill="none" style="stroke: var(--color-edge-strong)" stroke-width="1.6" stroke-linecap="round" vector-effect="non-scaling-stroke" />
+                </svg>
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-x-12 gap-y-12">
-                <!-- Featured: hintakehitys takes 2 columns -->
-                <a href="/sahkosopimus/tilastot" class="group lg:col-span-2 lg:border-r lg:border-slate-200 lg:pr-12 block">
-                    <p class="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Hintakehitys &middot; 6 kk &middot; viikoittain</p>
-                    <h3 class="text-2xl lg:text-3xl font-extrabold text-slate-900 mb-4 group-hover:text-coral-600 transition-colors leading-tight">
-                        Sähkösopimusten vuosikustannus sopimustyypeittäin
-                    </h3>
-                    <p class="text-slate-600 mb-8 max-w-xl leading-relaxed">
+                <div class="home-spot">
+                    <p class="home-kicker home-kicker--spot">Pörssisähkö</p>
+                    @if($currentSpotPrice)
+                        @php
+                            $price = $currentSpotPrice['price_with_tax'];
+                            $tier = $price < 10 ? 'low' : ($price < 20 ? 'medium' : 'high');
+                            $tierLabel = $tier === 'low' ? 'Halpa hetki' : ($tier === 'medium' ? 'Keskihinta' : 'Kallis hetki');
+                        @endphp
+                        <p class="home-spot-figure home-spot--{{ $tier }}">
+                            <span class="home-spot-number tabular-nums">{{ number_format($price, 2, ',', ' ') }}</span>
+                            <span class="home-spot-unit">c/kWh</span>
+                        </p>
+                        <p class="home-spot-state home-spot--{{ $tier }}">
+                            <x-ink.sparkle size="13" color="currentColor" />
+                            <span class="font-extrabold">{{ $tierLabel }}</span>
+                            <span class="text-ink-body">&middot; juuri nyt</span>
+                        </p>
+                    @else
+                        <h3 class="home-title">Päivän pörssihinnat ja laitelaskurit</h3>
+                    @endif
+
+                    @if(!empty($todaysSpotPrices))
+                        @php
+                            // Plain bar chart (spec §5 "Charts", mini chart): inked baseline, the current
+                            // hour in fox with a short inked arrow and "nyt". Negative prices go below the
+                            // baseline at 0.
+                            $prices = array_column($todaysSpotPrices, 'price');
+                            $count = count($todaysSpotPrices);
+                            $maxPrice = max($prices);
+                            $minBase = min(0, min($prices));
+                            $range = max(1, $maxPrice - $minBase);
+                            $chartWidth = 400;
+                            // 34px of headroom above the tallest bar keeps the "nyt" arrow inside the chart.
+                            $plotTop = 34;
+                            $plotBottom = 116;
+                            $plotHeight = $plotBottom - $plotTop;
+                            $stride = ($chartWidth - 8) / $count;
+                            $barWidth = max(4, $stride * 0.7);
+                            $zeroY = $plotBottom - ((0 - $minBase) / $range) * $plotHeight;
+                            $currentIndex = null;
+                            foreach ($todaysSpotPrices as $i => $h) {
+                                if ($h['is_current']) {
+                                    $currentIndex = $i;
+                                }
+                            }
+                        @endphp
+                        <div class="home-spot-chart">
+                            <div class="home-spot-plot">
+                                <svg viewBox="0 0 {{ $chartWidth }} 120" class="home-spot-svg" preserveAspectRatio="none" role="img" aria-label="Tämän päivän pörssihinnat tunneittain">
+                                    @foreach($todaysSpotPrices as $i => $h)
+                                        @php
+                                            $valueY = $plotBottom - (($h['price'] - $minBase) / $range) * $plotHeight;
+                                            $top = min($valueY, $zeroY - 2);
+                                            $height = max(2, abs($zeroY - $valueY));
+                                            $x = 4 + $i * $stride;
+                                        @endphp
+                                        <rect x="{{ round($x, 1) }}" y="{{ round($top, 1) }}" width="{{ round($barWidth, 1) }}" height="{{ round($height, 1) }}" rx="1.5"
+                                              @if($h['is_current']) style="fill: var(--color-fox)" @else style="fill: var(--color-aurora)" opacity="0.75" @endif />
+                                    @endforeach
+                                    <path d="M2 {{ round($zeroY + 1.5, 1) }} C 100 {{ round($zeroY + 0.3, 1) }}, 250 {{ round($zeroY + 2.6, 1) }}, 398 {{ round($zeroY + 1.2, 1) }}" fill="none" style="stroke: var(--color-ink)" stroke-width="1.6" stroke-linecap="round" vector-effect="non-scaling-stroke" />
+                                </svg>
+                                @if($currentIndex !== null)
+                                    @php
+                                        $current = $todaysSpotPrices[$currentIndex]['price'];
+                                        $currentTop = min($plotBottom - (($current - $minBase) / $range) * $plotHeight, $zeroY - 2);
+                                        $currentPercent = (4 + $currentIndex * $stride + $barWidth / 2) / $chartWidth * 100;
+                                    @endphp
+                                    {{-- Inked arrow with "nyt" over the current hour; the label sits on the side with room. --}}
+                                    <span @class(['home-spot-now', 'home-spot-now--right' => $currentPercent < 20]) style="left: {{ round($currentPercent, 2) }}%; top: {{ round($currentTop / 120 * 100, 2) }}%;" aria-hidden="true">
+                                        <svg class="home-spot-arrow" width="22" height="30" viewBox="0 0 22 30" focusable="false">
+                                            <path d="M11 28 C 10 18, 13 10, 4 3" fill="none" style="stroke: var(--color-fox)" stroke-width="1.8" stroke-linecap="round" />
+                                            <path d="M11 28 l-4 -7 M11 28 l4.5 -6.5" fill="none" style="stroke: var(--color-fox)" stroke-width="1.8" stroke-linecap="round" />
+                                        </svg>
+                                        <span class="home-spot-now-label">nyt</span>
+                                    </span>
+                                @endif
+                            </div>
+                            <div class="home-spot-axis" aria-hidden="true">
+                                <span>klo {{ sprintf('%02d', $todaysSpotPrices[0]['hour']) }}</span>
+                                <span>{{ sprintf('%02d', $todaysSpotPrices[intdiv($count, 2)]['hour']) }}</span>
+                                <span>{{ sprintf('%02d', $todaysSpotPrices[$count - 1]['hour']) }}</span>
+                            </div>
+                        </div>
+                    @endif
+
+                    <a href="/spot-price" class="home-action home-action--ink vk-focus">
+                        <span>Näe hintakehitys <span aria-hidden="true">→</span></span>
+                        <x-ink.wave width="186" stroke="2.6" color="var(--color-ink)" />
+                    </a>
+                </div>
+            </div>
+
+            <div class="home-tools">
+                @foreach ([
+                    ['art' => 'home-vignette-meter', 'title' => 'Sähkölaskuri', 'text' => 'Arvioi kotisi vuosikulutus ja löydä sopivan kokoinen sopimus.', 'href' => '/sahkosopimus/laskuri', 'action' => 'Laske kulutus', 'wave' => 134],
+                    ['art' => 'home-vignette-solar', 'title' => 'Aurinkopaneelit', 'text' => 'Laske paneelien tuotto ja takaisinmaksuaika osoitteellesi.', 'href' => '/aurinkopaneelit/laskuri', 'action' => 'Laske tuotto', 'wave' => 124],
+                    ['art' => 'home-vignette-heatpump', 'title' => 'Lämpöpumput', 'text' => 'Vertaile pumppuja ja arvioi säästöt nykyiseen lämmitykseen.', 'href' => '/lampopumput/laskuri', 'action' => 'Vertaile vaihtoehtoja', 'wave' => 196],
+                ] as $tool)
+                    <div class="home-tool">
+                        <img src="{{ \App\Support\Season::art($tool['art']) }}" alt="" width="150" height="150" loading="lazy" decoding="async" class="home-tool-art">
+                        <div class="home-tool-text">
+                            <h3 class="home-title">{{ $tool['title'] }}</h3>
+                            <p class="home-tool-desc">{{ $tool['text'] }}</p>
+                            <a href="{{ $tool['href'] }}" class="home-action home-action--sm vk-focus">
+                                <span>{{ $tool['action'] }} <span aria-hidden="true">→</span></span>
+                                <x-ink.wave :width="$tool['wave']" stroke="2.4" />
+                            </a>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+
+            <div class="home-bill">
+                <x-ink.hairline />
+                <div class="home-bill-row">
+                    <img src="{{ \App\Support\Season::art('home-vignette-bill') }}" alt="" width="210" height="210" loading="lazy" decoding="async" class="home-bill-art">
+                    <div class="home-bill-text">
+                        <h3 class="home-heading">Maksatko sähköstäsi liikaa?</h3>
+                        <p class="home-lead">
+                            Syötä yhden sähkölaskusi tiedot, niin näet mitä olisit maksanut muilla sopimuksilla samalla laskutusjaksolla.
+                        </p>
+                    </div>
+                    <a href="{{ route('bill.comparison') }}" class="home-action home-action--lg home-bill-action vk-focus">
+                        <span>Vertaa laskuasi <span aria-hidden="true">→</span></span>
+                        <x-ink.wave width="186" stroke="3" />
+                    </a>
+                </div>
+                <x-ink.hairline />
+            </div>
+        </section>
+
+        {{-- Villager interlude: a pause between the services and the analyses. --}}
+        <x-site.interlude art="home-interlude" class="home-interlude" />
+
+        {{-- Analyysit: the contract-type trend chart and three analysis links. --}}
+        <section class="home-section" aria-labelledby="home-analyses-title">
+            <header class="home-head">
+                <p class="home-kicker">Analyysit</p>
+                <h2 id="home-analyses-title" class="home-heading">Tutki mihin sähkön hinta on menossa.</h2>
+                <x-ink.wave width="300" stroke="3.5" class="home-wave-fluid" />
+                <p class="home-lead home-lead--text">
+                    Riippumattomat analyysit Suomen sähkömarkkinoista. Päätä faktojen, ei mutu-tuntuman pohjalta.
+                </p>
+            </header>
+
+            <div class="home-analyses">
+                <div class="home-trend">
+                    <p class="home-kicker home-kicker--muted">Hintakehitys &middot; 6 kk &middot; viikoittain</p>
+                    <h3 class="home-subheading">Sähkösopimusten vuosikustannus sopimustyypeittäin</h3>
+                    <p class="home-text">
                         {{ $contractPriceTrend['caption'] ?? 'Vertaa pörssin, määräaikaisten ja toistaiseksi voimassa olevien sopimusten vuosikustannusta 5 000 kWh kulutuksella. Tarkemmat luvut ja kulutustasot löytyvät tilastosivulta.' }}
                     </p>
 
                     @if(!empty($contractPriceTrend['x']) && count($contractPriceTrend['x']) >= 2)
-                        <div class="mb-12">
+                        <div class="home-trend-chart">
                             <div
                                 wire:ignore
                                 wire:key="home-contract-price-trend"
@@ -221,95 +219,95 @@
                                 role="img"
                                 aria-label="Sähkösopimusten viikoittaiset vuosikustannukset 5 000 kilowattitunnin kulutuksella, viimeiset 6 kuukautta"
                             >
+                                {{-- leadStroke #1C7A5E = --color-aurora (Pörssisähkö, the lead series):
+                                     the chart draws on a canvas, which cannot read a CSS variable. --}}
                                 <script type="application/json">{!! json_encode([
                                     'x' => $contractPriceTrend['x'],
                                     'series' => $contractPriceTrend['series'],
                                     'unit' => 'eur',
                                     'decimals' => 0,
+                                    'leadStroke' => '#1C7A5E',
                                 ], JSON_UNESCAPED_UNICODE) !!}</script>
                             </div>
 
-                            @php
-                                // Must match NON_LEAD_STYLES in resources/js/contract-price-statistics.js
-                                $nonLeadStyles = [
-                                    ['stroke' => '#1e293b', 'dash' => null,        'width' => 1.8],
-                                    ['stroke' => '#64748b', 'dash' => '10,4',      'width' => 1.8],
-                                    ['stroke' => '#334155', 'dash' => '4,3',       'width' => 2.0],
-                                    ['stroke' => '#64748b', 'dash' => '6,3,2,3',   'width' => 1.8],
-                                ];
-                            @endphp
-                            <ul class="mt-1 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-700">
+                            <ul class="home-legend">
                                 @foreach($contractPriceTrend['series'] as $i => $s)
-                                    @php
-                                        $isLead = $i === 0;
-                                        $style = $isLead ? null : $nonLeadStyles[($i - 1) % count($nonLeadStyles)];
-                                        $stroke = $isLead ? '#f97316' : $style['stroke'];
-                                        $dash = $isLead ? null : $style['dash'];
-                                        $width = $isLead ? 2.5 : ($style['width'] ?? 1.8);
-                                    @endphp
                                     <li class="inline-flex items-center gap-2">
-                                        <svg width="24" height="10" viewBox="0 0 24 10" aria-hidden="true" class="shrink-0">
-                                            <line x1="0" y1="5" x2="24" y2="5"
-                                                  stroke="{{ $stroke }}"
-                                                  stroke-width="{{ $width }}"
-                                                  stroke-linecap="round"
-                                                  @if($dash) stroke-dasharray="{{ $dash }}" @endif />
-                                        </svg>
-                                        <span class="{{ $isLead ? 'font-semibold text-coral-700' : '' }}">{{ $s['label'] }}</span>
+                                        <x-ink.series-line :label="$s['label']" :lead="$i === 0 ? 'var(--color-aurora)' : null" />
+                                        <span @class(['font-extrabold text-aurora' => $i === 0])>{{ $s['label'] }}</span>
                                     </li>
                                 @endforeach
                             </ul>
                         </div>
                     @endif
 
-                    <span class="inline-flex items-center gap-2 text-slate-900 font-bold">
-                        Avaa tilastot
-                        <svg class="w-4 h-4 text-coral-500 group-hover:text-coral-400 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
-                        </svg>
-                    </span>
-                </a>
-
-                <!-- 3 supporting analyses stacked -->
-                <div class="space-y-10">
-                    <a href="/sahkosopimus/sahkon-hintaennuste" class="group block">
-                        <p class="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2">Ennuste</p>
-                        <h3 class="text-lg font-extrabold text-slate-900 mb-2 group-hover:text-coral-600 transition-colors leading-tight">
-                            Sähkön hintaennuste
-                        </h3>
-                        <p class="text-base text-slate-600 leading-snug">Mihin määräaikaisten sopimusten hinnat ovat menossa.</p>
-                    </a>
-                    <a href="/sahkosopimus/kannattaako-porssisahko" class="group block">
-                        <p class="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2">Vertailu</p>
-                        <h3 class="text-lg font-extrabold text-slate-900 mb-2 group-hover:text-coral-600 transition-colors leading-tight">
-                            Kannattaako pörssisähkö?
-                        </h3>
-                        <p class="text-base text-slate-600 leading-snug">Pörssin ja määräaikaisten todelliset kustannukset pidemmällä aikavälillä.</p>
-                    </a>
-                    <a href="/sahkosopimus/kannattaako-maaraaikainen" class="group block">
-                        <p class="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2">Vertailu</p>
-                        <h3 class="text-lg font-extrabold text-slate-900 mb-2 group-hover:text-coral-600 transition-colors leading-tight">
-                            Kannattaako määräaikainen?
-                        </h3>
-                        <p class="text-base text-slate-600 leading-snug">Miten lukitut hinnat ovat pärjänneet pörssisähköä vastaan historiassa.</p>
+                    <a href="/sahkosopimus/tilastot" class="home-action home-action--ink vk-focus">
+                        <span>Avaa tilastot <span aria-hidden="true">→</span></span>
+                        <x-ink.wave width="150" stroke="2.6" color="var(--color-ink)" />
                     </a>
                 </div>
+
+                <svg class="home-vrule home-vrule--tall" width="8" height="560" viewBox="0 0 8 560" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+                    <path d="M4 4 C 2.6 130, 5.4 280, 3.6 410 S 4.6 520, 4 556" fill="none" style="stroke: var(--color-edge-strong)" stroke-width="1.6" stroke-linecap="round" vector-effect="non-scaling-stroke" />
+                </svg>
+
+                <ul class="home-analysis-links">
+                    <li>
+                        <a href="/sahkosopimus/sahkon-hintaennuste" class="home-analysis vk-focus">
+                            <span class="home-analysis-mark">
+                                <img src="{{ \App\Support\Season::art('villager-owl-watch') }}" alt="" width="64" height="64" loading="lazy" decoding="async" class="h-16 w-16 object-contain">
+                                <span class="home-kicker home-kicker--muted">Ennuste</span>
+                            </span>
+                            <span class="home-title home-analysis-title">Sähkön hintaennuste</span>
+                            <span class="home-text">Mihin määräaikaisten sopimusten hinnat ovat menossa.</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/sahkosopimus/kannattaako-porssisahko" class="home-analysis vk-focus">
+                            <span class="home-analysis-mark">
+                                <x-ink.glyph bucket="porssisahko" size="52" />
+                                <span class="home-kicker home-kicker--muted">Vertailu</span>
+                            </span>
+                            <span class="home-title home-analysis-title">Kannattaako pörssisähkö?</span>
+                            <span class="home-text">Pörssin ja määräaikaisten todelliset kustannukset pidemmällä aikavälillä.</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/sahkosopimus/kannattaako-maaraaikainen" class="home-analysis vk-focus">
+                            <span class="home-analysis-mark">
+                                <x-ink.glyph bucket="kiintea" size="52" />
+                                <span class="home-kicker home-kicker--muted">Vertailu</span>
+                            </span>
+                            <span class="home-title home-analysis-title">Kannattaako määräaikainen?</span>
+                            <span class="home-text">Miten lukitut hinnat ovat pärjänneet pörssisähköä vastaan historiassa.</span>
+                        </a>
+                    </li>
+                </ul>
             </div>
-        </div>
-    </section>
+        </section>
 
-    @if(!empty($contractPriceTrend['x']) && count($contractPriceTrend['x']) >= 2)
-        @vite('resources/js/contract-price-statistics.js')
-    @endif
+        @if(!empty($contractPriceTrend['x']) && count($contractPriceTrend['x']) >= 2)
+            @vite('resources/js/contract-price-statistics.js')
+        @endif
 
-    <!-- Independence statement -->
-    <section class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pb-32 lg:pb-40">
-        <p class="text-xl lg:text-2xl text-slate-700 leading-relaxed text-center">
-            Voltikka ei ota provisiota sähköyhtiöiltä eikä mainosta yksittäisiä sopimuksia. Vertailut perustuvat samaan, julkisesti saatavilla olevaan sopimusdataan kaikille yhtiöille tasapuolisesti.
-        </p>
-        <p class="text-base text-slate-500 leading-relaxed text-center mt-5">
-            Voltikka on yksityishenkilön ylläpitämä riippumaton harrasteprojekti, jota ei rahoiteta mainoksilla.
-            <a href="/tietoa" class="text-coral-600 font-medium hover:text-coral-700 underline underline-offset-2">Tietoa Voltikasta ja laskentatavasta</a>.
-        </p>
-    </section>
+        <x-site.spot-paw-divider />
+
+        {{-- Independence statement. --}}
+        <section class="home-statement">
+            <svg width="54" height="40" viewBox="0 0 54 40" aria-hidden="true" focusable="false" class="shrink-0">
+                <path d="M6 36 C 4 22, 10 8, 22 4 M8 18 C 14 18, 20 22, 20 30 C 20 36, 14 38, 10 36" fill="none" style="stroke: var(--color-fox)" stroke-width="3.2" stroke-linecap="round" />
+                <path d="M32 36 C 30 22, 36 8, 48 4 M34 18 C 40 18, 46 22, 46 30 C 46 36, 40 38, 36 36" fill="none" style="stroke: var(--color-fox)" stroke-width="3.2" stroke-linecap="round" />
+            </svg>
+            <p class="home-statement-quote">
+                Voltikka ei ota provisiota sähköyhtiöiltä eikä mainosta yksittäisiä sopimuksia. Vertailut perustuvat samaan, julkisesti saatavilla olevaan sopimusdataan kaikille yhtiöille tasapuolisesti.
+            </p>
+            <p class="home-statement-note">
+                Voltikka on yksityishenkilön ylläpitämä riippumaton harrasteprojekti, jota ei rahoiteta mainoksilla.
+            </p>
+            <a href="/tietoa" class="home-statement-link vk-focus">
+                <span>Tietoa Voltikasta ja laskentatavasta.</span>
+                <x-ink.wave width="270" stroke="2.2" class="home-wave-fluid" />
+            </a>
+        </section>
+    </div>
 </div>

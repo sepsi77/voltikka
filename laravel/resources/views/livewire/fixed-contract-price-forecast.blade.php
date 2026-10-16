@@ -36,31 +36,20 @@
         ->mapWithKeys(fn ($direction) => [$direction => \App\Services\PriceForecasting\ForecastOutlook::presentation($direction)['label']])
         ->all();
 
-    $directionTone = function (string $direction) {
-        return match ($direction) {
-            'rising' => 'up',
-            'falling' => 'down',
-            default => 'neutral',
-        };
+    // Change colour by the saved outlook tone (spec §2): rise = price-high, fall = saving,
+    // about unchanged = ink-body.
+    $toneText = [
+        'up' => 'data-delta--up',
+        'down' => 'data-delta--down',
+        'neutral' => 'data-delta--flat',
+    ];
+
+    // Inked direction arrow (Paper D8Q-0 "Hintojen suunta"): up-right, down-right or level.
+    $arrowPath = fn (string $tone) => match ($tone) {
+        'up' => 'M3 14.5 C 11 12.5, 19 8.5, 27 4 M20 3.2 L27.6 3.6 L25.6 10.8',
+        'down' => 'M3 4 C 11 6, 19 10, 27 14.5 M25.6 7.7 L27.6 14.9 L20 15.3',
+        default => 'M3 9.5 C 11 8.8, 20 10, 28 9.2 M23 4 L29 9.2 L23 14.4',
     };
-
-    $toneBadgeClass = [
-        'up' => 'bg-slate-900 text-white',
-        'down' => 'bg-emerald-700 text-white',
-        'neutral' => 'bg-slate-100 text-slate-700 border border-slate-200',
-    ];
-
-    $toneAccentBorder = [
-        'up' => 'border-slate-900',
-        'down' => 'border-emerald-600',
-        'neutral' => 'border-slate-300',
-    ];
-
-    $toneAccentText = [
-        'up' => 'text-slate-900',
-        'down' => 'text-emerald-700',
-        'neutral' => 'text-slate-700',
-    ];
 
     $confidenceLabels = [
         'high' => 'Tietopohja: pitkä hintahistoria',
@@ -68,198 +57,211 @@
         'low' => 'Tietopohja: rajallinen hintahistoria',
     ];
 
-    // Shared eyebrow class. 14px / weight 600 per DESIGN.md Readable-By-Default rule.
-    $eyebrow = 'text-sm font-semibold tracking-[0.14em] uppercase';
-    // Dense table column header eyebrow stays at 12px; tabular dense context is a sanctioned exception.
-    $colEyebrow = 'text-[12px] font-semibold tracking-[0.12em] uppercase';
+    // Slope chart of one term (Paper "Term · 6 kk"): p20, median and p80 from "nyt" to the
+    // forecast date on a shared c/kWh scale. Presentation only; the values are the lane values.
+    $slopeChart = function (array $lanes) {
+        $values = collect($lanes)->flatMap(fn ($lane) => [$lane['current_price'], $lane['forecast_price']])
+            ->filter(fn ($v) => $v !== null)->map(fn ($v) => (float) $v);
+        if ($values->isEmpty()) {
+            return null;
+        }
+        $min = $values->min();
+        $max = $values->max();
+        $span = $max - $min;
+        if ($span < 0.0001) {
+            $min -= 0.5;
+            $max += 0.5;
+            $span = 1.0;
+        }
+        $top = 18.0;
+        $bottom = 180.0;
+        $y = fn (float $v) => round($bottom - ($v - $min) / $span * ($bottom - $top), 1);
+
+        return collect($lanes)->map(fn ($lane) => [
+            'quantile' => $lane['quantile'],
+            'y1' => $y((float) $lane['current_price']),
+            'y2' => $y((float) $lane['forecast_price']),
+            'current' => $lane['current_price'],
+            'forecast' => $lane['forecast_price'],
+        ])->all();
+    };
 @endphp
 
-<div class="bg-white">
+<div class="data-page">
     <x-schema-markup :schemas="[$jsonLd]" />
 
-    <article class="mx-auto max-w-[68rem] px-4 sm:px-6 lg:px-8 pb-24">
-
-        {{-- Breadcrumb --}}
-        <nav class="pt-8 pb-6" aria-label="Breadcrumb">
-            <ol class="flex items-center gap-2 text-xs text-slate-500">
-                <li><a href="/" class="hover:text-slate-900">Etusivu</a></li>
-                <li aria-hidden="true" class="text-slate-300">/</li>
-                <li><a href="/sahkosopimus" class="hover:text-slate-900">Sähkösopimukset</a></li>
-                <li aria-hidden="true" class="text-slate-300">/</li>
-                <li class="text-slate-900 font-medium" aria-current="page">Sähkön hintaennuste</li>
+    {{-- Hero: the fox at the weather station; the outlook on the sky. --}}
+    <x-site.data-hero art="forecast-hero" variant="forecast" :tone="\App\Support\Season::heroTone('forecast-hero')">
+        <nav class="data-crumbs" aria-label="Breadcrumb">
+            <ol>
+                <li><a href="/" class="vk-focus">Etusivu</a></li>
+                <li aria-hidden="true">/</li>
+                <li><a href="/sahkosopimus" class="vk-focus">Sähkösopimukset</a></li>
+                <li aria-hidden="true">/</li>
+                <li aria-current="page">Sähkön hintaennuste</li>
             </ol>
         </nav>
 
-        {{-- Editorial header strip --}}
-        <header class="border-b border-slate-200 pb-10">
-            <p class="{{ $eyebrow }} text-slate-500 mb-4">
-                Voltikka sähkön hintaennuste
-            </p>
-            <h1 class="text-3xl md:text-5xl font-extrabold text-slate-900 leading-[1.05] tracking-tight max-w-[28ch]">
-                Sähkön hintaennuste: mihin määräaikaisten hinnat ovat menossa?
-            </h1>
-            <p class="mt-5 max-w-[62ch] text-lg text-slate-600 leading-relaxed">
-                Katso, miten 6, 12 ja 24 kuukauden sähkösopimusten hintojen ennustetaan muuttuvan seuraavien {{ $horizonDays }} päivän aikana. Ennuste perustuu sähkösopimusten hintakehitykseen ja sähkön tukkumarkkinoiden hintoihin. Ennuste voi muuttua markkinatilanteen mukana.
-            </p>
+        <p class="data-hero-kicker">Voltikka sähkön hintaennuste</p>
+        <h1 class="vk-hero-h1 data-hero-h1">
+            Sähkön hintaennuste: mihin määräaikaisten hinnat ovat menossa?
+        </h1>
+        <p class="vk-hero-lead data-hero-lead">
+            Katso, miten 6, 12 ja 24 kuukauden sähkösopimusten hintojen ennustetaan muuttuvan seuraavien {{ $horizonDays }} päivän aikana. Ennuste perustuu sähkösopimusten hintakehitykseen ja sähkön tukkumarkkinoiden hintoihin. Ennuste voi muuttua markkinatilanteen mukana.
+        </p>
 
-            {{-- Meta strip --}}
-            <dl class="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-4 text-sm">
-                <div>
-                    <dt class="{{ $colEyebrow }} text-slate-500">Ennustepäivä</dt>
-                    <dd class="mt-1 font-semibold text-slate-900 tabular-nums">
-                        {{ $forecastDate ? $fiDate($forecastDate) : '–' }}
-                    </dd>
-                </div>
-                <div>
-                    <dt class="{{ $colEyebrow }} text-slate-500">Ennustejakso</dt>
-                    <dd class="mt-1 font-semibold text-slate-900 tabular-nums">
-                        @if ($targetDate)
-                            {{ $horizonDays }}&nbsp;pv ({{ $fiDate($targetDate) }})
-                        @else
-                            –
-                        @endif
-                    </dd>
-                </div>
-                <div>
-                    <dt class="{{ $colEyebrow }} text-slate-500">Sopimuspituudet</dt>
-                    <dd class="mt-1 font-semibold text-slate-900">6, 12 ja 24 kk</dd>
-                </div>
-                <div>
-                    <dt class="{{ $colEyebrow }} text-slate-500">Sisältää</dt>
-                    <dd class="mt-1 font-semibold text-slate-900">ALV 25,5 %</dd>
-                </div>
-            </dl>
-
-            <div class="mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-                <a href="/sahkosopimus/tilastot"
-                   class="inline-flex items-center gap-2 font-semibold text-slate-900 underline decoration-slate-300 decoration-2 underline-offset-4 hover:decoration-coral-500">
-                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M3 3v18h18M7 14l4-4 4 4 6-6"/>
-                    </svg>
-                    Katso myös hintatilastot
-                </a>
-                <a href="#menetelma"
-                   data-no-nav-loading
-                   class="inline-flex items-center gap-2 font-semibold text-slate-900 underline decoration-slate-300 decoration-2 underline-offset-4 hover:decoration-coral-500">
-                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/>
-                    </svg>
-                    Miten ennuste lasketaan
-                </a>
-                <a href="#viittaa"
-                   data-no-nav-loading
-                   class="inline-flex items-center gap-2 font-semibold text-slate-900 underline decoration-slate-300 decoration-2 underline-offset-4 hover:decoration-coral-500">
-                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M7 7h3v3H7zM14 7h3v3h-3zM7 14h3v3H7zM14 14h3v3h-3z"/>
-                    </svg>
-                    Viittaa tähän
-                </a>
-                <span class="text-slate-400">CC&nbsp;BY&nbsp;4.0</span>
+        {{-- Facts row --}}
+        <dl class="data-facts">
+            <div>
+                <dt>Ennustepäivä</dt>
+                <dd>{{ $forecastDate ? $fiDate($forecastDate) : '–' }}</dd>
             </div>
-        </header>
+            <div>
+                <dt>Ennustejakso</dt>
+                <dd>
+                    @if ($targetDate)
+                        {{ $horizonDays }}&nbsp;pv ({{ $fiDate($targetDate) }})
+                    @else
+                        –
+                    @endif
+                </dd>
+            </div>
+            <div>
+                <dt>Sopimuspituudet</dt>
+                <dd>6, 12 ja 24 kk</dd>
+            </div>
+            <div>
+                <dt>Sisältää</dt>
+                <dd>ALV 25,5 %</dd>
+            </div>
+        </dl>
 
-        <x-page-action-strip class="mb-12" />
+        <div class="data-hero-links">
+            <a href="/sahkosopimus/tilastot" class="data-hero-link vk-focus">Katso myös hintatilastot →</a>
+            <a href="#menetelma" data-no-nav-loading class="data-hero-link vk-focus">Miten ennuste lasketaan</a>
+            <a href="#viittaa" data-no-nav-loading class="data-hero-link vk-focus">Viittaa tähän</a>
+            <span class="data-hero-license">CC&nbsp;BY&nbsp;4.0</span>
+        </div>
+
+        @if ($hasData && ! empty($overall))
+            @php
+                $overallTone = $overall['tone'];
+                $overallKnown = in_array($overall['key'] ?? null, ['rising', 'falling', 'flat'], true);
+            @endphp
+            <x-slot:aside>
+                <div class="data-outlook">
+                    <p class="data-outlook-kicker">{{ $horizonDays }} päivän näkymä</p>
+                    @if ($overallKnown)
+                        <p class="data-outlook-row">
+                            <svg width="64" height="40" viewBox="0 0 64 40" aria-hidden="true" focusable="false" class="shrink-0">
+                                <g transform="translate(14 11)"><path d="{{ $arrowPath($overallTone) }}" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" /></g>
+                                <path d="M6 10 C 14 9, 22 11, 30 9.6 M8 32 C 16 31, 24 33, 32 31.6" fill="none" style="stroke: var(--color-fox)" stroke-width="2" stroke-linecap="round" />
+                            </svg>
+                            <span class="data-outlook-label">{{ $overall['label'] }}</span>
+                        </p>
+                    @endif
+                    <p class="{{ $overallKnown ? 'data-outlook-headline' : 'data-outlook-label' }}">{{ $overall['headline'] }}</p>
+                </div>
+            </x-slot:aside>
+        @endif
+    </x-site.data-hero>
+
+    <x-page-action-strip />
+
+    <article class="vk-wrap data-body tabular-nums">
 
         @if (! $hasData)
-            <section class="border border-slate-200 rounded-2xl px-8 py-16 text-center">
-                <p class="text-base text-slate-700 max-w-[46ch] mx-auto">
+            <section class="data-empty">
+                <p>
                     Ennusteita ei ole vielä saatavilla. Aineiston keruu on käynnissä, palaa myöhemmin.
                 </p>
             </section>
         @else
 
-            {{-- Top-line consumer signal: editorial lead, no card chrome. --}}
-            @if (! empty($overall))
-                @php
-                    $overallTone = $overall['tone'];
-                    $overallHeadlineClass = $overallTone === 'up'
-                        ? 'text-coral-700'
-                        : ($overallTone === 'down' ? 'text-emerald-700' : 'text-slate-900');
-                @endphp
-                <section class="mb-16" aria-labelledby="signal-eyebrow">
-                    <p id="signal-eyebrow" class="{{ $eyebrow }} text-slate-500 mb-3">
-                        {{ $horizonDays }} päivän näkymä
-                    </p>
-                    <p class="text-2xl md:text-3xl font-extrabold leading-tight tracking-tight max-w-[44ch] {{ $overallHeadlineClass }}">
-                        {{ $overall['headline'] }}
-                    </p>
-                    <p class="mt-4 max-w-[60ch] text-base text-slate-700 leading-relaxed">
-                        {{ $overall['body'] }}
-                    </p>
-                </section>
-            @endif
-
-            {{-- Cross-duration comparison table. Three sopimuspituutta side-by-side so reader can scan
-                 "which lock-in length looks best right now" without descending into the deep dives. --}}
-            <section class="mb-16" aria-labelledby="comparison-heading">
-                <div class="mb-5">
-                    <h2 id="comparison-heading" class="text-2xl font-bold text-slate-900 tracking-tight">
-                        Vertailu sopimuspituuksittain
-                    </h2>
-                    <p class="mt-1.5 text-sm text-slate-500 max-w-[68ch]">
-                        Vertaa tyypillistä sopimushintaa nyt ja {{ $horizonDays }} päivän kuluttua.
-                    </p>
+            {{-- Cross-duration comparison: the three contract lengths side by side, so the reader can
+                 scan the typical price now and at the forecast date before the details. --}}
+            <section class="data-section" aria-labelledby="comparison-heading">
+                <div class="data-section-head">
+                    <div class="flex flex-col gap-1.5">
+                        @if (! empty($overall))
+                            <p id="signal-eyebrow" class="fc-kicker">
+                                {{ $horizonDays }} päivän näkymä · {{ $overall['headline'] }}
+                            </p>
+                        @endif
+                        <x-site.section-heading id="comparison-heading" :wave="320" class="data-heading">
+                            Vertailu sopimuspituuksittain
+                        </x-site.section-heading>
+                    </div>
+                    <div class="fc-head-aside">
+                        @if (! empty($overall))
+                            <p>{{ $overall['body'] }}</p>
+                        @endif
+                        <p>Vertaa tyypillistä sopimushintaa nyt ja {{ $horizonDays }} päivän kuluttua.</p>
+                    </div>
                 </div>
 
-                <div class="-mx-4 sm:mx-0 overflow-x-auto">
-                    <table class="w-full text-sm border-collapse">
+                <div class="data-table-scroll">
+                    <table class="data-table fc-table--compare">
                         <thead>
-                            <tr class="text-left {{ $colEyebrow }} text-slate-500 border-b border-slate-300">
-                                <th class="py-3 pr-3 pl-4 sm:pl-0 font-semibold">Sopimuspituus</th>
-                                <th class="py-3 px-3 font-semibold text-right">Tyypillinen hinta nyt</th>
-                                <th class="py-3 px-3 font-semibold text-right">Ennuste {{ $horizonDays }}&nbsp;pv</th>
-                                <th class="py-3 px-3 font-semibold text-right">Muutos</th>
-                                <th class="py-3 pl-3 pr-4 sm:pr-0 font-semibold">Hintojen suunta</th>
+                            <tr>
+                                <th scope="col">Sopimuspituus</th>
+                                <th scope="col">Tyypillinen hinta nyt</th>
+                                <th scope="col"><span class="sr-only">Muutoksen suunta</span></th>
+                                <th scope="col">Ennuste {{ $horizonDays }}&nbsp;pv</th>
+                                <th scope="col">Muutos</th>
+                                <th scope="col">Hintojen suunta</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-100">
+                        <tbody>
                             @foreach ($durations as $duration)
                                 @php
                                     $payload = $rowsByDuration->get($duration);
                                     $signal = $payload['signal'] ?? null;
                                     $median = ! empty($payload['lanes']) ? collect($payload['lanes'])->firstWhere('quantile', 'median') : null;
                                     $tone = $signal['tone'] ?? 'neutral';
-                                    $textClass = $toneAccentText[$tone] ?? 'text-slate-700';
                                     $anchor = $durationAnchors[$duration] ?? '';
                                 @endphp
                                 <tr>
-                                    <td class="py-4 pr-3 pl-4 sm:pl-0">
-                                        <a href="#{{ $anchor }}" data-no-nav-loading
-                                           class="font-semibold text-slate-900 hover:text-coral-700 underline decoration-slate-200 decoration-2 underline-offset-4 hover:decoration-coral-400">
-                                            {{ $durationLabels[$duration] ?? ($duration . ' kk') }}
-                                        </a>
-                                        @if ($payload && $payload['contract_count'])
-                                            <span class="block text-xs text-slate-400 mt-0.5 tabular-nums">
-                                                {{ number_format($payload['contract_count'], 0, ',', ' ') }} sopimusta
+                                    <td>
+                                        <span class="data-type">
+                                            <x-ink.glyph bucket="kiintea" size="36" />
+                                            <span class="flex flex-col">
+                                                <a href="#{{ $anchor }}" data-no-nav-loading class="fc-name vk-focus">
+                                                    {{ $durationLabels[$duration] ?? ($duration . ' kk') }}
+                                                </a>
+                                                @if ($payload && $payload['contract_count'])
+                                                    <span class="fc-count tabular-nums">
+                                                        {{ number_format($payload['contract_count'], 0, ',', ' ') }} sopimusta
+                                                    </span>
+                                                @endif
                                             </span>
-                                        @endif
+                                        </span>
                                     </td>
 
                                     @if ($payload && $median)
-                                        <td class="py-4 px-3 text-right tabular-nums font-semibold text-slate-900">
-                                            {{ $fmtNum($median['current_price'], 2) }}<span class="text-slate-400 font-normal">&nbsp;c/kWh</span>
+                                        <td>
+                                            <span class="fc-big-price">{{ $fmtNum($median['current_price'], 2) }}<span class="fc-unit">&nbsp;c/kWh</span></span>
                                         </td>
-                                        <td class="py-4 px-3 text-right tabular-nums text-slate-700">
-                                            {{ $fmtNum($median['forecast_price'], 2) }}<span class="text-slate-400 font-normal">&nbsp;c/kWh</span>
+                                        <td aria-hidden="true">
+                                            <svg width="60" height="20" viewBox="0 0 60 20" focusable="false" class="block"><path d="M3 10.5 C 18 9.6, 34 11, 52 10 M45 4.5 L53 10 L45 15.5" fill="none" style="stroke: var(--color-fox)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
                                         </td>
-                                        <td class="py-4 px-3 text-right tabular-nums {{ $textClass }}">
-                                            {{ $fmtSignedCents($median['expected_change'], 2) }}<span class="text-slate-400 font-normal">&nbsp;c/kWh</span>
-                                            <span class="block text-xs text-slate-400 mt-0.5">{{ $fmtPct($median['expected_change_pct']) }}</span>
+                                        <td>
+                                            <span class="fc-big-price">{{ $fmtNum($median['forecast_price'], 2) }}<span class="fc-unit">&nbsp;c/kWh</span></span>
                                         </td>
-                                        <td class="py-4 pl-3 pr-4 sm:pr-0">
-                                            <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold tracking-wide {{ $toneBadgeClass[$tone] ?? $toneBadgeClass['neutral'] }}">
-                                                @if ($tone === 'up')
-                                                    <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 17l7-7 4 4 5-5"/></svg>
-                                                @elseif ($tone === 'down')
-                                                    <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7l7 7 4-4 5 5"/></svg>
-                                                @else
-                                                    <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16"/></svg>
-                                                @endif
+                                        <td>
+                                            <span class="fc-change">
+                                                <span class="fc-change-value {{ $toneText[$tone] ?? $toneText['neutral'] }}">{{ $fmtSignedCents($median['expected_change'], 2) }}&nbsp;c/kWh</span>
+                                                <span class="fc-change-pct">{{ $fmtPct($median['expected_change_pct']) }}</span>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="fc-direction">
+                                                <svg width="34" height="18" viewBox="0 0 34 18" aria-hidden="true" focusable="false" class="shrink-0"><path d="{{ $arrowPath($tone) }}" fill="none" style="stroke: var(--color-ink)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></svg>
                                                 {{ $signal['label'] ?? 'Ei tietoa' }}
                                             </span>
                                         </td>
                                     @else
-                                        <td colspan="4" class="py-4 px-3 text-sm text-slate-400">Ei tarpeeksi aineistoa juuri nyt.</td>
+                                        <td colspan="5" class="data-muted-caption">Ei tarpeeksi aineistoa juuri nyt.</td>
                                     @endif
                                 </tr>
                             @endforeach
@@ -268,17 +270,19 @@
                 </div>
             </section>
 
-            {{-- Per-duration deep-dive --}}
-            <section class="mb-20" aria-labelledby="deepdive-heading">
-                <h2 id="deepdive-heading" class="text-2xl font-bold text-slate-900 tracking-tight mb-2">
+            {{-- Per-duration deep dive (round 3, Paper "R3 · Data · Hintaennuste"): one full-width
+                 row per term. The conclusion (the saved median outlook) comes first, then the
+                 typical price, then the evidence: slope chart and the p20 / median / p80 lanes. --}}
+            <section class="data-section data-section--roomy" aria-labelledby="deepdive-heading">
+                <x-site.section-heading id="deepdive-heading" :wave="320" class="data-heading">
                     Sopimuspituudet tarkemmin
-                </h2>
-                <p class="text-sm text-slate-500 max-w-[60ch] mb-7">
+                </x-site.section-heading>
+                <p class="data-lead-text data-lead-text--intro">
                     Valitse sopimuspituus ja katso edullisten, tyypillisten ja kalliimpien sopimusten hintaennuste.
                 </p>
 
-                {{-- TOC chips, matching /sahkosopimus/tilastot deep-dive nav. --}}
-                <nav aria-label="Sopimuspituudet" class="mb-12 flex flex-wrap gap-2">
+                {{-- In-page contents: inked anchors, same as the /sahkosopimus/tilastot types. --}}
+                <nav aria-label="Sopimuspituudet" class="data-toc">
                     @foreach ($durations as $duration)
                         @php
                             $payload = $rowsByDuration->get($duration);
@@ -286,12 +290,10 @@
                             $tone = $signal['tone'] ?? 'neutral';
                             $anchor = $durationAnchors[$duration] ?? '';
                         @endphp
-                        <a href="#{{ $anchor }}"
-                           data-no-nav-loading
-                           class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200 text-xs font-semibold tracking-wide text-slate-700 hover:bg-white hover:border-slate-400 hover:text-slate-900 transition-colors">
+                        <a href="#{{ $anchor }}" data-no-nav-loading class="data-toc-link vk-focus">
                             {{ $durationLabels[$duration] ?? ($duration . ' kk') }}
                             @if ($signal && in_array($tone, ['up', 'down'], true))
-                                <span class="text-[11px] font-bold {{ $tone === 'down' ? 'text-emerald-700' : 'text-coral-700' }}">
+                                <span class="data-toc-change {{ $toneText[$tone] }}">
                                     {{ $signal['label'] }}
                                 </span>
                             @endif
@@ -299,119 +301,127 @@
                     @endforeach
                 </nav>
 
-                <div class="divide-y divide-slate-200">
+                <div class="fc-terms">
                     @foreach ($durations as $duration)
                         @php
                             $payload = $rowsByDuration->get($duration);
                             $anchor = $durationAnchors[$duration] ?? '';
                             $signal = $payload['signal'] ?? null;
                             $tone = $signal['tone'] ?? 'neutral';
+                            $termHorizon = $payload['median_row']?->horizon_days ?? $horizonDays;
+                            $medianLane = ! empty($payload['lanes']) ? collect($payload['lanes'])->firstWhere('quantile', 'median') : null;
+                            $knownSignal = $signal && in_array($signal['key'] ?? null, ['rising', 'falling', 'flat'], true);
                         @endphp
-                        <article id="{{ $anchor }}" class="scroll-mt-24 pt-16 first:pt-0 pb-16 last:pb-0">
-                            <header class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 mb-3">
-                                <h3 class="text-2xl md:text-[1.75rem] font-bold text-slate-900 tracking-tight leading-tight">
-                                    {{ $durationLabels[$duration] ?? ($duration . ' kk') }}: hintaennuste
-                                </h3>
-                                @if ($payload && $payload['contract_count'])
-                                    <span class="{{ $colEyebrow }} text-slate-500">
-                                        {{ number_format($payload['contract_count'], 0, ',', ' ') }} sopimusta
-                                    </span>
-                                @endif
+                        <article id="{{ $anchor }}" class="fc-term scroll-mt-24">
+                            <header class="fc-term-head">
+                                <div class="fc-term-name">
+                                    <h3 class="fc-term-title">{{ $durationLabels[$duration] ?? ($duration . ' kk') }}</h3>
+                                    @if ($payload && $payload['contract_count'])
+                                        <span class="fc-term-count">
+                                            {{ number_format($payload['contract_count'], 0, ',', ' ') }} sopimusta
+                                        </span>
+                                    @endif
+                                </div>
+                                <p class="fc-term-text">{{ $durationDescriptions[$duration] ?? '' }}</p>
                             </header>
 
-                            <p class="text-base text-slate-600 leading-relaxed max-w-[64ch] mb-8">
-                                {{ $durationDescriptions[$duration] ?? '' }}
-                            </p>
-
                             @if (! $payload || empty($payload['lanes']))
-                                <p class="text-sm text-slate-500">Ei tarpeeksi aineistoa tämän sopimuspituuden ennusteeseen.</p>
+                                <p class="data-muted-caption">Ei tarpeeksi aineistoa tämän sopimuspituuden ennusteeseen.</p>
                             @else
-
-                                {{-- Compact signal row: eyebrow + badge + body sentence.
-                                     Stays subordinate to the H3 above so the document outline reads correctly. --}}
-                                @if ($signal)
-                                    <div class="mb-10 max-w-[64ch]">
-                                        <div class="flex flex-wrap items-center gap-3 mb-3">
-                                            <p class="{{ $colEyebrow }} text-slate-500">
-                                                {{ $payload['median_row']?->horizon_days ?? $horizonDays }} päivän hintanäkymä
-                                            </p>
-                                            <span class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold tracking-wide {{ $toneBadgeClass[$tone] ?? $toneBadgeClass['neutral'] }}">
-                                                @if ($tone === 'up')
-                                                    <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 17l7-7 4 4 5-5"/></svg>
-                                                @elseif ($tone === 'down')
-                                                    <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7l7 7 4-4 5 5"/></svg>
-                                                @else
-                                                    <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16"/></svg>
+                                {{-- Conclusion: the saved median outlook label, in the tone colour. --}}
+                                <div class="fc-conclusion">
+                                    @if ($signal)
+                                        <div class="fc-conclusion-main">
+                                            <p class="fc-signal-kicker">{{ $termHorizon }} päivän hintanäkymä</p>
+                                            <p class="fc-verdict fc-verdict--{{ $tone }}">
+                                                @if ($knownSignal)
+                                                    <svg class="fc-verdict-arrow" viewBox="0 0 34 18" aria-hidden="true" focusable="false"><path d="{{ $arrowPath($tone) }}" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
                                                 @endif
-                                                {{ $signal['label'] }}
-                                            </span>
+                                                <span>{{ $signal['label'] }}</span>
+                                            </p>
                                         </div>
-                                        <p class="text-base text-slate-700 leading-relaxed">
-                                            {{ $signal['body'] }}
-                                        </p>
+                                    @endif
+                                    <div class="fc-conclusion-aside">
+                                        @if ($medianLane)
+                                            <p class="fc-typical">
+                                                Tyypillinen hinta {{ $fmtNum($medianLane['current_price'], 2) }} → {{ $fmtNum($medianLane['forecast_price'], 2) }}&nbsp;c/kWh
+                                            </p>
+                                            <p class="fc-typical-change">
+                                                {{ $fmtSignedCents($medianLane['expected_change'], 2) }}&nbsp;c/kWh · {{ $fmtPct($medianLane['expected_change_pct']) }} {{ $termHorizon }} päivässä
+                                            </p>
+                                        @endif
+                                        @if ($signal)
+                                            <p class="fc-signal-body">{{ $signal['body'] }}</p>
+                                        @endif
                                     </div>
-                                @endif
-
-                                {{-- Lanes table: p20 / median / p80 --}}
-                                <div class="-mx-4 sm:mx-0 overflow-x-auto">
-                                    <table class="w-full text-sm border-collapse">
-                                        <thead>
-                                            <tr class="text-left {{ $colEyebrow }} text-slate-500 border-b border-slate-300">
-                                                <th class="py-3 pr-3 pl-4 sm:pl-0 font-semibold">Hintataso</th>
-                                                <th class="py-3 px-3 font-semibold text-right">Hinta nyt</th>
-                                                <th class="py-3 px-3 font-semibold text-right">Ennuste {{ $horizonDays }}&nbsp;pv</th>
-                                                <th class="py-3 px-3 font-semibold text-right">Muutos</th>
-                                                <th class="py-3 pl-3 pr-4 sm:pr-0 font-semibold text-center">Suunta</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="divide-y divide-slate-100">
-                                            @foreach ($payload['lanes'] as $lane)
-                                                @php
-                                                    $isLead = $lane['quantile'] === 'median';
-                                                    $laneTone = $directionTone($lane['direction']);
-                                                    $laneAccentText = $toneAccentText[$laneTone] ?? 'text-slate-700';
-                                                @endphp
-                                                <tr class="{{ $isLead ? 'bg-coral-50/40' : '' }}">
-                                                    <td class="py-3 pr-3 pl-4 sm:pl-0">
-                                                        <span class="font-semibold text-slate-900 {{ $isLead ? 'text-coral-700' : '' }}">
-                                                            {{ $lane['label'] }}
-                                                        </span>
-                                                        <span class="block text-xs text-slate-500 mt-0.5">{{ $lane['sublabel'] }}</span>
-                                                    </td>
-                                                    <td class="py-3 px-3 text-right tabular-nums font-semibold text-slate-900">
-                                                        {{ $fmtNum($lane['current_price'], 2) }}<span class="text-slate-400 font-normal">&nbsp;c/kWh</span>
-                                                    </td>
-                                                    <td class="py-3 px-3 text-right tabular-nums text-slate-700">
-                                                        {{ $fmtNum($lane['forecast_price'], 2) }}<span class="text-slate-400 font-normal">&nbsp;c/kWh</span>
-                                                    </td>
-                                                    <td class="py-3 px-3 text-right tabular-nums {{ $laneAccentText }}">
-                                                        {{ $fmtSignedCents($lane['expected_change'], 2) }}&nbsp;c/kWh
-                                                        <span class="block text-xs text-slate-500 mt-0.5">{{ $fmtPct($lane['expected_change_pct']) }}</span>
-                                                    </td>
-                                                    <td class="py-3 pl-3 pr-4 sm:pr-0 text-center">
-                                                        <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold tracking-wide {{ $toneBadgeClass[$laneTone] }}">
-                                                            {{ $directionLabels[$lane['direction']] ?? $lane['direction'] }}
-                                                        </span>
-                                                    </td>
-                                                </tr>
-                                            @endforeach
-                                        </tbody>
-                                    </table>
                                 </div>
 
-                                @if ($payload['quantiles_crossed'])
-                                    <p class="mt-4 text-sm text-amber-800">Hintatasojen ennusteet menevät ristiin. Ne on laskettu erikseen, joten niitä ei voi lukea yhtenä hintahaarukkana.</p>
-                                @endif
+                                {{-- Evidence: slope chart and the lanes. --}}
+                                <div class="fc-evidence">
+                                    @php $slope = $slopeChart($payload['lanes']); @endphp
+                                    @if ($slope)
+                                        <figure class="fc-slope-figure">
+                                            <figcaption class="data-type-chart-head">
+                                                <span>Hinta nyt → ennuste</span>
+                                                <span class="data-type-chart-unit">c/kWh</span>
+                                            </figcaption>
+                                            <svg class="fc-slope" viewBox="0 0 340 220" aria-hidden="true" focusable="false">
+                                                <path d="M78 6 V190 M262 6 V190" fill="none" style="stroke: var(--color-edge-strong)" stroke-dasharray="3 4" />
+                                                @foreach ($slope as $line)
+                                                    @php
+                                                        $isMedian = $line['quantile'] === 'median';
+                                                        $lineColor = $isMedian ? 'var(--color-ink)' : 'var(--color-cat-fixed)';
+                                                        $labelSize = $isMedian ? 15 : 13;
+                                                    @endphp
+                                                    <path d="M78 {{ $line['y1'] }} L262 {{ $line['y2'] }}" fill="none" style="stroke: {{ $lineColor }}" stroke-width="{{ $isMedian ? 3.6 : 2 }}" stroke-linecap="round" />
+                                                    <circle cx="78" cy="{{ $line['y1'] }}" r="{{ $isMedian ? 4.5 : 3.5 }}" style="fill: {{ $lineColor }}" />
+                                                    <circle cx="262" cy="{{ $line['y2'] }}" r="{{ $isMedian ? 4.5 : 3.5 }}" style="fill: var(--color-ground); stroke: {{ $lineColor }}" stroke-width="2" />
+                                                    <text x="66" y="{{ $line['y1'] + 5 }}" text-anchor="end" font-size="{{ $labelSize }}" font-weight="{{ $isMedian ? 800 : 700 }}" style="fill: {{ $lineColor }}; font-family: var(--font-sans)">{{ $fmtNum($line['current'], 2) }}</text>
+                                                    <text x="274" y="{{ $line['y2'] + 5 }}" font-size="{{ $labelSize }}" font-weight="{{ $isMedian ? 800 : 700 }}" style="fill: {{ $lineColor }}; font-family: var(--font-sans)">{{ $fmtNum($line['forecast'], 2) }}</text>
+                                                @endforeach
+                                                <text x="78" y="208" text-anchor="middle" font-size="13" font-weight="800" style="fill: var(--color-ink-muted); font-family: var(--font-sans)">nyt</text>
+                                                <text x="262" y="208" text-anchor="middle" font-size="13" font-weight="800" style="fill: var(--color-ink-muted); font-family: var(--font-sans)">{{ $termHorizon }} pv</text>
+                                            </svg>
+                                        </figure>
+                                    @endif
 
-                                {{-- Footnote strip --}}
-                                <dl class="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-x-8 gap-y-5 text-sm">
-                                    <div>
-                                        <dt class="{{ $colEyebrow }} text-slate-500">Ennusteen tietopohja</dt>
-                                        <dd class="mt-1 font-semibold text-slate-900">
-                                            {{ $confidenceLabels[$payload['confidence']] ?? '–' }}
-                                        </dd>
+                                    {{-- Lanes: p20 / median / p80. The median is the lead row; p20 and p80
+                                         stay secondary (they describe the price distribution, not
+                                         uncertainty bounds). --}}
+                                    <div class="fc-lanes">
+                                        <p class="fc-lanes-head" aria-hidden="true">
+                                            <span>Hintataso</span>
+                                            <span>Nyt → {{ $termHorizon }} pv</span>
+                                        </p>
+                                        @foreach ($payload['lanes'] as $lane)
+                                            @php $isLead = $lane['quantile'] === 'median'; @endphp
+                                            <div class="fc-lane {{ $isLead ? 'is-lead' : '' }}">
+                                                <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+                                                    <span class="fc-lane-name">{{ $lane['label'] }}</span>
+                                                    <span class="fc-lane-sub">{{ $lane['sublabel'] }}</span>
+                                                    <span class="fc-lane-sub">Suunta: {{ $directionLabels[$lane['direction']] ?? $lane['direction'] }}</span>
+                                                </div>
+                                                <div class="fc-lane-values">
+                                                    <span class="fc-lane-prices">
+                                                        <span class="sr-only">Hinta nyt </span>{{ $fmtNum($lane['current_price'], 2) }} → <span class="sr-only">ennuste {{ $termHorizon }} pv </span>{{ $fmtNum($lane['forecast_price'], 2) }}<span class="sr-only">&nbsp;c/kWh</span>
+                                                    </span>
+                                                    <span class="fc-lane-change">
+                                                        {{ $fmtSignedCents($lane['expected_change'], 2) }}&nbsp;c/kWh · {{ $fmtPct($lane['expected_change_pct']) }}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        @endforeach
+
+                                        @if ($payload['quantiles_crossed'])
+                                            <p class="fc-crossed">Hintatasojen ennusteet menevät ristiin. Ne on laskettu erikseen, joten niitä ei voi lukea yhtenä hintahaarukkana.</p>
+                                        @endif
+
+                                        <dl class="fc-confidence">
+                                            <dt>Ennusteen tietopohja</dt>
+                                            <dd>{{ $confidenceLabels[$payload['confidence']] ?? '–' }}</dd>
+                                        </dl>
                                     </div>
-                                </dl>
+                                </div>
                             @endif
                         </article>
                     @endforeach
@@ -426,36 +436,31 @@
                     $historyFirstDate = $historyDates->isNotEmpty() ? Cb::createFromTimestampUTC($historyDates->min())->translatedFormat('j.n.Y') : null;
                     $historyLastDate = $historyDates->isNotEmpty() ? Cb::createFromTimestampUTC($historyDates->max())->translatedFormat('j.n.Y') : null;
                 @endphp
-                <section class="mb-20" aria-labelledby="history-heading">
-                    <h2 id="history-heading" class="text-2xl font-bold text-slate-900 tracking-tight mb-2">
-                        Mediaanihinta viime kuukausina
-                    </h2>
-                    <p class="text-sm text-slate-500 max-w-[64ch] mb-8">
+                <section class="data-section" aria-labelledby="history-heading">
+                    <div class="data-section-head">
+                        <x-site.section-heading id="history-heading" :wave="320" class="data-heading">
+                            Mediaanihinta viime kuukausina
+                        </x-site.section-heading>
                         @if ($historyFirstDate && $historyLastDate)
-                            Aineisto on kerätty {{ $historyFirstDate }}–{{ $historyLastDate }}.
+                            <p class="data-see-also">Aineisto on kerätty {{ $historyFirstDate }}–{{ $historyLastDate }}.</p>
                         @endif
+                    </div>
+                    <p class="data-lead-text data-lead-text--wide">
                         Taulukko näyttää, miten määräaikaisten sopimusten mediaanihinta on muuttunut Voltikan hintahistorian aikana. Jokainen mittauspäivä on yksi piste oikealla näkyvässä trendiviivassa.
-                        @if ($historyPricingBases->contains('observed_seller_data') && $historyPricingBases->contains('canonical_calculation'))
-                            Vanhemmat pisteet perustuvat kyseisinä päivinä myyjiltä havaittuihin hintoihin. Uudemmat mediaanihinnat Voltikka laskee myyjiltä kerätyistä sopimus- ja hintatiedoista.
-                        @elseif ($historyPricingBases->contains('canonical_calculation'))
-                            Pisteet on laskettu myyjiltä kerätyistä sopimus- ja hintatiedoista.
-                        @else
-                            Pisteet perustuvat kyseisinä päivinä myyjiltä havaittuihin hintoihin.
-                        @endif
                     </p>
 
-                    <div class="-mx-4 sm:mx-0 overflow-x-auto">
-                        <table class="w-full text-sm border-collapse">
+                    <div class="data-table-scroll">
+                        <table class="data-table fc-table--history">
                             <thead>
-                                <tr class="text-left {{ $colEyebrow }} text-slate-500 border-b border-slate-300">
-                                    <th class="py-3 pr-3 pl-4 sm:pl-0 font-semibold">Sopimuspituus</th>
-                                    <th class="py-3 px-3 font-semibold text-right">Aineiston alussa</th>
-                                    <th class="py-3 px-3 font-semibold text-right">Tuorein</th>
-                                    <th class="py-3 px-3 font-semibold text-right">Muutos koko jaksolla</th>
-                                    <th class="py-3 pl-3 pr-4 sm:pr-0 font-semibold">Trendi</th>
+                                <tr>
+                                    <th scope="col">Sopimuspituus</th>
+                                    <th scope="col">Aineiston alussa</th>
+                                    <th scope="col">Tuorein</th>
+                                    <th scope="col">Muutos koko jaksolla</th>
+                                    <th scope="col">Trendi</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-100">
+                            <tbody>
                                 @foreach ($history as $series)
                                     @php
                                         $values = $series['current'];
@@ -484,28 +489,31 @@
                                             }
                                             $sparklinePath = implode(' ', $parts);
                                         }
+                                        $deltaTone = $delta !== null && $delta < -0.5 ? 'down' : ($delta !== null && $delta > 0.5 ? 'up' : 'neutral');
                                     @endphp
                                     <tr>
-                                        <td class="py-3 pr-3 pl-4 sm:pl-0 font-semibold text-slate-900">
-                                            {{ $durationLabels[$series['duration_months']] ?? $series['label'] }}
-                                            @if ($count)
-                                                <span class="block text-xs text-slate-500 mt-0.5 tabular-nums">
-                                                    {{ number_format($count, 0, ',', ' ') }} mittausta
-                                                </span>
-                                            @endif
+                                        <td>
+                                            <span class="flex flex-col">
+                                                <span class="data-type-name text-ink">{{ $durationLabels[$series['duration_months']] ?? $series['label'] }}</span>
+                                                @if ($count)
+                                                    <span class="fc-count tabular-nums">
+                                                        {{ number_format($count, 0, ',', ' ') }} mittausta
+                                                    </span>
+                                                @endif
+                                            </span>
                                         </td>
-                                        <td class="py-3 px-3 text-right tabular-nums text-slate-700">{{ $fmtNum($first, 2) }}<span class="text-slate-400 font-normal">&nbsp;c/kWh</span></td>
-                                        <td class="py-3 px-3 text-right tabular-nums font-semibold text-slate-900">{{ $fmtNum($last, 2) }}<span class="text-slate-400 font-normal">&nbsp;c/kWh</span></td>
-                                        <td class="py-3 px-3 text-right tabular-nums {{ $delta !== null && $delta < -0.5 ? 'text-emerald-700' : ($delta !== null && $delta > 0.5 ? 'text-slate-700' : 'text-slate-500') }}">
+                                        <td class="fc-history-first">{{ $fmtNum($first, 2) }}&nbsp;c/kWh</td>
+                                        <td><span class="data-cell-price">{{ $fmtNum($last, 2) }}&nbsp;c/kWh</span></td>
+                                        <td class="fc-history-change {{ $toneText[$deltaTone] }}">
                                             {{ $fmtPct($delta) }}
                                         </td>
-                                        <td class="py-3 pl-3 pr-4 sm:pr-0">
+                                        <td>
                                             @if ($sparklinePath)
-                                                <svg viewBox="0 0 120 28" width="120" height="28" class="block" preserveAspectRatio="none" aria-label="{{ $series['label'] }} trendi">
-                                                    <path d="{{ $sparklinePath }}" fill="none" stroke="#64748b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                                <svg viewBox="0 0 120 28" width="240" height="40" class="block" preserveAspectRatio="none" aria-label="{{ $series['label'] }} trendi">
+                                                    <path d="{{ $sparklinePath }}" fill="none" style="stroke: var(--color-cat-fixed)" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" />
                                                 </svg>
                                             @else
-                                                <span class="text-slate-300">–</span>
+                                                <span class="text-ink-muted">–</span>
                                             @endif
                                         </td>
                                     </tr>
@@ -513,14 +521,28 @@
                             </tbody>
                         </table>
                     </div>
+
+                    <p class="data-muted-caption max-w-[900px]">
+                        @if ($historyPricingBases->contains('observed_seller_data') && $historyPricingBases->contains('canonical_calculation'))
+                            Vanhemmat pisteet perustuvat kyseisinä päivinä myyjiltä havaittuihin hintoihin. Uudemmat mediaanihinnat Voltikka laskee myyjiltä kerätyistä sopimus- ja hintatiedoista.
+                        @elseif ($historyPricingBases->contains('canonical_calculation'))
+                            Pisteet on laskettu myyjiltä kerätyistä sopimus- ja hintatiedoista.
+                        @else
+                            Pisteet perustuvat kyseisinä päivinä myyjiltä havaittuihin hintoihin.
+                        @endif
+                    </p>
                 </section>
             @endif
 
-            {{-- Methodology --}}
-            <section id="menetelma" class="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 pt-12 border-t border-slate-200">
-                <div>
-                    <h2 class="text-2xl font-bold text-slate-900 tracking-tight mb-4">Miten ennuste lasketaan</h2>
-                    <div class="space-y-4 text-base text-slate-600 leading-relaxed max-w-[58ch]">
+            <x-site.interlude art="forecast-interlude" />
+
+            {{-- Methodology, notes and the citation block in one row. The citation names
+                 "Voltikan sähkön hintaennuste" so readers know the figure is a model-derived
+                 forecast, not a measured market price. --}}
+            <section class="fc-method" aria-label="Menetelmä ja lähdemerkintä">
+                <div id="menetelma" class="fc-method-col">
+                    <x-site.section-heading size="compact" :wave="250" class="data-heading">Miten ennuste lasketaan</x-site.section-heading>
+                    <div class="data-prose">
                         <p>
                             Ennuste yhdistää aiemman sopimushintojen kehityksen ja sähköfutuurien viimeaikaiset hintamuutokset. Sähköfutuurien hinnat kuvaavat tulevien kuukausien sähkön tukkuhintaa.
                         </p>
@@ -536,70 +558,38 @@
                     </div>
                 </div>
 
-                <div>
-                    <h2 class="text-2xl font-bold text-slate-900 tracking-tight mb-4">Tärkeää huomioida</h2>
-                    <div class="space-y-4 text-base text-slate-600 leading-relaxed max-w-[58ch]">
-                        <p>
-                            Ennuste kertoo markkinoiden hintasuunnasta, ei yksittäisen tarjouksen hinnasta. Pienet muutokset näkyvät muodossa ”suunnilleen ennallaan”.
+                <div class="fc-method-col">
+                    <x-site.section-heading size="compact" :wave="220" class="data-heading">Tärkeää huomioida</x-site.section-heading>
+                    <div class="fc-mark-list">
+                        <p class="fc-mark-item">
+                            <span class="fc-mark" aria-hidden="true">!</span>
+                            <span>Ennuste kertoo markkinoiden hintasuunnasta, ei yksittäisen tarjouksen hinnasta. Pienet muutokset näkyvät muodossa ”suunnilleen ennallaan”.</span>
                         </p>
-                        <p>
-                            Kun vertaat sähkösopimuksia, tarkista energiahinnan lisäksi perusmaksu, sopimuksen kesto ja muut sopimusehdot.
+                        <p class="fc-mark-item">
+                            <span class="fc-mark" aria-hidden="true">!</span>
+                            <span>Kun vertaat sähkösopimuksia, tarkista energiahinnan lisäksi perusmaksu, sopimuksen kesto ja muut sopimusehdot.</span>
                         </p>
-                        <p>
-                            Ennusteen tietopohja kertoo hintahistorian määrästä, ei ennusteen osumatarkkuudesta.
+                        <p class="fc-mark-item">
+                            <span class="fc-mark" aria-hidden="true">!</span>
+                            <span>Ennusteen tietopohja kertoo hintahistorian määrästä, ei ennusteen osumatarkkuudesta.</span>
                         </p>
-
                     </div>
                 </div>
-            </section>
 
-            {{-- Citation block. Forecast is a model-derived data product; citation framing makes that explicit
-                 by naming "Voltikan sähkön hintaennuste" rather than presenting it as a market measurement. --}}
-            <section id="viittaa" class="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 pt-12 mt-20 border-t border-slate-200">
-                <div>
-                    <h2 class="text-2xl font-bold text-slate-900 tracking-tight mb-4">Viittaa tähän</h2>
-                    <p class="text-base text-slate-600 leading-relaxed max-w-[58ch] mb-3">
-                        Käytä alla olevaa lähdemerkintää, jos lainaat tätä ennustetta artikkelissa, tutkimuksessa tai sosiaalisessa mediassa. Aineisto on lisensoitu CC&nbsp;BY&nbsp;4.0.
-                    </p>
-                    <p class="text-sm text-slate-500 max-w-[58ch]">
-                        Huomioi, että kyseessä on Voltikan oma mallipohjainen ennuste, ei pörssistä mitattu hinta. Mainitse aina lähteenä "Voltikan sähkön hintaennuste" tai vastaava, jotta lukija tietää luvun olevan ennuste.
-                    </p>
-                </div>
-
-                <div x-data="voltikkaCite({
+                <div id="viittaa" class="fc-method-col" x-data="voltikkaCite({
                     plain: @js($citations['plain']),
                     markdown: @js($citations['markdown']),
                     html: @js($citations['html']),
                 })">
-                    <div role="tablist" class="inline-flex bg-slate-50 border border-slate-200 rounded-lg p-0.5 mb-4">
-                        <template x-for="format in ['plain','markdown','html']" :key="format">
-                            <button
-                                type="button"
-                                role="tab"
-                                :aria-selected="active === format"
-                                @click="active = format"
-                                class="px-3.5 py-1.5 rounded-md text-xs font-semibold tracking-wide transition-colors capitalize"
-                                :class="active === format ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'"
-                                x-text="format === 'plain' ? 'Teksti' : (format === 'markdown' ? 'Markdown' : 'HTML')"
-                            ></button>
-                        </template>
-                    </div>
+                    <x-site.section-heading size="compact" :wave="180" class="data-heading">Viittaa tähän</x-site.section-heading>
+                    <p class="data-cite-text">
+                        Käytä alla olevaa lähdemerkintää, jos lainaat tätä ennustetta artikkelissa, tutkimuksessa tai sosiaalisessa mediassa. Aineisto on lisensoitu CC&nbsp;BY&nbsp;4.0.
+                    </p>
+                    <p class="data-cite-warning">
+                        Huomioi, että kyseessä on Voltikan oma mallipohjainen ennuste, ei pörssistä mitattu hinta. Mainitse aina lähteenä "Voltikan sähkön hintaennuste" tai vastaava, jotta lukija tietää luvun olevan ennuste.
+                    </p>
 
-                    <pre x-text="formats[active]" class="bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm text-slate-700 whitespace-pre-wrap break-words leading-relaxed font-sans"></pre>
-
-                    <button
-                        type="button"
-                        @click="copy()"
-                        class="mt-4 inline-flex items-center gap-2 rounded-lg bg-slate-900 text-white text-sm font-semibold px-4 py-2 hover:bg-slate-800 transition-colors"
-                    >
-                        <svg x-show="!copied" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                        </svg>
-                        <svg x-show="copied" x-cloak class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M20 6L9 17l-5-5"/>
-                        </svg>
-                        <span x-text="copied ? 'Kopioitu' : 'Kopioi viittaus'"></span>
-                    </button>
+                    <x-site.data-cite-formats />
                 </div>
             </section>
 

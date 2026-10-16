@@ -12,6 +12,7 @@ use App\Models\PriceComponent;
 use App\Services\Caching\PublicPriceCalculationPolicy;
 use App\Services\CompanyListCacheService;
 use App\Services\ContractListCacheService;
+use App\Support\Season;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -1121,6 +1122,72 @@ class SeoContractsListTest extends TestCase
         $this->assertArrayHasKey('FixedPrice', $pricingModels);
         $this->assertArrayHasKey('Spot', $pricingModels);
         $this->assertArrayHasKey('Hybrid', $pricingModels);
+    }
+
+    public function test_porssisahko_page_uses_river_hero_and_large_spot_glyph(): void
+    {
+        $this->createContract('spot-hero-1', 'Test Energia Oy', 'Pörssi Testi', 0.4, 3.0, pricingModel: 'Spot');
+
+        $response = $this->getWithPrices('/sahkosopimus/porssisahko');
+
+        $response->assertOk();
+        $response->assertSee('vk-seo-hero--river', false);
+        $response->assertSee('images/art/hero-porssisahko-', false);
+        $response->assertDontSee('images/art/fox-walk-lantern-', false);
+        $response->assertSee('vk-seo-results-glyph', false);
+    }
+
+    public function test_large_city_page_uses_its_own_city_hero(): void
+    {
+        $response = $this->getWithPrices('/sahkosopimus/paikkakunnat/helsinki');
+
+        $response->assertOk();
+        $response->assertSee('vk-seo-hero--city', false);
+        $response->assertSee('images/art/hero-city-helsinki-', false);
+        $response->assertDontSee('vk-seo-results-glyph', false);
+    }
+
+    public function test_other_city_page_uses_the_general_town_hero(): void
+    {
+        Municipality::create([
+            'code' => '297',
+            'slug' => 'kuopio',
+            'name' => 'Kuopio',
+            'name_locative' => 'Kuopiossa',
+            'name_genitive' => 'Kuopion',
+            'region_code' => '11',
+            'region_name' => 'Pohjois-Savo',
+            'center_latitude' => 62.8924,
+            'center_longitude' => 27.6770,
+        ]);
+
+        $response = $this->getWithPrices('/sahkosopimus/paikkakunnat/kuopio');
+
+        $response->assertOk();
+        $response->assertSee('vk-seo-hero--city', false);
+        $response->assertSee('images/art/hero-city-'.Season::current().'.webp', false);
+        $response->assertDontSee('images/art/hero-city-helsinki-', false);
+    }
+
+    public function test_every_city_hero_art_file_exists_for_every_season(): void
+    {
+        foreach (['hero-city', 'hero-city-helsinki', 'hero-city-tampere', 'hero-city-turku', 'hero-city-oulu'] as $art) {
+            foreach (Season::ALL as $season) {
+                $this->assertFileExists(public_path("images/art/{$art}-{$season}.webp"));
+                $this->assertFileExists(public_path("images/art/{$art}-{$season}-960.webp"));
+            }
+        }
+    }
+
+    public function test_other_listing_pages_keep_the_village_hero_without_a_results_glyph(): void
+    {
+        $response = $this->getWithPrices('/sahkosopimus/omakotitalo');
+
+        $response->assertOk();
+        $response->assertSee('images/art/listing-hero-', false);
+        $response->assertSee('images/art/fox-walk-lantern-', false);
+        $response->assertDontSee('vk-seo-hero--', false);
+        $response->assertDontSee('vk-seo-results-glyph', false);
     }
 
     private function warmPrices(): void

@@ -1,0 +1,2004 @@
+/* Redesign styles owned by the "company" area. See tasks/redesign-implementation/agent-brief.md. */
+
+/*
+ * Company pages: /sahkosopimus/sahkoyhtiot (Paper board 6R6-0, seasons EBQ-0) and
+ * /sahkosopimus/sahkoyhtiot/{slug} (Paper board AX2-0, seasons EBR-0). Values come from
+ * get_jsx. No cards, panels, pills or shadows: display headings with a wavy underline, ruled
+ * lists, inked marks and big numbers on the page (design spec §1, §4, §5).
+ *
+ * The listing classes (.vk-ctl-*, .vk-preset, .vk-own-field, .vk-section-heading, ...) in
+ * redesign-listing.css are global and reused here. Selectors that must beat a Tailwind
+ * utility use two classes, because this file loads before the utilities.
+ */
+
+/* ---------- Hero (x-site.company-hero) ---------- */
+
+.vk-co-hero {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    background-color: var(--color-night);
+}
+
+/* Phone: the plate covers the box. The directory hero shows the street and the fox; the
+   seller band shows its right side, so the fox (far left in the art) never sits under the
+   company name (spec §5 "Seller pages"). */
+.vk-co-hero-plate {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    object-fit: cover;
+    object-position: 18% 100%;
+}
+
+.vk-co-hero--band .vk-co-hero-plate {
+    object-position: 100% 80%;
+}
+
+.vk-co-hero-shade {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+/* Phone shade: the text column is full width, so the shade is a top-down fade. */
+.vk-tone-dark .vk-co-hero-shade {
+    background-image: linear-gradient(180deg, oklab(25% -0.007 -0.051 / 84%) 0%, oklab(25% -0.007 -0.051 / 66%) 62%, oklab(25% -0.007 -0.051 / 0%) 92%);
+}
+
+.vk-tone-light .vk-co-hero-shade {
+    background-image: linear-gradient(180deg, oklab(97.1% -0.003 0.006 / 90%) 0%, oklab(97.1% -0.003 0.006 / 74%) 62%, oklab(97.1% -0.003 0.006 / 0%) 92%);
+}
+
+.vk-co-hero-inner {
+    position: relative;
+    padding-top: 96px;
+    padding-bottom: 150px;
+}
+
+.vk-co-hero--band .vk-co-hero-inner {
+    padding-bottom: 110px;
+}
+
+.vk-co-hero-text {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 700px;
+}
+
+.vk-co-hero--list .vk-co-hero-text {
+    gap: 14px;
+}
+
+.vk-co-hero-edge {
+    position: absolute;
+    left: 0;
+    bottom: -2px;
+    width: 100%;
+    height: 66px;
+    pointer-events: none;
+}
+
+/* Back link / breadcrumbs on the sky: 14/18 800 in the lead tone. */
+.vk-co-hero-back,
+.vk-co-hero-crumbs {
+    width: fit-content;
+    font-size: var(--text-label);
+    line-height: var(--leading-label);
+    font-weight: 800;
+    color: var(--tone-lead);
+}
+
+.vk-co-hero-back:hover,
+.vk-co-hero-crumbs a:hover {
+    color: var(--tone-strong);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.vk-co-hero-crumbs ol {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 6px;
+}
+
+.vk-co-hero-h1 {
+    font-family: var(--font-display);
+    font-weight: 800;
+    color: var(--tone-strong);
+    font-size: 36px;
+    line-height: 40px;
+    letter-spacing: -0.03em;
+}
+
+/* "Vertaile 34 sähköyhtiön ..." and the seller band lead: strong tone, 600. */
+.vk-co-hero-sub {
+    color: var(--tone-strong);
+    font-size: 17px;
+    line-height: 26px;
+    font-weight: 600;
+}
+
+.vk-co-hero-lead {
+    max-width: 560px;
+    color: var(--tone-lead);
+    font-size: 15px;
+    line-height: 23px;
+    font-weight: 500;
+}
+
+@media (min-width: 1024px) {
+    /* Laptop and up: the Paper crop (a 1440x810 plate), anchored at the bottom, so the
+       landscape stays in view on wide screens. List: 10px of the plate below the 600px hero;
+       band: 160px below the 460px band. */
+    .vk-co-hero-plate,
+    .vk-co-hero--band .vk-co-hero-plate {
+        inset: auto;
+        left: 50%;
+        bottom: 0;
+        width: max(100%, 1440px);
+        height: auto;
+        object-position: 50% 50%;
+        transform: translate(-50%, 1.24%);
+    }
+
+    .vk-co-hero--band .vk-co-hero-plate {
+        transform: translate(-50%, 19.76%);
+    }
+
+    /* Paper "Dusk shade" (list): a soft pool behind the text column at the left plus a band
+       behind the top bar. Light seasons use the ground colour at the same stops. */
+    .vk-tone-dark.vk-co-hero--list .vk-co-hero-shade {
+        background-image:
+            radial-gradient(ellipse 62% 62% at 22% 32%, oklab(25% -0.007 -0.051 / 86%) 0%, oklab(25% -0.007 -0.051 / 62%) 45%, oklab(25% -0.007 -0.051 / 0%) 100%),
+            linear-gradient(180deg, oklab(25% -0.007 -0.051 / 80%) 0%, oklab(25% -0.007 -0.051 / 55%) 12%, oklab(25% -0.007 -0.051 / 0%) 26%);
+    }
+
+    .vk-tone-light.vk-co-hero--list .vk-co-hero-shade {
+        background-image:
+            radial-gradient(ellipse 62% 62% at 22% 32%, oklab(97.1% -0.003 0.006 / 90%) 0%, oklab(97.1% -0.003 0.006 / 66%) 45%, oklab(97.1% -0.003 0.006 / 0%) 100%),
+            linear-gradient(180deg, oklab(97.1% -0.003 0.006 / 86%) 0%, oklab(97.1% -0.003 0.006 / 55%) 12%, oklab(97.1% -0.003 0.006 / 0%) 26%);
+    }
+
+    /* Paper "Sky shade" (band): the pool sits behind the right-hand text column. */
+    .vk-tone-dark.vk-co-hero--band .vk-co-hero-shade {
+        background-image:
+            radial-gradient(ellipse 55% 78% at 72% 38%, oklab(25% -0.007 -0.051 / 82%) 0%, oklab(25% -0.007 -0.051 / 55%) 52%, oklab(25% -0.007 -0.051 / 0%) 100%),
+            linear-gradient(180deg, oklab(25% -0.007 -0.051 / 70%) 0%, oklab(25% -0.007 -0.051 / 0%) 22%);
+    }
+
+    .vk-tone-light.vk-co-hero--band .vk-co-hero-shade {
+        background-image:
+            radial-gradient(ellipse 55% 78% at 72% 38%, oklab(97.1% -0.003 0.006 / 90%) 0%, oklab(97.1% -0.003 0.006 / 66%) 52%, oklab(97.1% -0.003 0.006 / 0%) 100%),
+            linear-gradient(180deg, oklab(97.1% -0.003 0.006 / 86%) 0%, oklab(97.1% -0.003 0.006 / 0%) 22%);
+    }
+
+    .vk-co-hero--list .vk-co-hero-inner {
+        min-height: 600px;
+        padding-top: 112px;
+        padding-bottom: 64px;
+    }
+
+    .vk-co-hero--band .vk-co-hero-inner {
+        min-height: 460px;
+        padding-top: 104px;
+        padding-bottom: 64px;
+    }
+
+    /* Band: the text column on the side opposite the fox (Paper: x 640 of 1440). */
+    .vk-co-hero--band .vk-co-hero-text {
+        margin-left: auto;
+        width: min(700px, 57%);
+    }
+
+    .vk-co-hero--list .vk-co-hero-h1 {
+        font-size: 60px;
+        line-height: 60px;
+        letter-spacing: -0.035em;
+    }
+
+    .vk-co-hero--band .vk-co-hero-h1 {
+        font-size: 54px;
+        line-height: 56px;
+        letter-spacing: -0.035em;
+    }
+
+    .vk-co-hero--list .vk-co-hero-sub {
+        font-size: 20px;
+        line-height: 30px;
+    }
+
+    .vk-co-hero--band .vk-co-hero-sub {
+        font-size: 18px;
+        line-height: 27px;
+    }
+
+    .vk-co-hero-lead {
+        font-size: var(--text-body);
+        line-height: var(--leading-body);
+    }
+}
+
+/* ---------- Page column and section headings ---------- */
+
+.vk-co-page {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    padding-bottom: 56px;
+    color: var(--color-ink-body);
+}
+
+.vk-co-section {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding-top: 28px;
+}
+
+.vk-co-section--first {
+    padding-top: 12px;
+}
+
+@media (min-width: 1024px) {
+    .vk-co-section {
+        padding-top: 40px;
+    }
+
+    .vk-co-section--first {
+        padding-top: 18px;
+    }
+}
+
+.vk-co-head {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+@media (min-width: 1024px) {
+    .vk-co-head--split {
+        flex-direction: row;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 40px;
+    }
+}
+
+.vk-co-title-wrap {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 2px;
+}
+
+/* Section heading: Bricolage 34/38 (28/32 on a phone); --xl is the 44/48 page-level heading. */
+.vk-co-title {
+    font-family: var(--font-display);
+    font-weight: 800;
+    color: var(--color-ink);
+    font-size: 28px;
+    line-height: 32px;
+    letter-spacing: -0.02em;
+}
+
+.vk-co-title--xl {
+    font-size: 34px;
+    line-height: 38px;
+    letter-spacing: -0.03em;
+}
+
+@media (min-width: 1024px) {
+    .vk-co-title {
+        font-size: var(--text-section);
+        line-height: var(--leading-section);
+    }
+
+    .vk-co-title--xl {
+        font-size: 44px;
+        line-height: 48px;
+    }
+}
+
+.vk-co-subtitle {
+    font-family: var(--font-display);
+    font-weight: 800;
+    color: var(--color-ink);
+    font-size: 22px;
+    line-height: 26px;
+}
+
+/* Right-hand note of a split heading: 14/21 ink-body, right aligned on a laptop. */
+.vk-co-head-note {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: var(--text-label);
+    line-height: 21px;
+    color: var(--color-ink-body);
+}
+
+.vk-co-head-note--wide {
+    font-size: var(--text-ui);
+    line-height: 22px;
+}
+
+@media (min-width: 1024px) {
+    .vk-co-head-note {
+        width: 560px;
+        flex-shrink: 0;
+        align-items: flex-end;
+        text-align: right;
+    }
+
+    .vk-co-head-note--wide {
+        width: 420px;
+    }
+}
+
+/* Small underlined ink action (Paper "Näin laskemme →": 14/18 800 ink). */
+.vk-co-ink-link {
+    width: fit-content;
+    font-size: var(--text-label);
+    line-height: var(--leading-label);
+    font-weight: 800;
+    color: var(--color-ink);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    white-space: nowrap;
+}
+
+.vk-co-ink-link:hover {
+    color: var(--color-fox-deep);
+}
+
+/* ---------- Leaderboards (Paper "Leaderboards row 1/2") ---------- */
+
+.vk-co-boards {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 32px 46px;
+}
+
+@media (min-width: 768px) {
+    .vk-co-boards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1200px) {
+    .vk-co-boards {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        row-gap: 40px;
+    }
+}
+
+.vk-co-board-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--color-ink);
+    font-family: var(--font-display);
+    font-size: 24px;
+    line-height: 28px;
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+.vk-co-board-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding-block: 9px;
+    border-bottom: 1.5px solid var(--color-edge);
+}
+
+.vk-co-board-rank {
+    width: 28px;
+    flex-shrink: 0;
+    font-family: var(--font-display);
+    font-size: 20px;
+    line-height: 24px;
+    font-weight: 800;
+    color: var(--color-ink-muted);
+}
+
+.vk-co-board-name {
+    min-width: 0;
+    flex: 1 1 0%;
+    font-size: var(--text-ui);
+    line-height: 18px;
+    color: var(--color-ink);
+}
+
+.vk-co-board-name:hover {
+    color: var(--color-fox-deep);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.vk-co-board-value {
+    flex-shrink: 0;
+    font-size: var(--text-ui);
+    line-height: 18px;
+    font-weight: 800;
+    color: var(--color-ink);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+/* First row: rank 24 and a Bricolage 17 value with a sparkle, in the board's accent. */
+.vk-co-board-row--first .vk-co-board-rank {
+    font-size: 24px;
+    line-height: 30px;
+    color: var(--co-accent);
+}
+
+.vk-co-board-row--first .vk-co-board-name {
+    font-weight: 800;
+}
+
+.vk-co-board-row--first .vk-co-board-value {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: var(--font-display);
+    font-size: 17px;
+    line-height: 22px;
+    color: var(--co-accent);
+}
+
+/* ---------- 100% renewable logos (Paper "100% uusiutuva") ---------- */
+
+.vk-co-logos {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (min-width: 768px) {
+    .vk-co-logos {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+}
+
+.vk-co-logos > li {
+    border-bottom: 1.5px solid var(--color-edge);
+}
+
+.vk-co-logo-cell {
+    display: flex;
+    height: 100%;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 10px 6px 14px;
+    text-align: center;
+}
+
+.vk-co-logo-cell:hover .vk-co-logo-name {
+    color: var(--color-ink);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.vk-co-logo-name {
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 700;
+    color: var(--color-ink-body);
+}
+
+.vk-co-logo-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 800;
+    color: var(--color-aurora);
+}
+
+/*
+ * Company logo on the ground (x-company-logo tile variant): no tile, the logo is contained
+ * and multiplied onto the snow. The tile's initials are the no-logo fallback (Paper "Köy"):
+ * hidden while a logo image exists, shown again when a failed logo removes itself.
+ * Logos with wide empty margins look small; a 46px box (cells) and a 30px box (rows) is the
+ * board's size, the files themselves are not cropped (logo pipeline unchanged).
+ */
+.vk-co-logo.vk-co-logo {
+    font-family: var(--font-display);
+    font-weight: 800;
+    color: var(--color-ink-muted);
+}
+
+.vk-co-logo.vk-co-logo:has(img) > span:first-child {
+    visibility: hidden;
+}
+
+.vk-co-logo-img.vk-co-logo-img {
+    mix-blend-mode: multiply;
+}
+
+.vk-co-logo--cell.vk-co-logo--cell {
+    width: 150px;
+    max-width: 100%;
+    height: 46px;
+    font-size: 22px;
+    line-height: 26px;
+}
+
+.vk-co-logo--row.vk-co-logo--row {
+    width: 84px;
+    height: 30px;
+    justify-content: flex-start;
+    font-size: 19px;
+    line-height: 24px;
+}
+
+.vk-co-logo--row .vk-co-logo-img {
+    object-position: left center;
+}
+
+/* ---------- Small and local companies (Paper "Pienet ja paikalliset") ---------- */
+
+.vk-co-small-head {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+@media (min-width: 1024px) {
+    .vk-co-small-head {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 40px;
+    }
+
+    .vk-co-small-intro {
+        width: 760px;
+        flex-shrink: 0;
+    }
+}
+
+.vk-co-small-intro {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Pull quote: Bricolage 26/34 700. */
+.vk-co-pull {
+    font-family: var(--font-display);
+    font-weight: 700;
+    color: var(--color-ink);
+    font-size: 21px;
+    line-height: 28px;
+    letter-spacing: -0.01em;
+}
+
+.vk-co-small-body {
+    font-size: var(--text-body);
+    line-height: var(--leading-body);
+    color: var(--color-ink-body);
+}
+
+@media (min-width: 1024px) {
+    .vk-co-pull {
+        font-size: 26px;
+        line-height: 34px;
+    }
+
+    .vk-co-small-body {
+        font-size: 17px;
+        line-height: 27px;
+    }
+}
+
+.vk-co-small-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    padding-top: 18px;
+    border-top: 1.5px solid var(--color-edge);
+}
+
+@media (min-width: 1024px) {
+    .vk-co-small-groups {
+        flex-direction: row;
+        justify-content: space-between;
+        gap: 40px;
+    }
+
+    .vk-co-small-group--local {
+        width: 800px;
+        flex-shrink: 1;
+    }
+
+    .vk-co-small-group--challenger {
+        width: 360px;
+        flex-shrink: 0;
+    }
+}
+
+.vk-co-small-group {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.vk-co-small-text {
+    font-size: var(--text-ui);
+    line-height: 22px;
+    color: var(--color-ink-body);
+}
+
+.vk-co-name-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-top: 6px;
+}
+
+/* Local companies in three columns of 240 on a laptop, two on a tablet. */
+.vk-co-name-list--columns {
+    display: block;
+    column-gap: 30px;
+}
+
+.vk-co-name-list--columns > li {
+    break-inside: avoid;
+    padding-bottom: 8px;
+}
+
+@media (min-width: 640px) {
+    .vk-co-name-list--columns {
+        columns: 2;
+    }
+}
+
+@media (min-width: 1024px) {
+    .vk-co-name-list--columns {
+        columns: 3 240px;
+    }
+}
+
+.vk-co-name-link {
+    font-size: var(--text-ui);
+    line-height: 18px;
+    font-weight: 700;
+    color: var(--color-ink);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+}
+
+.vk-co-name-link:hover {
+    color: var(--color-fox-deep);
+}
+
+/* ---------- All companies (Paper "Kaikki sähköyhtiöt", "Company ledger") ---------- */
+
+.vk-co-section--all {
+    gap: 18px;
+}
+
+@media (min-width: 1024px) {
+    .vk-co-section--all {
+        padding-top: 44px;
+    }
+}
+
+.vk-co-all-head {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+@media (min-width: 1024px) {
+    .vk-co-all-head {
+        flex-direction: row;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 22px;
+    }
+}
+
+.vk-co-count-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 8px 22px;
+}
+
+/* "34 sähköyhtiötä vertailussa": the count in Bricolage 44 fox-deep, the words 16/800. */
+.vk-co-count {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 8px;
+    padding-bottom: 12px;
+    font-size: var(--text-body);
+    line-height: 20px;
+    font-weight: 700;
+    color: var(--color-ink-body);
+}
+
+.vk-co-count-number {
+    font-family: var(--font-display);
+    font-size: 36px;
+    line-height: 40px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--color-fox-deep);
+    font-variant-numeric: tabular-nums;
+}
+
+@media (min-width: 1024px) {
+    .vk-co-count-number {
+        font-size: 44px;
+        line-height: 44px;
+    }
+}
+
+/* Search: an underlined field (spec §5 "Field"), the icon in ink-muted. */
+.vk-co-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 2px;
+    margin-bottom: 12px;
+    border-bottom: 2px solid var(--color-field-edge);
+}
+
+@media (min-width: 1024px) {
+    .vk-co-search {
+        width: 280px;
+    }
+}
+
+.vk-co-search:focus-within {
+    border-bottom-color: var(--color-fox);
+    box-shadow: 0 1px 0 0 var(--color-fox);
+}
+
+.vk-co-search-icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    color: var(--color-ink-muted);
+}
+
+.vk-co-search input {
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    font-size: var(--text-ui);
+    line-height: 20px;
+    font-weight: 700;
+    color: var(--color-ink);
+}
+
+.vk-co-search input::placeholder {
+    font-weight: 400;
+    color: var(--color-ink-muted);
+}
+
+.vk-co-search input:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+.vk-co-empty {
+    padding-block: 40px;
+    text-align: center;
+    font-family: var(--font-display);
+    font-size: 22px;
+    line-height: 26px;
+    font-weight: 800;
+    color: var(--color-ink-muted);
+}
+
+.vk-co-ledger {
+    display: flex;
+    flex-direction: column;
+}
+
+@media (min-width: 1024px) {
+    .vk-co-ledger {
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 52px;
+    }
+
+    .vk-co-ledger-col {
+        min-width: 0;
+        flex: 1 1 0%;
+    }
+
+    .vk-co-ledger-col + .vk-co-ledger-col {
+        border-top: 2px solid var(--color-ink);
+    }
+}
+
+.vk-co-ledger-col:first-child {
+    border-top: 2px solid var(--color-ink);
+}
+
+.vk-co-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding-block: 10px;
+    border-bottom: 1.5px solid var(--color-edge);
+}
+
+.vk-co-row:hover .vk-co-row-name {
+    color: var(--color-fox-deep);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.vk-co-row-main {
+    display: flex;
+    min-width: 0;
+    flex: 1 1 0%;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.vk-co-row-name {
+    font-family: var(--font-display);
+    font-size: 17px;
+    line-height: 21px;
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+.vk-co-row-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 8px;
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    color: var(--color-ink-body);
+}
+
+.vk-co-row-green {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-weight: 800;
+    color: var(--color-aurora);
+}
+
+.vk-co-row-spot {
+    color: var(--color-ink-muted);
+}
+
+.vk-co-row-price {
+    display: flex;
+    flex-shrink: 0;
+    flex-direction: column;
+    align-items: flex-end;
+    text-align: right;
+}
+
+.vk-co-row-amount {
+    font-family: var(--font-display);
+    font-size: 20px;
+    line-height: 22px;
+    font-weight: 800;
+    color: var(--color-ink);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.vk-co-row-unit {
+    font-size: 12px;
+    line-height: 16px;
+    color: var(--color-ink-muted);
+}
+
+/* ---------- FAQ (Paper "Usein kysyttyä sähköyhtiöistä") ---------- */
+
+.vk-co-faq-section {
+    gap: 10px;
+    max-width: 820px;
+}
+
+@media (min-width: 1024px) {
+    .vk-co-faq-section {
+        padding-top: 44px;
+    }
+}
+
+.vk-co-faq {
+    border-top: 1.5px solid var(--color-edge);
+}
+
+.vk-co-faq-row {
+    border-bottom: 1.5px solid var(--color-edge);
+}
+
+.vk-co-faq-q {
+    display: flex;
+    cursor: pointer;
+    list-style: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-block: 16px;
+}
+
+.vk-co-faq-q::-webkit-details-marker {
+    display: none;
+}
+
+.vk-co-faq-q h3 {
+    font-size: 17px;
+    line-height: 22px;
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+@media (min-width: 1024px) {
+    .vk-co-faq-q h3 {
+        font-size: 18px;
+    }
+}
+
+.vk-co-faq-row[open] .vk-co-faq-q {
+    padding-bottom: 8px;
+}
+
+.vk-co-faq-a {
+    max-width: var(--container-text);
+    padding: 4px 0 16px;
+    font-size: var(--text-body);
+    line-height: var(--leading-body);
+    color: var(--color-ink-body);
+}
+
+/* Spruce interlude: 900 wide on the board (the shared strip is 1000). */
+.vk-co-interlude {
+    padding-top: 30px;
+}
+
+.vk-co-interlude .vk-interlude-img {
+    width: min(900px, 100%);
+}
+
+/*
+ * Logo crop (presentation only). Some local logo files carry wide empty margins, so on the
+ * ground they look much smaller than their neighbours (the board shows them cropped). The logo
+ * pipeline stays unchanged; `object-view-box` shows only the measured content box of these
+ * files (insets measured on storage/app/public/logos on 2026-10-16, 1% safety margin).
+ * Browsers without `object-view-box` show the whole file, as before. If one of these files
+ * changes, re-measure or remove its line.
+ */
+.vk-co-logo[data-logo="aanekosken-energia-oy"] img { object-view-box: inset(27% 8% 27% 8%); }
+.vk-co-logo[data-logo="hehku-energia-oy"] img { object-view-box: inset(34% 12% 34% 12%); }
+.vk-co-logo[data-logo="koillis-satakunnan-sahko-oy"] img { object-view-box: inset(18% 6% 18% 5%); }
+.vk-co-logo[data-logo="nordic-green-energy"] img { object-view-box: inset(16% 16% 20% 10%); }
+.vk-co-logo[data-logo="paneliankosken-voima-oy"] img { object-view-box: inset(18% 12% 34% 11%); }
+.vk-co-logo[data-logo="pohjois-karjalan-sahko-oy"] img { object-view-box: inset(16% 0% 18% 0%); }
+.vk-co-logo[data-logo="vaasan-sahko-myynti-oy"] img { object-view-box: inset(30% 13% 35% 16%); }
+.vk-co-logo[data-logo="vare-oy"] img { object-view-box: inset(30% 13% 32% 12%); }
+.vk-co-logo[data-logo="vattenfall-oy"] img { object-view-box: inset(26% 2% 26% 2%); }
+
+/* ---------- Company detail page (Paper board AX2-0) ---------- */
+
+.vk-co-detail {
+    gap: 22px;
+}
+
+/* Body text blocks. */
+.vk-co-text {
+    max-width: 900px;
+    font-size: var(--text-ui);
+    line-height: 23px;
+    color: var(--color-ink-body);
+}
+
+/* Smaller inked action (Paper: Bricolage 17/22 fox-deep + 2.4 wave). */
+.vk-action.vk-action--small {
+    font-size: 17px;
+    line-height: 22px;
+}
+
+.vk-co-ink-link--ui {
+    font-size: var(--text-ui);
+}
+
+/* Fine print + action on one line (laptop), stacked on a phone. */
+.vk-co-footnote-row {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+@media (min-width: 1024px) {
+    .vk-co-footnote-row {
+        flex-direction: row;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 40px;
+    }
+}
+
+.vk-co-footnote {
+    max-width: 760px;
+    font-size: var(--text-caption);
+    line-height: 19px;
+    color: var(--color-ink-muted);
+}
+
+.vk-co-head--top {
+    align-items: flex-start;
+}
+
+/* Right-hand intro of a split heading: lead 16/24 700 ink, text 14/21, small 13/19 muted. */
+.vk-co-intro {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+@media (min-width: 1024px) {
+    .vk-co-intro {
+        width: 640px;
+        flex-shrink: 0;
+    }
+}
+
+.vk-co-intro-lead {
+    font-size: var(--text-body);
+    line-height: 24px;
+    font-weight: 700;
+    color: var(--color-ink);
+}
+
+.vk-co-intro-text {
+    font-size: var(--text-label);
+    line-height: 21px;
+    color: var(--color-ink-body);
+}
+
+.vk-co-intro-small {
+    font-size: var(--text-caption);
+    line-height: 19px;
+    color: var(--color-ink-muted);
+}
+
+/* Object vignette at the left of a seller-section heading (spec §5). */
+.vk-co-vignette-head {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 14px;
+}
+
+.vk-co-vignette {
+    width: 44px;
+    height: 44px;
+}
+
+@media (min-width: 1024px) {
+    .vk-co-vignette-head {
+        max-width: 500px;
+    }
+
+    .vk-co-vignette {
+        width: 56px;
+        height: 56px;
+    }
+}
+
+/* ---------- Company facts (Paper "Company facts") ---------- */
+
+.vk-co-facts {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding-top: 18px;
+}
+
+@media (min-width: 1024px) {
+    .vk-co-facts {
+        flex-direction: row;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 40px;
+    }
+}
+
+.vk-co-facts-text {
+    display: flex;
+    max-width: 560px;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.vk-co-logo--facts.vk-co-logo--facts {
+    width: 150px;
+    height: 48px;
+    justify-content: flex-start;
+    font-size: 28px;
+    line-height: 32px;
+    color: var(--color-ink);
+}
+
+.vk-co-logo--facts .vk-co-logo-img {
+    object-position: left center;
+}
+
+.vk-co-facts-note {
+    font-size: var(--text-body);
+    line-height: 24px;
+    color: var(--color-ink-body);
+}
+
+.vk-co-facts-small {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.vk-co-facts-updated {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 800;
+    color: var(--color-aurora);
+}
+
+.vk-co-facts-contact {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 6px;
+    font-size: var(--text-caption);
+    line-height: 18px;
+    color: var(--color-ink-muted);
+}
+
+.vk-co-facts-url {
+    overflow-wrap: anywhere;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+}
+
+.vk-co-facts-url:hover {
+    color: var(--color-fox-deep);
+}
+
+/* Three big numbers, labels below (Paper: Bricolage 56/56 −0.04em, label 14/18 700). */
+.vk-co-figures {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 16px 32px;
+}
+
+@media (min-width: 1024px) {
+    .vk-co-figures {
+        gap: 16px 40px;
+    }
+}
+
+.vk-co-figure {
+    display: flex;
+    flex-direction: column-reverse;
+}
+
+.vk-co-figure-number {
+    font-family: var(--font-display);
+    font-size: 44px;
+    line-height: 46px;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    color: var(--color-ink);
+    font-variant-numeric: tabular-nums;
+}
+
+@media (min-width: 1024px) {
+    .vk-co-figure-number {
+        font-size: 56px;
+        line-height: 56px;
+    }
+}
+
+.vk-co-figure-number--green {
+    color: var(--color-aurora);
+}
+
+.vk-co-figure-number--muted {
+    color: var(--color-granite);
+}
+
+.vk-co-figure-number--price {
+    color: var(--color-fox-deep);
+}
+
+.vk-co-figure-label {
+    font-size: var(--text-label);
+    line-height: var(--leading-label);
+    font-weight: 700;
+    color: var(--color-ink-body);
+}
+
+/* ---------- Consumption row (Paper "Vuosikulutus") ---------- */
+
+.vk-co-consumption {
+    border-top: 1.5px solid var(--color-edge);
+    border-bottom: 1.5px solid var(--color-edge);
+}
+
+.vk-co-consumption .vk-ctl-row {
+    border-bottom: 0;
+}
+
+@media (min-width: 1024px) {
+    .vk-co-consumption .vk-ctl-label {
+        width: 110px;
+    }
+}
+
+.vk-co-own-field.vk-co-own-field {
+    width: 250px;
+    align-items: baseline;
+}
+
+.vk-co-own-label {
+    flex-shrink: 0;
+    font-size: var(--text-label);
+    line-height: var(--leading-label);
+    color: var(--color-ink-muted);
+}
+
+.vk-co-own-field input {
+    text-align: right;
+}
+
+/* ---------- Hinnat lyhyesti (Paper "Hinnat lyhyesti") ---------- */
+
+.vk-co-brief {
+    gap: 18px;
+}
+
+@media (min-width: 1024px) {
+    .vk-co-brief {
+        padding-top: 30px;
+    }
+}
+
+.vk-co-brief-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px 32px;
+}
+
+@media (min-width: 640px) {
+    .vk-co-brief-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1200px) {
+    .vk-co-brief-grid {
+        grid-template-columns: 220px 420px 220px 260px;
+        justify-content: space-between;
+    }
+}
+
+.vk-co-brief-item {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.vk-co-caps {
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 800;
+    letter-spacing: var(--tracking-caps);
+    text-transform: uppercase;
+    color: var(--color-ink-muted);
+}
+
+.vk-co-brief-number {
+    font-family: var(--font-display);
+    font-size: 34px;
+    line-height: 38px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--color-ink);
+    font-variant-numeric: tabular-nums;
+}
+
+@media (min-width: 1024px) {
+    .vk-co-brief-number {
+        font-size: 44px;
+        line-height: 46px;
+    }
+}
+
+.vk-co-brief-note {
+    font-size: var(--text-label);
+    line-height: var(--leading-label);
+    color: var(--color-ink-body);
+}
+
+/* The range line carries "halvin – kallein" as labels; the text stays for screen readers. */
+.vk-co-brief-note--range {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+.vk-co-brief-item--range dd[aria-hidden] {
+    max-width: 420px;
+    padding-top: 2px;
+}
+
+.vk-co-range {
+    display: block;
+    width: 100%;
+    height: 22px;
+    overflow: visible;
+}
+
+.vk-co-range-labels {
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    height: 16px;
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 800;
+}
+
+.vk-co-range-labels > span:nth-child(2):not(:last-child) {
+    position: absolute;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    font-weight: 700;
+}
+
+.vk-co-brief-type {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-top: 6px;
+    font-size: var(--text-body);
+    line-height: 20px;
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+.vk-co-footnote-row--ruled {
+    padding-top: 12px;
+    border-top: 1.5px solid var(--color-edge);
+}
+
+/* ---------- Ruled tables: offers and spot (Paper "Tarjoukset", "Pörssisähkö") ---------- */
+
+.vk-co-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+.vk-co-table thead th {
+    padding: 8px 12px 8px 0;
+    border-bottom: 2px solid var(--color-ink);
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 800;
+    color: var(--color-ink-muted);
+}
+
+.vk-co-table tbody td {
+    padding: 14px 12px 14px 0;
+    border-bottom: 1.5px solid var(--color-edge);
+    vertical-align: middle;
+    font-size: var(--text-ui);
+    line-height: 18px;
+    color: var(--color-ink-body);
+}
+
+.vk-co-table .vk-co-table-end {
+    padding-right: 0;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.vk-co-table-name {
+    font-family: var(--font-display);
+    font-size: 19px !important;
+    line-height: 24px !important;
+    font-weight: 800;
+    color: var(--color-ink) !important;
+}
+
+.vk-co-table-offer {
+    font-weight: 800;
+    color: var(--color-fox-deep) !important;
+}
+
+.vk-co-table-offer svg {
+    margin-right: 4px;
+    vertical-align: -1px;
+}
+
+.vk-co-table-saving {
+    display: block;
+    font-family: var(--font-display);
+    font-size: 20px;
+    line-height: 24px;
+    font-weight: 800;
+    color: var(--color-aurora);
+    font-variant-numeric: tabular-nums;
+}
+
+.vk-co-table-figure {
+    display: block;
+    font-family: var(--font-display);
+    font-size: 20px;
+    line-height: 24px;
+    font-weight: 800;
+    color: var(--color-ink);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.vk-co-table-note {
+    display: block;
+    font-size: 12px;
+    line-height: 16px;
+    color: var(--color-ink-muted);
+}
+
+.vk-co-table-dash {
+    font-family: var(--font-display);
+    font-size: 20px;
+    color: var(--color-ink-muted);
+}
+
+.vk-co-delta {
+    display: block;
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 700;
+    color: var(--color-ink-body);
+}
+
+.vk-co-delta--up {
+    color: var(--color-price-high);
+}
+
+.vk-co-delta--down {
+    color: var(--color-aurora);
+}
+
+/* Column label inside a cell: only on a phone, where the head row is hidden. */
+.vk-co-cell-label {
+    display: none;
+}
+
+@media (min-width: 1024px) {
+    .vk-co-table--offers th:nth-child(1) { width: 300px; }
+    .vk-co-table--offers th:nth-child(2) { width: 360px; }
+    .vk-co-table--offers th:nth-child(3) { width: 220px; }
+    .vk-co-table--offers th:nth-child(4) { width: 200px; }
+    .vk-co-table--spot th:nth-child(-n+3) { width: 300px; }
+    .vk-co-table--spot th:nth-child(4) { width: 200px; }
+}
+
+/* Phone and tablet: each row becomes a short stack (name, offer, then the figures in a
+   row), with the column names as small labels. No horizontal scroll. */
+@media (max-width: 1023.98px) {
+    .vk-co-table thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+    }
+
+    .vk-co-table,
+    .vk-co-table tbody {
+        display: block;
+    }
+
+    .vk-co-table tbody tr {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        gap: 6px 20px;
+        padding-block: 14px;
+        border-bottom: 1.5px solid var(--color-edge);
+    }
+
+    .vk-co-table tbody tr:first-child {
+        border-top: 2px solid var(--color-ink);
+    }
+
+    .vk-co-table tbody td {
+        display: block;
+        padding: 0;
+        border: 0;
+    }
+
+    .vk-co-table-name,
+    .vk-co-table-offer {
+        width: 100%;
+    }
+
+    .vk-co-table .vk-co-table-end {
+        margin-left: auto;
+        align-self: flex-end;
+    }
+
+    .vk-co-cell-label {
+        display: block;
+        font-size: 12px;
+        line-height: 16px;
+        font-weight: 800;
+        color: var(--color-ink-muted);
+    }
+}
+
+/* ---------- Market comparison (Paper "Sähkön hinta") ---------- */
+
+.vk-co-legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 22px;
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 800;
+    color: var(--color-ink-body);
+}
+
+.vk-co-legend li {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.vk-co-legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 6px;
+    background: var(--color-fox);
+}
+
+.vk-co-legend-band {
+    width: 26px;
+    height: 10px;
+    background: var(--color-granite);
+    opacity: 0.3;
+}
+
+.vk-co-legend-median {
+    width: 3px;
+    height: 14px;
+    background: var(--color-ink);
+}
+
+.vk-co-range-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-block: 12px;
+    border-bottom: 1.5px solid var(--color-edge);
+}
+
+.vk-co-ranges {
+    border-top: 1.5px solid var(--color-edge);
+}
+
+.vk-co-range-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+        "name"
+        "value"
+        "track";
+    align-items: center;
+    gap: 6px;
+}
+
+@media (min-width: 1024px) {
+    .vk-co-range-main {
+        grid-template-columns: 260px 600px minmax(0, 1fr);
+        grid-template-areas: "name track value";
+        gap: 0;
+    }
+}
+
+.vk-co-range-name {
+    grid-area: name;
+}
+
+.vk-co-range-name h3 {
+    font-family: var(--font-display);
+    font-size: 20px;
+    line-height: 24px;
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+.vk-co-range-name p {
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    color: var(--color-ink-body);
+}
+
+/* Inked range track: baseline, p20-p80 band in granite 30 %, median tick, fox marker. */
+.vk-co-track {
+    grid-area: track;
+    position: relative;
+    height: 46px;
+    margin-inline: 10px;
+}
+
+.vk-co-track-line {
+    position: absolute;
+    left: -10px;
+    right: -10px;
+    top: 24px;
+    border-top: 1.4px solid var(--color-ink);
+}
+
+.vk-co-track-band {
+    position: absolute;
+    top: 18px;
+    height: 14px;
+    background: var(--color-granite);
+    opacity: 0.3;
+}
+
+.vk-co-track-median {
+    position: absolute;
+    top: 15px;
+    width: 3px;
+    height: 20px;
+    margin-left: -1.5px;
+    background: var(--color-ink);
+}
+
+.vk-co-track-marker {
+    position: absolute;
+    top: 16px;
+    width: 18px;
+    height: 18px;
+    margin-left: -9px;
+    border: 2px solid var(--color-ground);
+    border-radius: 9px;
+    background: var(--color-fox);
+}
+
+.vk-co-range-value {
+    grid-area: value;
+    display: flex;
+    flex-direction: column;
+}
+
+@media (min-width: 1024px) {
+    .vk-co-range-value {
+        align-items: flex-end;
+        text-align: right;
+    }
+}
+
+.vk-co-range-price {
+    font-family: var(--font-display);
+    font-size: 26px;
+    line-height: 32px;
+    font-weight: 800;
+    color: var(--color-ink);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.vk-co-range-position {
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 800;
+}
+
+.vk-co-range-delta {
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    color: var(--color-ink-body);
+}
+
+.vk-co-range-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 10px;
+    font-size: 12px;
+    line-height: 16px;
+    color: var(--color-ink-muted);
+}
+
+@media (min-width: 1024px) {
+    .vk-co-range-stats {
+        padding-left: 260px;
+    }
+}
+
+.vk-co-range-stats > div {
+    display: flex;
+    gap: 4px;
+}
+
+.vk-co-range-stats > div + div::before {
+    content: "·";
+    margin-right: 6px;
+}
+
+.vk-co-range-stats dd {
+    font-weight: 700;
+    color: var(--color-ink-body);
+    font-variant-numeric: tabular-nums;
+}
+
+.vk-co-trend {
+    /* Containing block of the sr-only data table: a table does not shrink to 1px, so
+       without it the table widened the page on a phone (main clips its overflow). */
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 22px;
+}
+
+/* ---------- Household ledger and business rows ---------- */
+
+.vk-co-count-head--ruled {
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--color-ink);
+}
+
+.vk-co-contracts {
+    gap: 0;
+}
+
+.vk-co-contracts .vk-co-count-head--ruled {
+    margin-bottom: 4px;
+}
+
+/* Every entry is this company's: no rank and logo lane (Paper "Household ledger"). The grid
+   drops its first column; the tag line loses the lane indent. */
+.vk-co-ledger-entries .vk-entry-rank {
+    display: none;
+}
+
+.vk-co-ledger-entries .vk-entry-main {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+        "name name"
+        "parts parts"
+        "price action";
+}
+
+@media (min-width: 640px) {
+    .vk-co-ledger-entries .vk-entry-main {
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas:
+            "name price"
+            "parts action";
+    }
+}
+
+@media (min-width: 1200px) {
+    .vk-co-ledger-entries .vk-entry-main {
+        grid-template-columns: minmax(200px, 400fr) minmax(250px, 340fr) minmax(190px, 372fr) 120px;
+        grid-template-areas: "name parts price action";
+    }
+}
+
+.vk-co-ledger-entries .vk-tags.vk-tags {
+    padding-left: 0;
+}
+
+.vk-co-count--business .vk-co-count-number {
+    font-size: 30px;
+    line-height: 32px;
+    color: var(--color-lake);
+}
+
+@media (min-width: 1024px) {
+    .vk-co-count--business .vk-co-count-number {
+        font-size: 36px;
+        line-height: 36px;
+    }
+}
+
+.vk-co-count--side {
+    padding-bottom: 6px;
+}
+
+.vk-co-compact-list {
+    border-top: 2px solid var(--color-ink);
+}
+
+/* One line on a laptop: glyph | name + meta (380) | parts (420) | price | Katso (90). */
+.vk-co-compact {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    grid-template-areas:
+        "glyph name name"
+        "parts parts parts"
+        "price price action";
+    align-items: center;
+    gap: 8px 14px;
+    padding-block: 12px;
+    border-bottom: 1.5px solid var(--color-edge);
+}
+
+@media (min-width: 1200px) {
+    .vk-co-compact {
+        grid-template-columns: 28px 380px minmax(0, 1fr) auto 90px;
+        grid-template-areas: "glyph name parts price action";
+    }
+}
+
+.vk-co-compact-glyph {
+    grid-area: glyph;
+    width: 28px;
+    height: 28px;
+    align-self: start;
+}
+
+.vk-co-compact-name {
+    grid-area: name;
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.vk-co-compact-title {
+    font-family: var(--font-display);
+    font-size: 18px;
+    line-height: 22px;
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+.vk-co-compact-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 5px;
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    color: var(--color-ink-body);
+}
+
+.vk-co-compact-name .vk-tags {
+    padding-left: 0;
+    padding-top: 2px;
+}
+
+.vk-co-compact-parts {
+    grid-area: parts;
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 6px;
+    font-size: var(--text-label);
+    line-height: var(--leading-label);
+    color: var(--color-ink-body);
+}
+
+.vk-co-compact-part-value {
+    font-weight: 800;
+    color: var(--color-ink);
+    white-space: nowrap;
+}
+
+.vk-co-compact-part-value--soft {
+    font-weight: 600;
+    color: var(--color-ink-body);
+}
+
+.vk-co-compact-price {
+    grid-area: price;
+    display: flex;
+    flex-direction: column;
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    color: var(--color-ink-body);
+}
+
+@media (min-width: 1200px) {
+    .vk-co-compact-price {
+        align-items: flex-end;
+        text-align: right;
+    }
+}
+
+.vk-co-compact-monthly {
+    font-family: var(--font-display);
+    font-size: 26px;
+    line-height: 32px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--color-ink);
+    font-variant-numeric: tabular-nums;
+}
+
+.vk-co-compact-unit {
+    font-weight: 800;
+}
+
+.vk-co-compact-annual {
+    padding-left: 6px;
+    color: var(--color-ink-muted);
+    white-space: nowrap;
+}
+
+.vk-co-compact-saving {
+    font-weight: 800;
+    color: var(--color-saving);
+}
+
+.vk-co-compact-normal {
+    font-size: 12px;
+    line-height: 16px;
+    color: var(--color-ink-muted);
+}
+
+.vk-co-compact-action {
+    grid-area: action;
+    justify-self: end;
+    font-family: var(--font-display);
+    font-size: var(--text-body);
+    line-height: 20px;
+    font-weight: 800;
+    color: var(--color-ink);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    white-space: nowrap;
+}
+
+.vk-co-compact-action:hover {
+    color: var(--color-fox-deep);
+}
+
+.vk-co-back {
+    padding-top: 24px;
+}
+
+@media (max-width: 639.98px) {
+    .vk-co-logo--row.vk-co-logo--row {
+        width: 64px;
+    }
+
+    .vk-co-row {
+        gap: 12px;
+    }
+}

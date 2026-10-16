@@ -1,4 +1,4 @@
-@props(['band', 'estimate' => null])
+@props(['band', 'estimate' => null, 'variant' => 'card', 'bucket' => null])
 {{--
     The contract card's type band. SINGLE PURPOSE: it states the pricing category and
     nothing else. Warnings never go here, however important they are; they render as filled
@@ -19,6 +19,48 @@
     label text is the only flexible item now (`min-w-0 flex-1`); it wraps inside its own column
     while the icon and the chip keep their place.
 --}}
+@if ($variant === 'ledger')
+    {{--
+        Ledger variant (redesign, ledger contract entry): no tint, no box. The bucket glyph and
+        the category colour carry the category; the shape, not the colour, names it. The
+        bucket splits the band's Market category into spot and periodic reset.
+        The default 'card' variant below stays for the contract detail page.
+    --}}
+    @php
+        $bucketValue = $bucket instanceof \App\Services\ContractCard\Enums\PricingBucket ? $bucket->value : $bucket;
+        $catClass = match ($bucketValue) {
+            'porssisahko' => 'text-cat-spot',
+            'paivittyva' => 'text-cat-periodic',
+            'kulutusvaikutus' => 'text-cat-usage',
+            default => 'text-cat-fixed',
+        };
+    @endphp
+    <div class="vk-cat">
+        <span class="vk-cat-label {{ $catClass }}">
+            <x-ink.glyph :bucket="$bucketValue ?? 'kiintea'" size="34" class="vk-cat-glyph" />
+            <span class="vk-cat-text">
+                <span class="vk-cat-headline">{{ $band->headline }}</span>
+                @if ($band->detail)
+                    <span aria-hidden="true">·</span>
+                    <span>{{ $band->detail }}</span>
+                @endif
+            </span>
+        </span>
+
+        @if ($estimate)
+            <span class="vk-cat-trigger">
+                <x-info-popover
+                    variant="inked"
+                    label="Arvio"
+                    :heading="$estimate->heading"
+                    :body="$estimate->body"
+                    :link-url="$estimate->linkUrl"
+                    :link-text="$estimate->linkText"
+                />
+            </span>
+        @endif
+    </div>
+@else
 @php
     // The hairline gives every band a defined bottom edge. Without it the tints sit only
     // 1.05:1 from the white body, so the fixed (slate) band in particular barely read as a
@@ -63,3 +105,4 @@
         </span>
     @endif
 </div>
+@endif

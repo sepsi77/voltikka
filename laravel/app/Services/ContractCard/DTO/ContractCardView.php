@@ -3,6 +3,7 @@
 namespace App\Services\ContractCard\DTO;
 
 use App\Models\Company;
+use App\Services\ContractCard\Enums\PricingBucket;
 use App\Services\ContractCard\Enums\PricingCategory;
 
 /**
@@ -24,6 +25,11 @@ readonly class ContractCardView
      */
     public function __construct(
         public PricingCategory $category,
+        /**
+         * The filter bucket of the same facts. The band category merges spot and periodic
+         * resets into Market; the ledger entry's glyph and category colour need the split.
+         */
+        public PricingBucket $bucket,
         public CardTypeBand $band,
         public string $detailUrl,
         public ?Company $company,

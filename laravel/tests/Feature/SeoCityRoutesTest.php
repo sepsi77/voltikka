@@ -782,4 +782,17 @@ class SeoCityRoutesTest extends TestCase
         $response->assertSee('Helsinki');
         $response->assertSee('Tampere');
     }
+
+    public function test_locations_browser_groups_municipalities_by_letter_and_pins_towns_on_the_map(): void
+    {
+        $this->warmPrices();
+        $response = $this->get('/sahkosopimus/paikkakunnat');
+
+        $response->assertOk();
+        $response->assertSee('id="kirjain-H"', false);
+        $response->assertSee('id="kirjain-T"', false);
+        $response->assertSee('href="/sahkosopimus/paikkakunnat/helsinki"', false);
+        $response->assertSee('images/art/map-finland-', false);
+        $response->assertSee('postinumeroa');
+    }
 }

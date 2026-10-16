@@ -26,8 +26,8 @@ use Carbon\Carbon;
  *   always flat and teaches nothing; volatility is the fact that matters.
  *
  * Design constraints carried from the approved mockups and enforced here:
- * ink line is slate-900, the reference is a dashed slate-500 line with a direct
- * label, coral is never a data series, every delta is c/kWh and never a
+ * the reference is a dashed line with a direct label (series colours now come
+ * from the redesign template; see AGENTS.md), every delta is c/kWh and never a
  * percentage, and a window too short to describe renders an honest message
  * instead of a flat line.
  */

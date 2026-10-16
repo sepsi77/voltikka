@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Support\Season;
 use Livewire\Component;
 
 /**
@@ -28,6 +29,8 @@ class PrivacyPolicy extends Component
         return view('livewire.privacy-policy', [
             'lastUpdated' => \Illuminate\Support\Carbon::parse(self::LAST_UPDATED)->format('j.n.Y'),
         ])->layout('layouts.app', [
+            // Painted hero: the top bar sits over it in the same tone (outside any cache).
+            'heroTone' => Season::heroTone('legal-hero'),
             'title' => 'Tietosuoja ja evästeet | Voltikka',
             'metaDescription' => 'Miten Voltikka käsittelee kävijätietoja. Käytämme evästeetöntä Plausible-analytiikkaa ja mittaamme sähköyhtiön tilaussivulle siirtymisiä ilman kävijätunnistetta.',
             'canonical' => config('app.url') . '/tietosuoja',

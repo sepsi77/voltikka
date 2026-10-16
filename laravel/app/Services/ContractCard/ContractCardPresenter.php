@@ -10,6 +10,7 @@ use App\Services\CanonicalPricing\Enums\EstimateMethod;
 use App\Services\CanonicalPricing\PricingMode;
 use App\Services\ContractCard\DTO\CardSellerCta;
 use App\Services\ContractCard\DTO\ContractCardView;
+use App\Services\ContractCard\Enums\PricingBucket;
 use App\Services\ContractPricing\ContractPricingViewData;
 use App\Support\ContractContentSanitizer;
 use App\Support\ContractInternalLinks;
@@ -96,6 +97,7 @@ class ContractCardPresenter
 
         return new ContractCardView(
             category: $facts->category,
+            bucket: PricingBucket::fromFacts($facts),
             band: ContractCardCopy::band(
                 $facts,
                 $contract->contract_type,

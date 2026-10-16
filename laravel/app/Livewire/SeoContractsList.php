@@ -16,6 +16,7 @@ use App\Services\ContractPricing\CanonicalContractMetric;
 use App\Services\ContractPricing\ContractPricingViewData;
 use App\Services\DTO\EnergyUsage;
 use App\Services\LocalContractsService;
+use App\Support\Season;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -1432,11 +1433,56 @@ class SeoContractsList extends ContractsList
         $this->enableBackButtonCache();
         $data = $this->seoContractsViewData();
 
-        return view('livewire.seo-contracts-list', $data['view'])
-            ->layout('layouts.app', $data['layout'])
+        // The hero art, its tone and the results glyph follow the page and the season at
+        // render time; they are not part of the prepared (cached) view data, so a season
+        // change never serves a stale tone and old cache entries never miss a key.
+        $heroArt = $this->heroArt();
+
+        return view('livewire.seo-contracts-list', $data['view'] + [
+            'heroArt' => $heroArt,
+            'resultsGlyph' => $this->resultsGlyph(),
+        ])
+            ->layout('layouts.app', $data['layout'] + ['heroTone' => Season::heroTone($heroArt)])
             ->response(function ($response) {
                 app(SetPublicCacheHeaders::class)->applyCacheHeaders($response);
             });
+    }
+
+    /**
+     * Municipality slugs with their own recognisable city plate (`hero-city-<slug>`).
+     * Every other city page uses the general Finnish town plate `hero-city`.
+     */
+    private const CITY_HERO_SLUGS = ['helsinki', 'tampere', 'turku', 'oulu'];
+
+    /**
+     * Painted hero of this listing (Paper page "Pages · group E"). The four largest cities
+     * have their own plate with their landmarks; other city pages share the general town
+     * plate; /porssisahko has the river-ice plate. All of them have the fox painted into the
+     * plate. Every other listing keeps the village listing hero.
+     */
+    protected function heroArt(): string
+    {
+        if ($this->city !== null) {
+            return in_array($this->city, self::CITY_HERO_SLUGS, true) ? 'hero-city-'.$this->city : 'hero-city';
+        }
+
+        return $this->pricingType === 'Spot' ? 'hero-porssisahko' : 'listing-hero';
+    }
+
+    /**
+     * The large category glyph beside the results count on a pricing-type page whose
+     * contracts all belong to one PricingBucket (Paper 3PD-0). Null elsewhere: time-of-use,
+     * seasonal, general and Hybrid pages can list contracts of more than one bucket.
+     */
+    protected function resultsGlyph(): ?string
+    {
+        return match ($this->pricingType) {
+            'Spot' => 'porssisahko',
+            'Quarterly' => 'paivittyva',
+            'ConsumptionEffect' => 'kulutusvaikutus',
+            'FixedPrice' => 'kiintea',
+            default => null,
+        };
     }
 
     /**

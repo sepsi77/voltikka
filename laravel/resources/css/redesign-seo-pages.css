@@ -1,0 +1,613 @@
+/* Redesign styles owned by the "seo-pages" area. See tasks/redesign-implementation/agent-brief.md.
+ *
+ * Paper page "Pages · group E": /sahkosopimus/porssisahko (3C8-0, seasons F8H-0), city listings
+ * /sahkosopimus/paikkakunnat/{location} (5BI-0, F8I-0) and the location index
+ * /sahkosopimus/paikkakunnat (887-0, F8J-0).
+ */
+
+/* One-off Paper values with no token (spec §9 open item 1). */
+:root {
+    /* Side shade of the painted plates where the fox fills the right side (Paper 3UE-0, 5TQ-0,
+       GRD-0). The live price index text reaches about 55% of the width (the board had no index
+       on /porssisahko), so the shade holds its middle strength 6 points longer than Paper and
+       fades out 4 points later, to keep 14px text at 4.5:1 over the city lights (spec §8). */
+    --seo-shade-dark: linear-gradient(90deg, oklab(25% -0.007 -0.051 / 82%) 0%, oklab(25% -0.007 -0.051 / 62%) 46%, oklab(25% -0.007 -0.051 / 0%) 66%);
+    --seo-shade-light: linear-gradient(180deg, oklab(97.1% -0.003 0.006 / 90%) 0%, oklab(97.1% -0.003 0.006 / 70%) 14%, oklab(97.1% -0.003 0.006 / 0%) 26%),
+        linear-gradient(90deg, oklab(97.1% -0.003 0.006 / 90%) 0%, oklab(97.1% -0.003 0.006 / 74%) 50%, oklab(97.1% -0.003 0.006 / 0%) 70%);
+
+    /* Plain map-hero skies by season (Paper FO8-0 / H7S-0 night, H3W-0 spring, H5U-0 summer). */
+    --seo-sky-night: linear-gradient(180deg, oklab(25% -0.007 -0.051) 0%, oklab(31.8% -0.009 -0.072) 70%, oklab(36.5% -0.008 -0.075) 100%);
+    --seo-sky-kevat: linear-gradient(180deg, oklab(90.5% -0.012 -0.018) 0%, oklab(94.1% -0.008 -0.0009) 62%, oklab(95.9% -0.003 0.010) 100%);
+    --seo-sky-kesa: linear-gradient(180deg, oklab(90.3% 0.022 0.039) 0%, oklab(93.1% 0.007 0.025) 55%, oklab(95.9% 0.0007 0.013) 100%);
+
+    /* Town pin label halo on the painted map (Paper 8G5-0 text shadow, night). */
+    --seo-pin-halo: 0 1px 3px var(--color-night), 0 0 6px var(--color-night);
+}
+
+/* ---------- Painted page-type heroes (porssisahko river, city coast) ---------- */
+
+/* Phone and tablet: the fox is painted into the middle of these plates, so text on the plate
+   would sit on busy art (spec §8). The whole plate is a band under the text instead (like the
+   spot hero), and the text sits on the plain hero colour above it. */
+@media (max-width: 1023px) {
+    .vk-seo-hero {
+        --seo-band: min(56.3vw, 420px);
+        --seo-band-fill: var(--color-night);
+    }
+
+    .vk-seo-hero.vk-tone-light {
+        --seo-band-fill: var(--color-ground);
+    }
+
+    .vk-seo-hero > .vk-wrap {
+        padding-bottom: calc(var(--seo-band) - 24px);
+    }
+
+    .vk-seo-hero .vk-hero-plate {
+        inset: auto 0 0 0;
+        height: var(--seo-band);
+        object-position: 50% 80%;
+    }
+
+    .vk-seo-hero .vk-hero-shade {
+        background-image: linear-gradient(180deg, var(--seo-band-fill) 0%, var(--seo-band-fill) calc(100% - var(--seo-band)), transparent calc(100% - var(--seo-band) + 90px));
+    }
+}
+
+@media (min-width: 1024px) {
+    .vk-seo-hero > .vk-wrap {
+        padding-bottom: 72px;
+    }
+
+    /* Paper places the 1440x810 plate at top -250 (river) / -160 (city) in a 460 hero, so it
+       ends 100 / 190px below the hero. Anchored at the bottom, the scene stays in view when the
+       live text makes the hero taller. */
+    .vk-seo-hero .vk-hero-plate {
+        width: max(100%, 1440px);
+        transform: translate(-50%, var(--seo-plate-drop, 12.35%));
+    }
+
+    .vk-seo-hero--city {
+        --seo-plate-drop: 23.45%;
+    }
+
+    /* The shade sits at the text side only: the fox fills the right half. */
+    .vk-seo-hero .vk-hero-shade {
+        height: 100%;
+    }
+
+    .vk-seo-hero.vk-tone-dark .vk-hero-shade {
+        background-image: var(--seo-shade-dark);
+    }
+
+    .vk-seo-hero.vk-tone-light .vk-hero-shade {
+        background-image: var(--seo-shade-light);
+    }
+}
+
+/* SEO listing H1s are long compound words ("Kvartaalisähkösopimukset" is 417px at 34px), wider
+   than a 390 phone column; the hero clipped them. Scale the size with the viewport. */
+@media (max-width: 639px) {
+    .vk-seo-title-fit .vk-hero-h1 {
+        font-size: min(34px, 7vw);
+        line-height: 1.12;
+    }
+}
+
+/* Price index inline under the lead (Paper 5SY-0): the number with its kicker at the left,
+   title, text and action in a 460 column at the right. Stacked on a phone. */
+.vk-seo-hero-index {
+    margin-top: 24px;
+}
+
+@media (min-width: 640px) {
+    .vk-seo-hero-index {
+        display: grid;
+        grid-template-columns: auto minmax(0, 460px);
+        column-gap: 18px;
+        row-gap: 3px;
+        align-items: start;
+    }
+
+    .vk-seo-hero-index > * {
+        grid-column: 2;
+    }
+
+    .vk-seo-hero-index > .vk-index-kicker {
+        grid-column: 1 / -1;
+        grid-row: 1;
+    }
+
+    .vk-seo-hero-index > .vk-index-figure {
+        grid-column: 1;
+        grid-row: 2 / span 6;
+        padding-top: 0;
+    }
+
+    .vk-seo-hero-index > .vk-index-title {
+        font-size: 18px;
+        line-height: 22px;
+        padding-top: 14px;
+    }
+}
+
+/* ---------- Results heading with the large category glyph (Paper 3PD-0) ---------- */
+
+.vk-seo-results-lead {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.vk-seo-results-glyph {
+    width: 56px;
+    height: 56px;
+}
+
+@media (min-width: 1024px) {
+    .vk-seo-results-glyph {
+        width: 76px;
+        height: 76px;
+    }
+}
+
+/* ---------- City listing: local tiers (Paper 6TB-0) ---------- */
+
+.vk-seo-local {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+}
+
+.vk-seo-local-tier {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+}
+
+.vk-seo-local-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.vk-seo-local-vignette {
+    width: 44px;
+    height: 44px;
+}
+
+@media (min-width: 1024px) {
+    .vk-seo-local-vignette {
+        width: 56px;
+        height: 56px;
+    }
+}
+
+.vk-seo-subline {
+    padding-top: 4px;
+    font-size: 16px;
+    line-height: 22px;
+    color: var(--color-ink-body);
+}
+
+/* Distance mark on the category line, at the left of "Arvio" (spec §5 "City listings").
+   Only where the five ledger lanes start; on narrower screens it stays above the entry. */
+@media (min-width: 1200px) {
+    .vk-seo-local-item {
+        position: relative;
+    }
+
+    .vk-seo-local-item > .vk-local-mark {
+        position: absolute;
+        top: 6px; /* .vk-entry-body padding-top: the category line starts there */
+        right: 0;
+        z-index: 1;
+        height: 34px;
+        margin: 0;
+    }
+
+    .vk-seo-local-item:has(.vk-cat-trigger) > .vk-local-mark {
+        right: 76px; /* "Arvio ⓘ" (55px) + 20px gap, Paper 70Y-0 */
+    }
+}
+
+.vk-seo-show-all {
+    display: flex;
+    justify-content: center;
+    padding-top: 4px;
+}
+
+.vk-seo-action--center {
+    align-items: center;
+}
+
+.vk-seo-paws {
+    display: flex;
+    justify-content: center;
+    gap: 22px;
+    padding-top: 2px;
+    opacity: 0.55;
+}
+
+/* ---------- City solar potential ---------- */
+
+.vk-seo-solar {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding-top: 8px;
+}
+
+.vk-seo-solar-sun {
+    width: 44px;
+    height: 44px;
+}
+
+@media (min-width: 1024px) {
+    .vk-seo-solar-sun {
+        width: 56px;
+        height: 56px;
+    }
+}
+
+.vk-seo-solar-text {
+    max-width: var(--container-text);
+    padding-top: 10px;
+    font-size: var(--text-body);
+    line-height: var(--leading-body);
+    color: var(--color-ink-body);
+}
+
+.vk-seo-solar-figure {
+    font-weight: 800;
+    color: var(--color-ink);
+    font-variant-numeric: tabular-nums;
+}
+
+.vk-seo-solar-action {
+    margin-top: 10px;
+}
+
+/* ---------- Location index: map hero (Paper 8A8-0) ---------- */
+
+.vk-seo-map-hero {
+    background-color: var(--color-night);
+    background-image: var(--seo-sky-night);
+}
+
+.vk-seo-map-hero--kevat {
+    background-color: var(--color-ground);
+    background-image: var(--seo-sky-kevat);
+}
+
+.vk-seo-map-hero--kesa {
+    background-color: var(--color-ground);
+    background-image: var(--seo-sky-kesa);
+}
+
+.vk-seo-map-sparkles {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.vk-seo-map-inner {
+    --seo-map-w: min(300px, 78%);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding-top: 96px;
+    padding-bottom: 48px;
+}
+
+.vk-seo-map-h1 {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 40px;
+    line-height: 42px;
+    letter-spacing: -0.035em;
+    color: var(--tone-strong);
+}
+
+.vk-seo-map-accent {
+    display: inline-flex;
+    flex-direction: column;
+    color: var(--tone-accent);
+}
+
+.vk-seo-map-wave {
+    height: 14px;
+}
+
+.vk-seo-map-lead {
+    margin-top: 18px;
+    max-width: 560px;
+}
+
+.vk-seo-map {
+    position: relative;
+    width: var(--seo-map-w);
+    margin-top: 12px;
+    margin-left: auto;
+    aspect-ratio: 500 / 666;
+}
+
+.vk-seo-map-img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.vk-seo-map-pin {
+    position: absolute;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 15px;
+    line-height: 20px;
+    color: var(--color-snow-white);
+    text-shadow: var(--seo-pin-halo);
+}
+
+.vk-seo-map-pin:hover span {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.vk-seo-map-fox {
+    position: absolute;
+    left: 0;
+    bottom: 40px;
+    width: 140px;
+    height: 140px;
+}
+
+@media (min-width: 1024px) {
+    .vk-seo-map-hero {
+        height: 700px;
+    }
+
+    .vk-seo-map-inner {
+        --seo-map-w: clamp(380px, 40vw, 500px);
+        height: 100%;
+        padding-top: 160px;
+        padding-bottom: 0;
+    }
+
+    .vk-seo-map-text {
+        max-width: 640px;
+    }
+
+    .vk-seo-map-h1 {
+        gap: 18px;
+        font-size: 64px;
+        line-height: 64px;
+    }
+
+    .vk-seo-map-accent {
+        gap: 0;
+    }
+
+    .vk-seo-map {
+        position: absolute;
+        top: 56px;
+        right: -24px;
+        margin: 0;
+    }
+
+    .vk-seo-map-pin {
+        font-size: 19px;
+        line-height: 22px;
+    }
+
+    /* The fox stands 20px left of the map, near the bottom (Paper 8GI-0). */
+    .vk-seo-map-fox {
+        left: auto;
+        right: calc(var(--seo-map-w) - 24px + 20px);
+        top: 440px;
+        bottom: auto;
+        width: 220px;
+        height: 220px;
+    }
+}
+
+/* ---------- Location index: search, count and the A–Ö index (Paper 8TU-0) ---------- */
+
+.vk-seo-places {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    padding-top: 16px;
+}
+
+.vk-seo-places-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding-top: 10px;
+}
+
+@media (min-width: 768px) {
+    .vk-seo-places-bar {
+        flex-direction: row;
+        align-items: flex-end;
+        justify-content: space-between;
+    }
+}
+
+.vk-seo-search {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: min(460px, 100%);
+}
+
+.vk-seo-search-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 4px 6px;
+}
+
+.vk-seo-search-input {
+    flex: 1 1 0%;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font-size: 20px;
+    line-height: 26px;
+    color: var(--color-ink);
+}
+
+.vk-seo-search-input::placeholder {
+    color: var(--color-ink-muted);
+}
+
+.vk-seo-search-input:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+.vk-seo-search-line {
+    display: block;
+    stroke: var(--color-ink);
+}
+
+.vk-seo-search:focus-within .vk-seo-search-line {
+    stroke: var(--color-fox);
+}
+
+.vk-seo-search:focus-within .vk-seo-search-line path {
+    stroke-width: 3;
+}
+
+.vk-seo-places-count {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+@media (min-width: 768px) {
+    .vk-seo-places-count {
+        align-items: flex-end;
+        text-align: right;
+    }
+}
+
+.vk-seo-places-number {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 52px;
+    line-height: 52px;
+    letter-spacing: -0.04em;
+    color: var(--color-ink);
+    font-variant-numeric: tabular-nums;
+}
+
+.vk-seo-places-unit {
+    margin-left: 6px;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 22px;
+    line-height: 26px;
+    color: var(--color-ink);
+}
+
+.vk-seo-places-note {
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    color: var(--color-ink-muted);
+}
+
+/* Letter groups flow down the columns; a group never breaks across two columns. */
+.vk-seo-towns {
+    columns: 2;
+    column-gap: 24px;
+}
+
+@media (min-width: 640px) {
+    .vk-seo-towns {
+        columns: 3;
+    }
+}
+
+@media (min-width: 1024px) {
+    .vk-seo-towns {
+        columns: 5;
+        column-gap: 30px;
+    }
+}
+
+@media (min-width: 1280px) {
+    .vk-seo-towns {
+        columns: 6;
+        column-gap: 23px;
+    }
+}
+
+.vk-seo-letter {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-bottom: 26px;
+    break-inside: avoid;
+}
+
+.vk-seo-letter-head {
+    display: flex;
+    flex-direction: column;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 30px;
+    line-height: 32px;
+    color: var(--color-fox-deep);
+}
+
+.vk-seo-town {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.vk-seo-town-name {
+    min-width: 0;
+    font-size: 15px;
+    line-height: 24px;
+    font-weight: 600;
+    color: var(--color-ink);
+}
+
+.vk-seo-town:hover .vk-seo-town-name {
+    color: var(--color-fox-deep);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.vk-seo-town-count {
+    flex-shrink: 0;
+    font-size: var(--text-caption);
+    line-height: 24px;
+    color: var(--color-ink-muted);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+
+.vk-seo-places-empty {
+    padding-block: 40px;
+    text-align: center;
+    font-family: var(--font-display);
+    font-size: 22px;
+    line-height: 26px;
+    font-weight: 800;
+    color: var(--color-ink-muted);
+}

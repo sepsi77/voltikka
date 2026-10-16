@@ -1,4 +1,4 @@
-@props(['lines'])
+@props(['lines', 'variant' => 'card'])
 {{--
     The itemised price rows. Dotted leaders carry the receipt character; DESIGN.md's single
     family rule means it cannot come from a serif or a monospace face.
@@ -13,7 +13,19 @@
     (4.5:1) on text that qualifies the numbers households are here to compare. See the
     "Inline units" note in DESIGN.md section 2.
 --}}
-@if (count($lines) > 0)
+@if ($variant === 'ledger' && count($lines) > 0)
+    {{-- Ledger variant: label 14 ink-body, dotted leader (.vk-leader), value 14/800 ink.
+         Labels wrap instead of truncating, so no part of a label is hidden. --}}
+    <dl class="vk-parts">
+        @foreach ($lines as $line)
+            <div class="vk-part">
+                <dt class="vk-part-label">{{ $line->label }}</dt>
+                <span class="vk-leader" aria-hidden="true"></span>
+                <dd class="vk-part-value {{ $line->soft ? 'vk-part-value--soft' : '' }}">{{ $line->value }}@if ($line->unit)&nbsp;{{ $line->unit }}@endif</dd>
+            </div>
+        @endforeach
+    </dl>
+@elseif (count($lines) > 0)
     <dl class="min-w-[15rem] max-w-[24rem] flex-[1.4] tabular-nums">
         @foreach ($lines as $line)
             <div class="flex items-baseline gap-2.5 py-1.5 text-sm">

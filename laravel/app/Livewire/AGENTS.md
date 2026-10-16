@@ -10,7 +10,7 @@ See also:
 
 ## Permanent form input rule
 
-- A control in which a visitor enters a value normally uses `wire:model.blur`. This includes text, number, email, password, telephone, URL, date, month, week, time, datetime-local, and textarea controls.
+- A control in which a visitor enters a value normally uses `wire:model.live.blur`. Livewire 4 sends no request for a plain `wire:model.blur` (it only updates the local value and waits for the next action), so a typed value did not recalculate until the visitor clicked something else. `.live.blur` keeps blur as the one boundary and sends the request. Keep this modifier order: `.blur.live` sends on each keystroke. This includes text, number, email, password, telephone, URL, date, month, week, time, datetime-local, and textarea controls.
 - Never use `wire:model.live`, debounce, `wire:input`, or `wire:change` for those ordinary editable values. Processing while the value is incomplete causes requests, normalization, validation, and calculations to interrupt typing. This has caused repeated broken calculator behavior.
 - Search and autocomplete controls are the deliberate exception. Mark each one with `data-search-input` and use `wire:model.live.debounce.Nms`. A search that waits for blur is broken because its result list appears only after the visitor leaves the field.
 - Checkboxes, radio buttons, selects, range sliders, file inputs, and explicit buttons are complete discrete choices and can stay immediate. This distinction is intentional, not an exception for one component.
@@ -49,7 +49,8 @@ Important semantics:
 - **Derived result state (`$resultArray`, `$calculated`, `$errorMessage`) is intentionally `protected`, never `public`. Do not make it public/synced.** As a public property the 300+ row DB-derived `$resultArray` made Livewire's deep-array dehydration produce a snapshot whose own checksum could not be reproduced on verify, raising `CorruptComponentPayloadException` on every update so the page silently froze on stale numbers (snapshot was ~168 KB). It is recomputed from the inputs only after an explicit user action. Initial GET/HEAD and automatic Livewire initialization do not compare the sample bill. `render()` passes `resultArray`/`errorMessage` to the view and may rebuild protected results only when the current request has explicit calculation permission. Tests read the result via `->viewData('resultArray')`, not a public property. `test_result_is_not_synced_into_the_livewire_snapshot` pins this invariant.
 - `updatedStartDate()` / `updatedEndDate()` call `calculate()` after their date inputs blur (the comparison period drives the counterfactual, and the result is no longer persisted, so a manual date edit must recompute). The shared in-listing/detail bill fields use the same blur boundary for dates, kWh, and total price.
 - this is a per-user calculator: no public prepared-data caching and it is intentionally not in `SetPublicCacheHeaders` (matches the heat-pump / solar calculators).
-- loading feedback uses the shared `<x-spinner>` Blade component (`resources/views/components/spinner.blade.php`) inside a `wire:loading.delay` fixed bottom-right pill plus a `wire:loading.delay.class="opacity-50"` dim on the results region. Reuse `<x-spinner>` for any new loading indicator rather than re-inlining the SVG, so the coral spinner stays visually consistent across calculators.
+- loading feedback uses the shared `<x-spinner>` Blade component (`resources/views/components/spinner.blade.php`) inside a `wire:loading.delay` fixed bottom-right `.vk-toast` label (redesign: a small night label, not a pill) plus a `wire:loading.delay.class="opacity-50"` dim on the results region. Reuse `<x-spinner>` for any new loading indicator rather than re-inlining the SVG.
+- **Redesign (2026-10-16, Paper board 8X7-0, seasons EBT-0).** `<x-site.tool-hero art="maksatko-hero">` (the fox is painted into the plate; `heroTone` = `Season::heroTone('maksatko-hero')`, light in kevät/kesä). The form is drawn as a torn paper bill (`.bill-paper`: zigzag SVG edges, inked sides, no shadow; spec §5 "Tool pages", a proposal the user must still confirm). Period presets are radio-look `<button aria-pressed>`; kWh and price are bill lines with a dotted leader to an underlined field; VAT and heating are real `.vk-checkbox` inputs (`role="switch"` was dropped because they now look like checkboxes). The verdict is the annual saving as a 96px fox-deep number, then two inked bars (bill vs the cheapest market row of the same period, one euro scale) and a rank line. The ranking stays a `<table>`; under 640px each row becomes a small grid and the saving carries the word "säästö". Spot rows show the spot glyph; other rows keep an empty glyph slot because `pricing_model` alone cannot tell fixed from market-reset prices, so no glyph is guessed. FAQ rows are `<details>` (first open). CSS: `resources/css/redesign-tools.css` (`.tool-*`, `.bill-*`); art: `scripts/design-art/tools.sh`.
 - both WebApplication + FAQPage schemas render in the view via `<x-schema-markup :schemas="[$jsonLd, $faqJsonLd]" />`; `getFaqItemsProperty()` is the single source of truth for the FAQ.
 
 ## In-listing bill comparison (`ContractsList` bill mode)
@@ -145,39 +146,43 @@ Important semantics:
   comparison page. `resources/views/partials/contract-consumption-selector.blade.php`
   is the one source for the selector markup in `ContractsList`, `SeoContractsList`,
   and `CheapestContracts`; each listing view includes it instead of copying the UI.
-  The hero is slimmed; the consumption selector is one compact segmented rail of
-  presets (label + description + kWh, so they keep their meaning) plus a free-text
-  "Tiedän kulutukseni" segment. The full calculator is behind a header toggle
-  ("Arvioi kulutus laskurilla", desktop) or an in-panel toggle (mobile), rather
-  than an always-visible tab. The bill entry uses the factual label "Vertaa
+  The hero is short; the consumption selector is one control row of presets
+  (label + description + kWh, so they keep their meaning) plus the free-text own
+  consumption field ("Tiedän kulutukseni" is its sr-only label). The full calculator is
+  behind "Arvioi laskurilla →", rather than an always-visible tab. The bill entry uses the factual label "Vertaa
   nykyistä sähkölaskuasi" and the **filters** (`partials/contract-filters.blade.php`)
   are collapsed Alpine disclosures (`x-collapse` + `x-cloak`). Filters collapse on
   **all** sizes; the "Rajaa hakua" trigger shows an active-filter count and opens
   by default only for filters inside that disclosure. Pricing behavior stays
   visible as the primary path.
-  **The control stack has one fixed order** (2026-08 cleanup): the primary
-  choices first (consumption rail, pricing-behavior rail), then the collapsed
-  tools cluster (availability disclosure, bill disclosure, filters accordion,
-  8px apart so they read as one group). Do not put the bill disclosure back
-  between the consumption selector and the pills; it split the primary sequence.
-  The consumption and pills labels share one style (`text-sm font-semibold
-  text-slate-600`, rendered as `<p>`, not headings), and all three disclosure
-  triggers share one anatomy (slate-500 icon, 14px bold slate-900 title,
-  slate-500 chevron).
-  **The postcode form is collapsed on purpose** (explicit user decision,
-  2026-08): most visitors never enter a postcode and the always-open form drew
-  the most attention in the stack. The disclosure trigger itself states the
-  current availability ("Saatavuus: koko Suomi" or the selected postcode, plus
-  the helper sentence), so the fail-closed national-only scope stays glanceable
-  without opening anything; the input, suggestions, and "Poista postinumero"
-  live inside the panel. The "Postinumero (5 numeroa)" label is `sr-only`
-  because the trigger sentence and placeholder already name the field. "Tyhjennä suodattimet" lives **inside** the
-  filters panel (outside it, the link floated inside the collapsed box whenever a
-  pill or postcode selection made `hasActiveFilters()` true). The
-  results caption is a plain divider, not another bordered card. The "Vertailu
-  kulutuksella" pill is `lg:hidden` in presets mode (the cards confirm the value
-  on desktop) but shows on mobile (cards collapse behind "Vaihda") and in
-  calculator mode.
+  **The control stack has one fixed order** (2026-08 cleanup, kept by the 2026-10 redesign):
+  the primary choices first (consumption row, pricing-behaviour row), then the collapsed
+  tools (availability, bill, filters). Do not put the bill disclosure back between the
+  consumption selector and the pricing row; it split the primary sequence.
+  **Redesign (2026-10-16, Paper board 2J3-0 "Controls · compact").** On `SeoContractsList`
+  pages the three rows sit in one `.vk-controls` block (1.5px edge hairlines top/bottom,
+  1px season-ground rule between rows; CSS in `resources/css/redesign-listing.css`). Row 1:
+  a drawn radio + 44px seasonal home art (`home-studio|apartment|rowhouse|house`, mapped by
+  preset key; business presets have no art) + name, description and kWh, then the underlined
+  own-consumption field and "Arvioi laskurilla →". Row 2: pricing categories (below). Row 3
+  (`.vk-disclosures`): "Saatavuus: …", "Vertaa nykyistä sähkölaskuasi", "Rajaa hakua" as text
+  triggers with a chevron, and "Vertailu kulutuksella" at the right. Each disclosure partial
+  has a `.vk-disclosure` root that is `display: contents` inside `.vk-disclosures`, so its
+  panel opens below the whole row on a laptop (`order: 10`) and directly under its trigger
+  on a phone; used alone (cheapest page) it is a plain block. Panels have no frames. The
+  helper sentences ("Lisää postinumero, …", "Katso hintaero …") open with their panels. The
+  filters count is an inked sparkle + number, not a badge. The consumption partial takes
+  `showCurrentConsumption` (default true); the SEO listing passes false because the row shows
+  it. The inline calculator opens below row 1 with underlined fields, radio/checkbox marks and
+  the result as a big number, no cards. The presets, buckets and filter choices stay
+  `<button aria-pressed>`; radio/checkbox marks are drawn SVG. Real inputs (calculator
+  heating, bill VAT) use `.vk-checkbox`.
+  The postcode form stays collapsed on purpose (explicit user decision, 2026-08): the trigger
+  states the current availability ("Saatavuus: koko Suomi" or the selected postcode), the
+  input, suggestions and "Poista postinumero" live inside the panel, and the "Postinumero
+  (5 numeroa)" label is `sr-only`. "Tyhjennä suodattimet" lives **inside** the filters panel.
+  The results heading is the count in Bricolage plus the note line and the sparkle legend, not
+  a card. On a phone the consumption choices collapse behind "Vaihda".
 - **Direct consumption input.** `directConsumption` (int|string|null, tolerant of
   mobile blank states) is the free-text kWh field. `updatedDirectConsumption()`
   applies only a positive value to `$consumption` and clears `$selectedPreset`
@@ -218,10 +223,10 @@ Important semantics:
 - `HeatPumpCalculator::PRIMARY_SYSTEMS` (`ground_source_hp`, `air_to_water_hp`, `pellets`) is the single source of truth for which options replace the current heating fully/almost fully.
 - `alternatives()` filters the service output down to `PRIMARY_SYSTEMS`. Supplementary options (air-to-air, exhaust-air, the "+ tulisija" combos) are **not shown** because `HeatPumpComparisonService` costs their uncovered load as cheap direct electricity (`directElectricity = totalEnergyNeed * (1 - coverage)`) regardless of the household's actual heating fuel, which understates their real cost and produced unrealistic paybacks. Do not re-add them to the page until the service models the remaining load against the current primary heating.
 - `recommendedAlternative()` leads the page with the cheapest-annualized-total primary system that actually saves money. Returns `null` when no primary pays off; the view then shows an honest "täysi lämmitysvaihto ei tuota säästöä" panel instead of inventing an answer.
-- The recommended option gets the page's single dark `slate-950` focus moment with the savings as the one coral number; the current system is a quiet light baseline. Mirrors the `SolarCalculator` result treatment. Do not turn the energy-need summary back into a three-up hero-metric grid, and keep coral to the recommendation/CTA only.
+- Redesign (2026-10-16, Paper boards C1D-0 / EBU-0): painted seasonal hero `<x-site.energy-hero art="heatpump-hero" variant="heatpump">` (the fox is painted next to the heat pump; `heroTone` from `Season::heroTone('heatpump-hero')`, light in kevät/kesä). The calculator is two columns without panels: underlined inputs (`<x-site.energy-field>`, always `wire:model.live.blur`) at the left, the answer column at the right behind a 2px edge rule (sticky on a laptop). The recommendation is the answer: aurora savings number with an aurora wave. Do not turn the energy-need summary back into a three-up hero-metric grid; it is one total with a heating/hot-water bar. CSS: `resources/css/redesign-energy.css`.
 - The answer card states the selection rule in plain Finnish (cheapest total cost = running costs + investment annuity, among saving full-replacement options) so the recommendation logic is transparent to the user.
-- Savings/“lisäkustannus” deltas are neutral tabular slate, not green/red. Green/red is reserved for the CO₂ delta only (measured-emissions semantic, see `../../DESIGN.md`). Payback chart draws the baseline in slate-400 and the evaluated option in coral; do not use green for the alternative line.
-- Recalculation feedback is a non-blocking bottom-right status pill plus a dim of the results region (`wire:loading.delay`). Do not reintroduce a `fixed inset-0` full-screen overlay. The old debounced inputs made it flash while a visitor typed; all editable numeric inputs now recalculate only on blur under the permanent form rule above.
+- Savings use `--color-saving` (aurora) and a “lisäkustannus” uses `--color-price-high`, as the redesign spec §2 defines these state tokens (this replaced the old neutral-slate rule on 2026-10-16). The current system's energy cost is price-high in the "Lämmitysratkaisut" header. A total-cost chart (stacked energy + investment bars on one scale, longest bar 600 of 640, the current cost as a dashed price-high line) sits above the ledger rows. Payback chart: the baseline in `--color-field-edge`, the evaluated option in fox, the crossover as an aurora point; do not use green for the alternative line.
+- Recalculation feedback is a non-blocking bottom-right status label (`.energy-updating`, night ground, no shadow) plus a dim of the results region (`wire:loading.delay`). Do not reintroduce a `fixed inset-0` full-screen overlay. The old debounced inputs made it flash while a visitor typed; all editable numeric inputs now recalculate only on blur under the permanent form rule above.
 - All seven investment costs (including `ilp_fireplace`, `exhaust_air_hp_fireplace`) are editable in advanced settings so the editable set matches what the service actually computes.
 - Numeric inputs are intentionally `int|float|string|null` tolerant because Livewire/mobile browsers can send empty strings while fields are cleared. Keep `normalizeNumericInputs()` as the gate before validation/DTO construction so blank numeric fields normalize to safe defaults or nullable bill-input validation errors instead of typed-property hydration exceptions. Room height, people, prices, investments, interest, and period are clamped to their non-negative/positive HTML minima before DTO construction and show the shared visible correction notice. Active bill quantities and living area keep their more specific validation errors.
 - The page is SEO-targeted at the query "kannattaako lämpöpumppu" (sub-queries "kannattaako maalämpö", "kannattaako ilma-vesilämpöpumppu"): question-first title + H1, and an H2/H3 content section using those exact questions. Keep the calculator intent; do not turn it into hype.
@@ -281,6 +286,13 @@ Important semantics:
 - segment and consumption tables hide rows with fewer than 10 contracts to avoid over-interpreting sparse segment statistics
 - the consumption “Hintahaarukka” table intentionally omits absolute cheapest/minimum annual cost values because single-row/import anomalies can make the minimum misleading; use p20/median/p80 for the displayed range
 
+Redesign presentation of `/sahkosopimus/tilastot` and `/sahkosopimus/sahkon-hintaennuste` (2026-10-16, Paper boards 6MP-0 / FL5-0 and D8Q-0 / G4L-0; presentation only, no data change):
+- Both pages use `../../resources/views/components/site/data-hero.blade.php` (700px, the fox is painted into the plate; `variant` stats|forecast sets the plate crop and column widths). `heroTone` comes from `Season::heroTone('stats-hero' | 'forecast-hero')` in `render()`, outside the prepared-data cache. Light seasons: stats kevät/kesä, forecast kevät/kesä/syksy (the forecast art is bright in autumn). Art: `scripts/design-art/data.sh`; styles: `resources/css/redesign-data.css` (`data-*`, forecast `fc-*`).
+- The Preferred Sources strip stays directly after the hero (root rule), although board 6MP-0 draws the controls first.
+- Statistics: the energy price index is also the key figure on the sky. Deep dives (round 3, Paper "R3 · Data · Tilastot", user approved) put every type in the same cell anatomy, two cells per row from 1024px and one column below: title (min-height 82px so a row's charts line up) → key figures (energy price 46px, 30-day change, change since the start; no repeated "Tarjolla nyt", the count under the title states it; a non-current type keeps "Viimeinen havainto") → 260px chart (210px phone) → Vs. pörssisähkö row → note → "Kopioi sitaatti". The spot cell shows only the quote sentence (its label and figure repeat the key figures) and its margin chart in that place. The anchor contents row replaces the chips. The "Hintahaarukka" rows add p20–p80 range bars with a median tick on one € scale (presentation of the same p20/median/p80). Partial components: `x-site.data-dive-quote` (copy behaviour unchanged), `x-site.data-dive-stats`, `x-site.data-cite-formats` (needs the parent `voltikkaCite` x-data).
+- Forecast: the overall outlook sits on the sky (label only for a known rising/falling/flat summary; mixed/incomplete show the headline). "Sopimuspituudet tarkemmin" (round 3, Paper "R3 · Data · Hintaennuste") is one full-width row per term: the conclusion first (the saved median outlook label, 52px, tone colour: rise price-high, fall saving, unchanged ink; no arrow for an unknown outlook), then "Tyypillinen hinta X → Y c/kWh" with the change and the stored period, then the evidence: a server-rendered 340 × 220 slope chart of the p20/median/p80 lanes (same values as the lane rows) and the lanes, where the median row leads and p20/p80 stay secondary. The crossed-quantiles copy shows under the lanes only when it applies. Every horizon label uses the stored horizon (tests assert no hard-coded "30 päivän" for other horizons), and "Ennuste voi muuttua markkinatilanteen mukana." appears exactly once.
+- Charts: `resources/js/contract-price-statistics.js` draws every `data-line-chart` with the ink skin by default (`data-chart-skin="legacy"` keeps the old slate look): token colours, series colour by label (pricing category colour, Toistaiseksi dashed ink-muted, "Markkinan mediaani"/median dashed granite, `leadStroke` pins series 0 and the old coral `#f97316` maps to fox), horizontal edge gridlines, an inked baseline, ground-ring last-point dots and a plain tooltip. Blade legends must mirror `inkSeriesStyle()` (the statistics view has `$seriesStyle`). `data-chart-now="13,09"` adds the inked "nyt" label on the index chart. `data-chart-end="14,35"` adds a dot and the value at the lead series' last point; the statistics cells pass the key figure so the label has the same rounding as the figure above it (an empty value formats the last point). `data-chart-unit-badge="off"` drops the in-chart unit when the caption names it. Both pages: 96px between sections (64px phone); the strip's own edge line is the only rule above the first block (the statistics controls have no top rule).
+
 ## `SolarCalculator`
 
 Primary files:
@@ -288,9 +300,10 @@ Primary files:
 - `../../resources/views/livewire/solar-calculator.blade.php`
 
 Important semantics:
-- Address autocomplete is a marked search field and uses live debounce so suggestions appear while the visitor types. System size and electricity price use `wire:model.blur`. In particular, savings must not recalculate while the visitor is still replacing the electricity-price value. A negative electricity price is corrected to the supported 0 c/kWh minimum with an accessible notice; this calculator intentionally models the household contract price as non-negative even though wholesale Spot hours can be negative.
+- Address autocomplete is a marked search field and uses live debounce so suggestions appear while the visitor types. System size and electricity price use `wire:model.live.blur`. In particular, savings must not recalculate while the visitor is still replacing the electricity-price value. A negative electricity price is corrected to the supported 0 c/kWh minimum with an accessible notice; this calculator intentionally models the household contract price as non-negative even though wholesale Spot hours can be negative.
 - `systemKwp` is intentionally `float|string|null` tolerant because Livewire/mobile browsers can send an empty string when the visitor leaves a cleared number input. `updatedSystemKwp($value)` must normalize from the hook argument instead of reading the public property before normalization; otherwise Livewire can unset a non-nullable typed property and trigger `PropertyNotFoundException`.
 - Use `normalizedSystemKwp()` for PVGIS requests, static example scaling, analytics payloads, and the shared result heading so stale or blank snapshots are clamped to the supported 0.5–20 kWp range before calculation. Both the live result and Helsinki example receive `effectiveSystemKwp`; do not render the raw input or a fixed `5 kWp` label beside a recalculated result.
+- Redesign (2026-10-16, Paper boards 3WH-0 / EKC-0): `<x-site.energy-hero art="solar-hero">` (the fox is painted on the cottage roof; light in kevät/kesä). The address step is in the hero: the one boxed control on the page (white 86%, 2px ink edge, radius 14) so the first step reads as an input on the painted sky. Only the hero art layer clips; the hero section has `z-index: 10` so the suggestion list can open over the page. The settings are ruled rows with drawn radios and the kWp presets as big numbers (the selected one in a fox loop); all keep `aria-pressed`. The result (`partials/solar-result.blade.php`) has no card: annual production as the big number, the savings in a fox loop, a labelled monthly bar chart (gold/pale-gold/forecast-blue by share of the best month, one row per month below 640px). CSS: `resources/css/redesign-energy.css`.
 
 ## `SpotPrice`
 
@@ -314,6 +327,13 @@ Important semantics:
 - hourly day strips use one shared signed domain that includes all displayed values, zero, and the 30-day average; positive bars extend above zero, negative bars below zero, and exact zero has no false minimum-height bar
 - expanded 15-minute rows use the same signed/diverging geometry horizontally; server-precomputed `bar_left_percent`, `bar_width_percent`, and `zero_percent` keep the Alpine view presentation-only
 - minimum visible sizing applies only to non-zero bars and must preserve direction; all-negative and all-zero datasets must remain legible
+
+Redesign presentation (2026-10-16, Paper boards 11H-0 and EBO-0; presentation only, no data change):
+- `../../resources/views/components/site/spot-hero.blade.php` is the page's own hero (720px, top-anchored village plate, 250px fox `fox-sit-skyward`, current price as the poster number). It is not `<x-site.hero>` because the geometry differs; it reuses the tone variables, `.vk-hero-h1/.vk-hero-lead` and the snowdrift edge. `render()` passes `heroTone => Season::heroTone('spot-hero')` in the layout data only (kevät/kesä are light). The shade follows the season class (`spot-hero--<season>`); talvi has a small left shade for text contrast that the board does not show. Below 1024px the village is a band under the text.
+- `../../resources/views/partials/spot-day-chart.blade.php` draws one day from `dayStrips`. Strips with provenance `ennuste` are third-party forecast days: small charts in `--color-forecast`, an "Ennuste" mark and the "Kolmannen osapuolen ennuste, ei virallinen spot-hinta." line, in their own row, followed by the `nordpool-predict-fi` source link. Today, tomorrow and hybrid strips are large charts; hybrid forecast hours use the forecast colour. The view ignores the server `colorClass`; bar colour comes from `isCurrentHour` / `isForecast`. Keep `data-chart-zero-baseline` and `data-price-direction` (tests and the signed-geometry contract). Negative value labels sit below the bar end.
+- "15 minuutin hinnat ›" next to a day opens the same Alpine detail as a bar click, for the current hour (today) or the first official hour that has quarter prices.
+- `partials/appliance-tip-card.blade.php` takes `art` (a season-bound villager from `scripts/build-design-art.sh`) instead of an icon path. Only this page uses it.
+- The 30-day Chart.js chart keeps the server datasets; the inline script only restyles them from CSS tokens (`--spot-range-band`, ink line, dashed `--color-field-edge`) and uses an HTML legend.
 
 ## `ArticleFixedTermContract`
 
@@ -371,6 +391,12 @@ Primary files:
 - `../../resources/views/livewire/company-detail.blade.php`
 - `../../resources/views/partials/company-market-comparison.blade.php`
 - `../Services/CompanyStatistics/AGENTS.md`
+
+Redesign (2026-10-16, Paper boards AX2-0 / EBR-0; styles in `../../resources/css/redesign-company.css`):
+- Hero: `<x-site.company-hero variant="band" art="company-band">`. The fox is painted at the far left of the band, so the H1 text column sits at the right on a laptop, and on a phone the band shows its right side (no fox under the company name; spec §5 "Seller pages"). The layout gets `heroTone` from `Season::heroTone('company-band')` in `render()`, outside every cache.
+- `<x-page-action-strip />` stays directly after the hero (project rule). The board puts the company facts above the strip; here they follow it.
+- Household entries reuse `<x-contract-card>` with `showRank=false`; CSS (`.vk-co-ledger-entries`) hides the logo lane, because every entry is this company's. Business contracts are compact one-line rows (`<x-site.company-compact-entry>`, same `ContractCardPresenter` view model). The page has no villager interlude and no FAQ.
+- The market-comparison range track has no shared euro axis: each row has its own p20–p80 domain from `CompanyMarketComparisonService::trackGeometry()`. The chart lead colour is set to fox in the partial (`leadStroke`), the payload is otherwise unchanged.
 
 Query guardrails:
 - `contracts` is one memoized collection of all active company contracts. Household (`Household`, `Both`, or legacy null) and business (`Company` or `Both`) lists filter this collection in memory. Do not run a second contract query for the business section.
@@ -484,10 +510,11 @@ recalculates both audience lists. The calculator action links to the standalone
 `/sahkosopimus/laskuri` because CompanyDetail does not host the inline listing
 calculator.
 
-The offers and spot sections render as compact tables inside `overflow-x-auto`
-wrappers rather than as contract cards, because Vaasan Sähkö has a promotion on
+The offers and spot sections render as compact ruled tables (`.vk-co-table`)
+rather than as contract cards, because Vaasan Sähkö has a promotion on
 all 22 of its contracts and a card list would duplicate the whole page above the
-card list.
+card list. Below 1024px each table row becomes a short stack with small column
+labels, so the page has no horizontal scroll.
 
 ## `CompanyList`
 
@@ -497,6 +524,8 @@ Primary files:
 - `../Services/CompanyListCacheService.php`
 
 Route: `/sahkosopimus/sahkoyhtiot` (`companies.list`).
+
+Redesign (2026-10-16, Paper boards 6R6-0 / EBQ-0): `<x-site.company-hero variant="list" art="companies-hero">` (600px, fox painted in the street), ruled leaderboards with `<x-site.company-icon>`, a two-column company ledger (first half, second half), FAQ as `<details>` (first open; all answers stay in the DOM for the FAQPage schema), then the `companies-interlude` strip. `heroTone` comes from `Season::heroTone('companies-hero')` in `render()`. Logos sit on the ground (tile variant, multiply); a few local logo files with wide empty margins get a measured `object-view-box` crop in `redesign-company.css` (presentation only; re-measure if a file changes).
 
 Pricing and cache rules:
 - In canonical mode, `CompanyListCacheService` derives every company price, price average, contract count, and price ranking only from listed canonical metrics already produced by `ContractListCacheService`. A missing, excluded, non-canonical, or non-numeric total does not count and cannot become EUR 0 or a sentinel rank. A canonical-only contract is valid.
@@ -562,6 +591,11 @@ Primary files:
 - `ConsumptionCalculator.php`
 - `../../resources/views/livewire/consumption-calculator.blade.php`
 
+Redesign (2026-10-16, Paper board 4UL-0 on "Pages · group C", seasons EBS-0):
+- `<x-site.tool-hero art="laskuri-hero">` (shared with `/maksatko-liikaa`; the fox reads the meter in the plate, breadcrumbs in the hero). `render()` passes `heroTone` = `Season::heroTone('laskuri-hero')` (light in kevät/kesä).
+- The calculator is two columns: inputs (preset homes `tool-home-*` 84px with a radio mark, building-type radios, big underlined fields, a drawn heating switch `role="switch"` on `toggleIncludeHeating`, a checkbox-look `role="checkbox"` button on `toggleCooling`) and a sticky meter readout. The readout is a meter counter (at least five wheels, leading zeros idle, the number also in `sr-only` text), the breakdown with dotted leaders and a stacked fox/lake bar, then "Vertaile sähkösopimuksia →" on the unchanged `compareContracts` action. Bindings are unchanged.
+- The price table is a list of rows with the category glyph (`spot` → pörssisähkö, `market_reset` → päivittyvä, `hybrid` → kulutusvaikutus, others → kiinteä) and a p20–p80 range bar with a median dot on one shared axis (2–4 "nice" ticks computed in the view). The SEO sections keep the live text; the bold lead-ins are restored with `<strong>`. FAQ rows are `<details>` (first open; answers stay in the HTML).
+
 Important semantics:
 - calculator inputs are deliberately nullable/string-tolerant because Livewire can send blank strings/nulls when users clear number/select fields before tabbing away.
 - `calculate()` must read public inputs through safe helper methods and use enum `tryFrom()` fallbacks so blank/stale browser state does not become `PropertyNotFoundException` or enum `ValueError`.
@@ -610,6 +644,13 @@ Consequences to preserve:
 ## `HomePage`
 
 - The homepage contract trend uses stored `annual_cost` at 5,000 kWh, not `energy_price` / `spot_total_energy_price`. It reads only the configured active annual method. Its current endpoint requires `PricingMode::expectedContractPriceBasis()` and excludes newer opposite-mode rows; older points keep their own stored date basis. Cache key schema is `home-page:contract-price-trend:v7`, with the active annual method, expected basis, latest expected date, and source fingerprint.
+
+Redesign presentation (2026-10-16, Paper boards 6HY-0 / FHW-0 and 5VI-0 / FHX-0; presentation only, no data change):
+- `../../resources/views/components/site/home-hero.blade.php` is the homepage's own 760px hero (plate covers the hero, a horizontal shade behind the text plus a top shade, 270px `home-fox-hilltop`). It is not `<x-site.hero>` because the geometry differs. `HomePage::render()` passes `heroTone => Season::heroTone('home-hero')` in the layout data only (kevät/kesä are light). The desktop shade is 980px and holds 72% before its fade (board: 900px, fade from 55–60%): on the kesä and syksy plates the end of the lead fell under 4.5:1.
+- The trend chart payload sets `leadStroke` `#1C7A5E` (= `--color-aurora`, Pörssisähkö is series 0); the canvas cannot read CSS variables. Other series take their colour from the series label (`inkSeriesStyle()` in `contract-price-statistics.js`); the legend draws the same rules with `x-ink.series-line`, which the company comparison and the article chart legends also use.
+- The spot mini chart is a server-rendered SVG: aurora bars, the current hour in fox with an inked arrow and "nyt", inked baseline at zero (negative prices go below it). The price state colour is price-low / warning-ink / price-high with the same < 10 / < 20 c/kWh tiers and label as before.
+- `CheapestContracts` uses `<x-site.hero art="cheapest-hero" fox="cheapest-fox-sled" fox-class="cheapest-hero-fox">` (the optional `foxClass` prop keeps the default listing fox output unchanged) and passes `heroTone => Season::heroTone('cheapest-hero')`. Its view reuses the listing controls block, ledger entries and link columns; the #1 entry is the podium entry, sized only by `.cheapest-podium` CSS in `resources/css/redesign-home.css` (no second card template). The toboggan interlude (`cheapest-interlude`) sits between the list and "Katso myös", as on the board.
+- Art: `scripts/design-art/home.sh`; styles: `resources/css/redesign-home.css`. Test: `tests/Feature/HomeAndCheapestHeroTest.php`.
 
 ## `ContractTypeComparison`
 
@@ -691,25 +732,18 @@ UI (`partials/pricing-bucket-pills.blade.php`):
 - Included by `contracts-list.blade.php`, `seo-contracts-list.blade.php` **and**
   `cheapest-contracts.blade.php`. The cheapest page has its own template, so it needs its own
   include; `CompanyDetail` deliberately has none.
-- **Shape: one segmented rail, not four cards.** A single `rounded-xl` `slate-200` box holds
-  four equal cells divided by `slate-200` hairlines, drawn as `gap-px` over a `slate-200`
-  background so the same markup gives 2x2 below `sm` and 1x4 above it with no per-cell border
-  rules. The first version was four separate bordered cards; stacked above the contract cards
-  they read as a second card grid rather than as a control. Do not go back to detached cards.
-- A selected cell wears its bucket's card tint (`PricingBucket::category()->tint()`, the sky /
-  violet / slate axis in `../../../DESIGN.md`), so the pill, `<x-card.legend />` and the card
-  band it lists are one system: tint-100 fill, 1px inset tint-400 ring, tint-900 label,
-  tint-700 sub-line. The **ring is load-bearing** — the tints sit about 1.05:1 from white, so
-  a fill alone does not read as "on" across a row. Unselected cells carry no tint at all.
-- The leading 16px glyph is the category icon at rest (`slate-400`) and swaps to a check when
-  selected, in the same slot: a second saturated signal with no width change and no label
-  shift. Spot / consumption-effect / fixed reuse the card band's own wave / pulse / lock
-  glyphs; Jaksoittain vaihtuva hinta uses a calendar, because the band gives spot and resets the same
-  wave and two identical glyphs side by side would say nothing.
+- **Shape (redesign 2026-10-16, Paper board 2J3-0 "Controls · compact"): one control row,
+  not cards, tiles or tinted cells.** Each choice is a drawn checkbox (`--radius-control`,
+  `--color-field-edge`), the 44px inked price-shape glyph `<x-ink.glyph>` (34px on a phone),
+  the name in the category colour token and a one-line meaning. Selected = the checkbox
+  filled with the category colour and a white check. The glyph shape plus the name carry the
+  meaning (works without colour vision). The older slate rail with tint-100 cells and the
+  16px icon/check swap is gone; do not bring back pills or tinted cells (design spec §1).
+  The choices stay `<button>`/`<a>` with `aria-pressed` and `data-pricing-bucket-pill`.
 - Every Finnish string lives in the partial's `$pricingBucketPills` array. **"Päivittyvä
   hinta" + "kvartaali- ja kuukausisähkö" is a locked user decision**; the other sub-lines are
-  short restatements of `ContractCardCopy::band()`. Labels are 15px bold, sub-lines 14px
-  `slate-500` — the DESIGN.md floor for secondary copy, not the 12px the first version used.
+  short restatements of `ContractCardCopy::band()`. Labels are 14px 800 in the category
+  colour, sub-lines 13px ink-body (Paper board values).
 - **No per-bucket counts.** The listing applies its energy-source and consumption-range
   filters in PHP after the query, so an honest count would need the whole filtered set
   re-resolved per bucket, not one grouped query. Too expensive for a cached default page.
@@ -769,6 +803,8 @@ Important semantics:
 - Contract comparison hero market-insight pills are intentionally small and must not push results down. They use cached precomputed statistics/forecast payloads from `ContractMarketInsightService`; do not calculate contract prices or scan raw `price_components` during page requests. The broad aggregate pill is canonical-only and reads the persisted consumption-independent seller-set energy-price index. Its 30-day change requires the exact prior calendar date, and its footer names eligible offers and suppliers. It never falls back to annual cost or observed data. Segment-specific and exact-duration pages keep their existing strict annual/unit trend rules; exact-duration pages pass their own 6/12/24 month forecast duration. Cache keys and fingerprints vary by flag, basis, exact duration, and index endpoint. SEO listing prepared view data uses schema v10 for the qualified fixed-term outlook. Guide forecast copy gives market expectations and dated uncertainty, never lock/wait or duration advice; euro changes remain annual rate equivalents, not savings from waiting.
 - Market insights show on `/sahkosopimus`, SEO pricing/duration pages, and cheapest contracts. They are hidden on business, housing-type, energy-source, and consumption-level SEO pages. The cheapest page uses the same aggregate trend as the main page.
 - Default listing prepared-data cache writes are protected by a short cache lock to prevent crawler/user stampedes after daily import invalidation. If lock acquisition times out, render uncached instead of waiting toward PHP's 30-second request limit.
+- **Page-type heroes (redesign round 2, Paper "Pages · group E").** `SeoContractsList::heroArt()` picks `hero-city-<slug>` for Helsinki, Tampere, Turku and Oulu (`CITY_HERO_SLUGS`, own plate with landmarks), `hero-city` for every other city page (general lakeside town plate), `hero-porssisahko` (`pricingType=Spot`) or the village `listing-hero`; `resultsGlyph()` gives the large category glyph beside the results count on the Spot, Quarterly, ConsumptionEffect and FixedPrice pages only (the other pricing pages can list more than one bucket). Both values and `heroTone` are added in `render()`, **outside** the prepared view-data cache: a season change must not serve a stale tone, and a cache entry written before a new key existed must not break the view. On the two painted heroes the fox is part of the plate, so the market price index moves inline under the lead (`.vk-seo-hero-index`) and, below 1024px, the plate becomes a band under the text. The interlude follows the hero (`interlude-icefishing`, `interlude-seaswim`, else `interlude-walk`). The city solar estimate renders after the list and pagination (a non-contract block), not above the controls. Styles: `resources/css/redesign-seo-pages.css`; art: `scripts/design-art/seo-pages.sh`.
+- `LocationsList` (`/sahkosopimus/paikkakunnat`) has a painted map hero (`map-finland`, `fox-compass`; sky colour by season, `heroTone` from `Season::heroTone('map-finland')`), live town pins that link to the Oulu/Tampere/Turku/Helsinki listings, and an A–Ö index built in `render()` (`letterGroups`, first letter through `Str::ascii`, so Ä/Ö group under A/O as in the database order). The search keeps `data-search-input` + `wire:model.live.debounce.300ms`.
 - City SEO listing pages (`/sahkosopimus/paikkakunnat/{location}`) intentionally skip prepared view-data caching because there are many long-tail city URLs and their local/regional sections make serialized database-cache payloads large. They still use shared contract metric caches. Canonical local/list card loading does not load `priceComponents`; feature-off attaches only the latest calculation components, never full history.
 
 ## `ContractDetail`
@@ -792,6 +828,47 @@ Pricing cache boundary:
 - Generated qualifier, receipt-note, term, FAQ, current-display, package, cost-table, and counterfactual policy reads typed pricing accessors and `PricingFact`. Only `getCalculatedCostProperty()` / `calculatedCostFor()` serialize the unchanged compatibility array. The card, SEO presenter input, price-development input, and prepared payload keep that existing transport shape; detail prepared-data cache schema is v21.
 - Integrity and comparability stay typed in the cache path. An excluded metric stays available to the detail page but is absent from ranking. A missing listed total fails cache hydration and cannot become a zero-price cheaper alternative.
 
+### Redesign presentation (2026-10-16, Paper boards 39Y-0 and EBP-0)
+
+The picture-book redesign replaced the presentation below; the section order, the data, the
+copy rules and every behaviour rule in this section still apply. Where an older styling note
+below conflicts (slate-950 hero, coral-600 CTA, white surface, slate-900 chart line, slate/coral
+bill pills, tile alternatives), this subsection wins.
+
+- `components/site/detail-band.blade.php` is a short painted band (360px laptop, 236–280px
+  smaller) with **no text**. The fox is painted far away at the right edge of the lake art
+  (`contract-band-<season>`, built by `scripts/design-art/detail.sh`). The breadcrumb, seller,
+  H1, price and CTA sit **below** the band on the ground, never on it (spec §5 "Seller pages").
+  `render()` passes `heroTone => Season::heroTone('contract-band')` outside the prepared-data
+  cache; kevät and kesä are light.
+- Header grid: seller logo + name · category glyph + label (still the `#faq-miten` link), H1
+  Bricolage 64, the price in fox-deep Bricolage 128, the rank sentence and an inked ruler (the
+  aurora share under the line is the cheaper part of the market; transform-only motion), then
+  at the right the consumption radio rows with seasonal home art, the visible own-consumption
+  field and the fox CTA button (`--radius-button`, the page's only filled button).
+- The Preferred Sources strip follows this contract header (the page's primary header), not
+  the band. It must stay exactly one strip in the template (`PageActionStripSourcePolicyTest`
+  counts the substring, so do not name it in a comment).
+- Hintatiedot uses the shared ledger band (`x-card.band variant="ledger"`) and footer tags,
+  its own large receipt rows (`.vk-detail-part*`), and the cost table with seasonal home art
+  and a fox loop around the selected row. The counterfactual draws two bars from the read-only
+  `spotCounterfactual` fields `self_cost`, `reference_cost`, `reference_name`,
+  `reference_bucket` (the sentence states the same facts; the bars are `aria-hidden`).
+- Chart: the contract is the fox line, the reference a dashed granite line, with an inked
+  baseline and a legend. The presenter's `ink`/`reference_colour` values are no longer read by
+  the template. Version timeline: date lane | inked rail with a fox ring on the current active
+  version | content; deltas use ↑/↓ plus price-high/price-low colours.
+- Bill module (round 3): torn-paper bill + answer column, always open; see "Bill comparison
+  module" below. Section rhythm (round 3 board HYA-0): the Preferred Sources strip sits directly
+  under the painted band, before the breadcrumb; every section after the header starts with a
+  1.5 px edge rule, sections are 64 px apart on desktop and 48 px on a phone
+  (`.vk-detail-sections` / `.vk-detail-section` in `redesign-detail.css`).
+- Emissions: seasonal car vignette (`contract-emissions-car`), the km figure, the kg figure
+  with a sparkle severity mark in one of three tiers (aurora / warning-ink / price-high).
+  Without a seller breakdown the residual-mix share is drawn as one bar.
+- Alternatives are ledger rows (logo, name, €/kk with the saving in `--color-saving`,
+  "Katso →"), not tiles. CSS: `resources/css/redesign-detail.css` (`.vk-detail-*`, `.vk-tl-*`).
+
 ### Page composition (the approved editorial structure)
 
 The page is **one editorial column on a white surface**. A section is an `h2`, a hairline
@@ -803,7 +880,7 @@ the alternatives above the content that justifies them.
 Section order, and it is load bearing:
 
 1. **Dark `slate-950` hero** at content width (`max-w-3xl`).
-2. **Vertaa nykyiseen sähkölaskuusi** (`#vertaa-laskuun`), **open by default**.
+2. **Vertaa nykyiseen sähkölaskuusi** (`#vertaa-laskuun`), a normal always-open section (round 3).
 3. **Hintatiedot** (`#hintatiedot`): category band, integrity notice, receipt rows, receipt
    notes, warning pills, static cost table, spot counterfactual.
 4. **Näin hinta on kehittynyt** (`#hintakehitys`)
@@ -1100,7 +1177,7 @@ their own consumption before the page asks them to act on the price.
   consumption), clamps to `MIN_FREE_CONSUMPTION`/`MAX_FREE_CONSUMPTION` (1 000–30 000)
   and then to the contract's own limits, and writes the clamped value back so the field
   shows what is actually in effect. `setConsumption()` keeps it in sync, so a chip click
-  and the field never disagree. The template commits on blur (`wire:model.blur`) and on
+  and the field never disagree. The template commits on blur (`wire:model.live.blur`) and on
   Enter (an Alpine `@keydown.enter` that blurs the field).
 - **The active chip is a white-on-dark inversion, never white on coral** (2,8:1 on
   coral-500). Every chip and the field are at least 44px high. Tests address chips
@@ -1242,7 +1319,7 @@ Tests: `tests/Feature/ContractDetailPresenterTest.php`, one per defect above.
 ### Bill comparison module ("Vertaa nykyiseen sähkölaskuusi")
 
 The third bill-comparison surface (after `/maksatko-liikaa` and the in-listing mode). It is the
-**first section under the hero**, it is **open by default**, and it answers one question: what
+**first section under the header**, it is **always open**, and it answers one question: what
 this contract would have cost for the visitor's own billing period and kWh.
 
 **It is rung two of the hero's consumption ladder, and the placement is deliberate.** Rung one
@@ -1255,27 +1332,27 @@ on. **Adjacency is what makes the two read as one ladder now** — the module st
 below the hero's last block — so the ladder no longer needs a link to state itself.
 
 The hero used to close its picker block with "Tiedätkö tarkan laskusi? Vertaa sähkölaskuusi ↓",
-which scrolled here and dispatched `open-bill-comparison`. It was removed with the reorder: its
-whole job was to stop a visitor landing on a collapsed heading, and the module is now first and
-open. The section keeps its `@open-bill-comparison` listener, so any future opener still works
-and a visitor who collapsed the panel can be taken back to an open form.
+which scrolled here and dispatched `open-bill-comparison`. It was removed with the reorder, and
+round 3 (2026-10-16) removed the disclosure itself, so there is nothing to open any more.
 
 It used to sit after "Hintatiedot", which put it 2 138 px down on desktop and 2 890 px down at
-390 px — about 3.4 phone screens, collapsed, behind the largest section on the page. Moving it
-above "Kannattaako X?" brought it to 1 372 / 1 880 px; it is now first under the hero at 851 px
-on desktop.
+390 px — about 3.4 phone screens, collapsed, behind the largest section on the page. It is now
+the first section under the header.
 
-**Open by default has two consequences in the template that are easy to undo by accident.** The
-panel must not carry `x-cloak` (it would hide an open panel until Alpine boots, which is the
-flash `x-cloak` exists to prevent, inverted), and the chevron carries `rotate-180` in its static
-class list **plus** an object-syntax `:class="{ 'rotate-180': billOpen }"`, so the server HTML is
-already correct and the icon does not visibly spin once on hydration. Object syntax, not the
-`billOpen && '...'` string form, because only the object form removes a class the static list
-put there when the visitor collapses the panel.
-
-Being first under the hero, the section carries **no top border** — a rule straight against the
-dark hero would read as a seam. Hintatiedot below it owns that rule and draws it only when
-`$showBillComparison` actually rendered this section.
+**Round 3 layout (Paper boards HYA-0, IND-0, J0P-0, notes J9K-0, user approved 2026-10-16).**
+The module is a normal section with the shared section heading: no disclosure trigger, no
+chevron, always open. The form is the torn-paper bill of `/maksatko-liikaa` — the shared partial
+called with `'paper' => true`, inside `.bill-paper.vk-detail-paper` (edges and body from
+`redesign-tools.css`) — 620 px at the left; the answer column (540 px) sits at its side on
+desktop and under it on a phone. The paper layout shows the start and end dates for every period
+choice (a preset fills them; editing one selects "Muu jakso"), where the compact listing form
+shows them only for "Muu jakso". The answer shows two receipt rows, then a split label + large
+figure built from `verdict` and `delta` (two decimals), with `delta_label` kept as the
+screen-reader sentence; "about the same" shows `delta_label` itself, an unavailable result shows
+`message` with an ink rule, and with no result the column shows the "Tulos näkyy tässä" guide in
+three steps. "Katso halvemmat vaihtoehdot" appears only for `costs_more` with alternatives. No
+fox in this module: it stands next to a contract price. Like every section after the header it
+starts with the shared edge rule (`.vk-detail-section`).
 
 - **Inputs come from `Concerns/BillComparisonInputs` and the shared partial**
   `partials/bill-comparison-form.blade.php`, the same two files the listing uses. The module

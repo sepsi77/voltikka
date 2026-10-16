@@ -24,19 +24,11 @@ class CitySolarEstimate extends Component
 
     public function placeholder(): string
     {
+        // Redesign: a quiet text line on the page ground while the lazy estimate loads (no card).
         return <<<'HTML'
 <div>
-    <section class="bg-gradient-to-r from-amber-50 to-yellow-50 rounded-2xl shadow-sm border border-amber-200 p-6 mb-8" aria-label="Aurinkosähkön tuottopotentiaali latautuu">
-        <div class="flex flex-col md:flex-row items-start md:items-center gap-6 animate-pulse">
-            <div class="flex-shrink-0">
-                <div class="p-4 bg-amber-100 rounded-xl h-16 w-16"></div>
-            </div>
-            <div class="flex-1 w-full">
-                <div class="h-5 bg-amber-100 rounded w-72 max-w-full mb-3"></div>
-                <div class="h-4 bg-amber-100 rounded w-full max-w-xl mb-3"></div>
-                <div class="h-4 bg-amber-100 rounded w-56 max-w-full"></div>
-            </div>
-        </div>
+    <section class="vk-seo-solar" aria-label="Aurinkosähkön tuottopotentiaali latautuu">
+        <p class="vk-seo-solar-text text-ink-muted">Lasketaan aurinkosähkön tuottopotentiaalia…</p>
     </section>
 </div>
 HTML;

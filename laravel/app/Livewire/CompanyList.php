@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Http\Middleware\SetPublicCacheHeaders;
 use App\Services\CompanyListCacheService;
+use App\Support\Season;
 use Illuminate\Support\Collection;
 use Livewire\Component;
 
@@ -445,6 +446,7 @@ class CompanyList extends Component
             'title' => $this->pageTitle,
             'metaDescription' => $this->metaDescription,
             'canonical' => $this->canonicalUrl,
+            'heroTone' => Season::heroTone('companies-hero'),
         ])->response(function ($response) {
             app(SetPublicCacheHeaders::class)->applyCacheHeaders($response);
         });

@@ -1,0 +1,102 @@
+/*
+ * Voltikka redesign tokens as CSS variables.
+ * Generated from design/voltikka-tokens.css (the @theme block). Keep the two identical;
+ * Paper file "Voltikka" is the source. tailwind.config.js maps these to utilities.
+ */
+:root {
+  --color-ground: #F5F6F1;
+  --color-snow-white: #FFFFFF;
+  --color-edge: #D9DFDC;
+  --color-edge-strong: #B9C2C0;
+  --color-field-edge: #838E89;
+  --color-ink: #16202E;
+  --color-ink-body: #3A4656;
+  --color-ink-muted: #5E6876;
+  --color-night: #14213A;
+  --color-night-lead: #C9D3E3;
+  --color-fox: #C4501C;
+  --color-fox-deep: #9E3C10;
+  --color-aurora: #1C7A5E;
+  --color-lake: #2B5F8C;
+  --color-violet: #6A4C9C;
+  --color-granite: #535D68;
+  --color-price-high: #B3261E;
+  --color-price-low: var(--color-aurora);
+  --color-warning-ink: #6B4A00;
+  --color-cat-spot: var(--color-aurora);
+  --color-cat-periodic: var(--color-lake);
+  --color-cat-usage: var(--color-violet);
+  --color-cat-fixed: var(--color-granite);
+  --color-saving: var(--color-aurora);
+  --color-forecast: #B7C6D9;
+  --color-star: #E0A21B;
+  --color-season-ground-talvi: #E4EAF0;
+  --color-season-ground-kevat: #DFE6D0;
+  --color-season-ground-kesa: #D5E5C4;
+  --color-season-ground-syksy: #EEDCC2;
+
+  --font-display: "Bricolage Grotesque", system-ui, sans-serif;
+  --font-sans: "Figtree", system-ui, sans-serif;
+
+  --text-caption: 13px;
+  --text-label: 14px;
+  --text-ui: 15px;
+  --text-body: 16px;
+  --text-lead: 18px;
+  --text-title: 22px;
+  --text-number: 32px;
+  --text-section: 34px;
+  --text-rank: 36px;
+  --text-page: 52px;
+  --text-price: 52px;
+  --text-hero: 64px;
+
+  --font-weight-regular: 400;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+
+  --tracking-price: -0.04em;
+  --tracking-display: -0.03em;
+  --tracking-normal: 0em;
+  --tracking-caps: 0.1em;
+
+  --leading-caption: 16px;
+  --leading-label: 18px;
+  --leading-ui: 20px;
+  --leading-body: 25px;
+  --leading-title: 26px;
+  --leading-lead: 28px;
+  --leading-number: 36px;
+  --leading-section: 38px;
+  --leading-page: 54px;
+  --leading-hero: 66px;
+
+  --opacity-disabled: 50%;
+  --opacity-hatching: 45%;
+
+  --breakpoint-mobile: 390px;
+  --breakpoint-tablet: 768px;
+  --breakpoint-laptop: 1024px;
+  --breakpoint-desktop: 1440px;
+
+  --container-text: 680px;
+  --container-hero-text: 720px;
+  --container-content: 1232px;
+
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 20px;
+  --spacing-6: 24px;
+  --spacing-8: 32px;
+  --spacing-10: 40px;
+  --spacing-12: 48px;
+  --spacing-16: 64px;
+  --spacing-section: 88px;
+  --spacing-gutter: 104px;
+
+  --radius-swatch: 3px;
+  --radius-control: 5px;
+  --radius-button: 12px;
+}

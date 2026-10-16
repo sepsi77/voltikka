@@ -1,18 +1,18 @@
+{{--
+    Top-bar spot price before the loader in layouts/app.blade.php fills it (design spec §5 "Top bar":
+    plain text with a sparkle mark, no pill). Colours come from the top-bar tone variables.
+    Keep data-header-spot-price, data-url, data-state and the unavailable template: the loader uses them.
+--}}
 <div data-header-spot-price data-url="/api/header-spot-price" data-state="loading" aria-live="polite">
-    <a href="/spot-price" class="flex items-center gap-2 bg-slate-100 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl border border-slate-200 hover:border-slate-300 transition-colors">
-        <span class="relative flex h-2.5 w-2.5">
-            <span class="absolute inline-flex h-full w-full rounded-full bg-slate-300 opacity-75 animate-pulse"></span>
-            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-slate-400"></span>
-        </span>
-        <span class="text-xs sm:text-sm text-slate-500">Spot-hinta</span>
-        <span class="text-xs sm:text-sm font-semibold text-slate-500">Ladataan…</span>
+    <a href="/spot-price" class="vk-topbar-spot vk-focus" aria-busy="true">
+        <x-ink.sparkle size="12" color="var(--color-edge-strong)" class="vk-topbar-spot-mark" />
+        <span class="vk-topbar-spot-label">Spot-hinta</span>
+        <span class="vk-topbar-spot-loading">Ladataan…</span>
     </a>
     <template data-header-spot-price-unavailable>
-        <a href="/spot-price" class="flex items-center gap-2 bg-slate-100 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl border border-slate-200 hover:border-slate-300 transition-colors">
-            <span class="text-xs sm:text-sm text-slate-500">Spot-hintoja ei ole saatavilla</span>
-            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-            </svg>
+        <a href="/spot-price" class="vk-topbar-spot vk-focus">
+            <span class="vk-topbar-spot-unavailable">Spot-hintoja ei ole saatavilla</span>
+            <span class="vk-topbar-spot-arrow" aria-hidden="true">→</span>
         </a>
     </template>
 </div>

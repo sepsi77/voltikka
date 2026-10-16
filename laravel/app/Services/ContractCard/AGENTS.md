@@ -122,9 +122,10 @@ pricing-type filter (`?hintatyyppi=`, comma-separated). It is the three categori
   `scopeBucket()` are assembled from the same private `spotConstraint()` /
   `marketConstraint()` / `effectConstraint()` closures, so a rule cannot be changed in one
   and not the other. **Never hand-write this SQL in a Livewire component.**
-- `PricingBucket::category()` gives the card category, and the visible pill row
-  (`../../../resources/views/partials/pricing-bucket-pills.blade.php`) uses it for the tint of
-  a selected pill, so the filter, the legend and the cards read as one system.
+- `PricingBucket::category()` gives the card category. The visible choice row
+  (`../../../resources/views/partials/pricing-bucket-pills.blade.php`) and the ledger entry
+  kicker both show the same bucket glyph (`x-ink.glyph`), so the filter, the legend and the
+  entries read as one system.
 
 `ContractCardPresenterTest::test_the_bucket_scope_agrees_with_the_resolver_and_partitions_the_set`
 pins the parity, the partition, and the spot-plus-reset case.
@@ -313,7 +314,7 @@ rewritten** — imports, the replacement matcher and the price history all key o
 
 ## Footer rules
 
-Warnings are coral pills in priority order, **max two**: price increase → consumption cap →
+Warnings are inked warning lines (see "Ledger entry" below) in priority order, **max two**: price increase → consumption cap →
 consumption effect not costed (suppressed when the band already says Kulutusvaikutus).
 A real short-term annualization basis is a quiet fact, not an unknown-continuation warning;
 it does not consume the warning cap. Other quiet facts include promotion and energy source
@@ -342,23 +343,45 @@ always shows, because the card is greyed out and sorted last and the reason must
 - **The "Vihreä" label** (claimed green at 50 % renewable) and **the emissions left stripe**.
   Both became one footer tag stating the real figure.
 
-## Responsive shape
+## Ledger entry (redesign, 2026-10-16)
 
-`sm` (640 px) is the card's only breakpoint. Below it the card is one column: band, identity,
-receipt, then the price as a **full-width total row under a dashed rule** — the €/kk figure
-left, its qualifiers right-aligned and baseline-aligned with it — then the full-width CTA. From
-`sm` up the same dashed rule turns vertical and the price returns to a right-aligned column
-beside the inline CTA.
+The listing card is now the **ledger contract entry** of the picture-book redesign
+(`design/voltikka-design-system.md` §5, Paper board `2J3-0`). The view model is unchanged
+except for one read-only field: `ContractCardView::$bucket` (`PricingBucket::fromFacts()`),
+because the band category `Market` merges spot and periodic resets and the entry draws the
+bucket glyph (`x-ink.glyph`) and the bucket colour (`--color-cat-*`).
+`ContractCardPresenterTest::test_the_view_carries_the_filter_bucket_that_splits_the_market_category`
+pins it.
 
-Two rules that must not be reverted, because both produced visible defects on a phone:
+- `featured-contract-card.blade.php` only renders `contract-card` with `cheapest` and rank 1.
+  One template, so the two slots cannot drift again. Cheapest = kicker "Halvin
+  sähkösopimus", fox-deep rank/price/"Katso", and the hand-drawn fox loop round the price.
+- `x-card.band`, `x-card.receipt`, `x-card.footer`, `x-company-logo` and `x-info-popover`
+  have an opt-in redesign variant (`variant="ledger"`, popover `variant="inked"`). The
+  **default rendering is unchanged** because the contract detail page ("Hintatiedot", hero)
+  and other pages still use it. Do not switch a default without checking those pages.
+- No card, border, shadow or hover lift. One link per entry ("Katso →" with the sr-only
+  contract name). Each entry ends with `<x-ink.hairline class="vk-ledger-sep" />` for the
+  listing's `.vk-ledger` list contract. Styles: `resources/css/redesign-ledger.css`.
+- Warnings are "!" + text in `--color-price-high` (spec; the Paper board shows fox-deep).
+  Facts are sparkle tags: offer/term fox-deep, energy source aurora. Order and cap still come
+  from `CardFooterItems`.
+- Bill mode keeps the period price, "laskutusjaksollasi" tip and saving/"kalliimpi" line and
+  hides the price parts (same reason as before). Over the consumption cap, the price, rank,
+  glyph and logo step back but stay readable; the cap warning stays visible.
+- The ledger logo has no inline style written from JS: the fallback name is hidden by CSS
+  `:has(.vk-logo-img)` and a failed logo removes itself. A Livewire morph resets inline
+  styles to the server markup, and the old `opacity:0` + `onload` reveal left a logo hidden
+  after a bill-mode update when the same contract kept its position.
 
-- **The band row must not wrap.** With `flex-wrap` and `ml-auto` on the Arvio chip, the label
-  filled line one and the chip landed alone on line two, right-aligned against empty space. The
-  label is the only flexible item (`min-w-0 flex-1`) and wraps inside its own column.
-- **The price block must be `w-full` below `sm`.** The stub row is `justify-between`, and the
-  inline CTA is `hidden sm:inline-flex`, so on a phone the row has a single child: without
-  `w-full` it shrinks to its content and sits as a narrow right-aligned island in the left half
-  of the card.
+### Responsive shape
+
+From 1200px: five lanes (rank 90 | name 360 | parts 330 | price | action 120; the middle
+three share the free width in the board ratio with minimums). 640-1199: rank | name | price,
+then parts and the action on a second row; the five lanes squeezed names and part labels into
+narrow columns below 1200. Below 640: rank + logo + name, then parts, then price + "Katso".
+The category line must not wrap its Arvio trigger onto its own line: the label is the only
+flexible item (same rule as the old band).
 
 ## Guardrails
 
@@ -411,6 +434,6 @@ first year and 8 c/kWh in the second year through the real calculator and card p
 ## Tests
 
 `tests/Feature/ContractCardPresenterTest.php` pins every rule above, including the scope
-parity check and render smoke tests for both card templates.
+parity check, the bucket field and render smoke tests for both card templates.
 `tests/Feature/ContractDetailPresenterTest.php` pins the detail page's use of the same view
 model, one test per defect that made the page a consumer.

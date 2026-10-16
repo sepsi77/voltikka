@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Support\Season;
 use Livewire\Component;
 
 /**
@@ -28,6 +29,8 @@ class TermsOfService extends Component
         return view('livewire.terms-of-service', [
             'lastUpdated' => \Illuminate\Support\Carbon::parse(self::LAST_UPDATED)->format('j.n.Y'),
         ])->layout('layouts.app', [
+            // Painted hero: the top bar sits over it in the same tone (outside any cache).
+            'heroTone' => Season::heroTone('legal-hero'),
             'title' => 'Käyttöehdot | Voltikka',
             'metaDescription' => 'Voltikka.fi-sivuston käyttöehdot. Voltikka on sähkösopimusten vertailupalvelu; esitetyt hinnat ja vuosikustannukset ovat suuntaa antavia arvioita, eivät sitovia tarjouksia.',
             'canonical' => config('app.url') . '/kayttoehdot',

@@ -1,0 +1,165 @@
+/*
+ * Shared redesign styles that are awkward as Tailwind utilities.
+ * Rules: design/voltikka-design-system.md. Values: Paper file "Voltikka" (get_jsx).
+ *
+ * One-off colours that have no token (spec §9 open item 1) live here as tone variables,
+ * never inline in templates.
+ */
+
+/* Page column: 1232 wide with a 104 gutter at 1440, a 16px gutter on a phone. */
+.vk-wrap {
+    width: min(var(--container-content), calc(100% - 32px));
+    margin-inline: auto;
+}
+
+@media (min-width: 1024px) {
+    .vk-wrap {
+        width: min(var(--container-content), calc(100% - 64px));
+    }
+}
+
+/*
+ * Hero tone. Set on the hero and on the overlay top bar.
+ * dark  = white text on a navy shade (winter and dark autumn art)
+ * light = ink text on a ground-colour shade (bright spring and summer art)
+ */
+.vk-tone-dark {
+    --tone-strong: var(--color-snow-white);
+    --tone-soft: var(--color-night-lead);
+    --tone-lead: #E4EAF5;
+    --tone-accent: #FFC2A1;
+    --tone-underline: #E8743B;
+    --tone-shade: linear-gradient(180deg, oklab(31.2% -0.006 -0.071 / 62%) 0%, oklab(31.2% -0.006 -0.071 / 45%) 60%, oklab(31.2% -0.006 -0.071 / 0%) 100%);
+}
+
+.vk-tone-light {
+    --tone-strong: var(--color-ink);
+    --tone-soft: var(--color-ink-body);
+    --tone-lead: var(--color-ink-body);
+    --tone-accent: var(--color-fox-deep);
+    --tone-underline: #E8743B;
+    --tone-shade: linear-gradient(180deg, oklab(97.1% -0.003 0.006 / 82%) 0%, oklab(97.1% -0.003 0.006 / 60%) 60%, oklab(97.1% -0.003 0.006 / 0%) 100%);
+}
+
+/* Aurora-light tint of the sparkle on night (top bar, logo). */
+:root {
+    --mark-aurora-light: #7FE0B4;
+    --mark-violet-light: #B79BEA;
+}
+
+/* Hero art plate. Phone: cover the box. Laptop and up: the Paper crop
+   (1600x900 plate, 290px of it below the 460px hero), anchored at the bottom so the
+   landscape stays in view on wide screens. */
+.vk-hero-plate {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    object-fit: cover;
+    object-position: 50% 72%;
+}
+
+@media (min-width: 1024px) {
+    .vk-hero-plate {
+        inset: auto;
+        left: 50%;
+        bottom: 0;
+        width: max(111.12%, 1600px);
+        height: auto;
+        transform: translate(-50%, 32.2%);
+    }
+}
+
+.vk-hero-shade {
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 100%;
+    background-image: var(--tone-shade);
+    pointer-events: none;
+}
+
+/* Paper uses a 360px shade. On the bright autumn and summer plates the last lines of a
+   right-hand key figure (y 300–360) fell below it, under 4.5:1, so the shade reaches 430px
+   and holds most of its strength to 75% (spec §8: hero text on calm sky, 4.5:1). */
+@media (min-width: 1024px) {
+    .vk-hero-shade {
+        height: 430px;
+    }
+
+    .vk-tone-dark .vk-hero-shade {
+        background-image: linear-gradient(180deg, oklab(31.2% -0.006 -0.071 / 62%) 0%, oklab(31.2% -0.006 -0.071 / 50%) 75%, oklab(31.2% -0.006 -0.071 / 0%) 100%);
+    }
+
+    .vk-tone-light .vk-hero-shade {
+        background-image: linear-gradient(180deg, oklab(97.1% -0.003 0.006 / 82%) 0%, oklab(97.1% -0.003 0.006 / 66%) 75%, oklab(97.1% -0.003 0.006 / 0%) 100%);
+    }
+}
+
+/* Dotted leader between a label and its value (price-part rows). */
+.vk-leader {
+    flex: 1 1 0%;
+    min-width: 12px;
+    border-bottom: 2px dotted var(--color-edge-strong);
+}
+
+/* Visible focus for inked links and text actions. */
+.vk-focus:focus-visible {
+    outline: 2px solid var(--color-fox);
+    outline-offset: 3px;
+    border-radius: 2px;
+}
+
+/* Hero text (Paper "Hero text": H1 52/54 −0.035em, lead 19/29 weight 500). */
+.vk-hero-h1 {
+    font-family: var(--font-display);
+    font-weight: 800;
+    color: var(--tone-strong);
+    font-size: 34px;
+    line-height: 38px;
+    letter-spacing: -0.03em;
+    /* Finnish compound words can be wider than a phone column; break, never clip.
+       No `hyphens: auto`: the browser's Finnish hyphenation broke words at wrong points. */
+    overflow-wrap: anywhere;
+}
+
+.vk-hero-lead {
+    margin-top: 14px;
+    max-width: 600px;
+    color: var(--tone-lead);
+    font-size: 17px;
+    line-height: 26px;
+    font-weight: 500;
+}
+
+@media (min-width: 1024px) {
+    .vk-hero-h1 {
+        font-size: var(--text-page);
+        line-height: var(--leading-page);
+        letter-spacing: -0.035em;
+    }
+
+    .vk-hero-lead {
+        font-size: 19px;
+        line-height: 29px;
+    }
+}
+
+/*
+ * Ledger list contract (listing agent owns the list, ledger agent owns the entry):
+ * the list is `.vk-ledger` (a flex column, 14px gap); each entry ends with
+ * <x-ink.hairline class="vk-ledger-sep" />. The last entry hides its separator.
+ */
+.vk-ledger {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.vk-ledger-sep {
+    margin-top: 14px;
+}
+
+.vk-ledger > :last-child .vk-ledger-sep {
+    display: none;
+}

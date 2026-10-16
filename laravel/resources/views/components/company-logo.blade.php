@@ -2,6 +2,7 @@
     'company' => null,
     'name' => null,
     'imgClass' => 'bg-white',
+    'variant' => 'tile',
 ])
 {{--
     A company logo tile that always occupies its space.
@@ -43,6 +44,32 @@
     $label = $name ?? $company?->name ?? '';
     $logoUrl = $company?->getLocalLogoUrl();
 @endphp
+@if ($variant === 'ledger')
+    {{--
+        Ledger variant (redesign contract entry): no tile. The logo is contained and left
+        aligned in a 76x30 box and multiplied onto the ground. Without a local logo the
+        company name renders in Bricolage instead of initials. With a logo, the name is the
+        failure fallback inside the box: CSS hides it while the <img> exists (`:has`), and a
+        failed or undecodable logo removes itself. No inline style is written from JS, because
+        a Livewire morph resets inline styles to the server markup and left a logo hidden
+        after a filter change.
+    --}}
+    @if ($logoUrl)
+        <span {{ $attributes->class(['vk-logo']) }}>
+            <span class="vk-logo-name" aria-hidden="true">{{ $label }}</span>
+            <img
+                src="{{ $logoUrl }}"
+                alt="{{ $label }}"
+                class="vk-logo-img"
+                loading="lazy"
+                onload="this.naturalWidth || this.remove()"
+                onerror="this.remove()"
+            >
+        </span>
+    @else
+        <span {{ $attributes->class(['vk-logo-name']) }} aria-hidden="true">{{ $label }}</span>
+    @endif
+@else
 <span {{ $attributes->class(['relative flex flex-shrink-0 items-center justify-center overflow-hidden']) }}>
     <span aria-hidden="true">{{ mb_substr($label ?: '?', 0, 3) }}</span>
     @if ($logoUrl)
@@ -57,3 +84,4 @@
         >
     @endif
 </span>
+@endif

@@ -31,6 +31,15 @@ class HeatPumpCalculatorTest extends TestCase
             ->assertSee('Lämpöpumppulaskuri');
     }
 
+    public function test_heat_pump_calculator_renders_the_painted_season_hero(): void
+    {
+        // The page passes heroTone, so the top bar sits over the seasonal heat pump hero art.
+        $this->get('/lampopumput/laskuri')
+            ->assertStatus(200)
+            ->assertSee('images/art/heatpump-hero-', false)
+            ->assertSee('energy-hero--heatpump', false);
+    }
+
     public function test_component_renders_with_default_values(): void
     {
         Livewire::test(HeatPumpCalculator::class)

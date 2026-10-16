@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\SpotPriceAverage;
+use App\Support\Season;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
 
@@ -31,6 +32,8 @@ class AboutPage extends Component
             'spotAvg' => $this->spotAverageWithTax(),
             'jsonLdSchema' => $this->getJsonLdSchemaProperty(),
         ])->layout('layouts.app', [
+            // Painted hero: the top bar sits over it in the same tone (outside any cache).
+            'heroTone' => Season::heroTone('tietoa-hero'),
             'title' => 'Tietoa Voltikasta – riippumaton sähkövertailu ja menetelmä | Voltikka',
             'metaDescription' => 'Kuka Voltikkaa ylläpitää, miten palvelu rahoitetaan ja miten sähkösopimusten vuosikustannukset lasketaan. Riippumaton harrasteprojekti ilman provisioita ja mainosrahaa.',
             'canonical' => config('app.url') . '/tietoa',

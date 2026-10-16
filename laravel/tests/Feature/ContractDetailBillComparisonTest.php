@@ -128,14 +128,37 @@ class ContractDetailBillComparisonTest extends TestCase
             // The shared bill form partial, same field ids on both surfaces.
             ->assertSeeHtml('id="detail-bill-kwh"')
             ->assertSeeHtml('id="detail-bill-total"')
-            // Open by default: the module is the first section under the hero, and its
-            // fields have to be visible in the server HTML, not behind a disclosure.
-            ->assertSeeHtml('billOpen: true')
-            // And therefore never cloaked, which would hide it until Alpine boots.
-            ->assertDontSeeHtml('x-cloak class="pt-6"');
+            // Round 3: a normal always-open section drawn as the paper bill, with no
+            // disclosure trigger, so the fields are always in the server HTML.
+            ->assertSeeHtml('class="bill-paper vk-detail-paper"')
+            ->assertSee('Nykyinen sähkölaskusi')
+            ->assertDontSeeHtml('aria-controls="vertaa-laskuun-paneeli"')
+            // The paper layout shows the dates for every period choice, not only "Muu jakso".
+            ->assertSeeHtml('id="detail-bill-start"')
+            ->assertSeeHtml('id="detail-bill-end"')
+            // Empty state: the answer column says what will appear and how.
+            ->assertSee('Tulos näkyy tässä')
+            ->assertSee('Valitse laskusi laskutusjakso.');
 
         $this->assertNull($component->instance()->billComparison);
         $this->assertFalse($component->instance()->billActive);
+    }
+
+    public function test_strip_sits_under_the_band_and_the_bill_module_is_the_first_section(): void
+    {
+        $this->createContract('bill-detail-contract', 'Perus Kiinteä', 5.0, 3.00);
+
+        // Round 3: the Preferred Sources strip is directly under the painted band, before
+        // the breadcrumb, like on every other page; the bill module follows the header.
+        $this->mountWithPrices('contract-detail', ['contractId' => 'bill-detail-contract'])
+            ->assertSeeHtmlInOrder([
+                'vk-detail-band-plate',
+                'data-page-action-strip',
+                'vk-detail-crumbs',
+                'vk-detail-head',
+                'id="vertaa-laskuun"',
+                'id="hintatiedot"',
+            ]);
     }
 
     public function test_save_case_shows_a_neutral_slate_delta_and_no_coral_warning(): void
@@ -154,8 +177,13 @@ class ContractDetailBillComparisonTest extends TestCase
         $component->assertSee('Olisit säästänyt n. 22 €')
             ->assertSee('Maksoit nykyisellä sopimuksellasi')
             ->assertSee('Perus Kiinteä olisi maksanut')
-            // Neutral slate pill, never green: green/red belong to the CO2 delta.
-            ->assertSeeHtml('bg-slate-900 border border-slate-900 text-white')
+            // Redesign: the delta is a figure in the saving colour, not a pill.
+            ->assertSeeHtml('vk-detail-bill-delta vk-detail-bill-delta--saves')
+            // The big figure carries the exact period delta; delta_label stays the
+            // accessible sentence.
+            ->assertSeeHtml('22,00&nbsp;€')
+            ->assertSee('tällä yhdellä laskutusjaksolla.')
+            ->assertDontSee('Tulos näkyy tässä')
             ->assertDontSee('Olisit maksanut n.');
     }
 
@@ -173,7 +201,8 @@ class ContractDetailBillComparisonTest extends TestCase
         $this->assertEqualsWithDelta(-8.00, $result['delta'], 0.01);
 
         $component->assertSee('Olisit maksanut n. 8 € enemmän')
-            ->assertSeeHtml('bg-coral-50 border border-coral-200 text-coral-700')
+            // Redesign: paying more is a figure in the price-high colour, not a pill.
+            ->assertSeeHtml('vk-detail-bill-delta vk-detail-bill-delta--costs_more')
             ->assertSee('Katso halvemmat vaihtoehdot')
             ->assertSeeHtml('href="#halvemmat"');
     }

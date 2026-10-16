@@ -189,7 +189,7 @@ class ContractHistoryPresenterTest extends TestCase
         $html = view('partials.contract-version-timeline-item', [
             'entry' => $version, 'showConnector' => false,
         ])->render();
-        $this->assertMatchesRegularExpression('/Viimeisin hintahavainto<\/span>\s*<time datetime="2026-03-20"[^>]*>\s*20\.3\.2026/', $html);
+        $this->assertMatchesRegularExpression('/Viimeisin hintahavainto<\/span>\s*(?:<span[^>]*>\s*)?<time datetime="2026-03-20"[^>]*>\s*20\.3\.2026/', $html);
         $this->assertStringContainsString('datetime="2026-01-10"', $html);
         $this->assertStringContainsString('2 havaintopäivää', $html);
         $this->assertStringContainsString('6,20', $html);

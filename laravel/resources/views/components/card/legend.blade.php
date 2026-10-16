@@ -1,30 +1,22 @@
 {{--
-    Explains the contract-card type-band tints on listing pages.
+    Explains the three pricing categories of the contract entries on listing pages
+    (Paper board 2J3-0, "Results heading"): an inked sparkle in the category colour and the
+    category name in that colour, 14/18 800. No swatches or chips.
 
-    It replaced the emissions colour legend (Päästötön / Vähäpäästöinen / Fossiilinen),
-    which described the card's coloured left stripe. That stripe is gone: the band tint and
-    a 4px emissions stripe on the same card competed with each other, and the emissions
-    information moved to the footer as a data tag carrying the real figure rather than a
-    three-step colour tier.
-
-    The tints are documented in DESIGN.md as a semantic data-colour axis, like the emissions
-    tiers. Keep the wording identical to PricingCategory::label().
-
-    Each swatch is the band's own tint (100) with the band's own hairline (200) as its border,
-    so the legend shows the colour it names. It previously used the 200 step alone, which made
-    every swatch a shade the cards never display.
+    Keep the wording identical to PricingCategory::label(). Markkinahinta uses the spot
+    colour (aurora), as on the board: it covers spot and market-reset prices.
 --}}
-<ul class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-600">
-    <li class="flex items-center gap-1.5">
-        <span class="h-3 w-3 flex-shrink-0 rounded border border-slate-200 bg-slate-100" aria-hidden="true"></span>
+<ul {{ $attributes->class(['flex flex-wrap items-center gap-x-[18px] gap-y-1.5 text-sm font-extrabold leading-[18px]']) }}>
+    <li class="flex items-center gap-1.5" style="color: var(--color-cat-fixed)">
+        <x-ink.sparkle size="13" color="var(--color-cat-fixed)" />
         Kiinteä hinta
     </li>
-    <li class="flex items-center gap-1.5">
-        <span class="h-3 w-3 flex-shrink-0 rounded border border-sky-200 bg-sky-100" aria-hidden="true"></span>
+    <li class="flex items-center gap-1.5" style="color: var(--color-cat-spot)">
+        <x-ink.sparkle size="13" color="var(--color-cat-spot)" />
         Markkinahinta
     </li>
-    <li class="flex items-center gap-1.5">
-        <span class="h-3 w-3 flex-shrink-0 rounded border border-violet-200 bg-violet-100" aria-hidden="true"></span>
+    <li class="flex items-center gap-1.5" style="color: var(--color-cat-usage)">
+        <x-ink.sparkle size="13" color="var(--color-cat-usage)" />
         Kulutusvaikutus
     </li>
 </ul>

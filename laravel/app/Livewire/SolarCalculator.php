@@ -7,6 +7,7 @@ use App\Services\DigitransitGeocodingService;
 use App\Services\DTO\GeocodingResult;
 use App\Services\DTO\SolarEstimateRequest;
 use App\Services\SolarCalculatorService;
+use App\Support\Season;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
@@ -454,6 +455,8 @@ class SolarCalculator extends Component
                 'title' => "Aurinkopaneelilaskuri {$year} – Laske aurinkopaneelien tuotto | Voltikka",
                 'metaDescription' => "Ilmainen aurinkopaneelilaskuri {$year}. Laske aurinkopaneelien arvioitu vuosituotto ja säästöt osoitteesi perusteella. Käytämme EU:n PVGIS-tietokantaa tarkkaan tuottoarvioon Suomessa.",
                 'canonical' => route('solar.calculator'),
+                // Painted hero: the layout puts the top bar over it in this tone (outside any cache).
+                'heroTone' => Season::heroTone('solar-hero'),
             ]);
     }
 }

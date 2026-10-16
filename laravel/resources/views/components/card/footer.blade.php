@@ -1,4 +1,4 @@
-@props(['warnings' => [], 'facts' => []])
+@props(['warnings' => [], 'facts' => [], 'variant' => 'card'])
 {{--
     Two visual classes, warnings first.
 
@@ -21,7 +21,23 @@
     ambiguous about which contract it qualifies. Keeping the footer white also leaves the type
     band as the card's only tinted strip, so the category reads harder.
 --}}
-@if (count($warnings) > 0 || count($facts) > 0)
+@if ($variant === 'ledger' && (count($warnings) > 0 || count($facts) > 0))
+    {{-- Ledger variant (tag line): warnings as "!" + text in price-high, facts as sparkle
+         tags. An offer or term tag is fox-deep, the energy-source tag aurora. Same order and
+         cap as the card: CardFooterItems decides both. --}}
+    <ul class="vk-tags">
+        @foreach ($warnings as $warning)
+            <li class="vk-tag vk-tag--warning"><span aria-hidden="true">!</span> {{ $warning->text }}</li>
+        @endforeach
+
+        @foreach ($facts as $fact)
+            <li class="vk-tag {{ $fact->icon === 'leaf' ? 'vk-tag--energy' : 'vk-tag--offer' }}">
+                <x-ink.sparkle size="11" color="currentColor" />
+                {{ $fact->text }}
+            </li>
+        @endforeach
+    </ul>
+@elseif (count($warnings) > 0 || count($facts) > 0)
     <div class="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-slate-200 px-5 py-3 text-sm font-semibold sm:px-6">
         @foreach ($warnings as $warning)
             <span class="inline-flex items-center gap-1.5 rounded-full border border-coral-200 bg-coral-50 px-3 py-1 text-coral-700">

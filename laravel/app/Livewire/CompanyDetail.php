@@ -16,6 +16,7 @@ use App\Services\ContractListCacheService;
 use App\Services\ContractPriceCalculator;
 use App\Services\ContractPricing\ContractPricingViewData;
 use App\Services\DTO\EnergyUsage;
+use App\Support\Season;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
@@ -762,6 +763,7 @@ class CompanyDetail extends Component
             'title' => $this->pageTitle,
             'metaDescription' => $this->metaDescription,
             'canonical' => $this->canonicalUrl,
+            'heroTone' => Season::heroTone('company-band'),
         ]);
     }
 }

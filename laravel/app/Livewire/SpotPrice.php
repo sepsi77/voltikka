@@ -6,6 +6,7 @@ use App\Models\SpotPriceAverage;
 use App\Models\SpotPriceForecast;
 use App\Models\SpotPriceHour;
 use App\Models\SpotPriceQuarter;
+use App\Support\Season;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
@@ -2637,6 +2638,7 @@ class SpotPrice extends Component
             ->layout('layouts.app', [
                 'title' => 'Pörssisähkön hinta tänään ja huomenna – hintaennuste | Voltikka',
                 'metaDescription' => 'Pörssisähkön hinta tänään ja huomenna sekä hintaennuste seuraaville päiville. Näe tuntikohtaiset hinnat ja milloin sähkö on halvinta.',
+                'heroTone' => Season::heroTone('spot-hero'),
             ])->response(function ($response) {
                 $response->setPublic();
                 $response->setMaxAge(60);

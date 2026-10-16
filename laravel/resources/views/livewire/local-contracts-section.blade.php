@@ -1,48 +1,41 @@
 <div>
+    {{-- City page local tiers (redesign, Paper board 5BI-0 "Local companies section"): display
+         headings with an inked map-pin vignette and the wavy fox underline, ledger entries
+         without a rank, an inked "Näytä kaikki" action, a paw-print divider, then the heading of
+         the main list. The distance (or "Alueellinen") is an inked map-pin mark; on a wide
+         screen CSS moves it onto the entry's category line, at the left of "Arvio" (spec §5
+         "City listings"). The fox and villagers never appear here. --}}
+    @php
+        $pin = '<svg class="vk-local-pin" viewBox="0 0 18 18" aria-hidden="true" focusable="false"><path d="M9 16.2 C 6.2 12.6, 4 10, 4 7.2 C 4 4.4, 6.2 2.4, 9 2.4 C 11.8 2.4, 14 4.4, 14 7.2 C 14 10, 11.8 12.6, 9 16.2 Z" fill="none" style="stroke: var(--color-fox-deep)" stroke-width="1.7" stroke-linejoin="round" /><circle cx="9" cy="7.2" r="1.9" style="fill: var(--color-fox-deep)" /></svg>';
+    @endphp
     @if($hasContent)
-    <section class="mb-12">
+    <section class="vk-seo-local">
         {{-- Local Companies Section (Tier 1) --}}
         @if($localCompanyContracts->isNotEmpty())
-        <div class="mb-8" x-data="{ expanded: false }">
-            <div class="flex items-center gap-3 mb-4">
-                <div class="p-2 bg-coral-100 rounded-lg">
-                    <svg class="w-5 h-5 text-coral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
-                    </svg>
-                </div>
-                <div>
-                    <h2 class="text-xl font-bold text-slate-900">
-                        Lähialueen sähköyhtiöt
-                    </h2>
-                    <p class="text-sm text-slate-500">
+        <div x-data="{ expanded: false }" class="vk-seo-local-tier">
+            <div class="vk-seo-local-head">
+                <x-site.seo-pin class="vk-seo-local-vignette" />
+                <div class="min-w-0">
+                    <x-site.section-heading :wave="300">Lähialueen sähköyhtiöt</x-site.section-heading>
+                    <p class="vk-seo-subline">
                         Sähköyhtiöt, joiden kotipaikka on lähellä {{ $cityName }}a
                     </p>
                 </div>
             </div>
 
-            <div class="space-y-6">
+            <div class="vk-ledger">
                 @foreach($localCompanyContracts as $index => $contract)
-                    <div class="relative" x-show="expanded || {{ $index }} < 10" x-collapse.duration.300ms>
-                        {{-- Distance badge --}}
+                    <div class="vk-seo-local-item" x-show="expanded || {{ $index }} < 10" x-collapse.duration.300ms>
                         @if(isset($contract->company_distance_km) && $contract->company_distance_km > 0)
-                        <div class="absolute -top-2 right-4 z-10">
-                            <span class="inline-flex items-center gap-1 px-2.5 py-1 bg-coral-500 text-white text-xs font-bold rounded-full shadow-sm">
-                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-                                </svg>
+                            <p class="vk-local-mark">
+                                {!! $pin !!}
                                 {{ number_format($contract->company_distance_km, 0) }} km
-                            </span>
-                        </div>
+                            </p>
                         @elseif(isset($contract->company_distance_km) && $contract->company_distance_km == 0)
-                        <div class="absolute -top-2 right-4 z-10">
-                            <span class="inline-flex items-center gap-1 px-2.5 py-1 bg-green-500 text-white text-xs font-bold rounded-full shadow-sm">
-                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
-                                </svg>
+                            <p class="vk-local-mark">
+                                {!! $pin !!}
                                 {{ $cityName }}
-                            </span>
-                        </div>
+                            </p>
                         @endif
                         <x-contract-card
                             :contract="$contract"
@@ -54,17 +47,15 @@
                 @endforeach
             </div>
 
-            {{-- Expand/Collapse button --}}
+            {{-- Expand/Collapse --}}
             @if($localCompanyContracts->count() > 10)
-            <div class="mt-4 text-center">
-                <button
-                    @click="expanded = !expanded"
-                    class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-coral-600 hover:text-coral-700 hover:bg-coral-50 rounded-lg transition-colors"
-                >
-                    <span x-text="expanded ? 'Näytä vähemmän' : 'Näytä kaikki {{ $localCompanyContracts->count() }} sopimusta'"></span>
-                    <svg class="w-4 h-4 transition-transform" :class="expanded ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                    </svg>
+            <div class="vk-seo-show-all">
+                <button type="button" @click="expanded = !expanded" class="vk-action vk-seo-action--center vk-focus" :aria-expanded="expanded ? 'true' : 'false'">
+                    <span class="inline-flex items-center gap-2">
+                        <span x-text="expanded ? 'Näytä vähemmän' : 'Näytä kaikki {{ $localCompanyContracts->count() }} sopimusta'">Näytä kaikki {{ $localCompanyContracts->count() }} sopimusta</span>
+                        <svg class="vk-chevron" :class="expanded ? 'rotate-180' : ''" viewBox="0 0 18 18" aria-hidden="true" focusable="false"><path d="M4 7l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                    </span>
+                    <x-ink.wave width="230" stroke="2.6" />
                 </button>
             </div>
             @endif
@@ -73,35 +64,24 @@
 
         {{-- Regional Contracts Section (Tier 2) --}}
         @if($regionalContracts->isNotEmpty())
-        <div class="mb-8" x-data="{ expanded: false }">
-            <div class="flex items-center gap-3 mb-4">
-                <div class="p-2 bg-blue-100 rounded-lg">
-                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
-                    </svg>
-                </div>
-                <div>
-                    <h2 class="text-xl font-bold text-slate-900">
-                        Alueelliset sopimukset {{ $cityLocative }}
-                    </h2>
-                    <p class="text-sm text-slate-500">
+        <div x-data="{ expanded: false }" class="vk-seo-local-tier">
+            <div class="vk-seo-local-head">
+                <x-site.seo-pin class="vk-seo-local-vignette" />
+                <div class="min-w-0">
+                    <x-site.section-heading :wave="300">Alueelliset sopimukset {{ $cityLocative }}</x-site.section-heading>
+                    <p class="vk-seo-subline">
                         Sopimukset, jotka ovat saatavilla vain tietyillä alueilla
                     </p>
                 </div>
             </div>
 
-            <div class="space-y-6">
+            <div class="vk-ledger">
                 @foreach($regionalContracts as $index => $contract)
-                    <div class="relative" x-show="expanded || {{ $index }} < 10" x-collapse.duration.300ms>
-                        {{-- Regional badge --}}
-                        <div class="absolute -top-2 right-4 z-10">
-                            <span class="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-500 text-white text-xs font-bold rounded-full shadow-sm">
-                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
-                                </svg>
-                                Alueellinen
-                            </span>
-                        </div>
+                    <div class="vk-seo-local-item" x-show="expanded || {{ $index }} < 10" x-collapse.duration.300ms>
+                        <p class="vk-local-mark">
+                            {!! $pin !!}
+                            Alueellinen
+                        </p>
                         <x-contract-card
                             :contract="$contract"
                             :rank="$index + 1"
@@ -112,40 +92,29 @@
                 @endforeach
             </div>
 
-            {{-- Expand/Collapse button --}}
+            {{-- Expand/Collapse --}}
             @if($regionalContracts->count() > 10)
-            <div class="mt-4 text-center">
-                <button
-                    @click="expanded = !expanded"
-                    class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
-                >
-                    <span x-text="expanded ? 'Näytä vähemmän' : 'Näytä kaikki {{ $regionalContracts->count() }} sopimusta'"></span>
-                    <svg class="w-4 h-4 transition-transform" :class="expanded ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                    </svg>
+            <div class="vk-seo-show-all">
+                <button type="button" @click="expanded = !expanded" class="vk-action vk-seo-action--center vk-focus" :aria-expanded="expanded ? 'true' : 'false'">
+                    <span class="inline-flex items-center gap-2">
+                        <span x-text="expanded ? 'Näytä vähemmän' : 'Näytä kaikki {{ $regionalContracts->count() }} sopimusta'">Näytä kaikki {{ $regionalContracts->count() }} sopimusta</span>
+                        <svg class="vk-chevron" :class="expanded ? 'rotate-180' : ''" viewBox="0 0 18 18" aria-hidden="true" focusable="false"><path d="M4 7l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                    </span>
+                    <x-ink.wave width="230" stroke="2.6" />
                 </button>
             </div>
             @endif
         </div>
         @endif
 
-        {{-- Divider before main list --}}
-        <div class="border-t border-slate-200 pt-8 mt-8">
-            <div class="flex items-center gap-3 mb-4">
-                <div class="p-2 bg-slate-100 rounded-lg">
-                    <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                </div>
-                <div>
-                    <h2 class="text-xl font-bold text-slate-900">
-                        Kaikki sopimukset {{ $cityLocative }}
-                    </h2>
-                    <p class="text-sm text-slate-500">
-                        Vertaa kaikkia saatavilla olevia sähkösopimuksia
-                    </p>
-                </div>
-            </div>
+        <x-site.seo-paws />
+
+        {{-- Heading before the main list --}}
+        <div>
+            <x-site.section-heading :wave="330">Kaikki sopimukset {{ $cityLocative }}</x-site.section-heading>
+            <p class="vk-seo-subline">
+                Vertaa kaikkia saatavilla olevia sähkösopimuksia
+            </p>
         </div>
     </section>
     @endif

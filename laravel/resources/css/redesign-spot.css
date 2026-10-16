@@ -1,0 +1,661 @@
+/* Redesign styles owned by the spot agent (/spot-price). Shared rules stay in redesign.css.
+ * Values: Paper board 11H-0 "Pörssisähkö — /spot-price v4 picture book" and EBO-0 "Seasons".
+ * One-off colours without a token are named variables here, never inline in templates.
+ */
+
+:root {
+    /* 30-day chart: the day's low–high band (Paper #C6DDEF at 70 %). */
+    --spot-range-band: rgba(198, 221, 239, 0.7);
+    /* Track behind the "<month> vuosittain" bars (Paper #E4EAF0). */
+    --spot-year-track: #E4EAF0;
+}
+
+/* ---------- Hero ---------- */
+
+.spot-hero {
+    position: relative;
+    isolation: isolate;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background-color: var(--color-night);
+}
+
+.spot-hero.vk-tone-light {
+    background-color: var(--color-ground);
+}
+
+/* Verdict colours on the hero ("Edullinen päivä"). Dark art: light tints (Paper #7FE0B4);
+   light art: the state tokens. */
+.vk-tone-dark .spot-verdict--cheap { --spot-verdict: var(--mark-aurora-light); }
+.vk-tone-dark .spot-verdict--normal { --spot-verdict: #F3CB6E; }
+.vk-tone-dark .spot-verdict--expensive { --spot-verdict: #FFA39B; }
+.vk-tone-light .spot-verdict--cheap { --spot-verdict: var(--color-aurora); }
+.vk-tone-light .spot-verdict--normal { --spot-verdict: var(--color-warning-ink); }
+.vk-tone-light .spot-verdict--expensive { --spot-verdict: var(--color-price-high); }
+
+.spot-hero-text {
+    position: relative;
+    z-index: 2;
+    padding-top: 96px;
+    padding-bottom: 8px;
+}
+
+/* Phone and tablet: the village is a band under the text. The band's sky fades into the
+   tone ground, so the text never sits on busy art. */
+.spot-hero-art {
+    position: relative;
+    order: 2;
+    height: 300px;
+    margin-top: -24px;
+    -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 34%);
+    mask-image: linear-gradient(180deg, transparent 0%, #000 34%);
+}
+
+.spot-hero-plate {
+    position: absolute;
+    right: -24px;
+    bottom: -36px;
+    width: 640px;
+    max-width: none;
+    height: auto;
+}
+
+.spot-hero-shade {
+    display: none;
+}
+
+.spot-hero-fox {
+    position: absolute;
+    z-index: 1;
+    left: max(4px, calc(50% - 170px));
+    bottom: 14px;
+    width: 150px;
+    height: 150px;
+}
+
+.spot-poster-number {
+    font-family: var(--font-display);
+    font-weight: 800;
+    color: var(--tone-strong);
+    font-size: 56px;
+    line-height: 58px;
+    letter-spacing: -0.03em;
+}
+
+@media (min-width: 1024px) {
+    /* Laptop and up: the board composition. 720px high; the plate is 1440 wide at 1440 and
+       90px of it sits below the hero; wider screens keep the snow line and crop the sky. */
+    .spot-hero {
+        display: block;
+        min-height: 720px;
+    }
+
+    .spot-hero-art {
+        position: absolute;
+        inset: 0;
+        height: auto;
+        margin: 0;
+        -webkit-mask-image: none;
+        mask-image: none;
+    }
+
+    .spot-hero-plate {
+        left: 50%;
+        right: auto;
+        bottom: -90px;
+        width: max(100%, 1440px);
+        transform: translateX(-50%);
+    }
+
+    .spot-hero-shade {
+        display: block;
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+    }
+
+    /* Board EBO-0: no shade on the winter night, a light shade on the bright spring and summer
+       art, a night shade on the busy autumn art. */
+    .spot-hero--kevat .spot-hero-shade,
+    .spot-hero--kesa .spot-hero-shade {
+        background-image:
+            linear-gradient(90deg, oklab(97.1% -0.003 0.006 / 86%) 0%, oklab(97.1% -0.003 0.006 / 70%) 36%, oklab(97.1% -0.003 0.006 / 0%) 62%),
+            linear-gradient(180deg, oklab(97.1% -0.003 0.006 / 75%) 0%, oklab(97.1% -0.003 0.006 / 0%) 100%);
+    }
+
+    /* Deviation from the board (no talvi shade): the lower-left of the winter plate is pale
+       snow haze, so the verdict and summary lines need a little navy behind them. */
+    .spot-hero--talvi .spot-hero-shade {
+        background-image: linear-gradient(90deg, oklab(25% -0.007 -0.051 / 62%) 0%, oklab(25% -0.007 -0.051 / 45%) 34%, oklab(25% -0.007 -0.051 / 0%) 52%);
+    }
+
+    .spot-hero--syksy .spot-hero-shade {
+        background-image:
+            linear-gradient(90deg, oklab(25% -0.007 -0.051 / 62%) 0%, oklab(25% -0.007 -0.051 / 45%) 38%, oklab(25% -0.007 -0.051 / 0%) 60%),
+            linear-gradient(180deg, oklab(25% -0.007 -0.051 / 70%) 0%, oklab(25% -0.007 -0.051 / 0%) 100%);
+    }
+
+    .spot-hero-fox {
+        left: calc(50% - 20px);
+        bottom: 40px;
+        width: 250px;
+        height: 250px;
+    }
+
+    .spot-hero-text {
+        padding-top: 120px;
+        padding-bottom: 72px;
+    }
+
+    .spot-hero-h1 {
+        line-height: 56px;
+        letter-spacing: -0.025em;
+    }
+
+    .spot-hero-lead {
+        max-width: 540px;
+        font-size: 18px;
+        line-height: 28px;
+    }
+
+    .spot-poster-number {
+        font-size: var(--text-hero);
+        line-height: 66px;
+    }
+}
+
+/* ---------- Day figures ---------- */
+
+.spot-figures {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px 16px;
+    padding: 10px 0 6px;
+}
+
+.spot-figure {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    text-align: center;
+    min-width: 0;
+}
+
+.spot-figures .spot-figure-ornament {
+    display: none;
+}
+
+.spot-figure-label {
+    color: var(--color-ink-body);
+    font-size: 14px;
+    font-weight: 800;
+    line-height: 18px;
+}
+
+.spot-figure-number {
+    font-family: var(--font-display);
+    font-size: 36px;
+    font-weight: 800;
+    line-height: 40px;
+    letter-spacing: -0.03em;
+}
+
+.spot-figure-unit {
+    color: var(--color-ink-body);
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 20px;
+}
+
+.spot-figure-note {
+    color: var(--color-ink-muted);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 16px;
+}
+
+@media (min-width: 768px) {
+    .spot-figures {
+        display: flex;
+        align-items: center;
+    }
+
+    .spot-figure {
+        flex: 1 1 0%;
+    }
+
+    .spot-figures .spot-figure-ornament {
+        display: block;
+    }
+
+    .spot-figure-number {
+        font-size: 44px;
+        line-height: 48px;
+    }
+
+    .spot-figure-unit {
+        font-size: 16px;
+    }
+}
+
+.spot-notice {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 12px 0;
+    font-size: 16px;
+    line-height: 25px;
+    font-weight: 700;
+}
+
+/* ---------- Section heading ---------- */
+
+.spot-section-title {
+    font-family: var(--font-display);
+    font-weight: 800;
+    color: var(--color-ink);
+    font-size: 28px;
+    line-height: 32px;
+    letter-spacing: -0.02em;
+}
+
+@media (min-width: 1024px) {
+    .spot-section-title {
+        font-size: var(--text-section);
+        line-height: 38px;
+    }
+}
+
+/* ---------- Kodin energiavinkit ---------- */
+
+.spot-tips {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 28px 8px;
+    padding-top: 8px;
+}
+
+.spot-tips-ground {
+    position: absolute;
+    left: 0;
+    top: 160px;
+    width: 100%;
+    height: 26px;
+}
+
+.spot-tip {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    text-align: center;
+    min-width: 0;
+}
+
+.spot-tip-art {
+    position: relative;
+    width: 132px;
+    height: 132px;
+    flex-shrink: 0;
+}
+
+.spot-tip-ground {
+    position: absolute;
+    left: -18px;
+    right: -18px;
+    bottom: 6px;
+    width: calc(100% + 36px);
+    height: 20px;
+}
+
+@media (min-width: 1024px) {
+    .spot-tips {
+        display: flex;
+        gap: 8px;
+    }
+
+    .spot-tip {
+        flex: 1 1 0%;
+    }
+
+    .spot-tip-art {
+        width: 180px;
+        height: 180px;
+    }
+}
+
+/* ---------- Hourly bar charts ---------- */
+
+.spot-swatch {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: var(--radius-swatch);
+    flex-shrink: 0;
+}
+
+.spot-dash-swatch {
+    display: inline-block;
+    width: 16px;
+    border-top: 1.5px dashed var(--color-field-edge);
+    flex-shrink: 0;
+}
+
+.spot-range-swatch {
+    display: inline-block;
+    width: 14px;
+    height: 10px;
+    border-radius: 2px;
+    background: var(--spot-range-band);
+    flex-shrink: 0;
+}
+
+.spot-line-swatch {
+    display: inline-block;
+    width: 16px;
+    border-top: 2.6px solid var(--color-ink);
+    flex-shrink: 0;
+}
+
+.spot-mark {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 16px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.spot-day {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+}
+
+.spot-chart {
+    padding-left: 30px;
+}
+
+.spot-chart-plot {
+    position: relative;
+    height: 170px;
+    margin-top: 22px;
+}
+
+.spot-chart--signed .spot-chart-plot {
+    margin-bottom: 18px;
+}
+
+.spot-axis-label {
+    position: absolute;
+    right: calc(100% + 6px);
+    color: var(--color-ink-muted);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 14px;
+    white-space: nowrap;
+}
+
+.spot-avg-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-top: 1.5px dashed var(--color-field-edge);
+    pointer-events: none;
+}
+
+.spot-avg-label {
+    position: absolute;
+    right: 0;
+    color: var(--color-ink-muted);
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 14px;
+    pointer-events: none;
+}
+
+.spot-columns {
+    position: absolute;
+    inset: 0;
+    display: flex;
+}
+
+.spot-col {
+    position: relative;
+    flex: 1 1 0%;
+    min-width: 0;
+    height: 100%;
+}
+
+.spot-col-button {
+    display: block;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    border-radius: var(--radius-swatch);
+}
+
+.spot-col-button:hover .spot-bar.is-actual {
+    background-color: var(--color-ink-body);
+}
+
+.spot-col-button:focus-visible,
+.spot-col-button.is-selected {
+    outline: 2px solid var(--color-fox);
+    outline-offset: -1px;
+}
+
+.spot-bar {
+    position: absolute;
+    left: 19%;
+    right: 19%;
+    min-height: 0;
+    border-radius: 6px 6px 2px 2px;
+}
+
+.spot-bar.is-negative {
+    border-radius: 2px 2px 6px 6px;
+}
+
+.spot-bar.is-actual { background-color: var(--color-granite); }
+.spot-bar.is-forecast { background-color: var(--color-forecast); }
+.spot-bar.is-now { background-color: var(--color-fox); }
+
+.spot-value {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    display: none;
+    color: var(--color-ink-body);
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 14px;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.spot-now {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: var(--color-fox-deep);
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 16px;
+    pointer-events: none;
+}
+
+.spot-rank-star {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    line-height: 0;
+    pointer-events: none;
+}
+
+.spot-rank-star.is-above-now {
+    margin-bottom: 30px;
+}
+
+.spot-zero-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 6px;
+    transform: translateY(50%);
+    pointer-events: none;
+}
+
+.spot-zero-line svg {
+    display: block;
+    width: 100%;
+    height: 6px;
+}
+
+.spot-hours {
+    display: flex;
+    margin-top: 6px;
+}
+
+.spot-hours > span {
+    flex: 1 1 0%;
+    min-width: 0;
+    text-align: center;
+    color: var(--color-ink-muted);
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 14px;
+}
+
+.spot-hours > span.is-now {
+    color: var(--color-fox-deep);
+    font-weight: 800;
+}
+
+@media (min-width: 768px) {
+    .spot-chart-plot {
+        height: 248px;
+    }
+
+    .spot-value {
+        display: block;
+    }
+
+    .spot-now {
+        font-size: 15px;
+        line-height: 18px;
+    }
+
+    .spot-rank-star.is-above-now {
+        margin-bottom: 34px;
+    }
+
+    .spot-hours > span {
+        font-size: 12px;
+        line-height: 16px;
+    }
+}
+
+/* Forecast days: small charts in three columns, no value labels. */
+.spot-forecast-days {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 32px 44px;
+}
+
+@media (min-width: 768px) {
+    .spot-forecast-days {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1024px) {
+    .spot-forecast-days {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+.spot-day--mini .spot-chart-plot {
+    height: 96px;
+    margin-top: 16px;
+}
+
+.spot-day--mini .spot-bar {
+    left: 18%;
+    right: 18%;
+    border-radius: 3px 3px 1px 1px;
+}
+
+.spot-day--mini .spot-hours > span {
+    font-size: 11px;
+    line-height: 14px;
+    overflow: visible;
+}
+
+/* Quarter-hour detail under a day: no box, inked hairlines above and below. */
+.spot-detail {
+    margin-top: 6px;
+    padding: 16px 0;
+    border-top: 1.5px solid var(--color-edge-strong);
+    border-bottom: 1.5px solid var(--color-edge-strong);
+}
+
+.spot-quarter-track {
+    position: relative;
+    flex: 1 1 0%;
+    height: 14px;
+}
+
+.spot-quarter-zero {
+    position: absolute;
+    top: -2px;
+    bottom: -2px;
+    width: 1.5px;
+    background: var(--color-ink);
+}
+
+.spot-quarter-bar {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-radius: 2px;
+}
+
+/* ---------- History ---------- */
+
+.spot-year-track {
+    display: flex;
+    flex: 1 1 0%;
+    height: 14px;
+    border-radius: 999px;
+    background: var(--spot-year-track);
+    overflow: hidden;
+}
+
+.spot-year-bar {
+    display: block;
+    height: 14px;
+    border-radius: 999px;
+}
+
+/* ---------- FAQ ---------- */
+
+.spot-faq {
+    border-top: 1.5px solid var(--color-edge);
+}
+
+.spot-faq-row {
+    border-bottom: 1.5px solid var(--color-edge);
+}

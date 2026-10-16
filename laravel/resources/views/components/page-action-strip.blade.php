@@ -1,11 +1,15 @@
 @props([
-    'title' => 'Löydä Voltikka helpommin',
-    'description' => 'Valitse Voltikka suosikkilähteeksi Google-haussa, niin löydät sisältömme helpommin.',
+    'title' => 'Kiinnitä Voltikka Google-hakuusi',
+    'description' => 'Valitse Voltikka suosikkilähteeksi, niin näet sähkön hinnat ja vertailumme Google-haussa useammin.',
 ])
+
+@php
+    use App\Support\Season;
+@endphp
 
 <section
     data-page-action-strip
-    {{ $attributes->class('border-y border-slate-200 bg-white') }}
+    {{ $attributes }}
     x-data="{
         preferredSourceReady: false,
         preferredSourceLoadFailed: false,
@@ -55,60 +59,98 @@
         },
     }"
 >
-    <div class="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
-        <div class="max-w-2xl">
-            <h2 class="text-lg font-bold text-slate-900">{{ $title }}</h2>
-            <p class="mt-1 text-sm leading-6 text-slate-600">{{ $description }}</p>
-        </div>
+    {{--
+        Paper "R3 · Strip" boards (page "Round 3 · revisions"): the Preferred Sources strip.
+        Desktop: one centred row of villagers at the notice board (season art), title + text, and
+        a pinned paper note. Below 1024: no art, only the text and the note. The note is the real
+        button; its torn bottom edge (CSS ::after, redesign-shell.css) matches the paper bill form.
+        The strip is not contract or price data, so the villagers may stand here. Not lazy: the
+        art is near the fold.
+    --}}
+    <div class="vk-wrap vk-strip-wrap">
+        <div class="vk-strip-row">
+            {{-- Desktop only. Below 1024 the media source does not match, so the img keeps its
+                 1×1 data URI and the art never downloads; CSS hides the picture there. --}}
+            <picture class="vk-strip-art">
+                <source
+                    media="(min-width: 1024px)"
+                    srcset="{{ Season::art('noticeboard', 560) }} 560w, {{ Season::art('noticeboard') }} 1120w"
+                    sizes="384px"
+                >
+                <img
+                    src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="
+                    width="384"
+                    height="150"
+                    alt=""
+                    decoding="async"
+                >
+            </picture>
 
-        <div class="flex shrink-0 flex-wrap items-center gap-3">
-            <button
-                data-google-preferred-source-action
-                type="button"
-                disabled
-                x-show="!preferredSourceLoadFailed"
-                x-on:click="addPreferredSource()"
-                x-bind:disabled="!preferredSourceReady"
-                x-bind:aria-busy="preferredSourceReady ? 'false' : 'true'"
-                class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-coral-500 focus:ring-offset-2 disabled:cursor-wait disabled:bg-slate-200 disabled:text-slate-500"
-            >
-                <span x-show="!preferredSourceReady" class="inline-flex items-center gap-2">
-                    <x-spinner size="h-4 w-4" color="text-slate-500" />
-                    Ladataan Google-toimintoa
-                </span>
-                <span x-show="preferredSourceReady" x-cloak class="inline-flex items-center gap-2">
-                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14m-7-7h14"></path>
-                    </svg>
-                    Valitse suosikkilähteeksi
-                </span>
-            </button>
-            <a
-                data-google-preferred-source-fallback
-                href="https://www.google.com/preferences/source?q=voltikka.fi"
-                target="_blank"
-                rel="noopener noreferrer"
-                x-show="preferredSourceLoadFailed"
-                x-cloak
-                x-on:click="trackPreferredSourceClick()"
-                class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-coral-500 focus:ring-offset-2"
-            >
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14m-7-7h14"></path>
-                </svg>
-                Valitse suosikkilähteeksi
-            </a>
-            <noscript>
+            <div class="vk-strip-body">
+                <h2 class="vk-strip-title">{{ $title }}</h2>
+                <p class="vk-strip-text">{{ $description }}</p>
+            </div>
+
+            <div class="vk-strip-actions">
+                <button
+                    data-google-preferred-source-action
+                    type="button"
+                    disabled
+                    x-show="!preferredSourceLoadFailed"
+                    x-on:click="addPreferredSource()"
+                    x-bind:disabled="!preferredSourceReady"
+                    x-bind:aria-busy="preferredSourceReady ? 'false' : 'true'"
+                    class="vk-strip-note vk-focus"
+                >
+                    <span class="vk-strip-note-paper">
+                        <span class="vk-strip-note-pin" aria-hidden="true"></span>
+                        <span x-show="!preferredSourceReady" class="vk-strip-note-label vk-strip-action-loading">
+                            <x-spinner size="h-[18px] w-[18px]" color="text-ink-muted" />
+                            Ladataan Google-toimintoa
+                        </span>
+                        <span x-show="preferredSourceReady" x-cloak class="vk-strip-note-label">
+                            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true" focusable="false" class="shrink-0"><path d="M9 3v12M3 9h12" stroke="var(--color-fox)" stroke-width="2.6" stroke-linecap="round" /></svg>
+                            Valitse suosikkilähteeksi
+                        </span>
+                    </span>
+                </button>
                 <a
+                    data-google-preferred-source-fallback
                     href="https://www.google.com/preferences/source?q=voltikka.fi"
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="text-sm font-semibold text-slate-700 underline decoration-slate-300 underline-offset-4 hover:text-coral-700"
+                    x-show="preferredSourceLoadFailed"
+                    x-cloak
+                    x-on:click="trackPreferredSourceClick()"
+                    class="vk-strip-note vk-focus"
                 >
-                    Valitse suosikkilähteeksi
+                    <span class="vk-strip-note-paper">
+                        <span class="vk-strip-note-pin" aria-hidden="true"></span>
+                        <span class="vk-strip-note-label">
+                            Valitse suosikkilähteeksi
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" focusable="false" class="shrink-0"><path d="M4 10 10 4M5 4h5v5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                        </span>
+                    </span>
                 </a>
-            </noscript>
-            {{ $slot }}
+                <noscript>
+                    <a
+                        href="https://www.google.com/preferences/source?q=voltikka.fi"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="vk-strip-note vk-focus"
+                    >
+                        <span class="vk-strip-note-paper">
+                            <span class="vk-strip-note-pin" aria-hidden="true"></span>
+                            <span class="vk-strip-note-label">
+                                Valitse suosikkilähteeksi
+                                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" focusable="false" class="shrink-0"><path d="M4 10 10 4M5 4h5v5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                            </span>
+                        </span>
+                    </a>
+                </noscript>
+                <p class="vk-strip-small">Google avaa valinnan. Valinta on maksuton.</p>
+                {{ $slot }}
+            </div>
         </div>
     </div>
 </section>

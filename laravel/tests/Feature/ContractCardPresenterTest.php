@@ -344,6 +344,28 @@ class ContractCardPresenterTest extends TestCase
         $this->assertContains('Ei sisällä kulutusvaikutusta', array_map(fn ($w) => $w->text, $card->warnings));
     }
 
+    public function test_the_view_carries_the_filter_bucket_that_splits_the_market_category(): void
+    {
+        // The ledger entry draws the bucket glyph, so spot and a periodic reset must stay
+        // apart although both bands are the Market category.
+        $spot = $this->present($this->contract(['pricing_model' => 'Spot']));
+        $reset = $this->present($this->contract([
+            'canonical_pricing' => $this->canonicalPricing(['present' => true, 'cadence' => 'quarterly']),
+        ]));
+        $effect = $this->present($this->contract(['pricing_model' => 'Hybrid']));
+        $fixed = $this->present($this->contract());
+
+        $this->assertSame(PricingBucket::Spot, $spot->bucket);
+        $this->assertSame(PricingBucket::MarketReset, $reset->bucket);
+        $this->assertSame(PricingCategory::Market, $reset->category);
+        $this->assertSame(PricingBucket::ConsumptionEffect, $effect->bucket);
+        $this->assertSame(PricingBucket::Fixed, $fixed->bucket);
+
+        foreach ([$spot, $reset, $effect, $fixed] as $card) {
+            $this->assertSame($card->category, $card->bucket->category());
+        }
+    }
+
     public function test_plain_fixed_contract_states_its_duration(): void
     {
         $openEnded = $this->present($this->contract());

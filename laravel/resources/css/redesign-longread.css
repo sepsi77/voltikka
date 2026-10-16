@@ -1,0 +1,1668 @@
+/*
+ * Redesign styles owned by the "longread" area: /tietoa, /tietosuoja, /kayttoehdot, the two
+ * articles (/sahkosopimus/kannattaako-porssisahko, /sahkosopimus/kannattaako-maaraaikainen)
+ * and the 404 page. Values: Paper page "Pages · group F" (boards 49Y-0, 38P-0, 6HX-0, AO6-0,
+ * seasons EDN-0), read with get_jsx. See tasks/redesign-implementation/agent-brief.md.
+ *
+ * Long-read pattern (design spec §5): a numbered section list at the left, a reading column
+ * at 18/30, display headings with a wavy fox underline, sparkle bullets, a drop cap, pull
+ * quotes in Bricolage and charts with an inked baseline. No cards, panels or pills.
+ */
+
+:root {
+    /* Paper 49Y-0 "Cabin hero": the warm lamp glow behind the desk fox on the night band. */
+    --lr-tietoa-glow: radial-gradient(circle farthest-corner at 74% 62% in oklab, oklab(78.5% 0.041 0.121 / 42%) 0%, oklab(78.5% 0.041 0.121 / 12%) 30%, oklab(25% -0.007 -0.051 / 0%) 52%);
+    /* Paper 38P-0 "Quiet hero": night under the sky plate, and the left-to-right navy shade. */
+    --lr-legal-night: #1B2A4A;
+    --lr-legal-shade: linear-gradient(90deg in oklab, oklab(25% -0.007 -0.051 / 78%) 0%, oklab(25% -0.007 -0.051 / 45%) 55%, oklab(25% -0.007 -0.051 / 0%) 100%);
+    /* Paper AO6-0 / EDN-0 "Sky shade (behind text)": an oval of shade behind the 404 text plus a
+       band behind the top bar. Navy on the dark (winter, autumn) plates, ground on the bright
+       (spring, summer) plates. The dark oval is a little larger and stronger than on the board
+       (74/40 %): the lead line sits on the light lake of the autumn plate (spec §8, 4.5:1). The
+       light band behind the top bar holds longer: the nav crosses dark spruces on the summer plate. */
+    --lr-404-night: #3A4A78;
+    --lr-404-shade-dark: radial-gradient(ellipse 64% 62% at 23% 33% in oklab, oklab(25% -0.007 -0.051 / 80%) 0%, oklab(25% -0.007 -0.051 / 55%) 50%, oklab(25% -0.007 -0.051 / 0%) 100%), linear-gradient(180deg in oklab, oklab(25% -0.007 -0.051 / 70%) 0%, oklab(25% -0.007 -0.051 / 0%) 15%, oklab(25% -0.007 -0.051 / 0%) 100%);
+    --lr-404-shade-light: radial-gradient(ellipse 40% 44% at 20% 38% in oklab, oklab(97.1% -0.003 0.006 / 82%) 0%, oklab(97.1% -0.003 0.006 / 50%) 55%, oklab(97.1% -0.003 0.006 / 0%) 100%), linear-gradient(180deg in oklab, oklab(97.1% -0.003 0.006 / 86%) 0%, oklab(97.1% -0.003 0.006 / 72%) 9%, oklab(97.1% -0.003 0.006 / 0%) 16%, oklab(97.1% -0.003 0.006 / 0%) 100%);
+    /* Inked wavy underline under the e-mail reveal action. A data URI cannot read a CSS
+       variable: #C4501C = --color-fox. */
+    --lr-action-wave: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='9' viewBox='0 0 200 9' preserveAspectRatio='none'%3E%3Cpath d='M2 5 C 36 2, 76 8, 120 4 S 178 2, 198 5' fill='none' stroke='%23C4501C' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+/* ---------- Hero ---------- */
+
+.vk-lr-hero {
+    color: var(--tone-strong);
+}
+
+.vk-lr-hero-plate {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    object-fit: cover;
+}
+
+.vk-lr-hero-shade {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.vk-lr-hero-inner {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding-top: 96px;
+    padding-bottom: 56px;
+}
+
+.vk-lr-hero-text {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+}
+
+.vk-lr-hero-figure {
+    display: block;
+    align-self: flex-end;
+    height: auto;
+    max-width: 100%;
+}
+
+/* Kicker caps (Paper: Figtree 13/16 800, +0.12em). */
+.vk-lr-kicker {
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--tone-accent);
+}
+
+/* Poster H1 on the tietoa band (Paper 72/72 −0.04em). */
+.vk-lr-h1 {
+    font-family: var(--font-display);
+    font-weight: 800;
+    color: var(--tone-strong);
+    font-size: 44px;
+    line-height: 46px;
+    letter-spacing: -0.035em;
+}
+
+@media (min-width: 1024px) {
+    .vk-lr-hero-inner {
+        flex-direction: row;
+        align-items: flex-start;
+        justify-content: space-between;
+        padding-bottom: 0;
+        height: 100%;
+    }
+
+    .vk-lr-h1 {
+        font-size: 72px;
+        line-height: 72px;
+        letter-spacing: -0.04em;
+    }
+}
+
+/* tietoa: night band, lamp glow, desk fox at the right (Paper: band 540, text at 140, fox 540x405 at 96). */
+.vk-lr-hero--tietoa {
+    background-color: var(--color-night);
+    background-image: var(--lr-tietoa-glow);
+}
+
+.vk-lr-hero--tietoa .vk-lr-hero-text {
+    gap: 16px;
+}
+
+.vk-lr-hero--tietoa .vk-lr-hero-lead {
+    max-width: 600px;
+}
+
+.vk-lr-hero--tietoa .vk-lr-hero-figure {
+    width: min(100%, 360px);
+    margin-right: -8px;
+}
+
+@media (min-width: 1024px) {
+    .vk-lr-hero--tietoa {
+        height: 540px;
+    }
+
+    .vk-lr-hero--tietoa .vk-lr-hero-text {
+        max-width: min(640px, 54%);
+        padding-top: 56px;
+    }
+
+    .vk-lr-hero--tietoa .vk-lr-hero-figure {
+        position: absolute;
+        right: -24px;
+        top: 96px;
+        width: clamp(380px, 38vw, 540px);
+        margin: 0;
+    }
+}
+
+/* legal: night-sky plate with a left shade, the sleeping fox at the right (Paper: band 360,
+   text 720 wide at 118, fox 480x184 at 840/160). */
+.vk-lr-hero--legal {
+    background-color: var(--lr-legal-night);
+}
+
+.vk-lr-hero--legal .vk-lr-hero-plate {
+    object-position: 50% 30%;
+}
+
+.vk-lr-hero--legal .vk-lr-hero-shade {
+    background-image: var(--lr-legal-shade);
+}
+
+.vk-lr-hero--legal .vk-lr-hero-figure {
+    width: min(100%, 320px);
+}
+
+@media (min-width: 1024px) {
+    .vk-lr-hero--legal {
+        height: 360px;
+    }
+
+    .vk-lr-hero--legal .vk-lr-hero-text {
+        max-width: 720px;
+        padding-top: 22px;
+    }
+
+    .vk-lr-hero--legal .vk-lr-hero-figure {
+        position: absolute;
+        right: 16px;
+        top: 160px;
+        width: clamp(340px, 34vw, 480px);
+    }
+}
+
+/* article: editorial header on the page ground (Paper "Editorial hero (fireside)": 500 high,
+   kicker + 92/88 H1 with a 5px fox wave + 20/32 lead at 72; fox 560x420 at 830/40). */
+.vk-lr-hero--article .vk-lr-hero-inner {
+    padding-top: 40px;
+    padding-bottom: 12px;
+}
+
+.vk-lr-hero--article .vk-lr-hero-text {
+    gap: 18px;
+}
+
+.vk-lr-hero--article .vk-lr-hero-figure {
+    width: min(100%, 340px);
+}
+
+.vk-lr-title {
+    font-family: var(--font-display);
+    font-weight: 800;
+    color: var(--color-ink);
+    font-size: 46px;
+    line-height: 48px;
+    letter-spacing: -0.04em;
+}
+
+.vk-lr-title-wave {
+    margin-top: 4px;
+    max-width: 100%;
+}
+
+.vk-lr-hero-lead {
+    max-width: 640px;
+    font-size: 18px;
+    line-height: 29px;
+    font-weight: 500;
+    color: var(--tone-lead);
+}
+
+@media (min-width: 1024px) {
+    .vk-lr-hero--article .vk-lr-hero-inner {
+        min-height: 500px;
+        padding-top: 72px;
+        padding-bottom: 40px;
+    }
+
+    .vk-lr-hero--article .vk-lr-hero-text {
+        max-width: min(700px, 58%);
+    }
+
+    .vk-lr-hero--article .vk-lr-hero-figure {
+        position: absolute;
+        right: -50px;
+        top: 40px;
+        width: clamp(380px, 38vw, 560px);
+    }
+
+    .vk-lr-title {
+        font-size: 92px;
+        line-height: 88px;
+        letter-spacing: -0.045em;
+    }
+
+    /* The fixed-term title is longer: one size down keeps it to three lines next to the fox. */
+    .vk-lr-title--long {
+        font-size: 64px;
+        line-height: 64px;
+        letter-spacing: -0.04em;
+    }
+
+    .vk-lr-hero-lead {
+        font-size: 20px;
+        line-height: 32px;
+    }
+}
+
+/* 404: the full forest plate; text on an oval of shade (Paper: band 810, text 640 wide at 120). */
+.vk-lr-hero--404 {
+    background-color: var(--lr-404-night);
+    min-height: 620px;
+}
+
+.vk-lr-hero--404 .vk-lr-hero-plate {
+    object-position: 72% 60%;
+}
+
+.vk-lr-hero--404.vk-tone-dark .vk-lr-hero-shade {
+    background-image: var(--lr-404-shade-dark);
+}
+
+.vk-lr-hero--404.vk-tone-light .vk-lr-hero-shade {
+    background-image: var(--lr-404-shade-light);
+}
+
+.vk-lr-hero--404 .vk-lr-hero-text {
+    max-width: 640px;
+}
+
+.vk-lr-404 {
+    font-family: var(--font-display);
+    font-weight: 800;
+    color: var(--tone-strong);
+    font-size: 112px;
+    line-height: 100px;
+    letter-spacing: -0.05em;
+}
+
+@media (max-width: 1023px) {
+    /* Phone: a cover crop put the fox behind the text. The text sits on a plain band in the
+       sky colour, and the plate follows below it, faded in at its top, so the fox stays whole. */
+    .vk-lr-hero--404 {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+
+    .vk-lr-hero--404.vk-tone-light {
+        background-color: var(--color-ground);
+    }
+
+    .vk-lr-hero--404 .vk-lr-hero-plate {
+        position: relative;
+        inset: auto;
+        order: 2;
+        height: auto;
+        aspect-ratio: 4 / 3;
+        margin-top: -8px;
+        object-position: 74% 62%;
+        -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 28%);
+        mask-image: linear-gradient(180deg, transparent 0%, #000 28%);
+    }
+
+    .vk-lr-hero--404 .vk-lr-hero-shade {
+        display: none;
+    }
+
+    .vk-lr-hero--404 .vk-lr-hero-inner {
+        order: 1;
+        padding-bottom: 8px;
+    }
+}
+
+@media (min-width: 1024px) {
+    .vk-lr-hero--404 {
+        height: clamp(620px, 86vh, 810px);
+    }
+
+    .vk-lr-hero--404 .vk-lr-hero-plate {
+        object-position: 50% 50%;
+    }
+
+    .vk-lr-hero--404 .vk-lr-hero-text {
+        padding-top: 24px;
+    }
+
+    .vk-lr-404 {
+        font-size: 168px;
+        line-height: 150px;
+    }
+}
+
+/* ---------- Page column ---------- */
+
+.vk-lr-page {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    padding-top: 20px;
+    padding-bottom: 72px;
+    color: var(--color-ink-body);
+}
+
+.vk-lr-page .vk-crumbs ol {
+    font-size: var(--text-caption);
+    line-height: 18px;
+}
+
+/* Two columns from a laptop up: the section list and the reading column. */
+.vk-lr-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+}
+
+@media (min-width: 1024px) {
+    .vk-lr-layout {
+        display: grid;
+        grid-template-columns: 260px minmax(0, 700px);
+        column-gap: clamp(48px, 7vw, 112px);
+        align-items: start;
+        padding-top: 12px;
+    }
+
+    .vk-lr-layout--article {
+        grid-template-columns: 300px minmax(0, 860px);
+        column-gap: clamp(40px, 5vw, 72px);
+        padding-top: 20px;
+    }
+
+    /* An article lead (the drop-cap short answer) comes before the section list in the reading
+       order; the grid still draws the list at the left, beside both the lead and the body. */
+    .vk-lr-layout:has(> .vk-lr-lead) {
+        grid-template-rows: auto 1fr;
+        row-gap: 56px;
+    }
+
+    .vk-lr-layout > .vk-lr-lead {
+        grid-column: 2;
+        grid-row: 1;
+    }
+
+    .vk-lr-layout:has(> .vk-lr-lead) > .vk-lr-toc {
+        grid-column: 1;
+        grid-row: 1 / span 2;
+    }
+
+    .vk-lr-layout:has(> .vk-lr-lead) > .vk-lr-article {
+        grid-column: 2;
+        grid-row: 2;
+    }
+}
+
+/* ---------- Section list ---------- */
+
+.vk-lr-toc {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+@media (min-width: 1024px) {
+    .vk-lr-toc {
+        position: sticky;
+        top: 24px;
+        padding-top: 6px;
+    }
+}
+
+.vk-lr-toc-title {
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 800;
+    letter-spacing: var(--tracking-caps);
+    text-transform: uppercase;
+    color: var(--color-fox-deep);
+}
+
+.vk-lr-toc-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.vk-lr-toc-link {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    color: var(--color-ink-body);
+}
+
+.vk-lr-toc-num {
+    flex-shrink: 0;
+    width: 22px;
+    font-family: var(--font-display);
+    font-size: 18px;
+    line-height: 22px;
+    font-weight: 800;
+    color: var(--color-ink-muted);
+}
+
+.vk-lr-toc-text {
+    font-size: var(--text-ui);
+    line-height: 22px;
+    font-weight: 700;
+}
+
+.vk-lr-toc-link:hover .vk-lr-toc-text,
+.vk-lr-toc-link.is-active .vk-lr-toc-text {
+    color: var(--color-ink);
+    font-weight: 800;
+    text-decoration: underline 1px var(--color-fox);
+    text-underline-offset: 4px;
+}
+
+.vk-lr-toc-link.is-active .vk-lr-toc-num {
+    color: var(--color-fox-deep);
+}
+
+.vk-lr-toc-note {
+    padding-top: 10px;
+    font-size: var(--text-caption);
+    line-height: 18px;
+    color: var(--color-ink-muted);
+}
+
+/* ---------- Reading column ---------- */
+
+.vk-lr-article {
+    display: flex;
+    flex-direction: column;
+    gap: 44px;
+    min-width: 0;
+}
+
+.vk-lr-article--wide {
+    gap: 56px;
+}
+
+.vk-lr-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    scroll-margin-top: 24px;
+}
+
+/* Running text (Paper 18/30 ink-body; 17/28 on a phone). Max 700. */
+.vk-lr-text {
+    max-width: 700px;
+    font-size: 17px;
+    line-height: 28px;
+    color: var(--color-ink-body);
+}
+
+.vk-lr-text strong,
+.vk-lr-text b {
+    font-weight: 700;
+    color: var(--color-ink);
+}
+
+.vk-lr-text code {
+    font-size: 0.92em;
+    color: var(--color-ink);
+}
+
+@media (min-width: 1024px) {
+    .vk-lr-text {
+        font-size: 18px;
+        line-height: 30px;
+    }
+}
+
+/* Smaller running text next to a chart (Paper "Figure notes": 17/28). */
+.vk-lr-text--small {
+    font-size: 16px;
+    line-height: 26px;
+}
+
+@media (min-width: 1024px) {
+    .vk-lr-text--small {
+        font-size: 17px;
+        line-height: 28px;
+    }
+}
+
+/* Lead under the hero on the legal pages (Paper 21/33 500 ink). */
+.vk-lr-intro {
+    max-width: 700px;
+    font-size: 19px;
+    line-height: 30px;
+    font-weight: 500;
+    color: var(--color-ink);
+}
+
+@media (min-width: 1024px) {
+    .vk-lr-intro {
+        font-size: 21px;
+        line-height: 33px;
+    }
+}
+
+/* Sub heading inside a section (Paper Bricolage 22/28 ink). */
+.vk-lr-h3 {
+    padding-top: 12px;
+    font-family: var(--font-display);
+    font-size: var(--text-title);
+    line-height: 28px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--color-ink);
+}
+
+/* A sub heading with a category glyph at its left (Paper "Pörssisähkön arviot"). */
+.vk-lr-glyph-heading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-top: 12px;
+}
+
+.vk-lr-glyph-heading .vk-lr-h3 {
+    padding-top: 0;
+}
+
+.vk-lr-subsection {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+/* Sparkle bullets (Paper: "✦" Bricolage 16 fox, gap 14). */
+.vk-lr-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 700px;
+}
+
+.vk-lr-list > li {
+    position: relative;
+    padding-left: 30px;
+}
+
+.vk-lr-list > li::before {
+    content: "✦";
+    position: absolute;
+    left: 2px;
+    top: 0;
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--lr-bullet, var(--color-fox));
+}
+
+.vk-lr-list--spot {
+    --lr-bullet: var(--color-cat-spot);
+}
+
+.vk-lr-list--fixed {
+    --lr-bullet: var(--color-cat-fixed);
+}
+
+/* Numbered list with big category numerals (Paper §1 "Mikä on pörssisähkö?"). */
+.vk-lr-numlist {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 700px;
+    counter-reset: lr-num;
+}
+
+.vk-lr-numlist > li {
+    position: relative;
+    padding-left: 44px;
+    counter-increment: lr-num;
+}
+
+.vk-lr-numlist > li::before {
+    content: counter(lr-num);
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 28px;
+    font-family: var(--font-display);
+    font-size: 28px;
+    line-height: 30px;
+    font-weight: 800;
+    color: var(--lr-num, var(--color-cat-spot));
+}
+
+/* Drop cap on the first paragraph (spec "Long reads"; Paper "Lyhyt vastaus (drop cap)"). */
+.vk-lr-dropcap {
+    max-width: 760px;
+    font-size: 18px;
+    line-height: 30px;
+    font-weight: 500;
+    color: var(--color-ink);
+}
+
+.vk-lr-dropcap::first-letter {
+    float: left;
+    margin: 4px 14px 0 -2px;
+    font-family: var(--font-display);
+    font-size: 84px;
+    line-height: 70px;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    color: var(--color-fox);
+}
+
+@media (min-width: 1024px) {
+    .vk-lr-dropcap {
+        font-size: 20px;
+        line-height: 32px;
+    }
+
+    .vk-lr-dropcap::first-letter {
+        margin: 2px 16px 0 -2px;
+        font-size: 112px;
+        line-height: 92px;
+    }
+}
+
+/* Pull quote in Bricolage (Paper "Pull quote": 96 fox quote mark, 36/42 text, 3.5 wave). */
+.vk-lr-quote {
+    display: flex;
+    gap: 14px;
+    max-width: 760px;
+    padding: 14px 0 10px;
+}
+
+.vk-lr-quote-mark {
+    flex-shrink: 0;
+    font-family: var(--font-display);
+    font-size: 72px;
+    line-height: 60px;
+    font-weight: 800;
+    color: var(--color-fox);
+}
+
+.vk-lr-quote-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-top: 6px;
+    min-width: 0;
+}
+
+.vk-lr-quote-text {
+    font-family: var(--font-display);
+    font-size: 24px;
+    line-height: 31px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--color-ink);
+}
+
+.vk-lr-quote-text--lg {
+    font-size: 28px;
+    line-height: 34px;
+}
+
+.vk-lr-quote-after {
+    font-size: 17px;
+    line-height: 26px;
+    font-weight: 700;
+    color: var(--color-fox-deep);
+}
+
+@media (min-width: 1024px) {
+    .vk-lr-quote {
+        gap: 18px;
+    }
+
+    .vk-lr-quote-mark {
+        font-size: 96px;
+        line-height: 80px;
+    }
+
+    .vk-lr-quote-text {
+        font-size: 30px;
+        line-height: 38px;
+    }
+
+    .vk-lr-quote-text--lg {
+        font-size: 36px;
+        line-height: 42px;
+        letter-spacing: -0.025em;
+    }
+}
+
+/* Inked formula between two hairlines (Paper "Formula (inked)"). */
+.vk-lr-formula {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 700px;
+    padding: 22px 0 24px;
+    border-top: 1.5px solid var(--color-edge);
+    border-bottom: 1.5px solid var(--color-edge);
+    font-family: var(--font-display);
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+.vk-lr-formula-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 10px;
+    font-size: 21px;
+    line-height: 28px;
+}
+
+.vk-lr-formula-row + .vk-lr-formula-row {
+    padding-left: 28px;
+}
+
+.vk-lr-formula-head {
+    font-size: 26px;
+    line-height: 32px;
+    letter-spacing: -0.02em;
+    color: var(--color-fox-deep);
+}
+
+.vk-lr-formula-unit {
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 22px;
+    font-weight: 700;
+    color: var(--color-ink-muted);
+}
+
+.vk-lr-formula-op {
+    color: var(--color-fox);
+}
+
+@media (min-width: 1024px) {
+    .vk-lr-formula-row {
+        font-size: 26px;
+        line-height: 34px;
+    }
+
+    .vk-lr-formula-head {
+        font-size: 30px;
+        line-height: 36px;
+    }
+
+    .vk-lr-formula-unit {
+        font-size: 15px;
+    }
+}
+
+/* Small muted note (captions, sources, update dates). */
+.vk-lr-note {
+    max-width: 760px;
+    font-size: 14px;
+    line-height: 21px;
+    color: var(--color-ink-muted);
+}
+
+.vk-lr-updated {
+    font-size: var(--text-ui);
+    line-height: 22px;
+    font-weight: 700;
+    color: var(--color-ink-muted);
+}
+
+/* The click-to-reveal e-mail as an inked action (Paper: Bricolage 18–20 fox-deep + 2.6 wave). */
+.vk-lr-email {
+    display: inline-block;
+    padding-bottom: 8px;
+    font-family: var(--font-display);
+    font-size: 18px;
+    line-height: 24px;
+    font-weight: 800;
+    color: var(--color-fox-deep);
+    background-image: var(--lr-action-wave);
+    background-repeat: no-repeat;
+    background-position: left bottom;
+    background-size: 100% 9px;
+}
+
+.vk-lr-email:hover {
+    color: var(--color-ink);
+}
+
+.vk-lr-email:focus-visible {
+    outline: 2px solid var(--color-fox);
+    outline-offset: 3px;
+    border-radius: 2px;
+}
+
+/* ---------- Fact numerals (/tietoa, Paper "Fact numerals") ---------- */
+
+.vk-lr-facts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px 20px;
+    padding: 20px 0 22px;
+    border-top: 1.5px solid var(--color-edge);
+    border-bottom: 1.5px solid var(--color-edge);
+}
+
+.vk-lr-fact {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.vk-lr-fact-value {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    font-family: var(--font-display);
+    font-size: 48px;
+    line-height: 48px;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    color: var(--color-ink);
+    white-space: nowrap;
+}
+
+.vk-lr-fact-value--fox {
+    color: var(--color-fox-deep);
+}
+
+.vk-lr-fact-prefix {
+    font-family: var(--font-sans);
+    font-size: 18px;
+    line-height: 24px;
+    font-weight: 800;
+    letter-spacing: 0;
+    color: var(--color-ink-muted);
+}
+
+.vk-lr-fact-label {
+    font-size: 14px;
+    line-height: 19px;
+    font-weight: 700;
+    color: var(--color-ink-body);
+}
+
+/* The hand-drawn fox loop around "0 €". */
+.vk-lr-fact-loop {
+    position: absolute;
+    left: -16px;
+    top: -10px;
+    width: 116px;
+    height: 68px;
+    pointer-events: none;
+}
+
+@media (min-width: 768px) {
+    .vk-lr-facts {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 24px;
+        padding: 22px 0 26px;
+    }
+}
+
+@media (min-width: 1024px) {
+    .vk-lr-fact-value {
+        font-size: 72px;
+        line-height: 70px;
+    }
+
+    .vk-lr-fact-prefix {
+        font-size: 22px;
+        line-height: 28px;
+    }
+
+    .vk-lr-fact-label {
+        font-size: var(--text-ui);
+        line-height: 20px;
+    }
+
+    .vk-lr-fact-loop {
+        left: -22px;
+        top: -12px;
+        width: 150px;
+        height: 88px;
+    }
+}
+
+/* ---------- Article: market scoreboard (Paper "Markkinatilanne nyt") ---------- */
+
+.vk-lr-score {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 26px 0 24px;
+    border-top: 2px solid var(--color-ink);
+    border-bottom: 1.5px solid var(--color-edge);
+    scroll-margin-top: 24px;
+}
+
+.vk-lr-score-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 24px 40px;
+}
+
+.vk-lr-score-item {
+    display: flex;
+    align-items: flex-end;
+    gap: 14px;
+    min-width: 0;
+}
+
+.vk-lr-score-figure {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.vk-lr-score-label {
+    font-size: var(--text-ui);
+    line-height: 20px;
+    font-weight: 800;
+}
+
+.vk-lr-score-value {
+    font-family: var(--font-display);
+    font-size: 44px;
+    line-height: 46px;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    color: var(--color-ink);
+    white-space: nowrap;
+}
+
+.vk-lr-score-sub {
+    font-size: 14px;
+    line-height: 18px;
+    color: var(--color-ink-muted);
+}
+
+.vk-lr-score-vs {
+    padding-bottom: 20px;
+    font-family: var(--font-display);
+    font-size: 32px;
+    line-height: 46px;
+    font-weight: 800;
+    color: var(--color-edge-strong);
+}
+
+.vk-lr-score-diff {
+    padding-left: 24px;
+}
+
+.vk-lr-score-loop {
+    position: absolute;
+    left: 0;
+    top: 10px;
+    width: calc(100% + 32px);
+    height: 66px;
+    pointer-events: none;
+}
+
+@media (max-width: 767px) {
+    .vk-lr-score-vs {
+        display: none;
+    }
+}
+
+@media (min-width: 1024px) {
+    .vk-lr-score-row {
+        flex-wrap: nowrap;
+        gap: 72px;
+    }
+
+    .vk-lr-score-value {
+        font-size: 64px;
+        line-height: 62px;
+    }
+
+    .vk-lr-score-vs {
+        font-size: 40px;
+        line-height: 62px;
+    }
+
+    .vk-lr-score-loop {
+        height: 76px;
+        top: 14px;
+    }
+}
+
+/* ---------- Figures (charts inside an article) ---------- */
+
+.vk-lr-figure {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-width: 860px;
+    scroll-margin-top: 24px;
+}
+
+.vk-lr-figure-head {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.vk-lr-figure-kicker {
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-fox-deep);
+}
+
+/* Headline figures above a chart (Paper "Stat row": 13 label 800 muted, 32/36 value). */
+.vk-lr-stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px 24px;
+    padding: 14px 0 6px;
+}
+
+.vk-lr-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.vk-lr-stat dt {
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 800;
+    color: var(--color-ink-muted);
+}
+
+.vk-lr-stat dd {
+    font-family: var(--font-display);
+    font-size: 26px;
+    line-height: 32px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--lr-stat, var(--color-ink));
+    white-space: nowrap;
+}
+
+.vk-lr-stat-unit {
+    font-size: 0.8em;
+}
+
+.vk-lr-stat-sub {
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    color: var(--color-ink-muted);
+}
+
+.vk-lr-stat--low {
+    --lr-stat: var(--color-saving);
+}
+
+.vk-lr-stat--high {
+    --lr-stat: var(--color-price-high);
+}
+
+.vk-lr-stat--lake {
+    --lr-stat: var(--color-lake);
+}
+
+@media (min-width: 768px) {
+    .vk-lr-stats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px 40px;
+    }
+}
+
+/* One row on a laptop (Paper: up to five figures across 860); long labels wrap, values do not. */
+@media (min-width: 1024px) {
+    .vk-lr-stats {
+        flex-wrap: nowrap;
+        justify-content: space-between;
+        gap: 24px;
+    }
+
+    .vk-lr-stat {
+        flex: 0 1 auto;
+    }
+
+    .vk-lr-stat dd {
+        font-size: 30px;
+        line-height: 36px;
+    }
+}
+
+@media (min-width: 1280px) {
+    .vk-lr-stat dd {
+        font-size: 32px;
+    }
+}
+
+/* Chart legend (Paper "Legend": 14/18 700 ink-body, 18px swatches, gap 22). */
+.vk-lr-legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 22px;
+    font-size: 14px;
+    line-height: 18px;
+    font-weight: 700;
+    color: var(--color-ink-body);
+}
+
+.vk-lr-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.vk-lr-legend-unit {
+    color: var(--color-ink-muted);
+}
+
+.vk-lr-swatch {
+    display: inline-block;
+    flex-shrink: 0;
+    width: 18px;
+    height: 12px;
+    border-radius: var(--radius-swatch);
+    background: var(--lr-swatch, var(--color-ink));
+}
+
+.vk-lr-swatch--line {
+    height: 3px;
+    border-radius: 0;
+}
+
+.vk-lr-swatch--dash {
+    height: 0;
+    border-top: 3px dashed var(--lr-swatch, var(--color-ink-muted));
+    background: none;
+}
+
+.vk-lr-swatch--dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+}
+
+.vk-lr-swatch--band {
+    opacity: 0.3;
+}
+
+/* Chart.js canvases sit on the page ground; the inked baseline is drawn by the chart. */
+.vk-lr-chart {
+    position: relative;
+    width: 100%;
+}
+
+/* "Näytä tiedot taulukkona" disclosure (Paper: 15/20 800 ink + chevron). */
+.vk-lr-details {
+    max-width: 860px;
+}
+
+.vk-lr-details > summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    list-style: none;
+    font-size: var(--text-ui);
+    line-height: 20px;
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+.vk-lr-details > summary::-webkit-details-marker {
+    display: none;
+}
+
+.vk-lr-details > summary::after {
+    content: "";
+    width: 9px;
+    height: 9px;
+    margin: -4px 0 0 4px;
+    border-right: 1.8px solid currentColor;
+    border-bottom: 1.8px solid currentColor;
+    transform: rotate(45deg);
+    transition: transform 150ms ease;
+}
+
+.vk-lr-details[open] > summary::after {
+    margin-top: 4px;
+    transform: rotate(-135deg);
+}
+
+.vk-lr-details > summary:hover {
+    text-decoration: underline 1px var(--color-fox);
+    text-underline-offset: 4px;
+}
+
+.vk-lr-details > summary:focus-visible {
+    outline: 2px solid var(--color-fox);
+    outline-offset: 3px;
+    border-radius: 2px;
+}
+
+/* Data tables inside a disclosure: hairline rows, no boxes. */
+.vk-lr-table-wrap {
+    margin-top: 14px;
+    overflow-x: auto;
+}
+
+.vk-lr-table {
+    min-width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: 14px;
+    line-height: 20px;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-ink-body);
+}
+
+.vk-lr-table th,
+.vk-lr-table td {
+    padding: 8px 12px;
+    white-space: nowrap;
+}
+
+.vk-lr-table th:first-child,
+.vk-lr-table td:first-child {
+    padding-left: 0;
+}
+
+.vk-lr-table thead tr {
+    border-bottom: 1.5px solid var(--color-edge-strong);
+}
+
+.vk-lr-table thead th {
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+.vk-lr-table tbody tr {
+    border-bottom: 1px solid var(--color-edge);
+}
+
+.vk-lr-table tbody th {
+    font-weight: 700;
+    color: var(--color-ink);
+}
+
+.vk-lr-table .is-num {
+    text-align: right;
+}
+
+.vk-lr-table .is-strong {
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+/* Empty chart state: one plain line, no dashed box. */
+.vk-lr-empty {
+    padding: 18px 0;
+    border-top: 1.5px solid var(--color-edge);
+    border-bottom: 1.5px solid var(--color-edge);
+    font-size: var(--text-ui);
+    line-height: 22px;
+    color: var(--color-ink-muted);
+}
+
+/* Villager interlude inside the article column (Paper: 860 wide, 216 high, contain). */
+.vk-lr-interlude {
+    display: flex;
+    justify-content: center;
+}
+
+.vk-lr-interlude img {
+    width: min(860px, 100%);
+    height: auto;
+}
+
+/* "Kenelle sopii" / "Milloin kiinteä" side by side (Paper: 2px ink rule, two 406 columns). */
+.vk-lr-duo {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 40px;
+    padding-top: 26px;
+    border-top: 2px solid var(--color-ink);
+}
+
+.vk-lr-duo-col {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+}
+
+.vk-lr-duo .vk-lr-list {
+    font-size: 17px;
+    line-height: 28px;
+}
+
+.vk-lr-duo-title {
+    font-family: var(--font-display);
+    font-size: 26px;
+    line-height: 30px;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    color: var(--color-ink);
+}
+
+@media (min-width: 768px) {
+    .vk-lr-duo {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 48px;
+    }
+}
+
+@media (min-width: 1024px) {
+    .vk-lr-duo-title {
+        font-size: 30px;
+        line-height: 34px;
+    }
+}
+
+/* Summary steps with big fox numerals (Paper "§8 Yhteenveto"). */
+.vk-lr-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding-top: 6px;
+}
+
+.vk-lr-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.vk-lr-step-num {
+    flex-shrink: 0;
+    width: 40px;
+    font-family: var(--font-display);
+    font-size: 48px;
+    line-height: 46px;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    color: var(--color-fox);
+}
+
+.vk-lr-step-body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-width: 680px;
+    font-size: 17px;
+    line-height: 28px;
+    color: var(--color-ink-body);
+}
+
+.vk-lr-step-title {
+    font-family: var(--font-display);
+    font-size: 20px;
+    line-height: 26px;
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+@media (min-width: 1024px) {
+    .vk-lr-step {
+        gap: 20px;
+    }
+
+    .vk-lr-step-num {
+        width: 56px;
+        font-size: 64px;
+        line-height: 60px;
+    }
+
+    .vk-lr-step-title {
+        font-size: 21px;
+        line-height: 27px;
+    }
+}
+
+.vk-lr-steps-title {
+    font-family: var(--font-display);
+    font-size: var(--text-title);
+    line-height: var(--leading-title);
+    font-weight: 800;
+    color: var(--color-ink-body);
+}
+
+/* "Lue lisää" link row and the methodology byline (Paper "Lue lisää + ylläpito"). */
+.vk-lr-more {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding-top: 22px;
+    border-top: 1.5px solid var(--color-edge);
+}
+
+.vk-lr-more-title {
+    font-family: var(--font-display);
+    font-size: var(--text-title);
+    line-height: var(--leading-title);
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+.vk-lr-more-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 28px;
+}
+
+.vk-lr-more-links a {
+    font-size: var(--text-body);
+    line-height: 22px;
+    font-weight: 800;
+    color: var(--color-ink);
+    text-decoration: underline 1px var(--color-fox);
+    text-underline-offset: 5px;
+}
+
+.vk-lr-more-links a:hover {
+    color: var(--color-fox-deep);
+}
+
+/* ---------- Fixed-term article ---------- */
+
+/* Verdict block (replaces the grey summary box): an ink rule, a display verdict, bold lines. */
+.vk-lr-verdict {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 26px 0 24px;
+    border-top: 2px solid var(--color-ink);
+    border-bottom: 1.5px solid var(--color-edge);
+}
+
+.vk-lr-verdict-title {
+    max-width: 820px;
+    font-family: var(--font-display);
+    font-size: 28px;
+    line-height: 33px;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    color: var(--color-ink);
+}
+
+@media (min-width: 1024px) {
+    .vk-lr-verdict-title {
+        font-size: 36px;
+        line-height: 42px;
+    }
+}
+
+.vk-lr-dates {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 40px;
+    font-size: var(--text-ui);
+    line-height: 20px;
+}
+
+.vk-lr-dates dt {
+    font-weight: 700;
+    color: var(--tone-lead);
+}
+
+.vk-lr-dates dd {
+    margin-top: 2px;
+    font-family: var(--font-display);
+    font-size: 20px;
+    line-height: 24px;
+    font-weight: 800;
+    color: var(--tone-strong);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Rows separated by hairlines (risk table, durations, current prices, forecast, checklist). */
+.vk-lr-rows {
+    border-top: 1.5px solid var(--color-edge);
+}
+
+.vk-lr-rows > * {
+    border-bottom: 1.5px solid var(--color-edge);
+}
+
+.vk-lr-row-title {
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+/* Predictability: three inked dashes, filled in ink up to the level. */
+.vk-lr-meter {
+    display: flex;
+    gap: 4px;
+    width: 96px;
+    margin-top: 8px;
+}
+
+.vk-lr-meter span {
+    flex: 1 1 0%;
+    height: 5px;
+    border-radius: var(--radius-swatch);
+    background: var(--color-edge);
+}
+
+.vk-lr-meter span.is-on {
+    background: var(--color-ink);
+}
+
+.vk-lr-big-value {
+    font-family: var(--font-display);
+    font-size: 24px;
+    line-height: 28px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--color-ink);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Inked text actions in a row ("Vertaa määräaikaisia tarjouksia"). */
+.vk-lr-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px 36px;
+}
+
+.vk-lr-actions .vk-action {
+    font-size: 19px;
+    line-height: 24px;
+}
+
+.vk-lr-actions .vk-action:first-child {
+    font-size: 22px;
+    line-height: 28px;
+}
+
+/* ---------- 404: paths back (Paper "Paths back") ---------- */
+
+.vk-404-paths {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    padding-top: 40px;
+    padding-bottom: 72px;
+}
+
+.vk-404-links {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 26px;
+}
+
+.vk-404-link {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-width: 300px;
+}
+
+.vk-404-link-title {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 2px;
+    width: fit-content;
+    font-family: var(--font-display);
+    font-size: 22px;
+    line-height: 28px;
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+.vk-404-link--primary .vk-404-link-title {
+    color: var(--color-fox-deep);
+}
+
+.vk-404-link-title:hover {
+    color: var(--color-fox-deep);
+}
+
+.vk-404-link-text {
+    font-size: var(--text-ui);
+    line-height: 22px;
+    color: var(--color-ink-body);
+}
+
+@media (min-width: 640px) {
+    .vk-404-links {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1024px) {
+    .vk-404-paths {
+        padding-top: 56px;
+        padding-bottom: 96px;
+    }
+
+    .vk-404-links {
+        grid-template-columns: repeat(4, minmax(0, 264px));
+        gap: 56px;
+    }
+
+    .vk-404-link-title {
+        font-size: 24px;
+        line-height: 30px;
+    }
+}

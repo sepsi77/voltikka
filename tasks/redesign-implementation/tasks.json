@@ -1,0 +1,74 @@
+[
+  {
+    "name": "Foundation: tokens, fonts, season helper, art pipeline",
+    "status": "done"
+  },
+  {
+    "name": "Shell: top bar, footer, preferred sources strip",
+    "status": "done"
+  },
+  {
+    "name": "Listing hero + controls block",
+    "status": "done"
+  },
+  {
+    "name": "Ledger entries (contract cards)",
+    "status": "done"
+  },
+  {
+    "name": "Results heading, pagination, interlude, Katso myös",
+    "status": "done"
+  },
+  {
+    "name": "Tests and responsive check",
+    "status": "done"
+  },
+  {
+    "name": "/spot-price page",
+    "status": "done"
+  },
+  {
+    "name": "Livewire typed fields: wire:model.blur -> wire:model.live.blur (user approved 2026-10-16)",
+    "status": "done"
+  },
+  {
+    "name": "Round 2 home: / and /sahkosopimus/halvin-sahkosopimus",
+    "status": "done"
+  },
+  {
+    "name": "Round 2 detail: /sahkosopimus/sopimus/{id}",
+    "status": "done"
+  },
+  {
+    "name": "Round 2 company: /sahkosopimus/sahkoyhtiot and /sahkoyhtiot/{slug}",
+    "status": "done"
+  },
+  {
+    "name": "Round 2 tools: /sahkosopimus/laskuri and /maksatko-liikaa",
+    "status": "done"
+  },
+  {
+    "name": "Round 2 energy: /aurinkopaneelit/laskuri and /lampopumput/laskuri",
+    "status": "done"
+  },
+  {
+    "name": "Round 2 data: /sahkosopimus/tilastot and /sahkosopimus/sahkon-hintaennuste",
+    "status": "done"
+  },
+  {
+    "name": "Round 2 seo-pages: SEO listing hero variants, city listing, /sahkosopimus/paikkakunnat",
+    "status": "done"
+  },
+  {
+    "name": "Round 2 longread: /tietoa, legal pages, articles, 404",
+    "status": "done"
+  },
+  {
+    "name": "Round 2 integration: full tests, build, cross-page browser check, docs",
+    "status": "done"
+  },
+  {
+    "name": "Open: season variants for legal plate (night-sky-plate, aurora), legal and fireside fox; permanent logo margin trim in the logo pipeline; user to confirm torn-paper bill form",
+    "status": "todo"
+  }
+]

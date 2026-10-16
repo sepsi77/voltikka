@@ -446,6 +446,25 @@ class FixedContractPriceForecastingTest extends TestCase
         ]);
     }
 
+    public function test_each_term_row_leads_with_its_conclusion_in_the_tone_colour(): void
+    {
+        config()->set('price_forecasting.fixed_term.model_version', 'qualified_test');
+        $this->forecastRow('2026-05-23', 'qualified_test', 'observed_seller_data')->update(['direction' => 'rising']);
+
+        $html = Livewire::test(\App\Livewire\FixedContractPriceForecast::class)->html();
+        $term = substr($html, strpos($html, 'id="maaraaikainen-12-kk"'));
+        $term = substr($term, 0, strpos($term, '</article>'));
+
+        $conclusion = strpos($term, 'fc-verdict fc-verdict--up');
+        $typical = strpos($term, 'Tyypillinen hinta 9,00 → 9,10');
+        $lanes = strpos($term, 'fc-lanes');
+        $this->assertNotFalse($conclusion);
+        $this->assertNotFalse($typical);
+        $this->assertNotFalse($lanes);
+        $this->assertTrue($conclusion < $typical && $typical < $lanes, 'Conclusion, typical price, then lanes.');
+        $this->assertStringContainsString('Nousua odotettavissa', $term);
+    }
+
     private function forecastRow(
         string $forecastDate,
         string $modelVersion,

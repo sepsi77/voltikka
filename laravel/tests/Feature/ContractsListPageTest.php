@@ -92,8 +92,8 @@ class ContractsListPageTest extends TestCase
         $response->assertSee('rel="noopener noreferrer"', false);
         $response->assertSee('preferredSourceLoadFailed: false', false);
         $response->assertSee('}, 8000);', false);
-        $response->assertSee('Löydä Voltikka helpommin');
-        $response->assertSee('Valitse Voltikka suosikkilähteeksi Google-haussa');
+        $response->assertSee('Kiinnitä Voltikka');
+        $response->assertSee('Valitse Voltikka suosikkilähteeksi, niin näet sähkön hinnat');
         $response->assertSee('Valitse suosikkilähteeksi');
         $response->assertSee('https://news.google.com/swg/js/v1/publisher.js', false);
         $this->assertSame(1, substr_count(
@@ -336,7 +336,7 @@ class ContractsListPageTest extends TestCase
         $this->mountWithPrices('contracts-list')
             ->assertSee('Vuosikulutus')
             ->assertSee('Tiedän kulutukseni')
-            ->assertSeeHtml('wire:model.blur="directConsumption"')
+            ->assertSeeHtml('wire:model.live.blur="directConsumption"')
             ->assertDontSee('Valitse kulutustaso')
             ->assertDontSee('Valmiit profiilit');
     }
@@ -345,9 +345,9 @@ class ContractsListPageTest extends TestCase
     {
         $this->mountWithPrices('cheapest-contracts')
             ->assertSee('Vuosikulutus')
-            ->assertSee('Arvioi kulutus laskurilla')
+            ->assertSee('Arvioi laskurilla')
             ->assertSee('Tiedän kulutukseni')
-            ->assertSeeHtml('wire:model.blur="directConsumption"')
+            ->assertSeeHtml('wire:model.live.blur="directConsumption"')
             ->assertDontSee('Valitse kulutustaso')
             ->assertDontSee('Valmiit profiilit');
     }

@@ -9,6 +9,7 @@ use App\Models\SpotPriceHour;
 use App\Models\SpotPriceQuarter;
 use App\Services\CanonicalPricing\PricingMode;
 use App\Services\ContractStatistics\AnnualSeriesCompatibility;
+use App\Support\Season;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
@@ -33,6 +34,8 @@ class HomePage extends Component
         ])->layout('layouts.app', [
             'title' => 'Voltikka – yksi Suomen kattavimmista energiavertailuista',
             'metaDescription' => "Vertaile {$contractCount} sähkösopimusta {$companyCount} yhtiöltä puolueettomasti, seuraa pörssihintoja ja laske aurinkopaneelien tuotto ja lämpöpumpun säästöt. Riippumaton palvelu ilman mainosrahaa.",
+            // Painted hero: the top bar sits over it in the hero's tone (never cached).
+            'heroTone' => Season::heroTone('home-hero'),
         ]);
     }
 

@@ -144,7 +144,10 @@ class ArticleContractPriceComparisonChart extends Component
 
     public function getLeadChartPayloadProperty(): array
     {
-        return $this->preparedData['lead_chart'];
+        // Presentation only, outside the prepared-data cache: the lead series is Pörssisähkö, so
+        // it uses the spot category colour (#1C7A5E = --color-cat-spot; the canvas renderer
+        // cannot read CSS variables).
+        return [...$this->preparedData['lead_chart'], 'leadStroke' => '#1C7A5E'];
     }
 
     private function emptyPreparedData(): array

@@ -49,94 +49,82 @@
     }
     </script>
 
-    <!-- Hero Section - Dark slate background -->
-    <section class="bg-slate-950 -mx-4 sm:-mx-6 lg:-mx-8">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="py-12 lg:py-16 text-center">
-                <h1 class="text-3xl md:text-4xl xl:text-5xl font-extrabold text-white tracking-tight leading-none mb-4">
-                    Aurinkopaneeli<span class="text-coral-400">laskuri</span>
-                </h1>
-                <p class="max-w-2xl mx-auto text-slate-300 md:text-lg">
-                    Laske, paljonko aurinkopaneelit tuottaisivat ja säästäisivät kotonasi. Tarvitset vain osoitteesi.
+
+    @php
+        $heroTone = \App\Support\Season::heroTone('solar-hero');
+        // Small inked spinner (wire:loading targets stay as before the redesign).
+        $spinner = '<svg class="energy-spinner" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="3" opacity=".25"/><path d="M21 12a9 9 0 0 0-9-9" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>';
+        // Drawn radio mark (design spec §5: the selected radio is fox with a white check).
+        $radio = fn (bool $on) => $on
+            ? '<svg class="energy-radio" viewBox="0 0 22 22" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="9.5" style="fill: var(--color-fox)"/><path d="M6.5 11.5 L9.6 14.3 L15.6 7.8" fill="none" style="stroke: var(--color-snow-white)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+            : '<svg class="energy-radio" viewBox="0 0 22 22" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="9.2" style="fill: var(--color-snow-white); stroke: var(--color-field-edge)" stroke-width="2"/></svg>';
+    @endphp
+
+    {{-- Hero: the midnight-sun cottage (the fox is painted on the roof). The address is the one
+         input an estimate needs, so it sits in the hero (Paper board 3WH-0). --}}
+    <x-site.energy-hero art="solar-hero" :tone="$heroTone">
+        <div class="energy-hero-copy">
+            <p class="energy-kicker">Voltikka · Aurinkopaneelit</p>
+            <h1 class="energy-hero-h1">Aurinkopaneeli<wbr>laskuri</h1>
+            <p class="energy-hero-lead">
+                Laske, paljonko aurinkopaneelit tuottaisivat ja säästäisivät kotonasi. Tarvitset vain osoitteesi.
+            </p>
+
+            {{-- Step 1 (primary): Address. The only input needed for an estimate. --}}
+            <div class="energy-address">
+                <p class="energy-start">
+                    Aloita tästä
+                    <svg width="44" height="14" viewBox="0 0 44 14" aria-hidden="true" focusable="false"><path d="M2 8 C 12 3, 24 12, 36 6 M30 2.5 L37 6 L31.5 11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></svg>
                 </p>
-            </div>
-        </div>
-    </section>
-
-    <x-page-action-strip />
-
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-
-        <!-- Introduction -->
-        <p class="mb-8 text-center max-w-2xl mx-auto text-slate-600">
-            Arvio perustuu Euroopan komission PVGIS-aurinkosäteilytietoihin. Syötä osoitteesi, niin laskemme tuoton ja säästön juuri sinun sijainnillesi.
-        </p>
-
-        <!-- Calculator Section -->
-        <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-8">
-
-            <!-- Step 1 (primary): Address. The only input needed for an estimate. -->
-            <div class="mb-8">
-                <p class="text-xs font-semibold uppercase tracking-wide text-coral-600 mb-1">Aloita tästä</p>
-                <h2 class="text-xl font-bold text-slate-900 mb-1">Mikä on osoitteesi?</h2>
-                <p class="text-sm text-slate-500 mb-4">Pelkkä osoite riittää arvioon. Olemme valinneet muut asetukset valmiiksi.</p>
+                <h2 class="energy-address-title">Mikä on osoitteesi?</h2>
                 <div class="relative">
-                    <div class="flex items-center">
-                        <div class="relative flex-1">
-                            <input
-                                type="text"
-                                wire:model.live.debounce.300ms="addressQuery"
-                                data-search-input
-                                wire:keydown.escape="hideSuggestions"
-                                placeholder="Kirjoita osoite..."
-                                aria-label="Osoitteesi"
-                                class="w-full px-4 py-4 pr-10 text-lg border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
-                                autocomplete="off"
+                    <div class="energy-search">
+                        <svg class="energy-search-pin" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M12 21.5 C 8 16.5, 5 13, 5 9.5 A 7 7 0 0 1 19 9.5 C 19 13, 16 16.5, 12 21.5 Z" fill="none" style="stroke: var(--color-ink)" stroke-width="1.8" stroke-linejoin="round" />
+                            <circle cx="12" cy="9.5" r="2.6" fill="none" style="stroke: var(--color-ink)" stroke-width="1.8" />
+                        </svg>
+                        <input
+                            type="text"
+                            wire:model.live.debounce.300ms="addressQuery"
+                            data-search-input
+                            wire:keydown.escape="hideSuggestions"
+                            placeholder="Kirjoita osoite..."
+                            aria-label="Osoitteesi"
+                            class="energy-search-input"
+                            autocomplete="off"
+                        >
+                        {{-- Loading spinner for address search --}}
+                        <div wire:loading wire:target="addressQuery" class="energy-search-status">{!! $spinner !!}</div>
+                        @if ($selectedLabel)
+                            <button
+                                wire:click="clearAddress"
+                                wire:loading.remove
+                                wire:target="addressQuery"
+                                class="energy-search-clear vk-focus"
+                                title="Tyhjennä"
                             >
-                            {{-- Loading spinner for address search --}}
-                            <div wire:loading wire:target="addressQuery" class="absolute right-3 top-1/2 -translate-y-1/2">
-                                <svg class="animate-spin h-5 w-5 text-coral-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                            </div>
-                            @if ($selectedLabel)
-                                <button
-                                    wire:click="clearAddress"
-                                    wire:loading.remove
-                                    wire:target="addressQuery"
-                                    class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                                    title="Tyhjennä"
-                                >
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                    </svg>
-                                </button>
-                            @endif
-                        </div>
+                                <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 18L18 6M6 6l12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" /></svg>
+                                <span class="sr-only">Tyhjennä</span>
+                            </button>
+                        @endif
                     </div>
 
                     <!-- Suggestions Dropdown -->
                     @if ($showSuggestions && count($addressSuggestions) > 0)
-                        <div class="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        <div class="energy-suggestions">
                             @foreach ($addressSuggestions as $suggestion)
                                 <button
                                     wire:click="selectAddress('{{ addslashes($suggestion['label']) }}', {{ $suggestion['lat'] }}, {{ $suggestion['lon'] }})"
                                     wire:loading.attr="disabled"
                                     wire:loading.class="opacity-50 cursor-wait"
-                                    class="w-full px-4 py-3 text-left hover:bg-slate-50 border-b border-slate-100 last:border-0 transition-colors"
+                                    class="energy-suggestion"
                                 >
-                                    <div class="flex items-center">
-                                        <svg wire:loading.remove wire:target="selectAddress" class="w-5 h-5 mr-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                        </svg>
-                                        <svg wire:loading wire:target="selectAddress" class="animate-spin w-5 h-5 mr-3 text-coral-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                        </svg>
-                                        <span class="text-slate-700">{{ $suggestion['label'] }}</span>
-                                    </div>
+                                    <svg wire:loading.remove wire:target="selectAddress" class="energy-suggestion-pin" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                        <path d="M12 21.5 C 8 16.5, 5 13, 5 9.5 A 7 7 0 0 1 19 9.5 C 19 13, 16 16.5, 12 21.5 Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+                                        <circle cx="12" cy="9.5" r="2.6" fill="none" stroke="currentColor" stroke-width="1.8" />
+                                    </svg>
+                                    <span wire:loading wire:target="selectAddress" class="energy-suggestion-pin">{!! $spinner !!}</span>
+                                    <span>{{ $suggestion['label'] }}</span>
                                 </button>
                             @endforeach
                         </div>
@@ -144,186 +132,197 @@
                 </div>
 
                 @if ($selectedLabel)
-                    <div class="mt-3 flex items-center text-sm text-green-600">
-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                        </svg>
+                    <p class="energy-located">
+                        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 13l4 4L19 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" /></svg>
                         Sijainti valittu: {{ number_format($selectedLat, 4, ',', ' ') }}°N, {{ number_format($selectedLon, 4, ',', ' ') }}°E
-                    </div>
+                    </p>
                 @endif
 
                 @if ($addressNotice && !$selectedLabel)
-                    <p wire:loading.remove wire:target="addressQuery" class="mt-3 text-sm text-coral-600">{{ $addressNotice }}</p>
+                    <p wire:loading.remove wire:target="addressQuery" class="energy-hero-notice">{{ $addressNotice }}</p>
                 @endif
+
+                <p class="energy-address-help">Pelkkä osoite riittää arvioon. Olemme valinneet muut asetukset valmiiksi.</p>
+                <p class="energy-address-note">
+                    Arvio perustuu Euroopan komission PVGIS-aurinkosäteilytietoihin. Syötä osoitteesi, niin laskemme tuoton ja säästön juuri sinun sijainnillesi.
+                </p>
+            </div>
+        </div>
+    </x-site.energy-hero>
+
+    <x-page-action-strip />
+
+    <div class="vk-wrap energy-page energy-page--solar">
+
+        {{-- Step 2 (optional): pre-filled details the visitor can fine-tune. --}}
+        <section class="energy-settings" aria-labelledby="solar-settings-title">
+            <div class="energy-settings-head">
+                <div class="flex min-w-0 flex-col gap-0.5">
+                    <h3 id="solar-settings-title" class="vk-section-heading-text">Säädä asetuksia <span class="energy-optional">(valinnaista)</span></h3>
+                    <x-ink.wave :width="250" stroke="3.5" class="max-w-full" />
+                </div>
+                <p class="energy-settings-intro">Oletukset sopivat useimmille kotitalouksille. Voit muuttaa järjestelmän kokoa, varjostusta ja säästöoletuksia.</p>
             </div>
 
-            <!-- Step 2 (optional): pre-filled details the visitor can fine-tune. -->
-            <div class="border-t border-slate-200 pt-8">
-                <div class="mb-6">
-                    <h3 class="text-lg font-semibold text-slate-900">Säädä asetuksia <span class="text-slate-400 font-normal text-base">(valinnaista)</span></h3>
-                    <p class="text-sm text-slate-500 mt-1">Oletukset sopivat useimmille kotitalouksille. Voit muuttaa järjestelmän kokoa, varjostusta ja säästöoletuksia.</p>
-                </div>
-
             <!-- System Size Selection -->
-            <div class="mb-8">
-                <div class="flex items-center justify-between mb-4">
-                    <h4 class="font-semibold text-slate-900">Järjestelmän koko</h4>
-                    <svg wire:loading wire:target="systemKwp" class="animate-spin h-4 w-4 text-coral-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
+            <div class="energy-row">
+                <div class="energy-row-label">
+                    <h4 class="energy-row-title">Järjestelmän koko</h4>
+                    <span wire:loading wire:target="systemKwp" class="energy-row-status">{!! $spinner !!}</span>
                 </div>
-                {{-- Preset buttons + custom input in one row --}}
-                <div class="flex flex-wrap items-center gap-2">
+                <div class="energy-sizes">
+                    {{-- Preset buttons + custom input in one row --}}
                     @foreach ([3, 5, 8, 10, 15] as $preset)
+                        @php $isSize = $systemKwp == $preset; @endphp
                         <button
                             wire:click="$set('systemKwp', {{ $preset }})"
                             @click="$track('Solar System Size Changed', { size_kwp: {{ $preset }}, method: 'preset' })"
                             wire:loading.attr="disabled"
                             wire:loading.class="opacity-50"
                             wire:target="systemKwp"
-                            class="py-2 px-4 border rounded-lg text-center transition-all text-sm font-medium {{ $systemKwp == $preset ? 'border-coral-500 bg-coral-50 text-coral-700' : 'border-slate-200 hover:border-slate-300 text-slate-700' }}"
+                            aria-pressed="{{ $isSize ? 'true' : 'false' }}"
+                            @class(['energy-size vk-focus', 'is-selected' => $isSize])
                         >
-                            {{ $preset }}
+                            @if ($isSize)
+                                <svg class="energy-size-loop" viewBox="0 0 64 56" aria-hidden="true" focusable="false"><path d="M46 7 C 34 1, 14 3, 7 15 C 1 27, 7 46, 26 51 C 45 55, 60 43, 59 27 C 58 15, 52 9, 40 5" fill="none" style="stroke: var(--color-fox)" stroke-width="2.6" stroke-linecap="round" /></svg>
+                            @endif
+                            <span class="relative">{{ $preset }}</span>
+                            <span class="sr-only">kWp</span>
                         </button>
                     @endforeach
-                    <div class="flex items-center border border-slate-200 rounded-lg overflow-hidden">
+                    <label class="energy-size-custom">
                         <input
                             type="number"
-                            wire:model.blur="systemKwp"
+                            wire:model.live.blur="systemKwp"
                             min="0.5"
                             max="20"
                             step="0.5"
                             aria-label="Muu järjestelmän koko (kWp)"
-                            class="w-16 px-2 py-2 border-0 focus:ring-0 text-sm text-center"
+                            class="energy-field-input energy-field-input--small"
                             placeholder="Muu"
                         >
-                        <span class="px-2 py-2 bg-slate-50 text-sm text-slate-500 border-l border-slate-200">kWp</span>
-                    </div>
+                    </label>
+                    <span class="energy-size-unit">kWp</span>
                 </div>
-                <p class="text-sm text-slate-500 mt-3">
-                    kWp on järjestelmän huipputeho. Tyypillinen kotitalous on 5–10 kWp, eli noin 25–50 m² paneeleita.
-                </p>
-                @if ($systemKwpNotice)
-                    <p class="text-sm text-coral-600 mt-1">{{ $systemKwpNotice }}</p>
-                @endif
+                <div class="energy-row-help">
+                    <p>kWp on järjestelmän huipputeho. Tyypillinen kotitalous on 5–10 kWp, eli noin 25–50 m² paneeleita.</p>
+                    @if ($systemKwpNotice)
+                        <p class="energy-notice">{{ $systemKwpNotice }}</p>
+                    @endif
+                </div>
             </div>
 
             <!-- Shading Selection -->
-            <div class="mb-8">
-                <div class="flex items-center justify-between mb-4">
-                    <h4 class="font-semibold text-slate-900">Varjostus</h4>
-                    <svg wire:loading wire:target="shadingLevel" class="animate-spin h-4 w-4 text-coral-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
+            <div class="energy-row">
+                <div class="energy-row-label">
+                    <h4 class="energy-row-title">Varjostus</h4>
+                    <span wire:loading wire:target="shadingLevel" class="energy-row-status">{!! $spinner !!}</span>
                 </div>
-                <div class="grid grid-cols-3 gap-4">
+                <div class="energy-choices">
                     @foreach ($shadingLabels as $level => $label)
-                        @php
-                            $icons = [
-                                'none' => 'M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z',
-                                'some' => 'M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z',
-                                'heavy' => 'M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15zM9.75 15L6 18.75M13.5 15L8.25 20.25M17.25 15L15 17.25',
-                            ];
-                        @endphp
+                        @php $isShade = $shadingLevel === $level; @endphp
                         <button
                             wire:click="$set('shadingLevel', '{{ $level }}')"
                             wire:loading.attr="disabled"
                             wire:loading.class="opacity-50"
                             wire:target="shadingLevel"
-                            class="p-4 border rounded-xl text-center transition-all {{ $shadingLevel === $level ? 'border-coral-500 bg-coral-50' : 'border-slate-100 hover:border-slate-300' }}"
+                            aria-pressed="{{ $isShade ? 'true' : 'false' }}"
+                            @class(['energy-choice vk-focus', 'is-selected' => $isShade])
                         >
-                            <svg class="w-8 h-8 mx-auto mb-2 {{ $shadingLevel === $level ? 'text-coral-600' : 'text-slate-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $icons[$level] }}"></path>
+                            {!! $radio($isShade) !!}
+                            <svg class="energy-choice-icon" viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+                                @switch($level)
+                                    @case('none')
+                                        <circle cx="20" cy="18" r="7" style="fill: var(--color-star); opacity: .75" />
+                                        <circle cx="20" cy="18" r="7" fill="none" style="stroke: var(--color-ink)" stroke-width="1.3" />
+                                        <path d="M20 5v4M20 27v4M7 18h4M29 18h4M10.5 8.5l2.8 2.8M26.7 24.7l2.8 2.8M10.5 27.5l2.8-2.8M26.7 11.3l2.8-2.8" fill="none" style="stroke: var(--color-ink)" stroke-width="1.3" stroke-linecap="round" />
+                                        @break
+                                    @case('some')
+                                        <circle cx="15" cy="15" r="6" style="fill: var(--color-star); opacity: .75" />
+                                        <circle cx="15" cy="15" r="6" fill="none" style="stroke: var(--color-ink)" stroke-width="1.3" />
+                                        <path d="M15 4v3M4 15h3M7.2 7.2l2 2M22.8 7.2l-2 2" fill="none" style="stroke: var(--color-ink)" stroke-width="1.3" stroke-linecap="round" />
+                                        <path d="M30 36 V28 M30 13 C 24 18, 23 24, 25 28 L 35 28 C 37 24, 36 18, 30 13 Z" style="fill: var(--color-aurora); fill-opacity: .55; stroke: var(--color-ink)" stroke-width="1.3" stroke-linejoin="round" />
+                                        @break
+                                    @default
+                                        <circle cx="12" cy="12" r="5" style="fill: var(--color-star); opacity: .5" />
+                                        <circle cx="12" cy="12" r="5" fill="none" style="stroke: var(--color-ink)" stroke-width="1.3" />
+                                        <path d="M14 36 V30 M14 14 C 7 20, 6 26, 8 30 L 20 30 C 22 26, 21 20, 14 14 Z" style="fill: var(--color-aurora); fill-opacity: .55; stroke: var(--color-ink)" stroke-width="1.3" stroke-linejoin="round" />
+                                        <path d="M28 36 V27 M28 6 C 20 13, 19 21, 21 27 L 35 27 C 37 21, 36 13, 28 6 Z" style="fill: var(--color-aurora); fill-opacity: .7; stroke: var(--color-ink)" stroke-width="1.3" stroke-linejoin="round" />
+                                @endswitch
+                                <path d="M3 36.5 C 14 35.6, 26 37.2, 37 36.2" fill="none" style="stroke: var(--color-ink)" stroke-width="1.5" stroke-linecap="round" />
                             </svg>
-                            <span class="text-sm font-medium {{ $shadingLevel === $level ? 'text-coral-700' : 'text-slate-700' }}">{{ $label }}</span>
+                            <span class="energy-choice-name">{{ $label }}</span>
                         </button>
                     @endforeach
                 </div>
             </div>
 
-                <!-- Savings inputs (still optional; lighter subgroup within the adjustments) -->
-                <div class="mt-2">
-                    <h4 class="font-semibold text-slate-900 mb-6">Säästölaskelma</h4>
-
-                <!-- Price Input -->
-                <div class="mb-6">
-                    <div class="flex items-center justify-between mb-2">
-                        <label for="solar-price" class="block font-semibold text-slate-900">Sähkön hinta (c/kWh)</label>
-                        <svg wire:loading wire:target="manualPrice" class="animate-spin h-4 w-4 text-coral-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                    </div>
+            {{-- Savings inputs (still optional) --}}
+            <!-- Price Input -->
+            <div class="energy-row">
+                <div class="energy-row-label">
+                    <h4 class="energy-row-title">Säästölaskelma</h4>
+                    <label for="solar-price" class="energy-row-sub">Sähkön hinta (c/kWh)</label>
+                    <span wire:loading wire:target="manualPrice" class="energy-row-status">{!! $spinner !!}</span>
+                </div>
+                <div class="energy-field energy-field--price">
                     <input
                         id="solar-price"
                         type="number"
-                        wire:model.blur="manualPrice"
+                        wire:model.live.blur="manualPrice"
                         min="0"
                         max="50"
                         step="0.1"
                         @if ($manualPriceNotice) aria-invalid="true" aria-describedby="solar-price-notice" @endif
-                        class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
+                        class="energy-field-input"
                     >
-                    @if ($manualPriceNotice)
-                        <p id="solar-price-notice" role="alert" class="mt-1 text-sm text-red-600">{{ $manualPriceNotice }}</p>
-                    @endif
-                    <p class="mt-1 text-sm text-slate-500">
-                        Oletusarvo on viimeisen vuoden spot-hinnan keskiarvo (sis. ALV). Voit muuttaa hinnan sähkösopimuksesi mukaiseksi.
-                    </p>
+                    <span class="energy-field-unit" aria-hidden="true">c/kWh</span>
                 </div>
+                <div class="energy-row-help">
+                    @if ($manualPriceNotice)
+                        <p id="solar-price-notice" role="alert" class="energy-notice">{{ $manualPriceNotice }}</p>
+                    @endif
+                    <p>Oletusarvo on viimeisen vuoden spot-hinnan keskiarvo (sis. ALV). Voit muuttaa hinnan sähkösopimuksesi mukaiseksi.</p>
+                </div>
+            </div>
 
-                <!-- Self-Consumption Scenario Selection -->
-                <div class="mb-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <h4 class="font-semibold text-slate-900">Oman käytön osuus</h4>
-                        <svg wire:loading wire:target="selfConsumptionScenario" class="animate-spin h-4 w-4 text-coral-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                    </div>
-                    <p class="text-sm text-slate-500 mb-4">
+            <!-- Self-Consumption Scenario Selection -->
+            <div class="energy-row energy-row--top energy-row--last">
+                <div class="energy-row-label">
+                    <h4 class="energy-row-title">Oman käytön osuus</h4>
+                    <p class="energy-row-desc">
                         Kuinka suuren osan tuottamastasi sähköstä käytät itse. Loppu myydään verkkoon selvästi halvemmalla, joten mitä suurempi oma käyttö, sitä suurempi säästö.
                     </p>
-                    <div class="grid grid-cols-3 gap-4">
-                        @foreach ($selfConsumptionScenarios as $scenario => $data)
-                            @php
-                                $icons = [
-                                    'no_battery' => 'M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z',
-                                    'with_battery' => 'M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z',
-                                    'smart_system' => 'M13 10V3L4 14h7v7l9-11h-7z',
-                                ];
-                            @endphp
-                            <button
-                                wire:click="$set('selfConsumptionScenario', '{{ $scenario }}')"
-                                wire:loading.attr="disabled"
-                                wire:loading.class="opacity-50"
-                                wire:target="selfConsumptionScenario"
-                                class="p-4 border rounded-xl text-center transition-all {{ $selfConsumptionScenario === $scenario ? 'border-coral-500 bg-coral-50' : 'border-slate-100 hover:border-slate-300' }}"
-                            >
-                                <svg class="w-8 h-8 mx-auto mb-2 {{ $selfConsumptionScenario === $scenario ? 'text-coral-600' : 'text-slate-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $icons[$scenario] }}"></path>
-                                </svg>
-                                <span class="text-sm font-medium block {{ $selfConsumptionScenario === $scenario ? 'text-coral-700' : 'text-slate-700' }}">{{ $data['label'] }}</span>
-                                <span class="text-xs text-coral-600 font-semibold block mt-1">{{ $data['percent'] }}%</span>
-                            </button>
-                        @endforeach
-                    </div>
-                    <p class="text-sm text-slate-500 mt-3">
-                        {{ $selfConsumptionScenarios[$selfConsumptionScenario]['description'] }}
-                    </p>
+                    <span wire:loading wire:target="selfConsumptionScenario" class="energy-row-status">{!! $spinner !!}</span>
                 </div>
+                <div class="energy-choices">
+                    @foreach ($selfConsumptionScenarios as $scenario => $data)
+                        @php $isScenario = $selfConsumptionScenario === $scenario; @endphp
+                        <button
+                            wire:click="$set('selfConsumptionScenario', '{{ $scenario }}')"
+                            wire:loading.attr="disabled"
+                            wire:loading.class="opacity-50"
+                            wire:target="selfConsumptionScenario"
+                            aria-pressed="{{ $isScenario ? 'true' : 'false' }}"
+                            @class(['energy-choice energy-choice--share vk-focus', 'is-selected' => $isScenario])
+                        >
+                            {!! $radio($isScenario) !!}
+                            <span class="flex flex-col gap-0.5">
+                                <span class="energy-share">{{ $data['percent'] }}%</span>
+                                <span class="energy-choice-name">{{ $data['label'] }}</span>
+                                @if ($isScenario)
+                                    <span class="energy-choice-desc">{{ $data['description'] }}</span>
+                                @endif
+                            </span>
+                        </button>
+                    @endforeach
                 </div>
             </div>
 
             <!-- Error Message -->
             @if ($errorMessage)
-                <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700">
-                    {{ $errorMessage }}
-                </div>
+                <p class="energy-error" role="alert"><span aria-hidden="true">!</span> {{ $errorMessage }}</p>
             @endif
-
         </section>
 
         <!-- Results Section -->
@@ -343,11 +342,9 @@
                 'isExample' => false,
             ])
         @elseif ($isCalculating)
-            <section class="bg-slate-100 rounded-2xl p-6 mb-8 text-center">
-                <div class="animate-pulse">
-                    <div class="h-8 w-48 bg-slate-300 rounded mx-auto mb-4"></div>
-                    <div class="h-4 w-32 bg-slate-200 rounded mx-auto"></div>
-                </div>
+            <section class="energy-calculating" aria-live="polite">
+                {!! $spinner !!}
+                <span>Lasketaan...</span>
             </section>
         @elseif ($this->hasExample && !$selectedLabel)
             {{-- Default-location worked example so first-time visitors see the payoff
@@ -368,91 +365,75 @@
             ])
         @endif
 
+        <x-site.spot-paw-divider />
+
         <!-- Info Section -->
-        <section class="bg-slate-50 rounded-xl p-6 text-sm text-slate-600 mb-8">
-            <h3 class="font-semibold text-slate-900 mb-2">Tietoa laskurista</h3>
-            <ul class="list-disc list-inside space-y-1">
-                <li>Tuottoarvio perustuu PVGIS-tietokantaan (EU Joint Research Centre)</li>
-                <li>Tyypillinen suomalainen aurinkopaneelijärjestelmä tuottaa 800–1000 kWh/kWp vuodessa</li>
-                <li>Tuotanto vaihtelee huomattavasti vuodenajan mukaan: kesällä jopa 10× enemmän kuin talvella</li>
-                <li>Optimi kaltevuus Suomessa on noin 40–45° ja suuntaus etelään</li>
-                <li>Varjostus, lumi ja pöly vähentävät todellista tuottoa arviosta</li>
+        <section class="energy-info">
+            <div class="energy-info-head">
+                <x-site.section-heading :level="3" :wave="230">Tietoa laskurista</x-site.section-heading>
+            </div>
+            <ul class="energy-info-list">
+                @foreach ([
+                    'Tuottoarvio perustuu PVGIS-tietokantaan (EU Joint Research Centre)',
+                    'Tyypillinen suomalainen aurinkopaneelijärjestelmä tuottaa 800–1000 kWh/kWp vuodessa',
+                    'Tuotanto vaihtelee huomattavasti vuodenajan mukaan: kesällä jopa 10× enemmän kuin talvella',
+                    'Optimi kaltevuus Suomessa on noin 40–45° ja suuntaus etelään',
+                    'Varjostus, lumi ja pöly vähentävät todellista tuottoa arviosta',
+                ] as $fact)
+                    <li>
+                        <svg class="energy-sun-mark" viewBox="0 0 18 18" aria-hidden="true" focusable="false"><circle cx="9" cy="9" r="3.6" style="fill: var(--color-star); stroke: var(--color-ink)" stroke-width="1.1" /><path d="M9 1.5v2.5M9 14v2.5M1.5 9h2.5M14 9h2.5" fill="none" style="stroke: var(--color-ink)" stroke-width="1.1" stroke-linecap="round" /></svg>
+                        <span>{{ $fact }}</span>
+                    </li>
+                @endforeach
             </ul>
         </section>
 
+        <x-site.interlude art="solar-interlude" />
+
         <!-- FAQ Section for SEO -->
-        <section class="mb-8">
-            <h2 class="text-2xl font-bold text-slate-900 mb-6">Usein kysytyt kysymykset aurinkopaneeleista</h2>
+        <section class="energy-faq-block">
+            <x-site.section-heading :wave="300">Usein kysytyt kysymykset aurinkopaneeleista</x-site.section-heading>
 
-            <div class="space-y-4">
-                <details class="bg-white rounded-xl border border-slate-200 p-4 group">
-                    <summary class="font-semibold text-slate-900 cursor-pointer list-none flex justify-between items-center">
-                        Paljonko aurinkopaneelit tuottavat Suomessa?
-                        <svg class="w-5 h-5 text-slate-500 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </summary>
-                    <p class="mt-3 text-slate-600">Suomessa aurinkopaneelit tuottavat tyypillisesti 800–1000 kWh vuodessa jokaista asennettua kilowattipiikkiä (kWp) kohden. Etelä-Suomessa tuotto on hieman korkeampi kuin Pohjois-Suomessa. Esimerkiksi 5 kWp:n järjestelmä tuottaa Helsingissä noin 4500–5000 kWh vuodessa.</p>
-                </details>
-
-                <details class="bg-white rounded-xl border border-slate-200 p-4 group">
-                    <summary class="font-semibold text-slate-900 cursor-pointer list-none flex justify-between items-center">
-                        Kuinka paljon aurinkopaneelit säästävät sähkölaskussa?
-                        <svg class="w-5 h-5 text-slate-500 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </summary>
-                    <p class="mt-3 text-slate-600">Säästö riippuu sähkön hinnasta ja siitä, kuinka suuren osan tuotetusta sähköstä käytät itse. Tyypillisesti kotitalous käyttää itse 20–40% aurinkopaneelien tuottamasta sähköstä. Jos sähkön hinta on 10 c/kWh ja 5 kWp:n järjestelmä tuottaa 4500 kWh vuodessa, 30% omakäytöllä säästö on noin 135 €/vuosi.</p>
-                </details>
-
-                <details class="bg-white rounded-xl border border-slate-200 p-4 group">
-                    <summary class="font-semibold text-slate-900 cursor-pointer list-none flex justify-between items-center">
-                        Mikä on paras kattokaltevuus aurinkopaneeleille?
-                        <svg class="w-5 h-5 text-slate-500 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </summary>
-                    <p class="mt-3 text-slate-600">Suomessa optimaalinen kattokaltevuus aurinkopaneeleille on noin 40–45 astetta etelään suunnattuna. Tämä kaltevuus maksimoi vuosituoton ja auttaa myös lumen valumisessa talvella. Loivemmat tai jyrkemmät kaltevuudet toimivat myös, mutta tuotto voi olla 5–15% pienempi.</p>
-                </details>
-
-                <details class="bg-white rounded-xl border border-slate-200 p-4 group">
-                    <summary class="font-semibold text-slate-900 cursor-pointer list-none flex justify-between items-center">
-                        Miten varjostus vaikuttaa aurinkopaneelien tuottoon?
-                        <svg class="w-5 h-5 text-slate-500 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </summary>
-                    <p class="mt-3 text-slate-600">Varjostus voi vähentää aurinkopaneelien tuottoa merkittävästi. Jo yhden paneelin osittainen varjostus voi vaikuttaa koko sarjan tuottoon. Lähellä olevat puut, rakennukset tai savupiiput voivat aiheuttaa 5–20% tuottotappion. Modernit mikroinvertterit ja optimoijat voivat minimoida varjostuksen vaikutusta.</p>
-                </details>
-
-                <details class="bg-white rounded-xl border border-slate-200 p-4 group">
-                    <summary class="font-semibold text-slate-900 cursor-pointer list-none flex justify-between items-center">
-                        Kuinka suuri aurinkopaneelijärjestelmä tarvitaan omakotitaloon?
-                        <svg class="w-5 h-5 text-slate-500 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </summary>
-                    <p class="mt-3 text-slate-600">Tyypillinen omakotitalon aurinkopaneelijärjestelmä on 5–10 kWp. Järjestelmän koko riippuu sähkönkulutuksesta, käytettävissä olevasta kattopinta-alasta ja budjetista. 1 kWp vaatii noin 5–6 m² kattopinta-alaa. Sähkölämmitteisessä talossa suurempi järjestelmä (8–15 kWp) voi olla järkevä.</p>
-                </details>
-
-                <details class="bg-white rounded-xl border border-slate-200 p-4 group">
-                    <summary class="font-semibold text-slate-900 cursor-pointer list-none flex justify-between items-center">
-                        Toimivatko aurinkopaneelit talvella Suomessa?
-                        <svg class="w-5 h-5 text-slate-500 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </summary>
-                    <p class="mt-3 text-slate-600">Kyllä, aurinkopaneelit toimivat myös talvella, mutta tuotto on huomattavasti pienempi kuin kesällä. Joulukuussa tuotto voi olla vain 5–10% kesäkuun tuotosta. Lumi paneelien päällä estää tuotannon, mutta sopivalla kaltevuudella lumi usein valuu itsestään pois. Paneelit toimivat parhaiten kylmässä – hyötysuhde on jopa parempi pakkasella kuin helteellä.</p>
-                </details>
+            <div class="spot-faq">
+                @foreach ([
+                    ['Paljonko aurinkopaneelit tuottavat Suomessa?', 'Suomessa aurinkopaneelit tuottavat tyypillisesti 800–1000 kWh vuodessa jokaista asennettua kilowattipiikkiä (kWp) kohden. Etelä-Suomessa tuotto on hieman korkeampi kuin Pohjois-Suomessa. Esimerkiksi 5 kWp:n järjestelmä tuottaa Helsingissä noin 4500–5000 kWh vuodessa.'],
+                    ['Kuinka paljon aurinkopaneelit säästävät sähkölaskussa?', 'Säästö riippuu sähkön hinnasta ja siitä, kuinka suuren osan tuotetusta sähköstä käytät itse. Tyypillisesti kotitalous käyttää itse 20–40% aurinkopaneelien tuottamasta sähköstä. Jos sähkön hinta on 10 c/kWh ja 5 kWp:n järjestelmä tuottaa 4500 kWh vuodessa, 30% omakäytöllä säästö on noin 135 €/vuosi.'],
+                    ['Mikä on paras kattokaltevuus aurinkopaneeleille?', 'Suomessa optimaalinen kattokaltevuus aurinkopaneeleille on noin 40–45 astetta etelään suunnattuna. Tämä kaltevuus maksimoi vuosituoton ja auttaa myös lumen valumisessa talvella. Loivemmat tai jyrkemmät kaltevuudet toimivat myös, mutta tuotto voi olla 5–15% pienempi.'],
+                    ['Miten varjostus vaikuttaa aurinkopaneelien tuottoon?', 'Varjostus voi vähentää aurinkopaneelien tuottoa merkittävästi. Jo yhden paneelin osittainen varjostus voi vaikuttaa koko sarjan tuottoon. Lähellä olevat puut, rakennukset tai savupiiput voivat aiheuttaa 5–20% tuottotappion. Modernit mikroinvertterit ja optimoijat voivat minimoida varjostuksen vaikutusta.'],
+                    ['Kuinka suuri aurinkopaneelijärjestelmä tarvitaan omakotitaloon?', 'Tyypillinen omakotitalon aurinkopaneelijärjestelmä on 5–10 kWp. Järjestelmän koko riippuu sähkönkulutuksesta, käytettävissä olevasta kattopinta-alasta ja budjetista. 1 kWp vaatii noin 5–6 m² kattopinta-alaa. Sähkölämmitteisessä talossa suurempi järjestelmä (8–15 kWp) voi olla järkevä.'],
+                    ['Toimivatko aurinkopaneelit talvella Suomessa?', 'Kyllä, aurinkopaneelit toimivat myös talvella, mutta tuotto on huomattavasti pienempi kuin kesällä. Joulukuussa tuotto voi olla vain 5–10% kesäkuun tuotosta. Lumi paneelien päällä estää tuotannon, mutta sopivalla kaltevuudella lumi usein valuu itsestään pois. Paneelit toimivat parhaiten kylmässä – hyötysuhde on jopa parempi pakkasella kuin helteellä.'],
+                ] as [$question, $answer])
+                    <details class="group spot-faq-row">
+                        <summary class="vk-focus flex cursor-pointer list-none items-center justify-between gap-3 py-4 [&::-webkit-details-marker]:hidden">
+                            <span class="text-[17px] font-extrabold leading-[22px] text-ink md:text-[18px] md:leading-6">{{ $question }}</span>
+                            <svg width="18" height="18" viewBox="0 0 18 18" class="shrink-0 transition-transform group-open:rotate-180 motion-reduce:transition-none" aria-hidden="true" focusable="false"><path d="M4 7l5 5 5-5" fill="none" style="stroke: var(--color-ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                        </summary>
+                        <p class="max-w-[680px] pb-4 pt-1 text-[16px] leading-[25px] text-ink-body">{{ $answer }}</p>
+                    </details>
+                @endforeach
             </div>
         </section>
 
         <!-- Additional SEO Content -->
-        <section class="prose prose-slate max-w-none mb-8">
-            <h2 class="text-2xl font-bold text-slate-900 mb-4">Aurinkopaneelit Suomessa {{ date('Y') }}</h2>
-            <p class="text-slate-600 mb-4">
-                Aurinkopaneelit ovat yleistyneet nopeasti Suomessa viime vuosina. Vaikka Suomi sijaitsee pohjoisessa,
-                aurinkopaneelit tuottavat yllättävän hyvin erityisesti keväällä ja kesällä. Pitkät kesäpäivät kompensoivat
-                talven pimeyttä, ja vuosituotto on vertailukelpoinen Keski-Euroopan maiden kanssa.
-            </p>
-            <p class="text-slate-600 mb-4">
-                Aurinkopaneelijärjestelmän kannattavuus riippuu useasta tekijästä: sähkön hinnasta, omakäyttöasteesta,
-                järjestelmän hinnasta ja käytettävissä olevista tuista. Nykyisillä sähkön hinnoilla ja
-                paneelien alhaisemmilla kustannuksilla takaisinmaksuaika on tyypillisesti 8–15 vuotta.
-            </p>
-            <p class="text-slate-600">
-                Tämä aurinkopaneelilaskuri käyttää Euroopan komission PVGIS-tietokantaa, joka sisältää tarkat
-                auringonsäteilytiedot kaikille Suomen sijainneille. Laskuri huomioi sijainnin, järjestelmän koon
-                ja varjostuksen vaikutuksen tuottoarvioon.
-            </p>
+        <section class="energy-article">
+            <x-site.section-heading :wave="260">Aurinkopaneelit Suomessa {{ date('Y') }}</x-site.section-heading>
+            <div class="energy-article-columns">
+                <p class="energy-dropcap">
+                    Aurinkopaneelit ovat yleistyneet nopeasti Suomessa viime vuosina. Vaikka Suomi sijaitsee pohjoisessa,
+                    aurinkopaneelit tuottavat yllättävän hyvin erityisesti keväällä ja kesällä. Pitkät kesäpäivät kompensoivat
+                    talven pimeyttä, ja vuosituotto on vertailukelpoinen Keski-Euroopan maiden kanssa.
+                </p>
+                <p>
+                    Aurinkopaneelijärjestelmän kannattavuus riippuu useasta tekijästä: sähkön hinnasta, omakäyttöasteesta,
+                    järjestelmän hinnasta ja käytettävissä olevista tuista. Nykyisillä sähkön hinnoilla ja
+                    paneelien alhaisemmilla kustannuksilla takaisinmaksuaika on tyypillisesti 8–15 vuotta.
+                </p>
+                <p>
+                    Tämä aurinkopaneelilaskuri käyttää Euroopan komission PVGIS-tietokantaa, joka sisältää tarkat
+                    auringonsäteilytiedot kaikille Suomen sijainneille. Laskuri huomioi sijainnin, järjestelmän koon
+                    ja varjostuksen vaikutuksen tuottoarvioon.
+                </p>
+            </div>
         </section>
 
     </div>

@@ -45,6 +45,199 @@ function formatFinnishDateLong(ts) {
     return `${d.getDate()}.${d.getMonth() + 1}.${d.getFullYear()}`;
 }
 
+// ---------------------------------------------------------------------------
+// Ink skin (redesign, Paper boards 6MP-0, D8Q-0, home 6HY-0, company AX2-0). It is
+// the default for every data-line-chart (statistics, forecast, home, company and
+// article pages), so the shared charts agree. data-chart-skin="legacy" keeps the
+// old slate look. Colours come from the design tokens (resources/css/tokens.css).
+// Series colours follow the label (design spec §5 "Series colours in multi-series
+// charts"): a pricing category uses its category colour, open-ended is a dashed
+// ink-muted line, a market median/reference line is dashed granite, the seller-set
+// index total is the thick fox line, and a payload `leadStroke` pins series 0
+// (the old coral default #f97316 maps to the fox token). Legends drawn in Blade
+// must mirror inkSeriesStyle(). Data, scales and behaviour do not change.
+// ---------------------------------------------------------------------------
+function chartContainer(root) {
+    // uPlot's own root (u.root) sits inside the data-line-chart container.
+    return (root && root.closest ? root.closest('[data-line-chart]') : null) || root;
+}
+
+function isInkSkin(root) {
+    const container = chartContainer(root);
+    return Boolean(container && container.dataset && container.dataset.chartSkin !== 'legacy');
+}
+
+function readToken(name, fallback) {
+    const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return value || fallback;
+}
+
+function inkPalette() {
+    return {
+        ink: readToken('--color-ink', '#16202E'),
+        inkBody: readToken('--color-ink-body', '#3A4656'),
+        inkMuted: readToken('--color-ink-muted', '#5E6876'),
+        edge: readToken('--color-edge', '#D9DFDC'),
+        edgeStrong: readToken('--color-edge-strong', '#B9C2C0'),
+        ground: readToken('--color-ground', '#F5F6F1'),
+        fox: readToken('--color-fox', '#C4501C'),
+        foxDeep: readToken('--color-fox-deep', '#9E3C10'),
+        spot: readToken('--color-cat-spot', '#1C7A5E'),
+        periodic: readToken('--color-cat-periodic', '#2B5F8C'),
+        usage: readToken('--color-cat-usage', '#6A4C9C'),
+        fixed: readToken('--color-cat-fixed', '#535D68'),
+    };
+}
+
+function hexToRgba(hex, alpha) {
+    const match = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim());
+    if (!match) return hex;
+    const n = parseInt(match[1], 16);
+    return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
+
+function inkSeriesStyle(label, idx, root, pal, payload = null) {
+    const text = String(label || '');
+    const container = chartContainer(root);
+    if (container.dataset.lineChart === 'seller-set-index' && idx === 0) {
+        return { stroke: pal.fox, width: 3.8, dash: [] };
+    }
+    if (idx === 0 && payload && payload.leadStroke) {
+        const lead = String(payload.leadStroke).toLowerCase() === CORAL_500 ? pal.fox : payload.leadStroke;
+        return { stroke: lead, width: 3.4, dash: [] };
+    }
+    if (/toistaiseksi/i.test(text)) return { stroke: pal.inkMuted, width: 2.6, dash: [6, 4] };
+    if (/pörssi|marginaali/i.test(text)) return { stroke: pal.spot, width: 2.6, dash: [] };
+    if (/määräaikai/i.test(text)) return { stroke: pal.fixed, width: 2.6, dash: [] };
+    if (/jousto|hybrid|kulutusvaikut/i.test(text)) return { stroke: pal.usage, width: 2.6, dash: [] };
+    if (/kvartaali|jaksoittain/i.test(text)) return { stroke: pal.periodic, width: 2.6, dash: [] };
+    if (/mediaani|markkina/i.test(text)) return { stroke: pal.fixed, width: 2.6, dash: [6, 4] };
+    return { stroke: pal.ink, width: 2.6, dash: [] };
+}
+
+// Board points: the latest-point marker is a filled dot in the series colour with a
+// ground-colour ring. Markers on every period (weekly/monthly) stay small, plain dots.
+function inkPoints(points, stroke, pal) {
+    if (!points || points.show === false) return points;
+    if (points.filter) {
+        return { ...points, size: 9, width: 1.5, stroke: pal.ground, fill: stroke };
+    }
+    return { ...points, size: 4, width: 0, stroke, fill: stroke };
+}
+
+// Inked baseline under the plot (spec §4: 1.6px ink line under every chart), drawn
+// slightly uneven like the board's hand-drawn line.
+function drawInkBaseline(u, pal) {
+    const ctx = u.ctx;
+    const { left, top, width, height } = u.bbox;
+    const dpr = window.devicePixelRatio || 1;
+    const y = top + height + 2 * dpr;
+    ctx.save();
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(left, y);
+    ctx.bezierCurveTo(left + width * 0.3, y - 1.2 * dpr, left + width * 0.7, y + 1.4 * dpr, left + width, y - 0.4 * dpr);
+    ctx.lineWidth = 1.8 * dpr;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = pal.ink;
+    ctx.stroke();
+    ctx.restore();
+}
+
+// "nyt 13,09": an inked label with a short arrow at the latest point of the lead
+// series (Paper 7C0-0). Only on charts that opt in with data-chart-now.
+function attachNowLabel(u, payload, pal) {
+    const root = u.root;
+    const container = chartContainer(root);
+    if (container.dataset.chartNow === undefined) return;
+    let el = root.querySelector('[data-now-label]');
+    if (!el) {
+        el = document.createElement('div');
+        el.setAttribute('data-now-label', '');
+        el.setAttribute('aria-hidden', 'true');
+        el.style.position = 'absolute';
+        el.style.pointerEvents = 'none';
+        el.style.display = 'flex';
+        el.style.alignItems = 'flex-end';
+        el.style.gap = '2px';
+        el.style.whiteSpace = 'nowrap';
+        el.style.fontFamily = '"Bricolage Grotesque", "Figtree", system-ui, sans-serif';
+        el.style.fontWeight = '800';
+        el.style.fontSize = '15px';
+        el.style.lineHeight = '18px';
+        el.style.color = pal.foxDeep;
+        root.appendChild(el);
+    }
+    const dataOffset = payload.band ? 3 : 1;
+    const ys = u.data[dataOffset] || [];
+    let idx = ys.length - 1;
+    while (idx >= 0 && (ys[idx] === null || ys[idx] === undefined || Number.isNaN(ys[idx]))) idx -= 1;
+    if (idx < 0) {
+        el.style.display = 'none';
+        return;
+    }
+    const dpr = window.devicePixelRatio || 1;
+    const x = u.valToPos(u.data[0][idx], 'x') + u.bbox.left / dpr;
+    const y = u.valToPos(ys[idx], 'y') + u.bbox.top / dpr;
+    el.style.display = 'flex';
+    // The container can name the published current figure (data-chart-now="13,09"), so the
+    // label matches the key figure even when the chart's last period is an average.
+    const nowText = container.dataset.chartNow || formatNumber(ys[idx], payload.decimals);
+    el.textContent = '';
+    el.innerHTML = `<span></span>`
+        + `<svg width="30" height="26" viewBox="0 0 30 26" style="display:block;overflow:visible"><path d="M2 4 C 12 1, 22 5, 27 19 M21 15 L27.5 20.5 L29 12" fill="none" stroke="${pal.fox}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    el.firstChild.textContent = `nyt ${nowText}`;
+    el.style.left = `${Math.max(0, x - el.offsetWidth - 2)}px`;
+    el.style.top = `${Math.max(0, y - el.offsetHeight - 4)}px`;
+}
+
+// End value (round 3, Paper "R3 · Data · Tilastot"): a dot in the lead colour with a ground
+// ring and the value beside it, at the latest point of the lead series. Only on charts that
+// opt in with data-chart-end. A non-empty value is the published key figure, so the label
+// uses the same rounding as the figure above the chart (a weekly chart's last point can be an
+// average that rounds differently); an empty value formats the last point.
+function attachEndValue(u, payload, pal) {
+    const root = u.root;
+    const container = chartContainer(root);
+    if (container.dataset.chartEnd === undefined) return;
+    let el = root.querySelector('[data-end-value]');
+    if (!el) {
+        el = document.createElement('div');
+        el.setAttribute('data-end-value', '');
+        el.setAttribute('aria-hidden', 'true');
+        el.style.position = 'absolute';
+        el.style.pointerEvents = 'none';
+        el.style.display = 'flex';
+        el.style.alignItems = 'center';
+        el.style.gap = '5px';
+        el.style.whiteSpace = 'nowrap';
+        el.style.fontFamily = '"Figtree", system-ui, sans-serif';
+        el.style.fontWeight = '800';
+        el.style.fontSize = '14px';
+        el.style.lineHeight = '18px';
+        root.appendChild(el);
+    }
+    const dataOffset = payload.band ? 3 : 1;
+    const ys = u.data[dataOffset] || [];
+    let idx = ys.length - 1;
+    while (idx >= 0 && (ys[idx] === null || ys[idx] === undefined || Number.isNaN(ys[idx]))) idx -= 1;
+    if (idx < 0) {
+        el.style.display = 'none';
+        return;
+    }
+    const stroke = inkSeriesStyle(payload.series[0]?.label, 0, root, pal, payload).stroke;
+    const dpr = window.devicePixelRatio || 1;
+    const x = u.valToPos(u.data[0][idx], 'x') + u.bbox.left / dpr;
+    const y = u.valToPos(ys[idx], 'y') + u.bbox.top / dpr;
+    const text = container.dataset.chartEnd || formatNumber(ys[idx], payload.decimals);
+    el.innerHTML = `<span style="display:block;width:9px;height:9px;border-radius:50%;box-sizing:content-box;background:${stroke};border:2px solid ${pal.ground}"></span><span></span>`;
+    el.lastChild.textContent = text;
+    el.style.color = stroke;
+    el.style.display = 'flex';
+    el.style.left = `${x - 6.5}px`;
+    el.style.top = `${y - 9}px`;
+}
+
 function formatNumber(value, decimals) {
     if (value === null || value === undefined || Number.isNaN(value)) {
         return '–';
@@ -59,7 +252,12 @@ function buildOptions(payload, root) {
     const { unit, decimals, series, band } = payload;
     const unitLabel = unit === 'eur' ? '€/v' : 'c/kWh';
     const isSpotPalette = root.dataset.lineChart === 'spot' || (series[0] && /pörssi/i.test(series[0].label));
-    const bandFill = isSpotPalette ? 'rgba(249, 115, 22, 0.12)' : 'rgba(100, 116, 139, 0.18)';
+    const ink = isInkSkin(root);
+    const pal = ink ? inkPalette() : null;
+    const bandSeriesIdx = Math.max(0, series.findIndex((s) => /mediaani|markkina/i.test(String(s.label || '')) && !/marginaali/i.test(String(s.label || ''))));
+    const bandFill = ink
+        ? hexToRgba(inkSeriesStyle(series[bandSeriesIdx]?.label, bandSeriesIdx, root, pal, payload).stroke, 0.16)
+        : (isSpotPalette ? 'rgba(249, 115, 22, 0.12)' : 'rgba(100, 116, 139, 0.18)');
 
     const splinePath = uPlot.paths.spline();
     const uplotSeries = [{}];
@@ -75,6 +273,18 @@ function buildOptions(payload, root) {
     }
 
     series.forEach((s, idx) => {
+        if (ink) {
+            const style = inkSeriesStyle(s.label, idx, root, pal, payload);
+            uplotSeries.push({
+                label: s.label,
+                stroke: style.stroke,
+                width: style.width,
+                dash: style.dash.length ? style.dash : undefined,
+                points: inkPoints(logicalSeriesPointOptions(payload.showPoints, style.stroke, payload.showLatestPoint), style.stroke, pal),
+                paths: splinePath,
+            });
+            return;
+        }
         if (idx === 0) {
             const stroke = resolveLeadStroke(payload, isSpotPalette, SLATE_800);
             uplotSeries.push({
@@ -97,10 +307,35 @@ function buildOptions(payload, root) {
         });
     });
 
+    const axisFont = ink ? '700 11px "Figtree", system-ui, sans-serif' : '12px "Figtree", system-ui, sans-serif';
+    const axes = ink
+        ? [
+            {
+                stroke: pal.inkMuted,
+                grid: { show: false },
+                ticks: { show: false },
+                font: axisFont,
+                size: 34,
+                gap: 10,
+                values: (_u, splits) => splits.map((ts) => formatFinnishDate(ts)),
+            },
+            {
+                stroke: pal.inkMuted,
+                grid: { stroke: pal.edge, width: 1 },
+                ticks: { show: false },
+                font: axisFont,
+                size: 48,
+                gap: 6,
+                values: (_u, splits) => splits.map((v) => formatNumber(v, decimals)),
+            },
+        ]
+        : null;
+
     return {
         width: root.clientWidth,
         height: root.clientHeight || 320,
-        padding: [16, 16, 8, 8],
+        // An end value label (data-chart-end) needs room at the right of the last point.
+        padding: ink ? (root.dataset.chartEnd !== undefined ? [12, 56, 4, 4] : [24, 16, 4, 4]) : [16, 16, 8, 8],
         bands,
         cursor: {
             drag: { setScale: false },
@@ -124,12 +359,12 @@ function buildOptions(payload, root) {
                 },
             },
         },
-        axes: [
+        axes: axes || [
             {
                 stroke: SLATE_500,
                 grid: { stroke: SLATE_200, width: 1 },
                 ticks: { stroke: SLATE_300, width: 1, size: 4 },
-                font: '12px "Plus Jakarta Sans", system-ui, sans-serif',
+                font: '12px "Figtree", system-ui, sans-serif',
                 size: 30,
                 values: (_u, splits) => splits.map((ts) => formatFinnishDate(ts)),
             },
@@ -137,7 +372,7 @@ function buildOptions(payload, root) {
                 stroke: SLATE_500,
                 grid: { stroke: SLATE_200, width: 1 },
                 ticks: { stroke: SLATE_300, width: 1, size: 4 },
-                font: '12px "Plus Jakarta Sans", system-ui, sans-serif',
+                font: '12px "Figtree", system-ui, sans-serif',
                 size: 48,
                 values: (_u, splits) => splits.map((v) => formatNumber(v, decimals)),
             },
@@ -148,14 +383,19 @@ function buildOptions(payload, root) {
                 (u) => {
                     attachEndLabels(u, payload, false);
                     attachUnitBadge(u, unitLabel);
+                    if (ink) attachNowLabel(u, payload, pal);
+                    if (ink) attachEndValue(u, payload, pal);
                 },
             ],
             setSize: [
                 (u) => {
                     attachEndLabels(u, payload, false);
                     attachUnitBadge(u, unitLabel);
+                    if (ink) attachNowLabel(u, payload, pal);
+                    if (ink) attachEndValue(u, payload, pal);
                 },
             ],
+            draw: ink ? [(u) => drawInkBaseline(u, pal)] : [],
             setCursor: [
                 (u) => updateTooltip(u, payload),
             ],
@@ -164,6 +404,8 @@ function buildOptions(payload, root) {
 }
 
 function attachUnitBadge(u, unitLabel) {
+    // A chart whose caption already names the unit opts out (data-chart-unit-badge="off").
+    if (chartContainer(u.root).dataset.chartUnitBadge === 'off') return;
     let badge = u.root.querySelector('[data-unit-badge]');
     if (!badge) {
         badge = document.createElement('div');
@@ -175,7 +417,13 @@ function attachUnitBadge(u, unitLabel) {
         badge.style.fontWeight = '600';
         badge.style.letterSpacing = '0.02em';
         badge.style.color = SLATE_500;
-        badge.style.fontFamily = '"Plus Jakarta Sans", system-ui, sans-serif';
+        badge.style.fontFamily = '"Figtree", system-ui, sans-serif';
+        if (isInkSkin(u.root)) {
+            badge.style.fontSize = '11px';
+            badge.style.fontWeight = '700';
+            badge.style.letterSpacing = '0';
+            badge.style.color = readToken('--color-ink-muted', SLATE_500);
+        }
         badge.style.pointerEvents = 'none';
         u.root.appendChild(badge);
     }
@@ -236,7 +484,7 @@ function attachEndLabels(u, payload, enabled = true) {
         el.style.color = i === 0
             ? (payload.leadStroke || CORAL_500)
             : NON_LEAD_STYLES[(i - 1) % NON_LEAD_STYLES.length].stroke;
-        el.style.fontFamily = '"Plus Jakarta Sans", system-ui, sans-serif';
+        el.style.fontFamily = '"Figtree", system-ui, sans-serif';
         layer.appendChild(el);
     });
 }
@@ -256,18 +504,29 @@ function ensureTooltip(root) {
     tip.style.borderRadius = '10px';
     tip.style.fontSize = '12px';
     tip.style.lineHeight = '1.4';
-    tip.style.fontFamily = '"Plus Jakarta Sans", system-ui, sans-serif';
+    tip.style.fontFamily = '"Figtree", system-ui, sans-serif';
     tip.style.fontVariantNumeric = 'tabular-nums';
     tip.style.boxShadow = '0 16px 36px -18px rgba(15, 23, 42, 0.35)';
     tip.style.whiteSpace = 'nowrap';
     tip.style.opacity = '0';
     tip.style.transform = 'translate(8px, -50%)';
     tip.style.transition = 'opacity 120ms ease-out';
+    if (isInkSkin(root)) {
+        // No card look: the ground colour with an inked edge, no radius and no shadow.
+        tip.style.background = readToken('--color-ground', '#F5F6F1');
+        tip.style.color = readToken('--color-ink', SLATE_900);
+        tip.style.border = `1.5px solid ${readToken('--color-ink', SLATE_900)}`;
+        tip.style.borderRadius = '0';
+        tip.style.boxShadow = 'none';
+    }
     root.appendChild(tip);
     return tip;
 }
 
-function tooltipSeriesStyle(sIdx, isSpotPalette, hasBand, payload) {
+function tooltipSeriesStyle(sIdx, isSpotPalette, hasBand, payload, root) {
+    if (isInkSkin(root)) {
+        return inkSeriesStyle(payload.series[sIdx]?.label, sIdx, root, inkPalette(), payload);
+    }
     if (sIdx === 0) {
         return {
             stroke: resolveLeadStroke(payload, isSpotPalette, hasBand ? SLATE_800 : CORAL_500),
@@ -313,7 +572,7 @@ function updateTooltip(u, payload) {
 
     const rows = payload.series.map((s, sIdx) => {
         const y = u.data[dataOffset + sIdx][idx];
-        const style = tooltipSeriesStyle(sIdx, isSpotPalette, Boolean(payload.band), payload);
+        const style = tooltipSeriesStyle(sIdx, isSpotPalette, Boolean(payload.band), payload, u.root);
         const display = y === null || y === undefined ? '–' : `${formatNumber(y, payload.decimals)} ${payload.unit === 'eur' ? '€' : 'c/kWh'}`;
         const dash = style.dash && style.dash.length ? `stroke-dasharray="${style.dash.join(' ')}"` : '';
         const sortY = y === null || y === undefined ? Number.NEGATIVE_INFINITY : Number(y);
@@ -399,7 +658,7 @@ function unmount(root) {
         delete root.__uPlotChart;
         delete root.__uPlotResize;
     }
-    root.querySelectorAll('[data-end-labels],[data-uplot-tooltip],[data-unit-badge]').forEach((el) => el.remove());
+    root.querySelectorAll('[data-end-labels],[data-uplot-tooltip],[data-unit-badge],[data-now-label],[data-end-value]').forEach((el) => el.remove());
 }
 
 function readPayload(root) {

@@ -293,18 +293,18 @@ class ContractDetailPresenterTest extends TestCase
         $fixed = $this->contract('band-fixed');
         $this->mountWithPrices('contract-detail', ['contractId' => $fixed->id])
             ->assertSee('Ennalta ilmoitettu energianhinta')
-            // The fixed band is deliberately slate: certainty is the default state.
-            ->assertSeeHtml('bg-slate-100 text-slate-700 border-slate-200');
+            // Redesign: the shared ledger category line, in the category colour token.
+            ->assertSeeHtml('vk-cat-label text-cat-fixed');
 
         $spot = $this->contract('band-spot', ['pricing_model' => 'Spot'], ['General' => 0.45, 'Monthly' => 4.99]);
         $this->mountWithPrices('contract-detail', ['contractId' => $spot->id])
             ->assertSee('Hinta seuraa pörssin tuntihintaa')
-            ->assertSeeHtml('bg-sky-100 text-sky-700 border-sky-200');
+            ->assertSeeHtml('vk-cat-label text-cat-spot');
 
         $hybrid = $this->contract('band-hybrid', ['pricing_model' => 'Hybrid'], ['General' => 6.1, 'Monthly' => 3.9]);
         $this->mountWithPrices('contract-detail', ['contractId' => $hybrid->id])
             ->assertSee('Kiinteä hinta + kulutusvaikutus')
-            ->assertSeeHtml('bg-violet-100 text-violet-700 border-violet-200');
+            ->assertSeeHtml('vk-cat-label text-cat-usage');
     }
 
     // ------------------------------------------------------------------- receipt rows

@@ -5,78 +5,69 @@
         : number_format($v, $decimals, ',', ' ');
 @endphp
 
-<section class="not-prose my-10" aria-labelledby="volatility-heading">
-    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-coral-700">Pörssisähkön hintavaihtelu</p>
-    <h2 id="volatility-heading" class="mt-2 text-2xl font-bold tracking-tight text-slate-900">
-        Kuinka paljon tuntihinta voi vaihdella?
-    </h2>
-    <p class="mt-2 max-w-prose text-base leading-7 text-slate-600">
+<section class="vk-lr-figure" aria-labelledby="volatility-heading">
+    <div class="vk-lr-figure-head">
+        <p class="vk-lr-figure-kicker">Pörssisähkön hintavaihtelu</p>
+        <x-site.section-heading id="volatility-heading" wave="300">Kuinka paljon tuntihinta voi vaihdella?</x-site.section-heading>
+    </div>
+    <p class="vk-lr-text">
         Edellä vertailtiin eri sopimusten hintoja. Tässä katsotaan pörssisähkön tärkeintä riskiä: saman vuorokauden tuntihinnat voivat poiketa paljon toisistaan.
         Värillinen alue näyttää tavallisen vaihteluvälin, ohut viiva viikon mediaanin ja pisteet viikon halvimman sekä kalleimman tunnin.
     </p>
 
     @if (!$hasData)
-        <div class="mt-6 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm text-slate-600">
+        <p class="vk-lr-empty">
             Volatiliteettitietoja ei ole vielä saatavilla.
-        </div>
+        </p>
     @else
-        <p id="volatility-takeaway" class="mt-6 max-w-prose text-base leading-7 text-slate-700">
+        <p id="volatility-takeaway" class="vk-lr-text">
             <strong>Viimeisen vuoden toteutuneet tuntihinnat:</strong> alin {{ $fmt($metrics['min']) }} c/kWh, ylin {{ $fmt($metrics['max']) }} c/kWh ja keskiarvo {{ $fmt($metrics['avg']) }} c/kWh.
         </p>
 
-        {{-- Headline figures --}}
-        <dl class="mt-6 grid grid-cols-2 lg:grid-cols-5 gap-x-6 gap-y-6 border-t border-slate-200 pt-6">
-            <div>
-                <dt class="text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-500">Halvin tunti</dt>
-                <dd class="mt-1 text-2xl font-extrabold tabular-nums text-slate-900">
-                    {{ $fmt($metrics['min']) }}<span class="text-sm font-medium text-slate-500"> c/kWh</span>
-                </dd>
+        {{-- Headline figures (Paper "Stat row") --}}
+        <dl class="vk-lr-stats">
+            <div class="vk-lr-stat vk-lr-stat--lake">
+                <dt>Halvin tunti</dt>
+                <dd class="tabular-nums">{{ $fmt($metrics['min']) }}<span class="vk-lr-stat-unit"> c/kWh</span></dd>
             </div>
-            <div>
-                <dt class="text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-500">Kallein tunti</dt>
-                <dd class="mt-1 text-2xl font-extrabold tabular-nums text-slate-900">
-                    {{ $fmt($metrics['max']) }}<span class="text-sm font-medium text-slate-500"> c/kWh</span>
-                </dd>
+            <div class="vk-lr-stat vk-lr-stat--high">
+                <dt>Kallein tunti</dt>
+                <dd class="tabular-nums">{{ $fmt($metrics['max']) }}<span class="vk-lr-stat-unit"> c/kWh</span></dd>
             </div>
-            <div>
-                <dt class="text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-500">Keskihinta</dt>
-                <dd class="mt-1 text-2xl font-extrabold tabular-nums text-slate-900">
-                    {{ $fmt($metrics['avg']) }}<span class="text-sm font-medium text-slate-500"> c/kWh</span>
-                </dd>
+            <div class="vk-lr-stat">
+                <dt>Keskihinta</dt>
+                <dd class="tabular-nums">{{ $fmt($metrics['avg']) }}<span class="vk-lr-stat-unit"> c/kWh</span></dd>
             </div>
-            <div>
-                <dt class="text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-500">Kalliita päiviä</dt>
-                <dd class="mt-1 text-2xl font-extrabold tabular-nums text-slate-900">
-                    {{ $metrics['spikeDays'] }}<span class="text-sm font-medium text-slate-500"> päivää</span>
-                </dd>
-                <p class="mt-1 text-[11px] text-slate-500">Yli 20 c/kWh</p>
+            <div class="vk-lr-stat">
+                <dt>Kalliita päiviä</dt>
+                <dd class="tabular-nums">{{ $metrics['spikeDays'] }}<span class="vk-lr-stat-unit"> päivää</span></dd>
+                <p class="vk-lr-stat-sub">Yli 20 c/kWh</p>
             </div>
-            <div>
-                <dt class="text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-500">Miinushintaisia päiviä</dt>
-                <dd class="mt-1 text-2xl font-extrabold tabular-nums text-slate-900">
-                    {{ $metrics['negativeDays'] }}<span class="text-sm font-medium text-slate-500"> päivää</span>
-                </dd>
-                <p class="mt-1 text-[11px] text-slate-500">Alle 0 c/kWh</p>
+            <div class="vk-lr-stat">
+                <dt>Miinushintaisia päiviä</dt>
+                <dd class="tabular-nums">{{ $metrics['negativeDays'] }}<span class="vk-lr-stat-unit"> päivää</span></dd>
+                <p class="vk-lr-stat-sub">Alle 0 c/kWh</p>
             </div>
         </dl>
 
-        <div class="relative mt-8">
-            <div class="flex flex-wrap items-center gap-x-5 gap-y-2 mb-4">
-                <span class="flex items-center gap-2 text-sm text-slate-600">
-                    <span class="h-3 w-3 rounded-sm" style="background:rgba(249,115,22,0.18);border:1px solid rgba(249,115,22,0.4)"></span>
+        <div class="flex flex-col gap-3">
+            <div class="vk-lr-legend">
+                <span class="vk-lr-legend-item">
+                    <span class="vk-lr-swatch vk-lr-swatch--band" style="--lr-swatch: var(--color-cat-spot)"></span>
                     Tavallinen vaihteluväli (p20–p80)
                 </span>
-                <span class="flex items-center gap-2 text-sm text-slate-600">
-                    <span class="h-0.5 w-4 bg-coral-500"></span>
+                <span class="vk-lr-legend-item">
+                    <span class="vk-lr-swatch vk-lr-swatch--line" style="--lr-swatch: var(--color-cat-spot)"></span>
                     Viikon mediaani
                 </span>
-                <span class="flex items-center gap-2 text-sm text-slate-600">
-                    <span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>
+                <span class="vk-lr-legend-item">
+                    <span class="vk-lr-swatch vk-lr-swatch--dot" style="--lr-swatch: var(--color-lake)"></span>
+                    <span class="vk-lr-swatch vk-lr-swatch--dot" style="--lr-swatch: var(--color-price-high)"></span>
                     Halvin / kallein tunti
                 </span>
             </div>
 
-            <div class="relative" style="height: 300px;">
+            <div class="vk-lr-chart" style="height: 300px;">
                 <canvas
                     id="volatilityChart"
                     data-chart="{{ json_encode($chartData) }}"
@@ -87,32 +78,30 @@
             </div>
         </div>
 
-        <details class="mt-6 border-t border-slate-200 pt-4">
-            <summary class="cursor-pointer font-semibold text-slate-700 underline decoration-slate-300 underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-coral-500">
-                Näytä tiedot taulukkona
-            </summary>
-            <div class="mt-4 overflow-x-auto">
-                <table class="min-w-full border-collapse text-left text-sm text-slate-700 tabular-nums">
+        <details class="vk-lr-details">
+            <summary>Näytä tiedot taulukkona</summary>
+            <div class="vk-lr-table-wrap">
+                <table class="vk-lr-table">
                     <caption class="sr-only">Pörssisähkön tuntihintojen viikoittainen vaihtelu.</caption>
                     <thead>
-                        <tr class="border-b border-slate-200">
-                            <th scope="col" class="whitespace-nowrap px-3 py-2 font-semibold text-slate-900">Viikko</th>
-                            <th scope="col" class="whitespace-nowrap px-3 py-2 font-semibold text-slate-900">Alin (c/kWh)</th>
-                            <th scope="col" class="whitespace-nowrap px-3 py-2 font-semibold text-slate-900">20 % alitti (c/kWh)</th>
-                            <th scope="col" class="whitespace-nowrap px-3 py-2 font-semibold text-slate-900">Mediaani (c/kWh)</th>
-                            <th scope="col" class="whitespace-nowrap px-3 py-2 font-semibold text-slate-900">80 % alitti (c/kWh)</th>
-                            <th scope="col" class="whitespace-nowrap px-3 py-2 font-semibold text-slate-900">Ylin (c/kWh)</th>
+                        <tr>
+                            <th scope="col">Viikko</th>
+                            <th scope="col">Alin (c/kWh)</th>
+                            <th scope="col">20 % alitti (c/kWh)</th>
+                            <th scope="col">Mediaani (c/kWh)</th>
+                            <th scope="col">80 % alitti (c/kWh)</th>
+                            <th scope="col">Ylin (c/kWh)</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach ($chartData['labels'] as $index => $label)
-                            <tr class="border-b border-slate-100">
-                                <th scope="row" class="whitespace-nowrap px-3 py-2 font-medium text-slate-900">{{ $label }}</th>
-                                <td class="whitespace-nowrap px-3 py-2">{{ $fmt($chartData['min'][$index]) }}</td>
-                                <td class="whitespace-nowrap px-3 py-2">{{ $fmt($chartData['p20'][$index]) }}</td>
-                                <td class="whitespace-nowrap px-3 py-2">{{ $fmt($chartData['median'][$index]) }}</td>
-                                <td class="whitespace-nowrap px-3 py-2">{{ $fmt($chartData['p80'][$index]) }}</td>
-                                <td class="whitespace-nowrap px-3 py-2">{{ $fmt($chartData['max'][$index]) }}</td>
+                            <tr>
+                                <th scope="row">{{ $label }}</th>
+                                <td>{{ $fmt($chartData['min'][$index]) }}</td>
+                                <td>{{ $fmt($chartData['p20'][$index]) }}</td>
+                                <td>{{ $fmt($chartData['median'][$index]) }}</td>
+                                <td>{{ $fmt($chartData['p80'][$index]) }}</td>
+                                <td>{{ $fmt($chartData['max'][$index]) }}</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -120,7 +109,7 @@
             </div>
         </details>
 
-        <p class="mt-5 max-w-prose text-base leading-7 text-slate-600">
+        <p class="vk-lr-text vk-lr-text--small">
             Mitä leveämpi värillinen alue on, sitä enemmän ajoituksella voi olla merkitystä. Yksittäiset hintapiikit voivat olla rajuja, mutta ne osuvat usein vain pieneen osaan vuorokaudesta.
         </p>
     @endif
@@ -139,6 +128,18 @@
                     ctx.chartInstance.destroy();
                 }
 
+                // Design tokens (resources/css/tokens.css): the canvas cannot read CSS variables itself.
+                const token = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+                const ink = token('--color-ink');
+                const spot = token('--color-cat-spot');
+                const tickFont = { family: 'Figtree, system-ui, sans-serif', size: 12, weight: '700' };
+                // The p20–p80 band: the spot colour at 30 % (Paper legend swatch opacity .3).
+                const alpha = (hex, a) => {
+                    const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
+                    return m ? `rgba(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}, ${a})` : hex;
+                };
+                const band = alpha(spot, 0.3);
+
                 try {
                     const chartData = JSON.parse(dataAttr);
 
@@ -152,9 +153,9 @@
                                     data: chartData.min,
                                     type: 'scatter',
                                     showLine: false,
-                                    pointBackgroundColor: '#94a3b8',
-                                    pointBorderColor: '#94a3b8',
-                                    pointRadius: 2,
+                                    pointBackgroundColor: token('--color-lake'),
+                                    pointBorderColor: token('--color-lake'),
+                                    pointRadius: 2.2,
                                     pointHoverRadius: 4,
                                     order: 0,
                                 },
@@ -163,9 +164,9 @@
                                     data: chartData.max,
                                     type: 'scatter',
                                     showLine: false,
-                                    pointBackgroundColor: '#94a3b8',
-                                    pointBorderColor: '#94a3b8',
-                                    pointRadius: 2,
+                                    pointBackgroundColor: token('--color-price-high'),
+                                    pointBorderColor: token('--color-price-high'),
+                                    pointRadius: 2.2,
                                     pointHoverRadius: 4,
                                     order: 0,
                                 },
@@ -173,7 +174,7 @@
                                     label: 'p80',
                                     data: chartData.p80,
                                     borderColor: 'transparent',
-                                    backgroundColor: 'rgba(249,115,22,0.18)',
+                                    backgroundColor: band,
                                     fill: '+1',
                                     pointRadius: 0,
                                     tension: 0.35,
@@ -183,7 +184,7 @@
                                     label: 'p20',
                                     data: chartData.p20,
                                     borderColor: 'transparent',
-                                    backgroundColor: 'rgba(249,115,22,0.18)',
+                                    backgroundColor: band,
                                     fill: false,
                                     pointRadius: 0,
                                     tension: 0.35,
@@ -192,8 +193,8 @@
                                 {
                                     label: 'Mediaani',
                                     data: chartData.median,
-                                    borderColor: '#f97316',
-                                    backgroundColor: '#f97316',
+                                    borderColor: spot,
+                                    backgroundColor: spot,
                                     borderWidth: 2,
                                     pointRadius: 0,
                                     pointHoverRadius: 4,
@@ -210,11 +211,11 @@
                             plugins: {
                                 legend: { display: false },
                                 tooltip: {
-                                    backgroundColor: '#0f172a',
-                                    titleFont: { size: 13, weight: 'bold' },
-                                    bodyFont: { size: 12 },
+                                    backgroundColor: ink,
+                                    titleFont: { family: 'Figtree, system-ui, sans-serif', size: 13, weight: 'bold' },
+                                    bodyFont: { family: 'Figtree, system-ui, sans-serif', size: 12 },
                                     padding: 10,
-                                    cornerRadius: 8,
+                                    cornerRadius: 4,
                                     filter: function(item) {
                                         // Show all but skip the duplicate band-fill helper labels
                                         return item.dataset.label !== 'p80' && item.dataset.label !== 'p20';
@@ -240,19 +241,23 @@
                             scales: {
                                 x: {
                                     grid: { display: false },
+                                    border: { color: ink, width: 1.8 },
                                     ticks: {
-                                        font: { size: 11 },
+                                        color: token('--color-ink-muted'),
+                                        font: tickFont,
                                         autoSkip: true,
                                         maxRotation: 0,
                                         maxTicksLimit: 8,
                                     }
                                 },
                                 y: {
+                                    border: { display: false, dash: [3, 4] },
                                     ticks: {
                                         callback: function(value) { return value + ' c'; },
-                                        font: { size: 11 }
+                                        color: token('--color-ink-muted'),
+                                        font: tickFont,
                                     },
-                                    grid: { color: '#f1f5f9' }
+                                    grid: { color: token('--color-edge') }
                                 }
                             }
                         }

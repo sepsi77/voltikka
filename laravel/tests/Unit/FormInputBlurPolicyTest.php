@@ -12,6 +12,11 @@ class FormInputBlurPolicyTest extends TestCase
     /**
      * Ordinary editable values sync on blur. Marked search inputs use debounce
      * so result lists update while the visitor types.
+     *
+     * Livewire 4 sends no request for a plain `wire:model.blur`: it only updates the
+     * local value on blur and waits for the next action. `.live.blur` keeps blur as
+     * the one boundary and sends the request. The order matters: `.blur.live` sends
+     * on each keystroke.
      */
     public function test_editable_livewire_fields_use_the_required_update_boundary(): void
     {
@@ -32,10 +37,10 @@ class FormInputBlurPolicyTest extends TestCase
                         || preg_match('/\btype\s*=\s*["\']search["\']/i', $tag) === 1;
                     $validBinding = $isSearch
                         ? preg_match('/^\.live\.debounce\.\d+ms$/', $model[1]) === 1
-                        : $model[1] === '.blur';
+                        : $model[1] === '.live.blur';
 
                     if (! $validBinding) {
-                        $expected = $isSearch ? 'wire:model.live.debounce.Nms' : 'wire:model.blur';
+                        $expected = $isSearch ? 'wire:model.live.debounce.Nms' : 'wire:model.live.blur';
                         $violations[] = $this->violation($file, $contents, $offset, $model[0], $expected);
                     }
                 }
@@ -89,8 +94,8 @@ class FormInputBlurPolicyTest extends TestCase
 
         $this->assertStringContainsString('wire:model.live.debounce.300ms="addressQuery"', $view);
         $this->assertStringContainsString('data-search-input', $view);
-        $this->assertStringContainsString('wire:model.blur="systemKwp"', $view);
-        $this->assertStringContainsString('wire:model.blur="manualPrice"', $view);
+        $this->assertStringContainsString('wire:model.live.blur="systemKwp"', $view);
+        $this->assertStringContainsString('wire:model.live.blur="manualPrice"', $view);
         $this->assertStringNotContainsString('wire:model.live.debounce.300ms="manualPrice"', $view);
     }
 
@@ -140,7 +145,7 @@ class FormInputBlurPolicyTest extends TestCase
         string $contents,
         int $offset,
         string $binding,
-        string $expected = 'wire:model.blur',
+        string $expected = 'wire:model.live.blur',
     ): string {
         $root = dirname(__DIR__, 2);
         $path = ltrim(str_replace($root, '', $file->getPathname()), DIRECTORY_SEPARATOR);

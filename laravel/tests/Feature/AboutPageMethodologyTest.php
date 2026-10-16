@@ -25,14 +25,15 @@ class AboutPageMethodologyTest extends TestCase
         $document = new \DOMDocument;
         @$document->loadHTML('<?xml encoding="UTF-8">'.$response->getContent());
         $xpath = new \DOMXPath($document);
-        $intro = $xpath->query('//section[@id="menetelma"]/h2/following-sibling::p[1]')->item(0);
-        $note = $xpath->query('//section[@id="menetelma"]/h2/following-sibling::p[2]')->item(0);
+        // The heading sits in the redesign section-heading wrapper (heading + inked underline).
+        $heading = '//section[@id="menetelma"]/*[self::h2 or .//h2][1]';
+        $intro = $xpath->query($heading.'/following-sibling::p[1]')->item(0);
+        $note = $xpath->query($heading.'/following-sibling::p[2]')->item(0);
 
         $this->assertNotNull($intro);
         $this->assertNotNull($note);
         $this->assertStringContainsString('Sähkösopimuksissa yhdistyy yhä useammin', $intro->textContent);
         $this->assertStringContainsString('Arvio ei ole lupaus tulevasta sähkölaskusta.', $note->textContent);
-        $this->assertSame('mb-6', $note->getAttribute('class'));
         $this->assertSame('div', $xpath->query('following-sibling::*[1]', $note)->item(0)->nodeName);
         $this->assertStringNotContainsString('hidden', $note->getAttribute('class'));
 

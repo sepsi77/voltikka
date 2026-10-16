@@ -1,0 +1,1881 @@
+/*
+ * Redesign styles owned by the "tools" area: /sahkosopimus/laskuri (ConsumptionCalculator)
+ * and /maksatko-liikaa (BillComparison). See tasks/redesign-implementation/agent-brief.md.
+ * Values: Paper boards 4UL-0 and 8X7-0 (page "Pages · group C"), seasons EBS-0 / EBT-0.
+ *
+ * Reused, not forked: .vk-wrap, tone variables, .vk-kicker, .vk-leader, .vk-action, .vk-select,
+ * .vk-checkbox, .vk-notice, .vk-mark, .vk-text-link, <x-site.section-heading>, interlude and
+ * paw divider. No cards, panels, pills, shadows or gradients (spec §1, §4).
+ */
+
+:root {
+    /* Paper "Meter readout": counter wheels on the night meter face. No token. */
+    --tool-meter-wheel: #22324F;
+    --tool-meter-idle: #5E6E8A;
+    /* Paper heating switch track when off. No token. */
+    --tool-switch-off: #E8ECEA;
+}
+
+/* ---------- Hero (Paper "Meter hero" / "Bill hero") ---------- */
+
+.tool-hero {
+    position: relative;
+    isolation: isolate;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background-color: var(--color-night);
+}
+
+.tool-hero.vk-tone-light {
+    background-color: var(--color-ground);
+}
+
+.tool-hero-text {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding-top: 96px;
+    padding-bottom: 8px;
+}
+
+/* Phone and tablet: the scene is a band under the text; its sky fades into the tone ground. */
+.tool-hero-art {
+    position: relative;
+    order: 2;
+    height: 280px;
+    margin-top: -16px;
+    -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 30%);
+    mask-image: linear-gradient(180deg, transparent 0%, #000 30%);
+}
+
+.tool-hero-plate {
+    position: absolute;
+    right: -60px;
+    bottom: -24px;
+    width: 640px;
+    max-width: none;
+    height: auto;
+}
+
+.tool-hero-shade {
+    display: none;
+}
+
+.tool-hero-crumbs ol {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 6px;
+    font-size: var(--text-label);
+    line-height: var(--leading-label);
+    font-weight: 700;
+    color: var(--tone-soft);
+}
+
+.tool-hero-crumbs a:hover {
+    color: var(--tone-strong);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+/* Paper "Hero text": H1 64/64 −0.035em, lead 20/30 500 max 560. */
+.tool-hero-h1 {
+    font-family: var(--font-display);
+    font-weight: 800;
+    color: var(--tone-strong);
+    font-size: 40px;
+    line-height: 42px;
+    letter-spacing: -0.035em;
+    hyphens: manual;
+}
+
+.tool-hero-lead {
+    max-width: 580px;
+    color: var(--tone-lead);
+    font-size: 17px;
+    line-height: 26px;
+    font-weight: 500;
+}
+
+@media (min-width: 1024px) {
+    .tool-hero {
+        display: block;
+        min-height: 540px;
+    }
+
+    .tool-hero-art {
+        position: absolute;
+        inset: 0;
+        height: auto;
+        margin: 0;
+        -webkit-mask-image: none;
+        mask-image: none;
+    }
+
+    /* The 1440×810 plate sits 150px (laskuri) or 110px (maksatko) above the hero top. */
+    .tool-hero-plate {
+        top: 0;
+        right: auto;
+        bottom: auto;
+        left: 50%;
+        width: max(100%, 1440px);
+        transform: translate(-50%, -18.5%);
+    }
+
+    .tool-hero--maksatko-hero .tool-hero-plate {
+        transform: translate(-50%, -13.6%);
+    }
+
+    .tool-hero-shade {
+        display: block;
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+    }
+
+    /* Dusk shade behind the text (900px) + top shade behind the bar (120px). */
+    .vk-tone-dark .tool-hero-shade {
+        background-image:
+            linear-gradient(180deg, oklab(25% -0.007 -0.051 / 70%) 0, oklab(25% -0.007 -0.051 / 0%) 120px),
+            linear-gradient(90deg, oklab(25% -0.007 -0.051 / 62%) 0, oklab(25% -0.007 -0.051 / 42%) 495px, oklab(25% -0.007 -0.051 / 0%) 900px);
+    }
+
+    .tool-hero--maksatko-hero.vk-tone-dark .tool-hero-shade {
+        background-image:
+            linear-gradient(180deg, oklab(25% -0.007 -0.051 / 70%) 0, oklab(25% -0.007 -0.051 / 0%) 120px),
+            linear-gradient(90deg, oklab(25% -0.007 -0.051 / 66%) 0, oklab(25% -0.007 -0.051 / 45%) 495px, oklab(25% -0.007 -0.051 / 0%) 900px);
+    }
+
+    .vk-tone-light .tool-hero-shade {
+        background-image:
+            linear-gradient(180deg, oklab(97.1% -0.003 0.006 / 85%) 0, oklab(97.1% -0.003 0.006 / 0%) 120px),
+            linear-gradient(90deg, oklab(97.1% -0.003 0.006 / 82%) 0, oklab(97.1% -0.003 0.006 / 60%) 495px, oklab(97.1% -0.003 0.006 / 0%) 900px);
+    }
+
+    .tool-hero-text {
+        padding-top: 118px;
+        padding-bottom: 64px;
+    }
+
+    .tool-hero--maksatko-hero .tool-hero-text {
+        gap: 16px;
+        padding-top: 132px;
+    }
+
+    .tool-hero-text > * {
+        max-width: 640px;
+    }
+
+    .tool-hero-h1 {
+        font-size: 64px;
+        line-height: 64px;
+    }
+
+    .tool-hero-lead {
+        font-size: 20px;
+        line-height: 30px;
+    }
+
+    .tool-hero--laskuri-hero .tool-hero-lead {
+        max-width: 560px;
+    }
+}
+
+/* ---------- Page body ---------- */
+
+.tool-page {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    padding-top: 24px;
+    padding-bottom: 56px;
+    color: var(--color-ink-body);
+}
+
+.tool-intro {
+    max-width: 860px;
+    font-size: 17px;
+    line-height: 28px;
+    color: var(--color-ink-body);
+}
+
+.tool-section {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+/* Two columns at 1440 (560–680 | 496–656, gap 56); one column below a laptop. */
+.tool-two-col {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+}
+
+@media (min-width: 1024px) {
+    .tool-two-col {
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 56px;
+    }
+
+    .tool-two-col > :last-child {
+        flex: 1 1 0%;
+        min-width: 0;
+    }
+}
+
+/* Heading inside a block: Bricolage 20/24 (22/28 for the manual-calculation steps). */
+.tool-h3 {
+    font-family: var(--font-display);
+    font-size: 20px;
+    line-height: 24px;
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+.tool-h3--lg {
+    font-size: 22px;
+    line-height: 28px;
+}
+
+.tool-prose {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    font-size: 16px;
+    line-height: 26px;
+    color: var(--color-ink-body);
+}
+
+.tool-prose strong,
+.tool-intro strong,
+.tool-steps strong {
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+/* ---------- Calculator ---------- */
+
+.tool-calc {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 40px;
+    padding-top: 8px;
+}
+
+@media (min-width: 1024px) {
+    .tool-calc {
+        grid-template-columns: minmax(0, 716px) minmax(0, 460px);
+        justify-content: space-between;
+        gap: 56px;
+        align-items: start;
+    }
+}
+
+.tool-calc-inputs {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    min-width: 0;
+}
+
+/* Preset profiles: home art (84px) above a radio and the name, 2px edge underline. */
+.tool-presets {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+@media (min-width: 640px) {
+    .tool-presets {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+.tool-preset {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 2px 12px;
+    background: none;
+    border: 0;
+    border-bottom: 2px solid var(--color-edge);
+    cursor: pointer;
+    text-align: center;
+}
+
+.tool-preset[aria-pressed="true"] {
+    border-bottom-color: var(--color-fox);
+}
+
+.tool-preset:hover .tool-preset-name {
+    color: var(--color-fox-deep);
+}
+
+.tool-preset-art {
+    width: 84px;
+    height: 84px;
+    object-fit: contain;
+}
+
+.tool-preset-name {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--text-ui);
+    line-height: 20px;
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+.tool-preset[aria-pressed="true"] .tool-preset-name {
+    color: var(--color-fox-deep);
+}
+
+.tool-mark {
+    width: 22px;
+    height: 22px;
+}
+
+/* Radio choice row (Paper "Asuntotyyppi": 17/22, 36px apart, selected fox-deep 800). */
+.tool-radios {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 36px;
+}
+
+.tool-radio,
+.tool-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 2px 0;
+    background: none;
+    border: 0;
+    cursor: pointer;
+    font-size: 17px;
+    line-height: 22px;
+    font-weight: 700;
+    color: var(--color-ink);
+    text-align: left;
+    border-radius: var(--radius-control);
+}
+
+.tool-check {
+    align-self: flex-start;
+    font-size: 16px;
+    flex-wrap: wrap;
+}
+
+.tool-check > :last-child {
+    font-size: 15px;
+    line-height: 20px;
+}
+
+.tool-radio[aria-pressed="true"] {
+    font-weight: 800;
+    color: var(--color-fox-deep);
+}
+
+.tool-preset:focus-visible,
+.tool-radio:focus-visible,
+.tool-check:focus-visible,
+.tool-switch:focus-visible,
+.tool-period:focus-visible {
+    outline: 2px solid var(--color-fox);
+    outline-offset: 2px;
+}
+
+/* Underlined fields: label 14/18 700, value Bricolage, unit at the right. */
+.tool-field-pair {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 250px));
+    gap: 24px;
+    padding-top: 4px;
+}
+
+@media (min-width: 640px) {
+    .tool-field-pair {
+        gap: 40px;
+    }
+}
+
+.tool-extras {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px 28px;
+}
+
+@media (min-width: 640px) {
+    .tool-extras {
+        grid-template-columns: repeat(3, minmax(0, 220px));
+    }
+}
+
+.tool-field-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.tool-label {
+    display: block;
+    font-size: var(--text-label);
+    line-height: var(--leading-label);
+    font-weight: 700;
+    color: var(--color-ink-body);
+}
+
+.tool-field {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 4px 2px 6px;
+    border-bottom: 2px solid var(--color-field-edge);
+}
+
+.tool-field:focus-within {
+    border-bottom-color: var(--color-fox);
+    box-shadow: 0 1px 0 0 var(--color-fox);
+}
+
+.tool-field:has(input[aria-invalid="true"]) {
+    border-bottom-color: var(--color-price-high);
+}
+
+.tool-field input {
+    flex: 1 1 0%;
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    font-family: var(--font-display);
+    font-size: 24px;
+    line-height: 30px;
+    font-weight: 700;
+    color: var(--color-ink);
+    font-variant-numeric: tabular-nums;
+    -moz-appearance: textfield;
+}
+
+.tool-field--big input {
+    font-size: 30px;
+    line-height: 36px;
+    font-weight: 800;
+}
+
+.tool-field input:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+.tool-field input::placeholder {
+    color: var(--color-ink-muted);
+}
+
+.tool-field input::-webkit-outer-spin-button,
+.tool-field input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.tool-unit {
+    flex-shrink: 0;
+    font-size: var(--text-label);
+    line-height: var(--leading-label);
+    font-weight: 700;
+    color: var(--color-ink-muted);
+}
+
+.tool-field--big .tool-unit {
+    font-size: var(--text-ui);
+}
+
+.tool-select {
+    font-size: 17px;
+}
+
+/* Heating switch row between two hairlines. */
+.tool-switch-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding-block: 16px;
+    border-top: 1.5px solid var(--color-edge);
+    border-bottom: 1.5px solid var(--color-edge);
+}
+
+.tool-switch {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 10px;
+    background: none;
+    border: 0;
+    padding: 2px;
+    cursor: pointer;
+    border-radius: var(--radius-control);
+    font-size: var(--text-label);
+    line-height: var(--leading-label);
+    font-weight: 700;
+    color: var(--color-ink-muted);
+}
+
+.tool-switch[aria-checked="true"] {
+    color: var(--color-fox-deep);
+}
+
+/* Meter readout (Paper "Meter readout"): left hairline, kicker, counter, breakdown. */
+.tool-readout {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    min-width: 0;
+    padding-top: 24px;
+    border-top: 2px solid var(--color-edge);
+}
+
+@media (min-width: 1024px) {
+    .tool-readout {
+        position: sticky;
+        top: 24px;
+        padding-top: 0;
+        padding-left: 40px;
+        border-top: 0;
+        border-left: 2px solid var(--color-edge);
+    }
+}
+
+/* The electricity meter counter: a real object (night face, ink rim), not a card. */
+.tool-meter {
+    display: flex;
+    gap: 4px;
+    padding: 6px;
+    border: 2.5px solid var(--color-ink);
+    border-radius: var(--radius-button);
+    background-color: var(--color-night);
+}
+
+.tool-meter-wheel {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 58px;
+    border-radius: var(--radius-control);
+    background-color: var(--tool-meter-wheel);
+    font-family: var(--font-display);
+    font-size: 38px;
+    line-height: 44px;
+    font-weight: 800;
+    color: var(--color-snow-white);
+    font-variant-numeric: tabular-nums;
+}
+
+.tool-meter-wheel--idle {
+    color: var(--tool-meter-idle);
+}
+
+.tool-meter-wheel--last {
+    background-color: var(--color-fox);
+}
+
+.tool-meter-unit {
+    padding-bottom: 6px;
+    font-family: var(--font-display);
+    font-size: 22px;
+    line-height: 26px;
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+@media (min-width: 640px) {
+    .tool-meter {
+        padding: 8px;
+    }
+
+    .tool-meter-wheel {
+        width: 52px;
+        height: 74px;
+        font-size: 50px;
+        line-height: 56px;
+    }
+
+    .tool-meter-unit {
+        font-size: 26px;
+        line-height: 30px;
+    }
+}
+
+/* Stacked bar of the breakdown: one fox hue in parts, inked rim and dividers. */
+.tool-stack {
+    display: flex;
+    height: 14px;
+    border: 1.2px solid var(--color-ink);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.tool-stack-part {
+    display: block;
+    position: relative;
+    min-width: 2px;
+}
+
+.tool-stack-part + .tool-stack-part {
+    border-left: 1.2px solid var(--color-ink);
+}
+
+.tool-stack-part > span,
+.tool-swatch {
+    display: block;
+}
+
+.tool-stack-part > span {
+    position: absolute;
+    inset: 0;
+}
+
+.tool-swatch {
+    width: 10px;
+    height: 10px;
+    flex-shrink: 0;
+    border-radius: var(--radius-swatch);
+}
+
+/* Bigger inked action on the tool pages (Paper: Bricolage 22/28, wave 290 × 3). */
+.tool-action {
+    font-size: 22px;
+    line-height: 28px;
+}
+
+.tool-action--md {
+    font-size: 20px;
+    line-height: 26px;
+}
+
+.tool-plain-link {
+    font-size: var(--text-ui);
+    line-height: 20px;
+    font-weight: 800;
+    color: var(--color-ink);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+}
+
+.tool-plain-link:hover {
+    color: var(--color-fox-deep);
+}
+
+/* ---------- Price per contract type (Paper "Hinta sopimustyypeillä") ---------- */
+
+.tool-price-table {
+    display: flex;
+    flex-direction: column;
+}
+
+.tool-price-head {
+    display: none;
+}
+
+.tool-price-rows {
+    display: flex;
+    flex-direction: column;
+    border-top: 2px solid var(--color-ink);
+}
+
+.tool-price-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px 12px;
+    padding-block: 14px;
+    border-bottom: 1.5px solid var(--color-edge);
+}
+
+.tool-price-name {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+}
+
+.tool-price-axis {
+    position: relative;
+}
+
+.tool-price-bar {
+    grid-column: 1 / -1;
+    height: 24px;
+    margin-inline: 8px;
+}
+
+.tool-price-gridline {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-left: 1px dashed var(--color-edge);
+}
+
+/* p20–p80 range: category fill at half strength, inked line and end ticks, white median dot. */
+.tool-range {
+    position: absolute;
+    top: 6px;
+    height: 12px;
+    border-left: 1.4px solid var(--color-ink);
+    border-right: 1.4px solid var(--color-ink);
+}
+
+.tool-range::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 5px;
+    border-top: 1.4px solid var(--color-ink);
+}
+
+.tool-range-fill {
+    position: absolute;
+    left: -4px;
+    right: -4px;
+    top: 2px;
+    height: 8px;
+    border-radius: 4px;
+    opacity: 0.5;
+}
+
+.tool-range-median {
+    position: absolute;
+    top: 6px;
+    width: 12px;
+    height: 12px;
+    margin-left: -6px;
+    border: 2px solid var(--color-ink);
+    border-radius: 50%;
+    background-color: var(--color-snow-white);
+}
+
+.tool-price-num {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.tool-price-num-label {
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-ink-muted);
+}
+
+.tool-price-annual {
+    font-family: var(--font-display);
+    font-size: 20px;
+    line-height: 26px;
+    font-weight: 800;
+    color: var(--color-ink);
+    white-space: nowrap;
+}
+
+@media (min-width: 1024px) {
+    .tool-price-head,
+    .tool-price-row {
+        display: grid;
+        grid-template-columns: minmax(0, 420px) minmax(0, 380px) repeat(3, minmax(0, 144px));
+        column-gap: 0;
+        align-items: center;
+    }
+
+    .tool-price-head {
+        align-items: end;
+        padding: 10px 0 8px;
+    }
+
+    .tool-price-rows {
+        border-top: 0;
+    }
+
+    .tool-price-head {
+        border-bottom: 2px solid var(--color-ink);
+    }
+
+    .tool-price-head-name,
+    .tool-price-q {
+        font-size: var(--text-caption);
+        line-height: var(--leading-caption);
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--color-ink-muted);
+    }
+
+    .tool-price-q {
+        color: var(--color-ink);
+    }
+
+    .tool-price-q--low {
+        color: var(--color-aurora);
+    }
+
+    .tool-price-q--high {
+        color: var(--color-price-high);
+    }
+
+    .tool-price-head .tool-price-axis {
+        height: 16px;
+        margin-inline: 12px;
+    }
+
+    .tool-price-tick {
+        position: absolute;
+        top: 0;
+        transform: translateX(-50%);
+        font-size: var(--text-caption);
+        line-height: var(--leading-caption);
+        font-weight: 700;
+        color: var(--color-ink-muted);
+        white-space: nowrap;
+    }
+
+    .tool-price-row {
+        padding-block: 14px;
+    }
+
+    .tool-price-name,
+    .tool-price-bar {
+        grid-column: auto;
+    }
+
+    .tool-price-name {
+        padding-right: 20px;
+    }
+
+    .tool-price-bar {
+        height: 44px;
+        margin-inline: 12px;
+    }
+
+    .tool-range,
+    .tool-range-median {
+        top: 16px;
+    }
+
+    .tool-price-num-label {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+    }
+
+    .tool-price-annual {
+        font-size: 22px;
+    }
+}
+
+/* ---------- Text blocks ---------- */
+
+/* Numbered rows ("Miten laskuri toimii"): fox numeral + text between hairlines. */
+.tool-steps {
+    display: flex;
+    flex-direction: column;
+    padding-top: 6px;
+}
+
+.tool-steps li {
+    display: flex;
+    gap: 14px;
+    padding-block: 12px;
+    font-size: var(--text-ui);
+    line-height: 23px;
+    color: var(--color-ink-body);
+}
+
+.tool-steps li + li {
+    border-top: 1.5px solid var(--color-edge);
+}
+
+.tool-step-no {
+    width: 34px;
+    flex-shrink: 0;
+    font-family: var(--font-display);
+    font-size: 30px;
+    line-height: 32px;
+    font-weight: 800;
+    color: var(--color-fox);
+}
+
+/* Formula with a fox rule at the left (Paper "Step" formula). */
+.tool-formula {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 0 12px 18px;
+    border-left: 3px solid var(--color-fox);
+    font-size: 16px;
+    line-height: 24px;
+    color: var(--color-ink-body);
+}
+
+.tool-formula-text {
+    font-family: var(--font-display);
+    font-size: 18px;
+    line-height: 26px;
+    font-weight: 700;
+    color: var(--color-ink);
+}
+
+@media (min-width: 1024px) {
+    .tool-formula-text {
+        font-size: 20px;
+        line-height: 28px;
+    }
+}
+
+/* Plain data table: ink rule under the head, hairlines between rows. */
+.tool-table {
+    width: 100%;
+    min-width: 440px;
+    font-size: var(--text-ui);
+    line-height: 18px;
+    color: var(--color-ink);
+    font-variant-numeric: tabular-nums;
+}
+
+.tool-table th,
+.tool-table td {
+    padding: 7px 0;
+    border-bottom: 1px solid var(--color-edge);
+    text-align: right;
+}
+
+.tool-table th:first-child {
+    text-align: left;
+}
+
+.tool-table tbody th {
+    font-weight: 400;
+}
+
+.tool-table td {
+    font-weight: 700;
+}
+
+.tool-table thead th,
+.tool-receipt thead th,
+.tool-ranges thead th {
+    padding: 6px 0;
+    border-bottom: 2px solid var(--color-ink);
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-ink-muted);
+}
+
+.tool-table-example th,
+.tool-table-example .tool-loop {
+    font-weight: 800 !important;
+    color: var(--color-fox-deep);
+}
+
+.tool-loop {
+    position: relative;
+    display: inline-block;
+}
+
+.tool-loop svg {
+    position: absolute;
+    right: -14px;
+    top: -6px;
+}
+
+.tool-rule-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.tool-rule-list li {
+    padding-block: 9px;
+    font-size: var(--text-ui);
+    line-height: 22px;
+    color: var(--color-ink);
+}
+
+.tool-rule-list li span {
+    display: block;
+    color: var(--color-ink-body);
+}
+
+.tool-rule-list li + li {
+    border-top: 1px solid var(--color-edge);
+}
+
+/* Example total as a receipt (Paper "Esimerkin yhteenlasku (receipt)"). */
+.tool-receipt {
+    width: 100%;
+    font-size: var(--text-ui);
+    line-height: 18px;
+}
+
+.tool-receipt th:first-child {
+    width: 100%;
+    text-align: left;
+}
+
+.tool-receipt thead th:last-child,
+.tool-receipt td {
+    text-align: right;
+}
+
+.tool-receipt tbody th,
+.tool-receipt tbody td {
+    padding: 4px 0;
+    vertical-align: baseline;
+}
+
+.tool-receipt tbody tr:first-child > * {
+    padding-top: 10px;
+}
+
+.tool-receipt tbody tr:last-child > * {
+    padding-bottom: 10px;
+}
+
+.tool-receipt tbody th {
+    text-align: left;
+    font-weight: 400;
+    color: var(--color-ink-body);
+}
+
+.tool-receipt tbody td {
+    padding-left: 6px;
+    font-weight: 800;
+    color: var(--color-ink);
+    white-space: nowrap;
+}
+
+.tool-receipt-item {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+}
+
+.tool-receipt tfoot th,
+.tool-receipt tfoot td {
+    padding-top: 8px;
+    border-top: 4px double var(--color-ink);
+    font-family: var(--font-display);
+    font-weight: 800;
+    vertical-align: baseline;
+}
+
+.tool-receipt tfoot th {
+    text-align: left;
+    font-size: 22px;
+    line-height: 28px;
+    color: var(--color-ink);
+}
+
+.tool-receipt tfoot td {
+    font-size: 28px;
+    line-height: 36px;
+    letter-spacing: -0.02em;
+    color: var(--color-fox-deep);
+    white-space: nowrap;
+}
+
+@media (min-width: 1024px) {
+    .tool-receipt tfoot td {
+        font-size: 34px;
+        line-height: 42px;
+    }
+}
+
+/* Typical consumption ranges on one axis. */
+.tool-ranges {
+    width: 100%;
+}
+
+.tool-ranges th,
+.tool-ranges td {
+    text-align: left;
+}
+
+.tool-ranges thead th:last-child {
+    text-align: right;
+}
+
+.tool-ranges tbody th,
+.tool-ranges tbody td {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--color-edge);
+    vertical-align: middle;
+    font-weight: 400;
+}
+
+.tool-ranges tbody th {
+    width: 45%;
+    padding-right: 12px;
+}
+
+.tool-ranges-bar {
+    display: block;
+    width: 100%;
+    max-width: 316px;
+    height: auto;
+}
+
+/* Axis labels under the bars: 0 / 10 000 / 20 000 kWh at x = 8, 115, 222 of 316. */
+.tool-ranges-axis {
+    position: relative;
+    flex: 1 1 0%;
+    max-width: 316px;
+    height: 16px;
+}
+
+.tool-ranges-axis span {
+    position: absolute;
+    top: 0;
+    white-space: nowrap;
+}
+
+.tool-ranges-axis span:nth-child(1) { left: 2.5%; }
+.tool-ranges-axis span:nth-child(2) { left: 36.4%; }
+.tool-ranges-axis span:nth-child(3) { left: 70.3%; }
+
+.tool-sparkle-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.tool-sparkle-list li {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 16px;
+    line-height: 24px;
+    color: var(--color-ink);
+}
+
+.tool-sparkle-list svg {
+    position: relative;
+    top: 1px;
+}
+
+/* Consumption-level links: Bricolage 18/22 fox-deep, underlined. */
+.tool-level-link {
+    font-family: var(--font-display);
+    font-size: 18px;
+    line-height: 22px;
+    font-weight: 800;
+    color: var(--color-fox-deep);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    white-space: nowrap;
+}
+
+.tool-level-link:hover {
+    color: var(--color-ink);
+}
+
+/* ---------- FAQ (hairline rows, chevron) ---------- */
+
+.tool-faq {
+    border-top: 1.5px solid var(--color-edge);
+}
+
+.tool-faq-row {
+    border-bottom: 1.5px solid var(--color-edge);
+}
+
+.tool-faq-row summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-block: 16px;
+    cursor: pointer;
+    list-style: none;
+}
+
+.tool-faq-row summary::-webkit-details-marker {
+    display: none;
+}
+
+.tool-faq-row h3 {
+    font-size: 17px;
+    line-height: 22px;
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+.tool-faq-row[open] summary {
+    padding-bottom: 8px;
+}
+
+.tool-faq-chevron {
+    flex-shrink: 0;
+    transition: transform 0.15s ease;
+}
+
+.tool-faq-row[open] .tool-faq-chevron {
+    transform: rotate(180deg);
+}
+
+.tool-faq-answer {
+    max-width: var(--container-text);
+    padding: 4px 0 16px;
+    font-size: 16px;
+    line-height: 25px;
+    color: var(--color-ink-body);
+}
+
+@media (min-width: 1024px) {
+    .tool-faq-row h3 {
+        font-size: 18px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tool-faq-chevron {
+        transition: none;
+    }
+}
+
+/* A long wavy underline never runs past a phone column. */
+.tool-page .vk-section-heading svg {
+    max-width: 100%;
+}
+
+/* ---------- /maksatko-liikaa: the paper bill (Paper "Paper bill (form)") ---------- */
+
+/* A real paper object, not a card: torn zigzag edges and inked sides, no shadow, no radius. */
+.bill-paper {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.bill-paper-edge {
+    display: block;
+    width: 100%;
+    height: 14px;
+}
+
+.bill-paper-body {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    padding: 18px 20px 26px;
+    background-color: var(--color-snow-white);
+    border-left: 1.4px solid var(--color-ink);
+    border-right: 1.4px solid var(--color-ink);
+}
+
+@media (min-width: 640px) {
+    .bill-paper-body {
+        padding-inline: 40px;
+    }
+}
+
+.bill-paper .vk-kicker {
+    letter-spacing: 0.12em;
+}
+
+.bill-paper-title {
+    font-family: var(--font-display);
+    font-size: 26px;
+    line-height: 32px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--color-ink);
+}
+
+@media (min-width: 1024px) {
+    .bill-paper-title {
+        font-size: 30px;
+        line-height: 36px;
+    }
+}
+
+.bill-periods {
+    gap: 6px 18px;
+}
+
+.bill-periods .tool-radio {
+    gap: 8px;
+    font-size: 15px;
+}
+
+/* Date fields: a dotted ink underline like a pre-printed bill line. */
+.bill-date {
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    border-bottom: 2px dotted var(--color-ink);
+    border-radius: 0;
+    background: transparent;
+    padding: 2px 0 5px;
+    font-family: var(--font-display);
+    font-size: 19px;
+    line-height: 28px;
+    font-weight: 700;
+    color: var(--color-ink);
+}
+
+.bill-date:focus {
+    outline: none;
+    border-bottom: 2px solid var(--color-fox);
+    box-shadow: 0 1px 0 0 var(--color-fox);
+}
+
+@media (min-width: 640px) {
+    .bill-date {
+        font-size: 22px;
+    }
+}
+
+/* Bill line: label, dotted leader, the value field at the right. */
+.bill-line {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.bill-line-label {
+    flex-shrink: 1;
+    min-width: 0;
+    font-size: 16px;
+    line-height: 20px;
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+.bill-line .vk-leader {
+    min-width: 8px;
+}
+
+.bill-line-field {
+    flex-shrink: 0;
+    width: 132px;
+    padding-top: 0;
+}
+
+.bill-line-field input {
+    text-align: right;
+    font-size: 26px;
+    line-height: 34px;
+    font-weight: 800;
+}
+
+@media (min-width: 640px) {
+    .bill-line-field {
+        width: 150px;
+    }
+
+    .bill-line-field input {
+        font-size: 30px;
+        line-height: 36px;
+    }
+}
+
+.bill-check {
+    display: flex;
+    gap: 12px;
+    cursor: pointer;
+}
+
+.bill-check--first {
+    padding-top: 6px;
+    border-top: 1.5px dashed var(--color-edge-strong);
+}
+
+.bill-checkbox {
+    width: 22px;
+    height: 22px;
+    margin-top: 0;
+}
+
+/* "Tiedän vuosikulutukseni": a disclosure between two hairlines. */
+.bill-annual {
+    padding-block: 14px;
+    border-top: 1.5px solid var(--color-edge);
+    border-bottom: 1.5px solid var(--color-edge);
+}
+
+.bill-annual summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    cursor: pointer;
+    list-style: none;
+    font-size: 16px;
+    line-height: 22px;
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+.bill-annual summary::-webkit-details-marker {
+    display: none;
+}
+
+.bill-annual[open] .tool-faq-chevron {
+    transform: rotate(180deg);
+}
+
+.bill-error {
+    padding-left: 16px;
+    border-left: 3px solid var(--color-price-high);
+    font-size: var(--text-ui);
+    line-height: 22px;
+    font-weight: 700;
+    color: var(--color-price-high);
+}
+
+/* ---------- Verdict (Paper "Verdict") ---------- */
+
+.bill-saving {
+    position: relative;
+    padding-block: 6px 16px;
+}
+
+.bill-saving-number {
+    font-family: var(--font-display);
+    font-size: 64px;
+    line-height: 66px;
+    font-weight: 800;
+    letter-spacing: -0.045em;
+    color: var(--color-fox-deep);
+    font-variant-numeric: tabular-nums;
+}
+
+.bill-saving-unit {
+    margin-left: 10px;
+    font-size: 26px;
+    line-height: 30px;
+    letter-spacing: 0;
+    color: var(--color-ink);
+}
+
+.bill-saving-loop {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: min(420px, 100%);
+    height: auto;
+}
+
+@media (min-width: 1024px) {
+    .bill-saving-number {
+        font-size: 96px;
+        line-height: 96px;
+    }
+
+    .bill-saving-unit {
+        font-size: 30px;
+        line-height: 36px;
+    }
+}
+
+.bill-estimate {
+    font-size: var(--text-caption);
+    line-height: 18px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-ink-muted);
+}
+
+.bill-kicker--good {
+    color: var(--color-saving);
+}
+
+/* Bars: inked rim around a state-colour fill (bill price-high, cheapest aurora). */
+.bill-bar-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: var(--text-ui);
+    line-height: 18px;
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+.bill-bar-value {
+    font-family: var(--font-display);
+    font-size: 22px;
+    line-height: 28px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.bill-bar {
+    display: block;
+    flex-shrink: 0;
+    height: 22px;
+    min-width: 4px;
+    border: 1.3px solid var(--color-ink);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.bill-bar > span {
+    display: block;
+    height: 100%;
+    opacity: 0.7;
+}
+
+.bill-gap-arrow {
+    flex: 1 1 0%;
+    min-width: 0;
+    height: 26px;
+    overflow: visible;
+}
+
+/* Rank line: inked baseline, cheapest dot at the left, the visitor as a fox dot. */
+.bill-rank {
+    position: relative;
+    height: 30px;
+    margin-inline: 8px;
+}
+
+.bill-rank-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 14px;
+    border-top: 1.6px solid var(--color-ink);
+}
+
+.bill-rank-line::before,
+.bill-rank-line::after {
+    content: "";
+    position: absolute;
+    top: -8px;
+    height: 14px;
+    border-left: 1.4px solid var(--color-ink);
+}
+
+.bill-rank-line::before {
+    left: 0;
+}
+
+.bill-rank-line::after {
+    right: 0;
+}
+
+.bill-rank-first,
+.bill-rank-you {
+    position: absolute;
+    top: 7px;
+    width: 14px;
+    height: 14px;
+    margin-left: -7px;
+    border-radius: 50%;
+}
+
+.bill-rank-first {
+    left: 0;
+    background-color: var(--color-aurora);
+}
+
+.bill-rank-you {
+    top: 6px;
+    width: 16px;
+    height: 16px;
+    margin-left: -8px;
+    border: 1.6px solid var(--color-ink);
+    background-color: var(--color-fox);
+}
+
+.bill-rank-you-label {
+    position: absolute;
+    transform: translateX(-50%);
+    color: var(--color-fox-deep);
+    white-space: nowrap;
+}
+
+/* Notes: a rule at the left and text, no box. */
+.bill-note {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-width: 920px;
+    padding: 4px 0 4px 18px;
+    border-left: 3px solid var(--color-edge-strong);
+    font-size: var(--text-ui);
+    line-height: 23px;
+    color: var(--color-ink-body);
+}
+
+.bill-note--star {
+    border-left-color: var(--color-star);
+}
+
+.bill-note--quiet {
+    padding-left: 16px;
+    padding-top: 0;
+}
+
+/* ---------- Ranking table (Paper "Ranking") ---------- */
+
+.bill-table {
+    width: 100%;
+    font-variant-numeric: tabular-nums;
+}
+
+.bill-table thead th {
+    padding: 8px 0;
+    border-bottom: 2px solid var(--color-ink);
+    text-align: left;
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-ink-muted);
+}
+
+.bill-table tbody td {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--color-edge);
+    vertical-align: middle;
+}
+
+.bill-table .bill-col-num {
+    text-align: right;
+    white-space: nowrap;
+    padding-left: 12px;
+}
+
+.bill-col-rank {
+    width: 40px;
+}
+
+.bill-rank-no {
+    font-family: var(--font-display);
+    font-size: 20px;
+    line-height: 26px;
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+.bill-table tbody tr:first-child .bill-rank-no {
+    color: var(--color-fox-deep);
+}
+
+.bill-col-cents {
+    display: none;
+    font-size: var(--text-ui);
+    color: var(--color-ink-body);
+}
+
+.bill-name {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.bill-glyph-slot {
+    display: none;
+    width: 30px;
+    flex-shrink: 0;
+}
+
+.bill-contract {
+    font-size: var(--text-ui);
+    line-height: 20px;
+    font-weight: 800;
+    color: var(--color-ink);
+    overflow-wrap: anywhere;
+}
+
+a.bill-contract:hover {
+    color: var(--color-fox-deep);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.bill-cost {
+    font-family: var(--font-display);
+    font-size: 18px;
+    line-height: 24px;
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+.bill-saving-cell {
+    font-family: var(--font-display);
+    font-size: 18px;
+    line-height: 24px;
+    font-weight: 800;
+    color: var(--color-fox-deep);
+}
+
+.bill-table .bill-row-user td {
+    padding-block: 12px;
+    border-top: 2.5px solid var(--color-fox);
+    border-bottom: 2.5px solid var(--color-fox);
+}
+
+.bill-table tbody tr.bill-row-user .bill-rank-no {
+    color: var(--color-fox-deep);
+}
+
+.bill-table .bill-row-gap td {
+    padding: 6px 0 6px 40%;
+    border-bottom: 0;
+    font-family: var(--font-display);
+    font-size: 22px;
+    line-height: 28px;
+    font-weight: 800;
+    color: var(--color-edge-strong);
+}
+
+/* Phone: each row is a small grid (rank | name | period price over saving); the column head
+   and the c/kWh column are hidden, and the saving carries its own word. */
+@media (max-width: 639.98px) {
+    .bill-table thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+    }
+
+    .bill-table,
+    .bill-table tbody {
+        display: block;
+    }
+
+    .bill-table tbody {
+        border-top: 2px solid var(--color-ink);
+    }
+
+    .bill-table tbody tr {
+        display: grid;
+        grid-template-columns: 30px minmax(0, 1fr) auto;
+        grid-template-rows: auto 1fr;
+        column-gap: 10px;
+        align-items: start;
+        padding-block: 10px;
+        border-bottom: 1px solid var(--color-edge);
+    }
+
+    .bill-table tbody td,
+    .bill-table .bill-row-user td {
+        padding: 0;
+        border: 0;
+    }
+
+    .bill-table tbody tr.bill-row-user {
+        border-top: 2.5px solid var(--color-fox);
+        border-bottom: 2.5px solid var(--color-fox);
+    }
+
+    .bill-table tbody td:nth-child(1) {
+        grid-row: 1 / span 2;
+    }
+
+    .bill-table tbody td:nth-child(2) {
+        grid-column: 2;
+        grid-row: 1 / span 2;
+    }
+
+    .bill-table tbody td:nth-child(3) {
+        grid-column: 3;
+        grid-row: 1;
+    }
+
+    .bill-table tbody td:nth-child(5) {
+        grid-column: 3;
+        grid-row: 2;
+        font-size: var(--text-caption);
+    }
+
+    .bill-table .bill-row-gap {
+        display: block;
+        border-bottom: 0;
+    }
+
+    .bill-table .bill-row-gap td {
+        display: block;
+        padding: 0 0 0 40%;
+    }
+
+    .bill-saving-cell {
+        font-size: 15px;
+        line-height: 20px;
+    }
+}
+
+.bill-phone-label {
+    font-family: var(--font-sans);
+    font-size: var(--text-caption);
+    font-weight: 700;
+    color: var(--color-ink-muted);
+}
+
+@media (min-width: 640px) {
+    .bill-phone-label {
+        display: none;
+    }
+
+    .bill-col-cents {
+        display: table-cell;
+    }
+
+    .bill-glyph-slot {
+        display: block;
+    }
+
+    .bill-col-rank {
+        width: 56px;
+    }
+
+    .bill-rank-no {
+        font-size: 24px;
+        line-height: 30px;
+    }
+
+    .bill-cost,
+    .bill-saving-cell {
+        font-size: 20px;
+    }
+}
+
+@media (min-width: 1024px) {
+    .bill-table .bill-col-num:nth-child(3) {
+        width: 188px;
+    }
+
+    .bill-table .bill-col-num:nth-child(4) {
+        width: 160px;
+    }
+
+    .bill-table .bill-col-num:nth-child(5) {
+        width: 216px;
+    }
+}

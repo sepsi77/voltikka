@@ -8,6 +8,7 @@ use App\Enums\CurrentHeatingMethod;
 use App\Models\SpotPriceAverage;
 use App\Services\DTO\HeatPumpComparisonRequest;
 use App\Services\HeatPumpComparisonService;
+use App\Support\Season;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
 
@@ -540,6 +541,8 @@ class HeatPumpCalculator extends Component
                 'title' => "Kannattaako lämpöpumppu? Vertailu ja laskuri {$year} | Voltikka",
                 'metaDescription' => "Kannattaako lämpöpumppu juuri sinun talossasi? Ilmainen laskuri vertailee, kannattaako maalämpö vai ilma-vesilämpöpumppu, ja arvioi säästöt ja takaisinmaksuajan {$year}.",
                 'canonical' => route('heatpump.calculator'),
+                // Painted hero: the layout puts the top bar over it in this tone (outside any cache).
+                'heroTone' => Season::heroTone('heatpump-hero'),
             ]);
     }
 }

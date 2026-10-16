@@ -68,21 +68,22 @@
     {{-- Filter Section (shared partial) --}}
     @include('partials.contract-filters')
 
-    {{-- Plain list caption. Avoid one more bordered card in the control stack. --}}
-    <div class="mb-5 flex flex-col gap-2 border-b border-slate-200 pb-4 lg:flex-row lg:items-baseline lg:justify-between">
-        <p class="text-sm text-slate-600">
-            <span class="font-bold text-slate-900">{{ $contracts->total() }} sopimusta.</span>
-            12 kk arvio sisältää tarjoukset ja ALV 25,5 %. Siirtomaksu ei sisälly.
-            <a href="/tietoa#menetelma" class="whitespace-nowrap font-medium text-coral-600 underline underline-offset-2 hover:text-coral-700">Näin laskemme &rarr;</a>
-        </p>
-        {{-- The legend explains the pricing-category bands on the cards below. --}}
-        <div class="shrink-0">
-            <x-card.legend />
+    {{-- Results heading (redesign, Paper board 2J3-0 "Results heading"): the count in
+         Bricolage, the note line and the category legend with sparkle marks. --}}
+    <div class="vk-results-head mb-5 mt-4">
+        <div class="min-w-0">
+            <p class="vk-results-count">{{ $contracts->total() }} sopimusta.</p>
+            <p class="vk-results-note">
+                12 kk arvio sisältää tarjoukset ja ALV 25,5 %. Siirtomaksu ei sisälly.
+                <a href="/tietoa#menetelma" class="vk-text-link whitespace-nowrap">Näin laskemme &rarr;</a>
+            </p>
         </div>
+        {{-- The legend explains the pricing categories of the entries below. --}}
+        <x-card.legend class="shrink-0 lg:pb-1.5" />
     </div>
 
-    <!-- Contracts List -->
-    <div class="space-y-6">
+    {{-- Contracts list (ledger list contract: entries end with a vk-ledger-sep hairline). --}}
+    <div class="vk-ledger">
         @forelse ($contracts as $index => $contract)
             @php
                 // Calculate the overall rank based on current page
@@ -110,15 +111,13 @@
                 />
             @endif
         @empty
-            <div class="bg-white rounded-2xl border border-slate-200 p-12 text-center">
-                <p class="text-slate-500">Ei sopimuksia saatavilla.</p>
-            </div>
+            <p class="py-10 text-center font-display text-[22px] font-extrabold leading-[26px] text-ink-muted">Ei sopimuksia saatavilla.</p>
         @endforelse
     </div>
 
     <!-- Pagination Links -->
     @if ($contracts->lastPage() > 1)
-        <div class="mt-8">
+        <div class="mt-6">
             {{ $contracts->links('livewire.partials.pagination') }}
         </div>
     @endif

@@ -1992,10 +1992,18 @@ class ContractDetailPageTest extends TestCase
         $this->createComparisonContract('spot-a', 'Pörssi A', 0.42, pricingModel: 'Spot');
         $this->createComparisonContract('spot-b', 'Pörssi B', 0.42, pricingModel: 'Spot');
 
-        $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
+        $component = $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSee('Vertailun vuoksi: tyypillinen pörssisähkösopimus maksaisi samalla 5 000 kWh kulutuksella arviolta 350 € vuodessa')
             ->assertSee('Tämä sopimus on siis arviolta 39 € vuodessa edullisempi.')
             ->assertSeeHtml('href="/sahkosopimus/porssisahko"');
+
+        // The redesign's two bars read the same two figures the sentence states.
+        $counterfactual = $component->instance()->spotCounterfactual;
+        $this->assertEqualsWithDelta(310.0, $counterfactual['self_cost'], 1.0);
+        $this->assertEqualsWithDelta(349.5, $counterfactual['reference_cost'], 1.0);
+        $this->assertSame('Tyypillinen pörssisähkö', $counterfactual['reference_name']);
+        $this->assertSame('porssisahko', $counterfactual['reference_bucket']);
+        $component->assertSee('Tyypillinen pörssisähkö');
     }
 
     /**
@@ -2012,7 +2020,8 @@ class ContractDetailPageTest extends TestCase
         $this->mountWithPrices('contract-detail', ['contractId' => $spot->id])
             ->assertSee('Vertailun vuoksi: halvin kiinteähintainen sopimus maksaisi samalla 5 000 kWh kulutuksella arviolta 400 € vuodessa')
             ->assertSee('Hintavarmuudesta maksaisit siis arviolta 50 € vuodessa.')
-            ->assertSeeHtml('href="/sahkosopimus/kiintea-hinta"');
+            ->assertSeeHtml('href="/sahkosopimus/kiintea-hinta"')
+            ->assertSee('Halvin kiinteä hinta');
     }
 
     /**

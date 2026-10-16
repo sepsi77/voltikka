@@ -192,7 +192,9 @@ persisted `market_reset` points. In both cases:
   "this seller" and "market median" rendered as one navy line. `leadStroke` is an
   additive opt-in in that JS; a payload that omits it keeps the previous
   behaviour exactly, so `/sahkosopimus/tilastot` and the article chart are
-  unchanged.
+  unchanged. The redesigned company page (2026-10-16) overrides the value to fox
+  `#C4501C` in `resources/views/partials/company-market-comparison.blade.php`;
+  the service payload keeps coral.
 - A seller-only week is dropped: its line would sit over an empty band.
 - In AsOf mode, the seller daily series comes from `contract_price_annual_costs`.
   The market series uses the shared `AnnualSeriesCompatibility` guard. A week that

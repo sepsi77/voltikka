@@ -2,483 +2,450 @@
     {{-- Structured data: WebApplication + FAQPage (FAQPage generated from getFaqItemsProperty) --}}
     <x-schema-markup :schemas="[$jsonLd, $faqJsonLd]" />
 
-    <!-- Hero Section - Dark slate background -->
-    <section class="bg-slate-950 -mx-4 sm:-mx-6 lg:-mx-8">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="py-12 lg:py-16 text-center">
-                <h1 class="text-3xl md:text-4xl xl:text-5xl font-extrabold text-white tracking-tight leading-none mb-4">
-                    Kannattaako <span class="text-coral-400">lämpöpumppu?</span>
-                </h1>
-                <p class="max-w-2xl mx-auto text-slate-300 md:text-lg">
-                    Laske ilmaisella laskurilla, kannattaako maalämpö vai ilma-vesilämpöpumppu juuri sinun talossasi, ja paljonko säästät vuodessa.
-                </p>
-            </div>
+    @php
+        $fmt = fn ($value, int $decimals = 0) => number_format((float) $value, $decimals, ',', ' ');
+        // Drawn radio mark (design spec §5: the selected radio is fox with a white check).
+        $radio = fn (bool $on) => $on
+            ? '<svg class="energy-radio" viewBox="0 0 22 22" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="9" style="fill: var(--color-fox)"/><path d="M6.5 11.2l3 3 6-6.4" fill="none" style="stroke: var(--color-snow-white)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+            : '<svg class="energy-radio" viewBox="0 0 22 22" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="9" style="fill: var(--color-snow-white); stroke: var(--color-field-edge)" stroke-width="2"/></svg>';
+        $chevron = '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M3.5 6l4.5 4.5L12.5 6" fill="none" style="stroke: var(--color-ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    @endphp
+
+    {{-- Hero: the fox warms its paws at the heat pump in the scene (Paper board C1D-0). --}}
+    <x-site.energy-hero art="heatpump-hero" variant="heatpump" :tone="\App\Support\Season::heroTone('heatpump-hero')">
+        <div class="energy-hero-copy energy-hero-copy--heatpump">
+            <h1 class="energy-hero-h1">Kannattaako lämpöpumppu?</h1>
+            <p class="energy-hero-lead">
+                Laske ilmaisella laskurilla, kannattaako maalämpö vai ilma-vesilämpöpumppu juuri sinun talossasi, ja paljonko säästät vuodessa.
+            </p>
         </div>
-    </section>
+    </x-site.energy-hero>
 
     <x-page-action-strip />
 
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="vk-wrap energy-page energy-page--heatpump">
 
         <!-- Introduction -->
-        <div class="mb-8 text-center max-w-2xl mx-auto">
-            <p class="text-slate-600">
-                Lämpöpumppulaskuri auttaa sinua vertailemaan eri lämpöpumppuvaihtoehtoja ja arvioimaan, paljonko voisit säästää lämmityskustannuksissa. Syötä rakennuksesi tiedot ja nykyinen lämmitystapa.
-            </p>
+        <p class="energy-intro">
+            Lämpöpumppulaskuri auttaa sinua vertailemaan eri lämpöpumppuvaihtoehtoja ja arvioimaan, paljonko voisit säästää lämmityskustannuksissa. Syötä rakennuksesi tiedot ja nykyinen lämmitystapa.
+        </p>
+
+        <!-- Calculator: inputs at the left, the answer at the right (no panel) -->
+        <div @class(['energy-calculator', 'has-results' => $this->hasResults])>
+            <section class="energy-inputs" aria-label="Laskurin tiedot">
+
+                <!-- Building Info -->
+                <div class="energy-group">
+                    <h4 class="energy-group-title">Rakennuksen tiedot</h4>
+                    <div class="energy-grid">
+                        <x-site.energy-field id="hp-living-area" label="Pinta-ala (m²)" model="livingArea" unit="m²" min="20" max="500" />
+                        <x-site.energy-field id="hp-room-height" label="Huonekorkeus (m)" model="roomHeight" unit="m" min="2.0" max="4.0" step="0.1" />
+                        <div class="energy-labelled energy-labelled--lg">
+                            <label for="hp-region" class="energy-label">Sijainti</label>
+                            <div class="energy-field energy-field--select">
+                                <select id="hp-region" wire:model.live="buildingRegion" class="energy-select">
+                                    @foreach ($regionLabels as $value => $label)
+                                        <option value="{{ $value }}">{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                                {!! $chevron !!}
+                            </div>
+                        </div>
+                        <div class="energy-labelled energy-labelled--lg">
+                            <label for="hp-building-age" class="energy-label">Rakennusvuosi / energiatehokkuus</label>
+                            <div class="energy-field energy-field--select">
+                                <select id="hp-building-age" wire:model.live="buildingEnergyEfficiency" class="energy-select">
+                                    @foreach ($buildingAgeLabels as $value => $label)
+                                        <option value="{{ $value }}">{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                                {!! $chevron !!}
+                            </div>
+                        </div>
+                        <x-site.energy-field id="hp-people" label="Asukkaiden määrä" model="numPeople" unit="hlö" min="1" max="10" />
+                    </div>
+                </div>
+
+                <!-- Input Mode Toggle -->
+                <div class="energy-group">
+                    <h4 class="energy-group-title">Energiankulutuksen määritys</h4>
+                    <div class="energy-modes">
+                        @foreach ([
+                            'model_based' => ['Laskettu kulutus', 'Rakennustietojen perusteella'],
+                            'bill_based' => ['Toteutunut kulutus', 'Laskun tai mittarilukeman perusteella'],
+                        ] as $mode => [$modeName, $modeHint])
+                            @php $isMode = $inputMode === $mode; @endphp
+                            <button
+                                wire:click="$set('inputMode', '{{ $mode }}')"
+                                aria-pressed="{{ $isMode ? 'true' : 'false' }}"
+                                @class(['energy-mode vk-focus', 'is-selected' => $isMode])
+                            >
+                                {!! $radio($isMode) !!}
+                                <span class="flex flex-col">
+                                    <span class="energy-mode-name">{{ $modeName }}</span>
+                                    <span class="energy-mode-hint">{{ $modeHint }}</span>
+                                </span>
+                            </button>
+                        @endforeach
+                    </div>
+                </div>
+
+                <!-- Current Heating Method -->
+                <div class="energy-group">
+                    <h4 class="energy-group-title">Nykyinen lämmitystapa</h4>
+                    <div class="energy-heating">
+                        @foreach ($heatingMethodLabels as $value => $label)
+                            @php $isHeating = $currentHeatingMethod === $value; @endphp
+                            <button
+                                wire:click="$set('currentHeatingMethod', '{{ $value }}')"
+                                aria-pressed="{{ $isHeating ? 'true' : 'false' }}"
+                                @class(['energy-heating-option vk-focus', 'is-selected' => $isHeating])
+                            >
+                                <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+                                    @switch($value)
+                                        @case('electricity')
+                                            <rect x="7" y="9" width="26" height="22" rx="3" style="fill: var(--color-fox); opacity: .3" />
+                                            <path d="M6 9.5 C 15 8.8, 25 9.4, 34 9 L 34 31 C 25 31.4, 15 30.8, 6 31.2 Z M11 13 V27 M16 13 V27 M21 13 V27 M26 13 V27 M30 13 V27" fill="none" style="stroke: var(--color-ink)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+                                            <path d="M14 35 H26" fill="none" style="stroke: var(--color-ink)" stroke-width="1.6" stroke-linecap="round" />
+                                            @break
+                                        @case('oil')
+                                            <path d="M20 5 C 25 13, 31 19, 31 25.5 C 31 31.5, 26 35.5, 20 35.5 C 14 35.5, 9 31.5, 9 25.5 C 9 19, 15 13, 20 5 Z" style="fill: var(--color-granite); opacity: .3" />
+                                            <path d="M20 4.5 C 25.5 12.8, 31.5 18.8, 31.4 25.6 C 31.3 31.8, 26.2 36, 20 35.9 C 13.8 35.8, 8.8 31.6, 8.7 25.5 C 8.6 18.9, 14.6 12.7, 20 4.5 Z" fill="none" style="stroke: var(--color-ink)" stroke-width="1.6" />
+                                            <path d="M14 27 C 14.5 30, 16.5 31.5, 19 31.8" fill="none" style="stroke: var(--color-ink)" stroke-width="1.4" stroke-linecap="round" />
+                                            @break
+                                        @default
+                                            <path d="M4 26 H14 C 17 26, 18 24, 18 21 V12 C 18 10, 19.5 9, 21 9 H36" fill="none" style="stroke: var(--color-lake); opacity: .35" stroke-width="5" stroke-linecap="round" />
+                                            <path d="M4 26.5 H14 C 17.2 26.4, 18.4 24.2, 18.3 21 V12 C 18.4 9.8, 19.8 8.6, 21.4 8.7 H36" fill="none" style="stroke: var(--color-ink)" stroke-width="1.6" stroke-linecap="round" />
+                                            <path d="M26 31 C 27 29, 25 27.5, 26 25.5 M31 31 C 32 29, 30 27.5, 31 25.5" fill="none" style="stroke: var(--color-fox)" stroke-width="1.6" stroke-linecap="round" />
+                                    @endswitch
+                                </svg>
+                                <span class="energy-heating-name">{{ $label }}</span>
+                            </button>
+                        @endforeach
+                    </div>
+
+                    <!-- Bill-based consumption input -->
+                    @if ($inputMode === 'bill_based')
+                        <div class="energy-bill">
+                            @if ($currentHeatingMethod === 'oil')
+                                <x-site.energy-field id="hp-oil-liters" label="Öljynkulutus (litraa/vuosi)" model="oilLitersPerYear" unit="l/v" min="0" max="10000" placeholder="esim. 2000" />
+                                <p class="energy-hint">Syötä vuotuinen öljynkulutus litroina</p>
+                            @elseif ($currentHeatingMethod === 'electricity')
+                                <x-site.energy-field id="hp-electricity-kwh" label="Sähkönkulutus (kWh/vuosi)" model="electricityKwhPerYear" unit="kWh/v" min="0" max="100000" placeholder="esim. 20000" />
+                                <p class="energy-hint">Syötä vuotuinen sähkönkulutus (lämmitys + käyttösähkö)</p>
+                            @elseif ($currentHeatingMethod === 'district_heating')
+                                <x-site.energy-field id="hp-district-euros" label="Kaukolämpölasku (euroa/vuosi)" model="districtHeatingEurosPerYear" unit="€/v" min="0" max="20000" placeholder="esim. 1500" />
+                                <p class="energy-hint">Syötä vuotuinen kaukolämpölasku euroina (energia, ei perusmaksua)</p>
+                            @endif
+                        </div>
+                    @endif
+                </div>
+
+                <!-- Advanced Settings Accordion -->
+                <div class="energy-advanced">
+                    <button
+                        wire:click="toggleAdvancedSettings"
+                        aria-expanded="{{ $showAdvancedSettings ? 'true' : 'false' }}"
+                        class="energy-advanced-trigger vk-focus"
+                    >
+                        <span>Lisäasetukset</span>
+                        <svg width="16" height="16" viewBox="0 0 16 16" @class(['transition-transform motion-reduce:transition-none', 'rotate-180' => $showAdvancedSettings]) aria-hidden="true" focusable="false"><path d="M3.5 6l4.5 4.5L12.5 6" fill="none" style="stroke: var(--color-ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                    </button>
+
+                    @if ($showAdvancedSettings)
+                        <div class="energy-advanced-panel">
+                            <!-- Prices -->
+                            <div>
+                                <h5 class="energy-subgroup-title">Energian hinnat</h5>
+                                <div class="energy-grid">
+                                    <x-site.energy-field size="sm" id="hp-electricity-price" label="Sähkön hinta (c/kWh)" model="electricityPrice" min="1" max="50" step="0.1" />
+                                    <x-site.energy-field size="sm" id="hp-oil-price" label="Öljyn hinta (€/litra)" model="oilPrice" min="0.5" max="3" step="0.01" />
+                                    <x-site.energy-field size="sm" id="hp-district-price" label="Kaukolämmön hinta (c/kWh)" model="districtHeatingPrice" min="1" max="30" step="0.1" />
+                                    <x-site.energy-field size="sm" id="hp-pellet-price" label="Pelletin hinta (€/tonni)" model="pelletPrice" min="100" max="1000" step="10" />
+                                </div>
+                            </div>
+
+                            <!-- Investments -->
+                            <div>
+                                <h5 class="energy-subgroup-title">Investointikustannukset (€)</h5>
+                                <div class="energy-grid">
+                                    @php
+                                        $investmentLabels = [
+                                            'ground_source_hp' => 'Maalämpöpumppu',
+                                            'air_to_water_hp' => 'Ilma-vesilämpöpumppu',
+                                            'air_to_air_hp' => 'Ilmalämpöpumppu',
+                                            'exhaust_air_hp' => 'Poistoilmalämpöpumppu',
+                                            'ilp_fireplace' => 'Ilmalämpöpumppu + tulisija',
+                                            'exhaust_air_hp_fireplace' => 'Poistoilmalämpöpumppu + tulisija',
+                                            'pellets' => 'Pellettikattila',
+                                        ];
+                                    @endphp
+                                    @foreach ($investmentLabels as $key => $label)
+                                        <x-site.energy-field size="sm" :id="'hp-investment-'.$key" :label="$label" :model="'investments.'.$key" min="0" max="50000" step="100" />
+                                    @endforeach
+                                </div>
+                            </div>
+
+                            <!-- Financial parameters -->
+                            <div>
+                                <h5 class="energy-subgroup-title">Taloudelliset parametrit</h5>
+                                <div class="energy-grid">
+                                    <x-site.energy-field size="sm" id="hp-interest" label="Laskentakorko (%)" model="interestRate" min="0" max="10" step="0.1" />
+                                    <x-site.energy-field size="sm" id="hp-period" label="Laskentajakso (vuotta)" model="calculationPeriod" min="5" max="30" />
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+                </div>
+
+                <!-- Error Message -->
+                @if ($errorMessage)
+                    <p class="energy-error" role="alert"><span aria-hidden="true">!</span> {{ $errorMessage }}</p>
+                @endif
+            </section>
+
+            @if ($this->hasResults)
+                @php
+                    $recommended = $this->recommendedAlternative;
+                    $needTotal = max(1, $this->totalEnergyNeed);
+                    $heatingShare = round($this->heatingEnergyNeed / $needTotal * 100, 2);
+                @endphp
+                <section class="energy-answer" wire:loading.delay.class="opacity-50" aria-label="Laskelman tulos">
+                    <!-- Energy Need Summary -->
+                    <div class="energy-need">
+                        <h3 class="energy-caps">Arvioitu lämmitysenergian tarve</h3>
+                        <p class="energy-need-total">
+                            <span class="energy-need-number">{{ $fmt($this->totalEnergyNeed) }}</span>
+                            <span class="energy-need-unit">kWh yhteensä</span>
+                        </p>
+                        <div class="energy-need-bar" aria-hidden="true">
+                            <span class="energy-need-heating" style="width: {{ $heatingShare }}%"></span>
+                            <span class="energy-need-water"></span>
+                        </div>
+                        <dl class="energy-need-parts">
+                            <div>
+                                <dd class="energy-need-part energy-need-part--heating">{{ $fmt($this->heatingEnergyNeed) }}</dd>
+                                <dt>kWh tilojen lämmitys</dt>
+                            </div>
+                            <div>
+                                <dd class="energy-need-part energy-need-part--water">{{ $fmt($this->hotWaterEnergyNeed) }}</dd>
+                                <dt>kWh käyttövesi</dt>
+                            </div>
+                        </dl>
+                    </div>
+
+                    <!-- The answer: recommended option -->
+                    @if ($recommended)
+                        <div class="energy-recommendation">
+                            <p class="energy-caps energy-caps--good">
+                                <x-ink.sparkle size="12" color="var(--color-aurora)" />
+                                Suositeltu vaihtoehto talollesi
+                            </p>
+                            <h3 class="energy-recommendation-name">{{ $recommended['label'] }}</h3>
+                            <div class="energy-recommendation-figures">
+                                <div>
+                                    <p class="energy-small-label">Säästät vuodessa</p>
+                                    <p class="energy-recommendation-saving">{{ $fmt($recommended['annualSavings']) }} €</p>
+                                    <x-ink.wave :width="200" stroke="3" color="var(--color-aurora)" class="max-w-full" />
+                                </div>
+                                <div class="pb-3.5">
+                                    <p class="energy-small-label">Takaisinmaksuaika</p>
+                                    <p class="energy-recommendation-figure">{{ $recommended['paybackYears'] ? number_format($recommended['paybackYears'], 1, ',', ' ') . ' v' : '–' }}</p>
+                                </div>
+                                <div class="pb-3.5">
+                                    <p class="energy-small-label">Investointi</p>
+                                    <p class="energy-recommendation-figure">{{ $fmt($recommended['investment']) }} €</p>
+                                </div>
+                            </div>
+                            <p class="energy-recommendation-why">
+                                Valitsimme tämän, koska sillä on edullisin kokonaiskustannus (energiakustannukset + investoinnin annuiteetti {{ $calculationPeriod }} vuodelle) niistä täysimittaisista lämmitysratkaisuista, jotka tuottavat säästöä nykyiseen verrattuna ({{ $this->currentSystem['label'] }}, {{ $fmt($this->currentSystem['annualCost']) }} €/v).
+                            </p>
+                            <p class="energy-disclaimer">
+                                Luvut ovat suuntaa-antavia arvioita, eivät tae toteutuvista säästöistä eivätkä sijoitusneuvontaa. Säästö ja takaisinmaksuaika riippuvat energian hintojen kehityksestä, käyttötottumuksista ja asennuksesta — tarkan arvion saat pyytämällä tarjouksen lämpöpumppuasentajalta. Käytetyt hyötysuhteet (SPF), investointihinnat ja korko näkyvät lisäasetuksissa ja ovat muokattavissa.
+                            </p>
+                        </div>
+                    @else
+                        <div class="energy-recommendation">
+                            <h3 class="energy-recommendation-none">Täysi lämmitysvaihto ei tuota säästöä näillä tiedoilla</h3>
+                            <p class="energy-recommendation-why">
+                                Maalämpö, ilma-vesilämpöpumppu tai pelletti ei tällä erää alita nykyisen lämmityksen kokonaiskustannusta {{ $calculationPeriod }} vuoden tarkastelujaksolla. Voit tarkistaa energian hinnat ja investoinnit lisäasetuksista.
+                            </p>
+                        </div>
+                    @endif
+                </section>
+            @endif
         </div>
 
-        <!-- Calculator Section -->
-        <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-8">
-
-            <!-- Building Info -->
-            <div class="mb-8">
-                <h4 class="font-semibold text-slate-900 mb-4">Rakennuksen tiedot</h4>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">Pinta-ala (m²)</label>
-                        <input
-                            type="number"
-                            wire:model.blur="livingArea"
-                            min="20"
-                            max="500"
-                            class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
-                        >
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">Huonekorkeus (m)</label>
-                        <input
-                            type="number"
-                            wire:model.blur="roomHeight"
-                            min="2.0"
-                            max="4.0"
-                            step="0.1"
-                            class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
-                        >
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">Sijainti</label>
-                        <select
-                            wire:model.live="buildingRegion"
-                            class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
-                        >
-                            @foreach ($regionLabels as $value => $label)
-                                <option value="{{ $value }}">{{ $label }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">Rakennusvuosi / energiatehokkuus</label>
-                        <select
-                            wire:model.live="buildingEnergyEfficiency"
-                            class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
-                        >
-                            @foreach ($buildingAgeLabels as $value => $label)
-                                <option value="{{ $value }}">{{ $label }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">Asukkaiden määrä</label>
-                        <input
-                            type="number"
-                            wire:model.blur="numPeople"
-                            min="1"
-                            max="10"
-                            class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
-                        >
-                    </div>
-                </div>
-            </div>
-
-            <!-- Input Mode Toggle -->
-            <div class="mb-8">
-                <h4 class="font-semibold text-slate-900 mb-4">Energiankulutuksen määritys</h4>
-                <div class="grid grid-cols-2 gap-4">
-                    <button
-                        wire:click="$set('inputMode', 'model_based')"
-                        class="p-4 border rounded-xl text-center transition-all {{ $inputMode === 'model_based' ? 'border-coral-500 bg-coral-50' : 'border-slate-200 hover:border-slate-300' }}"
-                    >
-                        <svg class="w-8 h-8 mx-auto mb-2 {{ $inputMode === 'model_based' ? 'text-coral-600' : 'text-slate-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
-                        </svg>
-                        <span class="text-sm font-medium {{ $inputMode === 'model_based' ? 'text-coral-700' : 'text-slate-700' }}">Laskettu kulutus</span>
-                        <span class="block text-xs {{ $inputMode === 'model_based' ? 'text-coral-600' : 'text-slate-500' }} mt-1">Rakennustietojen perusteella</span>
-                    </button>
-                    <button
-                        wire:click="$set('inputMode', 'bill_based')"
-                        class="p-4 border rounded-xl text-center transition-all {{ $inputMode === 'bill_based' ? 'border-coral-500 bg-coral-50' : 'border-slate-200 hover:border-slate-300' }}"
-                    >
-                        <svg class="w-8 h-8 mx-auto mb-2 {{ $inputMode === 'bill_based' ? 'text-coral-600' : 'text-slate-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"></path>
-                        </svg>
-                        <span class="text-sm font-medium {{ $inputMode === 'bill_based' ? 'text-coral-700' : 'text-slate-700' }}">Toteutunut kulutus</span>
-                        <span class="block text-xs {{ $inputMode === 'bill_based' ? 'text-coral-600' : 'text-slate-500' }} mt-1">Laskun tai mittarilukeman perusteella</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Current Heating Method -->
-            <div class="mb-8">
-                <h4 class="font-semibold text-slate-900 mb-4">Nykyinen lämmitystapa</h4>
-                <div class="grid grid-cols-3 gap-4 mb-4">
-                    @php
-                        $heatingIcons = [
-                            'electricity' => 'M13 10V3L4 14h7v7l9-11h-7z',
-                            'oil' => 'M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z',
-                            'district_heating' => 'M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z',
-                        ];
-                    @endphp
-                    @foreach ($heatingMethodLabels as $value => $label)
-                        <button
-                            wire:click="$set('currentHeatingMethod', '{{ $value }}')"
-                            class="p-4 border rounded-xl text-center transition-all {{ $currentHeatingMethod === $value ? 'border-coral-500 bg-coral-50' : 'border-slate-200 hover:border-slate-300' }}"
-                        >
-                            <svg class="w-8 h-8 mx-auto mb-2 {{ $currentHeatingMethod === $value ? 'text-coral-600' : 'text-slate-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $heatingIcons[$value] }}"></path>
-                            </svg>
-                            <span class="text-sm font-medium {{ $currentHeatingMethod === $value ? 'text-coral-700' : 'text-slate-700' }}">{{ $label }}</span>
-                        </button>
-                    @endforeach
-                </div>
-
-                <!-- Bill-based consumption input -->
-                @if ($inputMode === 'bill_based')
-                    <div class="mt-4 p-4 bg-slate-50 rounded-lg">
-                        @if ($currentHeatingMethod === 'oil')
-                            <label class="block text-sm font-medium text-slate-700 mb-1">Öljynkulutus (litraa/vuosi)</label>
-                            <input
-                                type="number"
-                                wire:model.blur="oilLitersPerYear"
-                                min="0"
-                                max="10000"
-                                placeholder="esim. 2000"
-                                class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
-                            >
-                            <p class="mt-1 text-sm text-slate-500">Syötä vuotuinen öljynkulutus litroina</p>
-                        @elseif ($currentHeatingMethod === 'electricity')
-                            <label class="block text-sm font-medium text-slate-700 mb-1">Sähkönkulutus (kWh/vuosi)</label>
-                            <input
-                                type="number"
-                                wire:model.blur="electricityKwhPerYear"
-                                min="0"
-                                max="100000"
-                                placeholder="esim. 20000"
-                                class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
-                            >
-                            <p class="mt-1 text-sm text-slate-500">Syötä vuotuinen sähkönkulutus (lämmitys + käyttösähkö)</p>
-                        @elseif ($currentHeatingMethod === 'district_heating')
-                            <label class="block text-sm font-medium text-slate-700 mb-1">Kaukolämpölasku (euroa/vuosi)</label>
-                            <input
-                                type="number"
-                                wire:model.blur="districtHeatingEurosPerYear"
-                                min="0"
-                                max="20000"
-                                placeholder="esim. 1500"
-                                class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
-                            >
-                            <p class="mt-1 text-sm text-slate-500">Syötä vuotuinen kaukolämpölasku euroina (energia, ei perusmaksua)</p>
-                        @endif
-                    </div>
-                @endif
-            </div>
-
-            <!-- Advanced Settings Accordion -->
-            <div class="border-t border-slate-200 pt-6">
-                <button
-                    wire:click="toggleAdvancedSettings"
-                    class="flex items-center justify-between w-full text-left"
-                >
-                    <span class="font-semibold text-slate-900">Lisäasetukset</span>
-                    <svg class="w-5 h-5 text-slate-500 transition-transform {{ $showAdvancedSettings ? 'rotate-180' : '' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                    </svg>
-                </button>
-
-                @if ($showAdvancedSettings)
-                    <div class="mt-6 space-y-6">
-                        <!-- Prices -->
-                        <div>
-                            <h5 class="text-sm font-medium text-slate-700 mb-3">Energian hinnat</h5>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-sm text-slate-600 mb-1">Sähkön hinta (c/kWh)</label>
-                                    <input
-                                        type="number"
-                                        wire:model.blur="electricityPrice"
-                                        min="1"
-                                        max="50"
-                                        step="0.1"
-                                        class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
-                                    >
-                                </div>
-                                <div>
-                                    <label class="block text-sm text-slate-600 mb-1">Öljyn hinta (€/litra)</label>
-                                    <input
-                                        type="number"
-                                        wire:model.blur="oilPrice"
-                                        min="0.5"
-                                        max="3"
-                                        step="0.01"
-                                        class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
-                                    >
-                                </div>
-                                <div>
-                                    <label class="block text-sm text-slate-600 mb-1">Kaukolämmön hinta (c/kWh)</label>
-                                    <input
-                                        type="number"
-                                        wire:model.blur="districtHeatingPrice"
-                                        min="1"
-                                        max="30"
-                                        step="0.1"
-                                        class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
-                                    >
-                                </div>
-                                <div>
-                                    <label class="block text-sm text-slate-600 mb-1">Pelletin hinta (€/tonni)</label>
-                                    <input
-                                        type="number"
-                                        wire:model.blur="pelletPrice"
-                                        min="100"
-                                        max="1000"
-                                        step="10"
-                                        class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
-                                    >
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Investments -->
-                        <div>
-                            <h5 class="text-sm font-medium text-slate-700 mb-3">Investointikustannukset (€)</h5>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                @php
-                                    $investmentLabels = [
-                                        'ground_source_hp' => 'Maalämpöpumppu',
-                                        'air_to_water_hp' => 'Ilma-vesilämpöpumppu',
-                                        'air_to_air_hp' => 'Ilmalämpöpumppu',
-                                        'exhaust_air_hp' => 'Poistoilmalämpöpumppu',
-                                        'ilp_fireplace' => 'Ilmalämpöpumppu + tulisija',
-                                        'exhaust_air_hp_fireplace' => 'Poistoilmalämpöpumppu + tulisija',
-                                        'pellets' => 'Pellettikattila',
-                                    ];
-                                @endphp
-                                @foreach ($investmentLabels as $key => $label)
-                                    <div>
-                                        <label class="block text-sm text-slate-600 mb-1">{{ $label }}</label>
-                                        <input
-                                            type="number"
-                                            wire:model.blur="investments.{{ $key }}"
-                                            min="0"
-                                            max="50000"
-                                            step="100"
-                                            class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
-                                        >
-                                    </div>
-                                @endforeach
-                            </div>
-                        </div>
-
-                        <!-- Financial parameters -->
-                        <div>
-                            <h5 class="text-sm font-medium text-slate-700 mb-3">Taloudelliset parametrit</h5>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-sm text-slate-600 mb-1">Laskentakorko (%)</label>
-                                    <input
-                                        type="number"
-                                        wire:model.blur="interestRate"
-                                        min="0"
-                                        max="10"
-                                        step="0.1"
-                                        class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
-                                    >
-                                </div>
-                                <div>
-                                    <label class="block text-sm text-slate-600 mb-1">Laskentajakso (vuotta)</label>
-                                    <input
-                                        type="number"
-                                        wire:model.blur="calculationPeriod"
-                                        min="5"
-                                        max="30"
-                                        class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
-                                    >
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                @endif
-            </div>
-
-            <!-- Error Message -->
-            @if ($errorMessage)
-                <div class="mt-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700">
-                    {{ $errorMessage }}
-                </div>
-            @endif
-
-        </section>
-
-        <!-- Quiet, non-blocking recalculation status (replaces the old full-screen overlay) -->
-        <div wire:loading.delay class="fixed bottom-4 right-4 z-40 inline-flex items-center gap-2 rounded-full bg-slate-900 text-white text-sm font-medium px-4 py-2 shadow-lg">
-            <svg class="animate-spin h-4 w-4 text-coral-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
+        <!-- Quiet, non-blocking recalculation status -->
+        <div wire:loading.delay class="energy-updating" role="status">
+            <svg class="energy-spinner" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="3" opacity=".25"/><path d="M21 12a9 9 0 0 0-9-9" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
             Päivitetään laskelmaa…
         </div>
 
         <!-- Results Section -->
         @if ($this->hasResults)
-            <div wire:loading.delay.class="opacity-50" class="transition-opacity duration-200 motion-reduce:transition-none">
-            <!-- Energy Need Summary - quiet context strip -->
-            <section class="mb-8">
-                <div class="flex items-center gap-2 mb-3">
-                    <h3 class="text-sm uppercase tracking-wide font-semibold text-slate-500">Arvioitu lämmitysenergian tarve</h3>
-                </div>
-                <dl class="flex flex-wrap gap-x-8 gap-y-2">
-                    <div class="flex items-baseline gap-2">
-                        <dd class="text-lg font-bold text-slate-900 tabular-nums">{{ number_format($this->heatingEnergyNeed, 0, ',', ' ') }}</dd>
-                        <dt class="text-sm text-slate-500">kWh tilojen lämmitys</dt>
-                    </div>
-                    <div class="flex items-baseline gap-2">
-                        <dd class="text-lg font-bold text-slate-900 tabular-nums">{{ number_format($this->hotWaterEnergyNeed, 0, ',', ' ') }}</dd>
-                        <dt class="text-sm text-slate-500">kWh käyttövesi</dt>
-                    </div>
-                    <div class="flex items-baseline gap-2">
-                        <dd class="text-lg font-bold text-slate-900 tabular-nums">{{ number_format($this->totalEnergyNeed, 0, ',', ' ') }}</dd>
-                        <dt class="text-sm text-slate-500">kWh yhteensä</dt>
-                    </div>
-                </dl>
-            </section>
-
-            @php
-                $recommended = $this->recommendedAlternative;
-            @endphp
-
-            <!-- The answer: recommended option, the focused dark moment -->
-            @if ($recommended)
-                <section class="bg-slate-950 rounded-2xl p-8 mb-8">
-                    <p class="text-sm uppercase tracking-wide font-semibold text-coral-400">Suositeltu vaihtoehto talollesi</p>
-                    <h3 class="text-2xl md:text-3xl font-extrabold text-white mt-2">{{ $recommended['label'] }}</h3>
-                    <div class="mt-6 flex flex-wrap items-end gap-x-10 gap-y-5">
-                        <div>
-                            <p class="text-sm text-slate-300 mb-1">Säästät vuodessa</p>
-                            <p class="text-4xl md:text-5xl font-extrabold text-coral-400 tabular-nums leading-none">{{ number_format($recommended['annualSavings'], 0, ',', ' ') }} €</p>
-                        </div>
-                        <div>
-                            <p class="text-sm text-slate-300 mb-1">Takaisinmaksuaika</p>
-                            <p class="text-2xl font-bold text-white tabular-nums">{{ $recommended['paybackYears'] ? number_format($recommended['paybackYears'], 1, ',', ' ') . ' v' : '–' }}</p>
-                        </div>
-                        <div>
-                            <p class="text-sm text-slate-300 mb-1">Investointi</p>
-                            <p class="text-2xl font-bold text-white tabular-nums">{{ number_format($recommended['investment'], 0, ',', ' ') }} €</p>
-                        </div>
-                    </div>
-                    <p class="mt-5 text-sm text-slate-300">
-                        Valitsimme tämän, koska sillä on edullisin kokonaiskustannus (energiakustannukset + investoinnin annuiteetti {{ $calculationPeriod }} vuodelle) niistä täysimittaisista lämmitysratkaisuista, jotka tuottavat säästöä nykyiseen verrattuna ({{ $this->currentSystem['label'] }}, {{ number_format($this->currentSystem['annualCost'], 0, ',', ' ') }} €/v).
-                    </p>
-                    <p class="mt-4 text-xs text-slate-400 leading-relaxed">
-                        Luvut ovat suuntaa-antavia arvioita, eivät tae toteutuvista säästöistä eivätkä sijoitusneuvontaa. Säästö ja takaisinmaksuaika riippuvat energian hintojen kehityksestä, käyttötottumuksista ja asennuksesta — tarkan arvion saat pyytämällä tarjouksen lämpöpumppuasentajalta. Käytetyt hyötysuhteet (SPF), investointihinnat ja korko näkyvät lisäasetuksissa ja ovat muokattavissa.
-                    </p>
-                </section>
-            @else
-                <section class="rounded-2xl border border-slate-200 bg-slate-50 p-6 mb-8">
-                    <h3 class="text-lg font-bold text-slate-900">Täysi lämmitysvaihto ei tuota säästöä näillä tiedoilla</h3>
-                    <p class="mt-2 text-sm text-slate-600">
-                        Maalämpö, ilma-vesilämpöpumppu tai pelletti ei tällä erää alita nykyisen lämmityksen kokonaiskustannusta {{ $calculationPeriod }} vuoden tarkastelujaksolla. Voit tarkistaa energian hinnat ja investoinnit lisäasetuksista.
-                    </p>
-                </section>
-            @endif
-
             @php
                 // Only full-replacement primary systems are shown (see HeatPumpCalculator::alternatives()).
                 $recommendedKey = $recommended['key'] ?? null;
                 $primary = collect($this->alternatives)
                     ->sortBy(fn($alt) => $alt['annualizedTotalCost'] ?? PHP_INT_MAX)
                     ->values();
+                $currentCost = (float) ($this->currentSystem['annualCost'] ?? 0);
+                $costScale = max($currentCost, (float) $primary->max('annualizedTotalCost'), 1);
             @endphp
 
-            <!-- Current system - quiet baseline reference -->
-            <section class="rounded-2xl border border-slate-200 p-6 mb-8">
-                <div class="flex flex-wrap items-center justify-between gap-4">
-                    <div>
-                        <p class="text-sm uppercase tracking-wide font-semibold text-slate-500">Nykyinen järjestelmä</p>
-                        <h3 class="text-xl font-bold text-slate-900 mt-1">{{ $this->currentSystem['label'] }}</h3>
-                    </div>
-                    <div class="flex gap-8">
-                        <div>
-                            <p class="text-sm text-slate-500 mb-1">Energiakustannus/v</p>
-                            <p class="text-2xl font-bold text-slate-900 tabular-nums">{{ number_format($this->currentSystem['annualCost'], 0, ',', ' ') }} €</p>
-                        </div>
-                        <div>
-                            <p class="text-sm text-slate-500 mb-1">CO₂-päästöt</p>
-                            <p class="text-2xl font-bold text-slate-900 tabular-nums">{{ number_format($this->currentSystem['co2KgPerYear'], 0, ',', ' ') }} kg</p>
-                        </div>
-                    </div>
-                </div>
-            </section>
+            <x-site.spot-paw-divider />
 
-            <!-- Primary Heating Options (full replacement) -->
-            @if ($primary->isNotEmpty())
-                <section class="mb-8">
-                    <div class="mb-5">
-                        <h3 class="text-xl font-bold text-slate-900">Lämmitysratkaisut</h3>
-                        <p class="text-sm text-slate-500 mt-1">Nämä järjestelmät korvaavat nykyisen lämmityksen kokonaan tai lähes kokonaan. Järjestys halvimman kokonaiskustannuksen mukaan.</p>
+            <div wire:loading.delay.class="opacity-50" class="transition-opacity duration-200 motion-reduce:transition-none">
+                <!-- Primary Heating Options (full replacement) -->
+                <section class="energy-options">
+                    <div class="energy-options-head">
+                        <x-site.section-heading :level="3" :wave="260">Lämmitysratkaisut</x-site.section-heading>
+
+                        <!-- Current system - the baseline the options are compared with -->
+                        <dl class="energy-current">
+                            <div>
+                                <dt class="energy-caps">Nykyinen järjestelmä</dt>
+                                <dd class="energy-current-name">{{ $this->currentSystem['label'] }}</dd>
+                            </div>
+                            <div>
+                                <dt class="energy-small-label">Energiakustannus/v</dt>
+                                <dd class="energy-current-figure energy-current-figure--cost">{{ $fmt($this->currentSystem['annualCost']) }} €</dd>
+                            </div>
+                            <div>
+                                <dt class="energy-small-label">CO₂-päästöt</dt>
+                                <dd class="energy-current-figure">{{ $fmt($this->currentSystem['co2KgPerYear']) }} kg</dd>
+                            </div>
+                        </dl>
                     </div>
-                    <div class="grid grid-cols-1 gap-5">
-                        @foreach ($primary as $alt)
-                            @include('livewire.partials.heat-pump-alternative-card', ['alt' => $alt, 'isRecommended' => $alt['key'] === $recommendedKey])
-                        @endforeach
-                    </div>
+
+                    @if ($primary->isNotEmpty())
+                        <p class="energy-options-intro">Nämä järjestelmät korvaavat nykyisen lämmityksen kokonaan tai lähes kokonaan. Järjestys halvimman kokonaiskustannuksen mukaan.</p>
+
+                        {{-- Total cost per year: energy + investment share, against the current cost. The longest bar
+                             is 600 of the 640px lane (93.75%, board scale). --}}
+                        <div class="energy-totals" aria-hidden="true">
+                            @foreach ($primary as $alt)
+                                @php
+                                    $energyPart = max(0, (float) $alt['annualCost']);
+                                    $totalPart = max($energyPart, (float) $alt['annualizedTotalCost']);
+                                @endphp
+                                <div class="energy-totals-row">
+                                    <span class="energy-totals-name">{{ $alt['label'] }}</span>
+                                    <span class="energy-totals-track">
+                                        <span class="energy-totals-bar" style="width: {{ round($totalPart / $costScale * 93.75, 2) }}%">
+                                            <span class="energy-totals-energy" style="width: {{ $totalPart > 0 ? round($energyPart / $totalPart * 100, 2) : 0 }}%"></span>
+                                        </span>
+                                        <span class="energy-totals-current" style="left: {{ round($currentCost / $costScale * 93.75, 2) }}%"></span>
+                                    </span>
+                                    <span class="energy-totals-value">{{ $fmt($alt['annualizedTotalCost']) }} €</span>
+                                    <span class="energy-totals-tag">
+                                        @if ($alt['key'] === $recommendedKey)
+                                            <x-ink.sparkle size="13" color="var(--color-aurora)" /> suositeltu
+                                        @endif
+                                    </span>
+                                </div>
+                            @endforeach
+                            <div class="energy-totals-legend">
+                                <span><i class="energy-swatch energy-swatch--energy"></i>Energiakustannus/v</span>
+                                <span><i class="energy-swatch energy-swatch--investment"></i>Investoinnin osuus/v</span>
+                                <span><i class="energy-swatch energy-swatch--current"></i>Nykyinen {{ $fmt($currentCost) }} €/v</span>
+                            </div>
+                        </div>
+
+                        <ol class="energy-alternatives">
+                            @foreach ($primary as $alt)
+                                @include('livewire.partials.heat-pump-alternative-card', ['alt' => $alt, 'isRecommended' => $alt['key'] === $recommendedKey, 'rank' => $loop->iteration])
+                            @endforeach
+                        </ol>
+                    @endif
+
+                    <p class="energy-footnote">* Kokonaiskustannus sisältää energiakustannukset (sähkö tai pelletti) ja investoinnin annuiteetin {{ $calculationPeriod }} vuodelle {{ number_format($interestRate, 1, ',', ' ') }}% korolla.</p>
                 </section>
-            @endif
-
-            <p class="text-xs text-slate-500 mb-8">* Kokonaiskustannus sisältää energiakustannukset (sähkö tai pelletti) ja investoinnin annuiteetin {{ $calculationPeriod }} vuodelle {{ number_format($interestRate, 1, ',', ' ') }}% korolla.</p>
             </div>
         @endif
 
         <!-- Info Section -->
-        <section class="bg-slate-50 rounded-xl p-6 text-sm text-slate-600 mb-8">
-            <h3 class="font-semibold text-slate-900 mb-2">Tietoa laskurista</h3>
-            <ul class="list-disc list-inside space-y-1">
-                <li>Lämmitysenergian tarve perustuu rakennuksen tilavuuteen ja energiatehokkuuteen</li>
-                <li>Lämpöpumppujen hyötysuhteet (SPF/COP) ovat tyypillisiä suomalaisissa olosuhteissa</li>
-                <li>Investointikustannukset ovat keskimääräisiä avaimet käteen -hintoja</li>
-                <li>Todellinen säästö riippuu käyttötottumuksista ja energian hintojen kehityksestä</li>
-            </ul>
+        <section class="energy-notes">
+            <div class="energy-notes-col">
+                <h3 class="energy-notes-title">Tietoa laskurista</h3>
+                <ul class="energy-notes-list">
+                    @foreach ([
+                        'Lämmitysenergian tarve perustuu rakennuksen tilavuuteen ja energiatehokkuuteen',
+                        'Lämpöpumppujen hyötysuhteet (SPF/COP) ovat tyypillisiä suomalaisissa olosuhteissa',
+                        'Investointikustannukset ovat keskimääräisiä avaimet käteen -hintoja',
+                        'Todellinen säästö riippuu käyttötottumuksista ja energian hintojen kehityksestä',
+                    ] as $note)
+                        <li><x-ink.sparkle size="12" color="var(--color-fox)" class="mt-[6px]" /><span>{{ $note }}</span></li>
+                    @endforeach
+                </ul>
+            </div>
 
-            <h4 class="font-semibold text-slate-900 mt-4 mb-2">CO₂-päästöjen laskenta</h4>
-            <p class="mb-2">Päästöt lasketaan vuositasolla käyttäen seuraavia päästökertoimia:</p>
-            <ul class="list-disc list-inside space-y-1 mb-2">
-                <li><strong>Sähkö: 80 g/kWh</strong> – Suomen sähköverkon keskiarvo 2024 (<a href="https://www.fingrid.fi/en/electricity-market-information/real-time-co2-emissions-estimate/" target="_blank" rel="noopener" class="text-coral-600 hover:underline">Fingrid</a>)</li>
-                <li><strong>Kaukolämpö: 130 g/kWh</strong> – kolmen vuoden keskiarvo 2021–2023 (<a href="https://www.motiva.fi/ratkaisut/energiankaytto_suomessa/co2-paastokertoimet" target="_blank" rel="noopener" class="text-coral-600 hover:underline">Motiva</a>)</li>
-                <li><strong>Öljy: 267 g/kWh</strong> – polttoaineen päästökerroin</li>
-                <li><strong>Pelletit ja polttopuu: 30 g/kWh</strong> – biogeeninen hiili lasketaan hiilineutraaliksi, luku kattaa vain tuotannon ja kuljetuksen</li>
-            </ul>
-            <p class="text-xs text-slate-500">Suomen sähköntuotanto on erittäin vähäpäästöistä ydinvoiman (~40%) ja uusiutuvien (~52%) ansiosta. Jos sinulla on 100% uusiutuva sähkösopimus, lämpöpumppujen todelliset päästöt ovat vielä pienemmät.</p>
-        </section>
-
-        <!-- FAQ Section for SEO (visible FAQ + FAQPage JSON-LD share getFaqItemsProperty) -->
-        <section class="mb-8">
-            <h2 class="text-2xl font-bold text-slate-900 mb-6">Usein kysytyt kysymykset lämpöpumpuista</h2>
-
-            <div class="space-y-4">
-                @foreach ($this->faqItems as $faq)
-                    <details class="bg-white rounded-xl border border-slate-200 p-4 group">
-                        <summary class="font-semibold text-slate-900 cursor-pointer list-none flex justify-between items-center">
-                            {{ $faq['question'] }}
-                            <svg class="w-5 h-5 text-slate-500 group-open:rotate-180 transition-transform shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                        </summary>
-                        <p class="mt-3 text-slate-600">{{ $faq['answer'] }}</p>
-                    </details>
-                @endforeach
+            <div class="energy-notes-col energy-notes-col--co2">
+                <h4 class="energy-notes-title">CO₂-päästöjen laskenta</h4>
+                <p>Päästöt lasketaan vuositasolla käyttäen seuraavia päästökertoimia:</p>
+                <ul class="energy-factors">
+                    <li>
+                        <span class="energy-factor-name">Sähkö</span>
+                        <span class="energy-factor-bar" style="width: {{ round(80 / 267 * 138) }}px" aria-hidden="true"></span>
+                        <span class="energy-factor-text"><strong>80 g/kWh</strong> – Suomen sähköverkon keskiarvo 2024 (<a href="https://www.fingrid.fi/en/electricity-market-information/real-time-co2-emissions-estimate/" target="_blank" rel="noopener" class="energy-link vk-focus">Fingrid</a>)</span>
+                    </li>
+                    <li>
+                        <span class="energy-factor-name">Kaukolämpö</span>
+                        <span class="energy-factor-bar" style="width: {{ round(130 / 267 * 138) }}px" aria-hidden="true"></span>
+                        <span class="energy-factor-text"><strong>130 g/kWh</strong> – kolmen vuoden keskiarvo 2021–2023 (<a href="https://www.motiva.fi/ratkaisut/energiankaytto_suomessa/co2-paastokertoimet" target="_blank" rel="noopener" class="energy-link vk-focus">Motiva</a>)</span>
+                    </li>
+                    <li>
+                        <span class="energy-factor-name">Öljy</span>
+                        <span class="energy-factor-bar" style="width: 138px" aria-hidden="true"></span>
+                        <span class="energy-factor-text"><strong>267 g/kWh</strong> – polttoaineen päästökerroin</span>
+                    </li>
+                    <li>
+                        <span class="energy-factor-name">Pelletit ja polttopuu</span>
+                        <span class="energy-factor-bar" style="width: {{ round(30 / 267 * 138) }}px" aria-hidden="true"></span>
+                        <span class="energy-factor-text"><strong>30 g/kWh</strong> – biogeeninen hiili lasketaan hiilineutraaliksi, luku kattaa vain tuotannon ja kuljetuksen</span>
+                    </li>
+                </ul>
+                <p class="energy-notes-foot">Suomen sähköntuotanto on erittäin vähäpäästöistä ydinvoiman (~40%) ja uusiutuvien (~52%) ansiosta. Jos sinulla on 100% uusiutuva sähkösopimus, lämpöpumppujen todelliset päästöt ovat vielä pienemmät.</p>
             </div>
         </section>
 
+        <x-site.interlude art="heatpump-interlude" />
+
+        <div class="energy-faq-related">
+            <!-- FAQ Section for SEO (visible FAQ + FAQPage JSON-LD share getFaqItemsProperty) -->
+            <section class="energy-faq-block energy-faq-block--narrow">
+                <x-site.section-heading size="compact" :wave="300">Usein kysytyt kysymykset lämpöpumpuista</x-site.section-heading>
+
+                <div class="spot-faq">
+                    @foreach ($this->faqItems as $faq)
+                        <details class="group spot-faq-row">
+                            <summary class="vk-focus flex cursor-pointer list-none items-center justify-between gap-3 py-4 [&::-webkit-details-marker]:hidden">
+                                <span class="text-[17px] font-extrabold leading-[22px] text-ink md:text-[18px] md:leading-6">{{ $faq['question'] }}</span>
+                                <svg width="18" height="18" viewBox="0 0 18 18" class="shrink-0 transition-transform group-open:rotate-180 motion-reduce:transition-none" aria-hidden="true" focusable="false"><path d="M4 7l5 5 5-5" fill="none" style="stroke: var(--color-ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                            </summary>
+                            <p class="max-w-[680px] pb-4 pt-1 text-[16px] leading-[25px] text-ink-body">{{ $faq['answer'] }}</p>
+                        </details>
+                    @endforeach
+                </div>
+            </section>
+
+            <!-- Related links -->
+            <section class="energy-related">
+                <h2 class="energy-related-title">Aiheeseen liittyvää</h2>
+                <ul>
+                    <li><a href="{{ route('spot-price') }}" class="energy-related-link vk-focus">Pörssisähkön hinta tänään ja huomenna →</a></li>
+                    <li><a href="{{ route('calculator') }}" class="energy-related-link vk-focus">Sähkönkulutuslaskuri: arvioi talosi vuosikulutus →</a></li>
+                    <li><a href="{{ route('sahkosopimus.index') }}" class="energy-related-link vk-focus">Vertaile sähkösopimuksia →</a></li>
+                    <li><a href="{{ route('solar.calculator') }}" class="energy-related-link vk-focus">Aurinkopaneelilaskuri →</a></li>
+                </ul>
+            </section>
+        </div>
+
         <!-- Additional SEO Content -->
-        <section class="prose prose-slate max-w-none mb-8">
-            <h2 class="text-2xl font-bold text-slate-900 mb-4">Kannattaako lämpöpumppu? {{ date('Y') }}</h2>
-            <p class="text-slate-600 mb-4">
+        <section class="energy-longread">
+            <x-site.section-heading :wave="320">Kannattaako lämpöpumppu? {{ date('Y') }}</x-site.section-heading>
+            <p>
                 Lämpöpumppu kannattaa useimmiten silloin, kun se korvaa suoran sähkölämmityksen tai
                 öljylämmityksen. Lämpöpumppu siirtää lämpöä ulkoilmasta, maaperästä tai poistoilmasta taloon
                 ja tuottaa yhdellä sähkökilowattitunnilla kaksi tai kolme kilowattituntia lämpöä. Kannattavuus
@@ -486,52 +453,41 @@
                 joten paras tapa selvittää asia on laskea oma tapauksesi yllä olevalla laskurilla.
             </p>
 
-            <h3 class="text-xl font-bold text-slate-900 mt-6 mb-2">Kannattaako maalämpö?</h3>
-            <p class="text-slate-600 mb-4">
+            <h3>Kannattaako maalämpö?</h3>
+            <p>
                 Maalämpö on energiatehokkain vaihtoehto. Vuotuinen hyötysuhde (SPF) on Suomen olosuhteissa
                 tyypillisesti noin 2,9, eli se tuottaa lähes kolme kilowattituntia lämpöä jokaista
                 sähkökilowattituntia kohden.
             </p>
-            <p class="text-slate-600 mb-4">
+            <p>
                 Investointi on suurin, usein luokkaa 20 000 euroa, joten maalämpö kannattaa parhaiten
                 suuremmissa ja paljon lämmitettävissä taloissa. Pienemmässä talossa edullisempi
                 ilma-vesilämpöpumppu voi tulla kokonaiskustannukseltaan halvemmaksi.
             </p>
 
-            <h3 class="text-xl font-bold text-slate-900 mt-6 mb-2">Kannattaako ilma-vesilämpöpumppu?</h3>
-            <p class="text-slate-600 mb-4">
+            <h3>Kannattaako ilma-vesilämpöpumppu?</h3>
+            <p>
                 Ilma-vesilämpöpumppu sopii vesikiertoiseen lämmitykseen ja maksaa selvästi vähemmän kuin
                 maalämpö, tyypillisesti noin 12 000 euroa. Sen vuotuinen hyötysuhde (SPF) on noin 2,3, ja
                 se kattaa lämmöntarpeesta noin 80 prosenttia.
             </p>
-            <p class="text-slate-600 mb-4">
+            <p>
                 Loput noin 20 prosenttia tuotetaan yleensä suoralla sähköllä, etenkin kovilla pakkasilla.
                 Kohtalaisesti lämmitettävässä talossa ilma-vesilämpöpumppu on usein kokonaiskustannukseltaan
                 kannattavin ratkaisu.
             </p>
 
-            <h3 class="text-xl font-bold text-slate-900 mt-6 mb-2">Milloin lämpöpumppu ei kannata?</h3>
-            <p class="text-slate-600 mb-4">
+            <h3>Milloin lämpöpumppu ei kannata?</h3>
+            <p>
                 Kaukolämmön korvaaminen lämpöpumpulla on harvoin taloudellisesti kannattavaa, koska
                 kaukolämpö on jo valmiiksi edullista energiaa. Myös hyvin pienen lämmitystarpeen taloissa
                 suuri investointi voi maksaa itsensä takaisin hitaasti.
             </p>
-            <p class="text-slate-600">
+            <p>
                 Tämä laskuri huomioi talon koon, sijainnin, nykyisen lämmitystavan ja energian hinnat, ja
                 kertoo suoraan, jos täysi lämmitysvaihto ei tuota säästöä sinun tiedoillasi. Tulokset ovat
                 suuntaa antavia; tarkemman arvion saat pyytämällä tarjouksen lämpöpumppuasentajalta.
             </p>
-        </section>
-
-        <!-- Related links -->
-        <section class="border-t border-slate-200 pt-6 mb-8">
-            <h2 class="text-lg font-bold text-slate-900 mb-3">Aiheeseen liittyvää</h2>
-            <ul class="space-y-2">
-                <li><a href="{{ route('spot-price') }}" class="text-coral-600 hover:underline">Pörssisähkön hinta tänään ja huomenna</a></li>
-                <li><a href="{{ route('calculator') }}" class="text-coral-600 hover:underline">Sähkönkulutuslaskuri: arvioi talosi vuosikulutus</a></li>
-                <li><a href="{{ route('sahkosopimus.index') }}" class="text-coral-600 hover:underline">Vertaile sähkösopimuksia</a></li>
-                <li><a href="{{ route('solar.calculator') }}" class="text-coral-600 hover:underline">Aurinkopaneelilaskuri</a></li>
-            </ul>
         </section>
 
     </div>

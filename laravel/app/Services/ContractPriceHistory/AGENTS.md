@@ -72,9 +72,12 @@ variant plots the market instead. This follows the approved
 
 ## Decisions that must not be undone casually
 
-- **The ink line is `#0f172a` (slate-900) and the reference is a dashed
-  `#64748b` (slate-500) with a direct end label. Coral is never a data series** —
-  it is reserved for actions and warnings. This was a review outcome, not taste.
+- **The reference is a dashed line with a direct end label.** Before the 2026-10
+  picture-book redesign the contract line was slate-900 and coral was never a data
+  series. The redesign board (Paper `39Y-0`) draws the contract line in fox and the
+  reference in dashed granite; the template sets those colours from tokens, so the
+  presenter's `ink` / `reference_colour` payload values are no longer read by
+  `contract-detail.blade.php`.
 - **Every delta is c/kWh or €/kk, never a percentage.** Two consecutive `-8 %`
   rows read as a copy-paste bug in the mockup review.
 - **The contract line is stepped.** A published price holds until the next

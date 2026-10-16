@@ -2,36 +2,39 @@
     $hasData = !empty($chartData['labels']);
     $segmentRates = $chartData['segmentRates'] ?? [];
     $segmentMeta = $chartData['segmentMeta'] ?? [];
+    // Series colours as design tokens (design spec §5 "Series colours"): fixed terms in the
+    // fixed-price category colour and the field edge, open-ended as a dashed ink-muted line.
+    // The chart script resolves the variables; the legend uses them directly.
     $segmentColors = [
-        'fixed_term_12' => '#3b82f6',
-        'fixed_term_24' => '#0ea5e9',
-        'open_ended' => '#64748b',
+        'fixed_term_12' => '--color-cat-fixed',
+        'fixed_term_24' => '--color-field-edge',
+        'open_ended' => '--color-ink-muted',
     ];
     $segmentDash = [
-        'fixed_term_12' => '6,3',
-        'fixed_term_24' => '2,3',
-        'open_ended' => '10,4',
+        'fixed_term_12' => '',
+        'fixed_term_24' => '',
+        'open_ended' => '6,4',
     ];
     $fmt = fn ($v) => $v === null ? '–' : number_format($v, 1, ',', ' ');
 @endphp
 
-<section class="not-prose" aria-labelledby="winrate-heading">
-    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-coral-700">Halvimpien sopimusten vertailu</p>
-    <h2 id="winrate-heading" class="mt-2 text-2xl font-bold tracking-tight text-slate-900">
-        Kuinka usein pörssisähkö on ollut edullisempi?
-    </h2>
-    <p class="mt-2 max-w-prose text-base leading-7 text-slate-600">
+<section class="vk-lr-figure" aria-labelledby="winrate-heading">
+    <div class="vk-lr-figure-head">
+        <p class="vk-lr-figure-kicker">Halvimpien sopimusten vertailu</p>
+        <x-site.section-heading id="winrate-heading" wave="300">Kuinka usein pörssisähkö on ollut edullisempi?</x-site.section-heading>
+    </div>
+    <p class="vk-lr-text">
         Tässä ei verrata kaikkien sopimusten keskiarvoa. Jokaiselta päivältä {{ $chartData['from'] ?? '' }}–{{ $chartData['to'] ?? '' }}
         valitaan kunkin sopimustyypin edullinen taso: hinta, jonka alle 20&nbsp;% kyseisen päivän tarjouksista jäi.
         Jos pörssisähkön viiva on alempana, halvimmat pörssisopimukset ovat olleet halvempia kuin halvimmat vertailuryhmän sopimukset samana päivänä.
     </p>
 
     @if (!$hasData)
-        <div class="mt-6 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm text-slate-600">
+        <p class="vk-lr-empty">
             Vertailutietoa ei ole vielä saatavilla.
-        </div>
+        </p>
     @else
-        <p id="win-rate-takeaway" class="mt-6 max-w-prose text-base leading-7 text-slate-700">
+        <p id="win-rate-takeaway" class="vk-lr-text">
             <strong>Pörssisähkön halvemmat vertailupäivät:</strong>
             @foreach ($segmentRates as $rate)
                 {{ $rate['label'] }} {{ $fmt($rate['spot_win_pct']) }} %{{ $loop->last ? '.' : ',' }}
@@ -39,14 +42,14 @@
         </p>
 
         {{-- Headline figures: pörssisähkön voitto-osuus jokaista vertailutyyppiä vastaan --}}
-        <dl class="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-6 border-t border-slate-200 pt-6">
+        <dl class="vk-lr-stats">
             @foreach ($segmentRates as $key => $rate)
-                <div>
-                    <dt class="text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-500">Halvempi kuin {{ $rate['label'] }}</dt>
-                    <dd class="mt-1 text-2xl font-extrabold tabular-nums text-coral-600">
-                        {{ $fmt($rate['spot_win_pct']) }}<span class="text-sm font-medium text-coral-600">&nbsp;%</span>
+                <div class="vk-lr-stat">
+                    <dt>Halvempi kuin {{ $rate['label'] }}</dt>
+                    <dd class="tabular-nums">
+                        {{ $fmt($rate['spot_win_pct']) }}<span class="vk-lr-stat-unit">&nbsp;%</span>
                     </dd>
-                    <p class="mt-1 text-[11px] text-slate-500">
+                    <p class="vk-lr-stat-sub">
                         @if ($rate['spot_wins'] !== null)
                             {{ $rate['spot_wins'] }} / {{ $rate['overlap_days'] }} päivää
                         @else
@@ -55,31 +58,30 @@
                     </p>
                 </div>
             @endforeach
-            <div>
-                <dt class="text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-500">Aineisto</dt>
-                <dd class="mt-1 text-2xl font-extrabold tabular-nums text-slate-900">
-                    {{ $chartData['total'] }}<span class="text-sm font-medium text-slate-500">&nbsp;päivää</span>
+            <div class="vk-lr-stat">
+                <dt>Aineisto</dt>
+                <dd class="tabular-nums">
+                    {{ $chartData['total'] }}<span class="vk-lr-stat-unit">&nbsp;päivää</span>
                 </dd>
             </div>
         </dl>
 
-        <div class="relative mt-8">
-            <div class="flex flex-wrap items-center gap-x-5 gap-y-2 mb-4">
-                <span class="flex items-center gap-2 text-sm text-slate-600">
-                    <span class="h-0.5 w-4 bg-coral-500"></span>
+        <div class="flex flex-col gap-3">
+            <div class="vk-lr-legend">
+                <span class="vk-lr-legend-item">
+                    <span class="vk-lr-swatch vk-lr-swatch--line" style="--lr-swatch: var(--color-cat-spot)"></span>
                     Pörssisähkö
                 </span>
                 @foreach ($segmentMeta as $key => $label)
-                    <span class="flex items-center gap-2 text-sm text-slate-600">
-                        <svg width="20" height="6" viewBox="0 0 20 6" aria-hidden="true" class="shrink-0">
-                            <line x1="0" y1="3" x2="20" y2="3" stroke="{{ $segmentColors[$key] ?? '#64748b' }}" stroke-width="2" stroke-linecap="round" stroke-dasharray="{{ $segmentDash[$key] ?? '6,3' }}"/>
-                        </svg>
+                    <span class="vk-lr-legend-item">
+                        <span class="vk-lr-swatch {{ ($segmentDash[$key] ?? '') !== '' ? 'vk-lr-swatch--dash' : 'vk-lr-swatch--line' }}" style="--lr-swatch: var({{ $segmentColors[$key] ?? '--color-ink-muted' }})"></span>
                         {{ $label }}
                     </span>
                 @endforeach
+                <span class="vk-lr-legend-unit">€/v, edullinen taso (p20)</span>
             </div>
 
-            <div class="relative" style="height: 320px;">
+            <div class="vk-lr-chart" style="height: 320px;">
                 <canvas id="winRateChart"
                         data-chart="{{ json_encode($chartData) }}"
                         data-segment-colors="{{ json_encode($segmentColors) }}"
@@ -90,29 +92,27 @@
             </div>
         </div>
 
-        <details class="mt-6 border-t border-slate-200 pt-4">
-            <summary class="cursor-pointer font-semibold text-slate-700 underline decoration-slate-300 underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-coral-500">
-                Näytä tiedot taulukkona
-            </summary>
-            <div class="mt-4 overflow-x-auto">
-                <table class="min-w-full border-collapse text-left text-sm text-slate-700 tabular-nums">
+        <details class="vk-lr-details">
+            <summary>Näytä tiedot taulukkona</summary>
+            <div class="vk-lr-table-wrap">
+                <table class="vk-lr-table">
                     <caption class="sr-only">Pörssisähkön ja muiden sopimustyyppien edullisen hintatason päiväkohtainen vertailu.</caption>
                     <thead>
-                        <tr class="border-b border-slate-200">
-                            <th scope="col" class="whitespace-nowrap px-3 py-2 font-semibold text-slate-900">Päivä</th>
-                            <th scope="col" class="whitespace-nowrap px-3 py-2 font-semibold text-slate-900">Pörssisähkö (€/v)</th>
+                        <tr>
+                            <th scope="col">Päivä</th>
+                            <th scope="col">Pörssisähkö (€/v)</th>
                             @foreach ($segmentMeta as $label)
-                                <th scope="col" class="whitespace-nowrap px-3 py-2 font-semibold text-slate-900">{{ $label }} (€/v)</th>
+                                <th scope="col">{{ $label }} (€/v)</th>
                             @endforeach
                         </tr>
                     </thead>
                     <tbody>
                         @foreach ($chartData['labels'] as $index => $label)
-                            <tr class="border-b border-slate-100">
-                                <th scope="row" class="whitespace-nowrap px-3 py-2 font-medium text-slate-900">{{ $label }}</th>
-                                <td class="whitespace-nowrap px-3 py-2">{{ $chartData['spot'][$index] === null ? '–' : number_format($chartData['spot'][$index], 0, ',', ' ') }}</td>
+                            <tr>
+                                <th scope="row">{{ $label }}</th>
+                                <td>{{ $chartData['spot'][$index] === null ? '–' : number_format($chartData['spot'][$index], 0, ',', ' ') }}</td>
                                 @foreach ($segmentMeta as $key => $segmentLabel)
-                                    <td class="whitespace-nowrap px-3 py-2">{{ ($chartData['series'][$key][$index] ?? null) === null ? '–' : number_format($chartData['series'][$key][$index], 0, ',', ' ') }}</td>
+                                    <td>{{ ($chartData['series'][$key][$index] ?? null) === null ? '–' : number_format($chartData['series'][$key][$index], 0, ',', ' ') }}</td>
                                 @endforeach
                             </tr>
                         @endforeach
@@ -121,7 +121,7 @@
             </div>
         </details>
 
-        <p class="mt-5 max-w-prose text-base leading-7 text-slate-600">
+        <p class="vk-lr-text vk-lr-text--small">
             Luvut eivät ota huomioon omaa kulutuksen ajoitustasi. Pörssisähkön hyöty voi kasvaa, jos pystyt käyttämään sähköä enemmän edullisina yö- ja viikonlopputunteina.
         </p>
     @endif
@@ -140,6 +140,11 @@
                     ctx.chartInstance.destroy();
                 }
 
+                // Design tokens (resources/css/tokens.css): the canvas cannot read CSS variables itself.
+                const token = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+                const ink = token('--color-ink');
+                const tickFont = { family: 'Figtree, system-ui, sans-serif', size: 12, weight: '700' };
+
                 try {
                     const chartData = JSON.parse(dataAttr);
                     const colors = JSON.parse(ctx.getAttribute('data-segment-colors') || '{}');
@@ -149,9 +154,9 @@
                         {
                             label: 'Pörssisähkö',
                             data: chartData.spot,
-                            borderColor: '#f97316',
-                            backgroundColor: 'rgba(249, 115, 22, 0.06)',
-                            borderWidth: 2.5,
+                            borderColor: token('--color-cat-spot'),
+                            backgroundColor: token('--color-cat-spot'),
+                            borderWidth: 3,
                             pointRadius: 0,
                             pointHoverRadius: 5,
                             fill: false,
@@ -160,14 +165,15 @@
                     ];
 
                     Object.entries(chartData.segmentMeta || {}).forEach(([key, label]) => {
-                        const dashStr = dashes[key] || '6,3';
+                        const dashStr = dashes[key] || '';
+                        const color = token(colors[key] || '--color-ink-muted');
                         datasets.push({
                             label,
                             data: (chartData.series && chartData.series[key]) || [],
-                            borderColor: colors[key] || '#64748b',
-                            backgroundColor: 'transparent',
-                            borderWidth: 2,
-                            borderDash: dashStr.split(',').map(Number),
+                            borderColor: color,
+                            backgroundColor: color,
+                            borderWidth: 2.2,
+                            borderDash: dashStr ? dashStr.split(',').map(Number) : [],
                             pointRadius: 0,
                             pointHoverRadius: 5,
                             fill: false,
@@ -194,11 +200,11 @@
                                     display: false
                                 },
                                 tooltip: {
-                                    backgroundColor: '#0f172a',
-                                    titleFont: { size: 13, weight: 'bold' },
-                                    bodyFont: { size: 12 },
+                                    backgroundColor: ink,
+                                    titleFont: { family: 'Figtree, system-ui, sans-serif', size: 13, weight: 'bold' },
+                                    bodyFont: { family: 'Figtree, system-ui, sans-serif', size: 12 },
                                     padding: 10,
-                                    cornerRadius: 8,
+                                    cornerRadius: 4,
                                     callbacks: {
                                         label: function(context) {
                                             if (context.parsed.y === null) return null;
@@ -210,20 +216,24 @@
                             scales: {
                                 x: {
                                     grid: { display: false },
+                                    border: { color: ink, width: 1.8 },
                                     ticks: {
-                                        font: { size: 11 },
+                                        color: token('--color-ink-muted'),
+                                        font: tickFont,
                                         maxTicksLimit: 12
                                     }
                                 },
                                 y: {
+                                    border: { display: false, dash: [3, 4] },
                                     ticks: {
                                         callback: function(value) {
                                             return value + ' €';
                                         },
-                                        font: { size: 11 }
+                                        color: token('--color-ink-muted'),
+                                        font: tickFont,
                                     },
                                     grid: {
-                                        color: '#f1f5f9'
+                                        color: token('--color-edge'),
                                     }
                                 }
                             }

@@ -14,6 +14,7 @@ use App\Services\CanonicalPricing\PricingMode;
 use App\Services\ContractListCacheService;
 use App\Services\DTO\EnergyCalculatorRequest;
 use App\Services\EnergyCalculator;
+use App\Support\Season;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
@@ -930,6 +931,8 @@ class ConsumptionCalculator extends Component
                 'title' => $this->generateSeoTitle(),
                 'metaDescription' => $this->generateMetaDescription(),
                 'canonical' => $this->generateCanonicalUrl(),
+                // Painted hero: the overlay top bar uses the same tone as the hero text.
+                'heroTone' => Season::heroTone('laskuri-hero'),
             ]);
     }
 }

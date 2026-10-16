@@ -118,7 +118,7 @@ class PublicPagePriceCachePolicyTest extends TestCase
         $this->get('/sahkosopimus/sopimus/'.$contract->id)->assertOk();
         $this->get('/sahkosopimus/sopimus/'.$contract->id.'?kulutus=7654')->assertOk()
             ->assertSee('Vuosihinta ei ole vielä saatavilla tällä kulutuksella')
-            ->assertSeeHtml('wire:model.blur="directConsumption"')
+            ->assertSeeHtml('wire:model.live.blur="directConsumption"')
             ->assertDontSeeHtml('data-analytics-placement="sticky"')
             ->assertDontSee('0,00 €/kk');
         $this->get('/sahkosopimus/sahkoyhtiot/test-energia')->assertOk();

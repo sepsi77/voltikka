@@ -845,7 +845,9 @@ class ContractsFilterTest extends TestCase
 
         Livewire::test('contracts-list')
             ->set('contractTypeFilter', 'FixedTerm')
-            ->assertSeeHtml('bg-slate-950'); // Active filter indicator class
+            // The "Rajaa hakua" trigger shows the inked count of active filters.
+            ->assertSeeHtml('<span class="vk-count">')
+            ->assertSee('valittua rajausta');
     }
 
     /**

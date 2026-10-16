@@ -13,22 +13,57 @@
         return $sign . number_format(abs($delta), 0, ',', ' ') . ' %';
     };
 
+    // Change colour (design spec §2 "Price and data states"): price up = price-high,
+    // price down = saving, about unchanged = ink-body. Same ±0.5 % limits as before.
     $deltaClass = function (?float $delta) {
         if ($delta === null) {
-            return 'text-slate-400';
+            return 'data-delta--none';
         }
         if ($delta < -0.5) {
-            return 'text-emerald-700';
+            return 'data-delta--down';
         }
         if ($delta > 0.5) {
-            return 'text-slate-700';
+            return 'data-delta--up';
         }
-        return 'text-slate-500';
+        return 'data-delta--flat';
     };
 
     $fiDate = function ($date) {
         if (! $date) return '–';
         return Cb::parse($date)->translatedFormat('j.n.Y');
+    };
+
+    // Pricing category of a statistics segment: glyph bucket and category colour
+    // (spec §2 "Map colours and pricing categories"). Open-ended contracts have no
+    // category glyph; their colour is the dashed ink-muted line of the charts.
+    $segmentBucket = fn (?string $key) => match (true) {
+        $key === 'spot' => 'porssisahko',
+        $key === 'hybrid' => 'kulutusvaikutus',
+        in_array($key, ['quarterly', 'market_reset'], true) => 'paivittyva',
+        is_string($key) && str_starts_with($key, 'fixed_term') => 'kiintea',
+        default => null,
+    };
+    $segmentColor = fn (?string $key) => match ($segmentBucket($key)) {
+        'porssisahko' => 'var(--color-cat-spot)',
+        'kulutusvaikutus' => 'var(--color-cat-usage)',
+        'paivittyva' => 'var(--color-cat-periodic)',
+        'kiintea' => 'var(--color-cat-fixed)',
+        default => 'var(--color-ink-muted)',
+    };
+
+    // Chart series style by label. Must match inkSeriesStyle() in
+    // resources/js/contract-price-statistics.js (the legend swatches mirror the lines).
+    $seriesStyle = function (string $label, bool $isIndexTotal = false) {
+        return match (true) {
+            $isIndexTotal => ['color' => 'var(--color-fox)', 'dash' => false, 'width' => 4],
+            (bool) preg_match('/toistaiseksi/iu', $label) => ['color' => 'var(--color-ink-muted)', 'dash' => true, 'width' => 3],
+            (bool) preg_match('/pörssi|marginaali/iu', $label) => ['color' => 'var(--color-cat-spot)', 'dash' => false, 'width' => 3],
+            (bool) preg_match('/määräaikai/iu', $label) => ['color' => 'var(--color-cat-fixed)', 'dash' => false, 'width' => 3],
+            (bool) preg_match('/jousto|hybrid|kulutusvaikut/iu', $label) => ['color' => 'var(--color-cat-usage)', 'dash' => false, 'width' => 3],
+            (bool) preg_match('/kvartaali|jaksoittain/iu', $label) => ['color' => 'var(--color-cat-periodic)', 'dash' => false, 'width' => 3],
+            (bool) preg_match('/mediaani|markkina/iu', $label) => ['color' => 'var(--color-cat-fixed)', 'dash' => true, 'width' => 3],
+            default => ['color' => 'var(--color-ink)', 'dash' => false, 'width' => 3],
+        };
     };
 
     $indexPayload = $sellerSetEnergyPriceIndexPayload ?? ['has_data' => false, 'chart' => ['x' => [], 'series' => []]];
@@ -37,148 +72,149 @@
     $isSparse = ($dataWindow['days'] ?? 0) > 0 && ($dataWindow['days'] ?? 0) < 180;
     $consumptionLabel = number_format($consumption, 0, ',', ' ');
     $csvHref = route('contract.price-statistics.csv');
+    $indexDelta = $hasIndexData ? $indexPayload['delta_30d_pct'] : null;
 @endphp
 
-<div class="bg-white">
+<div class="data-page">
     <x-schema-markup :schemas="[$jsonLd]" />
 
-    <article class="mx-auto max-w-[68rem] px-4 sm:px-6 lg:px-8 pb-24">
-
-        {{-- Breadcrumb --}}
-        <nav class="pt-8 pb-6" aria-label="Breadcrumb">
-            <ol class="flex items-center gap-2 text-xs text-slate-500">
-                <li><a href="/" class="hover:text-slate-900">Etusivu</a></li>
-                <li aria-hidden="true" class="text-slate-300">/</li>
-                <li><a href="/sahkosopimus" class="hover:text-slate-900">Sähkösopimukset</a></li>
-                <li aria-hidden="true" class="text-slate-300">/</li>
-                <li class="text-slate-900 font-medium" aria-current="page">Hintatilastot</li>
+    {{-- Hero: the observatory on the hill; the energy price index on the sky. --}}
+    <x-site.data-hero art="stats-hero" variant="stats" :tone="\App\Support\Season::heroTone('stats-hero')">
+        <nav class="data-crumbs" aria-label="Breadcrumb">
+            <ol>
+                <li><a href="/" class="vk-focus">Etusivu</a></li>
+                <li aria-hidden="true">/</li>
+                <li><a href="/sahkosopimus" class="vk-focus">Sähkösopimukset</a></li>
+                <li aria-hidden="true">/</li>
+                <li aria-current="page">Hintatilastot</li>
             </ol>
         </nav>
 
-        {{-- Editorial header strip --}}
-        <header class="border-b border-slate-200 pb-10">
-            <p class="text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-500 mb-4">
-                Voltikka tilastot
-            </p>
-            <h1 class="text-3xl md:text-5xl font-extrabold text-slate-900 leading-[1.05] tracking-tight max-w-[28ch]">
-                Sähkösopimusten hintakehitys: mitä suomalaiset oikeasti maksavat sähköstä
-            </h1>
-            <p class="mt-5 max-w-[62ch] text-lg text-slate-600 leading-relaxed">
-                Voltikka seuraa sähkösopimusten hintakehitystä päivittäin: pörssi-, kvartaali-, määräaikaisia, joustosähkö- ja toistaiseksi voimassa olevia sopimuksia. Tilastot näyttävät, miten energiahinnat, perusmaksut ja vuosikustannukset ovat muuttuneet eri sopimustyypeissä.
-            </p>
+        <p class="data-hero-kicker">Voltikka tilastot</p>
+        <h1 class="vk-hero-h1 data-hero-h1">
+            Sähkösopimusten hintakehitys: mitä suomalaiset oikeasti maksavat sähköstä
+        </h1>
+        <p class="vk-hero-lead data-hero-lead">
+            Voltikka seuraa sähkösopimusten hintakehitystä päivittäin: pörssi-, kvartaali-, määräaikaisia, joustosähkö- ja toistaiseksi voimassa olevia sopimuksia. Tilastot näyttävät, miten energiahinnat, perusmaksut ja vuosikustannukset ovat muuttuneet eri sopimustyypeissä.
+        </p>
 
-            {{-- Meta strip --}}
-            <dl class="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-4 text-sm">
-                <div>
-                    <dt class="text-[11px] font-semibold tracking-[0.12em] uppercase text-slate-400">Aineisto</dt>
-                    <dd class="mt-1 font-semibold text-slate-900 tabular-nums">
-                        @if ($dataWindow['from'] && $dataWindow['to'])
-                            {{ $fiDate($dataWindow['from']) }}&nbsp;&ndash;&nbsp;{{ $fiDate($dataWindow['to']) }}
-                        @else
-                            <span class="font-medium text-slate-500">Ei dataa</span>
-                        @endif
-                    </dd>
-                </div>
-                <div>
-                    <dt class="text-[11px] font-semibold tracking-[0.12em] uppercase text-slate-400">Päivitetty</dt>
-                    <dd class="mt-1 font-semibold text-slate-900 tabular-nums">
-                        {{ $latestSnapshotDate ?? '–' }}
-                    </dd>
-                </div>
-                <div>
-                    <dt class="text-[11px] font-semibold tracking-[0.12em] uppercase text-slate-400">Sopimuksia</dt>
-                    <dd class="mt-1 font-semibold text-slate-900 tabular-nums">
-                        {{ $latestSnapshotCount ? number_format($latestSnapshotCount, 0, ',', ' ') : '–' }}
-                    </dd>
-                </div>
-                <div>
-                    <dt class="text-[11px] font-semibold tracking-[0.12em] uppercase text-slate-400">Sisältää</dt>
-                    <dd class="mt-1 font-semibold text-slate-900">ALV 25,5 %</dd>
-                </div>
-            </dl>
-
-            <p class="mt-5 max-w-[72ch] text-sm text-slate-500 leading-relaxed">
-                @if ($latestPricingBasis === 'canonical_calculation')
-                    Uusin piste perustuu nyt myynnissä olevien sopimusten ehtoihin. Vanhemmat pisteet perustuvat kunakin päivänä kerättyihin tietoihin, eikä niitä muuteta jälkikäteen nykyisillä tiedoilla.
-                @else
-                    Jokainen piste perustuu kyseisenä päivänä kerättyihin sopimushintoihin.
-                @endif
-            </p>
-
-            <div class="mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-                <a href="/sahkosopimus/sahkon-hintaennuste"
-                   class="inline-flex items-center gap-2 font-semibold text-slate-900 underline decoration-slate-300 decoration-2 underline-offset-4 hover:decoration-coral-500">
-                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M3 17l6-6 4 4 8-8M14 7h7v7"/>
-                    </svg>
-                    Sähkön hintaennuste
-                </a>
-                <a href="{{ $csvHref }}"
-                   class="inline-flex items-center gap-2 font-semibold text-slate-900 underline decoration-slate-300 decoration-2 underline-offset-4 hover:decoration-coral-500"
-                   download>
-                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16"/>
-                    </svg>
-                    Lataa CSV
-                </a>
-                <a href="#viittaa"
-                   data-no-nav-loading
-                   class="inline-flex items-center gap-2 font-semibold text-slate-900 underline decoration-slate-300 decoration-2 underline-offset-4 hover:decoration-coral-500">
-                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M7 7h3v3H7zM14 7h3v3h-3zM7 14h3v3H7zM14 14h3v3h-3z"/>
-                    </svg>
-                    Viittaa tähän
-                </a>
-                <a href="/tietoa#menetelma"
-                   class="inline-flex items-center gap-2 font-semibold text-slate-900 underline decoration-slate-300 decoration-2 underline-offset-4 hover:decoration-coral-500">
-                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                    Näin laskemme
-                </a>
-                <span class="text-slate-400">CC&nbsp;BY&nbsp;4.0</span>
+        {{-- Facts row --}}
+        <dl class="data-facts">
+            <div>
+                <dt>Aineisto</dt>
+                <dd>
+                    @if ($dataWindow['from'] && $dataWindow['to'])
+                        {{ $fiDate($dataWindow['from']) }}&nbsp;&ndash;&nbsp;{{ $fiDate($dataWindow['to']) }}
+                    @else
+                        Ei dataa
+                    @endif
+                </dd>
             </div>
+            <div>
+                <dt>Päivitetty</dt>
+                <dd>{{ $latestSnapshotDate ?? '–' }}</dd>
+            </div>
+            <div>
+                <dt>Sopimuksia</dt>
+                <dd>{{ $latestSnapshotCount ? number_format($latestSnapshotCount, 0, ',', ' ') : '–' }}</dd>
+            </div>
+            <div>
+                <dt>Sisältää</dt>
+                <dd>ALV 25,5 %</dd>
+            </div>
+        </dl>
 
-            {{-- Page-level consumption switcher: lead chart, callouts, and consumption table all reflect this --}}
-            <div class="mt-8 flex flex-wrap items-center gap-x-5 gap-y-3">
-                <span class="text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-500">
-                    Vuosikulutus
-                </span>
+        <p class="data-hero-note">
+            @if ($latestPricingBasis === 'canonical_calculation')
+                Uusin piste perustuu nyt myynnissä olevien sopimusten ehtoihin. Vanhemmat pisteet perustuvat kunakin päivänä kerättyihin tietoihin, eikä niitä muuteta jälkikäteen nykyisillä tiedoilla.
+            @else
+                Jokainen piste perustuu kyseisenä päivänä kerättyihin sopimushintoihin.
+            @endif
+        </p>
+
+        @if ($hasIndexData)
+            <x-slot:aside>
+                <div class="data-sky-figure">
+                    <p class="data-sky-kicker">Energianhintaindeksi</p>
+                    <p class="data-sky-number-row">
+                        <span class="data-sky-number">{{ $fmtNum($indexPayload['current'], 2) }}</span>
+                        <span class="data-sky-unit">c/kWh</span>
+                    </p>
+                    @if ($indexDelta !== null)
+                        <p class="data-sky-change {{ $indexDelta > 0.5 ? 'is-up' : ($indexDelta < -0.5 ? 'is-down' : 'is-flat') }}">
+                            @if ($indexDelta > 0.5)
+                                <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false"><path d="M7 12 V2.5 M3 6.5 L7 2.5 L11 6.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                            @elseif ($indexDelta < -0.5)
+                                <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false"><path d="M7 2 V11.5 M3 7.5 L7 11.5 L11 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                            @endif
+                            <span>{{ $fmtPct($indexDelta) }} 30 päivässä</span>
+                        </p>
+                        <x-ink.wave width="200" stroke="2.4" color="currentColor" class="data-sky-wave {{ $indexDelta > 0.5 ? 'is-up' : ($indexDelta < -0.5 ? 'is-down' : 'is-flat') }}" />
+                    @else
+                        <p class="data-sky-text">Ei vertailupistettä täsmälleen 30 päivän takaa</p>
+                    @endif
+                </div>
+            </x-slot:aside>
+        @endif
+    </x-site.data-hero>
+
+    <x-page-action-strip />
+
+    <article class="vk-wrap data-body tabular-nums">
+
+        {{-- Controls: the page-level consumption choice (lead chart, callouts and the consumption
+             table follow it) and the page actions. --}}
+        <div class="data-controls">
+            <div class="data-controls-row">
+                <span class="data-controls-label">Vuosikulutus</span>
                 <div class="flex flex-col items-start gap-2">
-                    <div role="group" aria-label="Vuosikulutuksen valinta" class="inline-flex bg-slate-50 border border-slate-200 rounded-lg p-0.5 tabular-nums">
+                    <div role="group" aria-label="Vuosikulutuksen valinta" class="data-choices">
                         @foreach ($consumptionLevels as $level)
                             <button
                                 type="button"
                                 wire:click="setConsumption({{ $level }})"
                                 wire:loading.attr="disabled"
                                 wire:target="setConsumption"
-                                class="px-3.5 py-1.5 rounded-md text-xs font-semibold tracking-wide transition-colors disabled:cursor-wait disabled:opacity-60 {{ $consumption === $level ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900' }}"
+                                class="data-choice {{ $consumption === $level ? 'is-selected' : '' }}"
                                 aria-pressed="{{ $consumption === $level ? 'true' : 'false' }}"
                             >
-                                {{ number_format($level, 0, ',', ' ') }}&nbsp;kWh
+                                @if ($consumption === $level)
+                                    <svg class="vk-mark" viewBox="0 0 22 22" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="9.5" style="fill: var(--color-fox)" /><path d="M6.5 11.5 L9.6 14.3 L15.6 7.8" fill="none" style="stroke: var(--color-snow-white)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                                @else
+                                    <svg class="vk-mark" viewBox="0 0 22 22" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="9" style="fill: var(--color-snow-white); stroke: var(--color-field-edge)" stroke-width="2" /></svg>
+                                @endif
+                                <span class="data-choice-text">{{ number_format($level, 0, ',', ' ') }}&nbsp;kWh</span>
                             </button>
                         @endforeach
                     </div>
-                    <div wire:loading.delay.flex wire:target="setConsumption" class="hidden items-center gap-2 text-xs font-semibold text-slate-500" role="status" aria-live="polite">
-                        <svg class="h-3.5 w-3.5 animate-spin text-slate-400" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <div wire:loading.delay.flex wire:target="setConsumption" class="data-busy hidden" role="status" aria-live="polite">
+                        <svg class="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
                         </svg>
                         Päivitetään kulutusta
                     </div>
                 </div>
-                <span class="text-xs text-slate-500 max-w-[40ch]">
+                <span class="data-controls-note">
                     Tyypillinen kulutus: kerrostalokaksio noin 2&nbsp;000, omakotitalo ilman sähkölämmitystä noin 5&nbsp;000, sähkölämmitteinen omakotitalo noin 18&nbsp;000&nbsp;kWh vuodessa.
                 </span>
             </div>
-        </header>
-
-        <x-page-action-strip class="mb-12" />
+            <div class="data-controls-row data-controls-row--links">
+                <a href="/sahkosopimus/sahkon-hintaennuste" class="data-link vk-focus">Sähkön hintaennuste →</a>
+                <a href="{{ $csvHref }}" class="data-link vk-focus" download>
+                    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 2v8m0 0l-3-3m3 3l3-3M3 13h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                    Lataa CSV
+                </a>
+                <a href="#viittaa" data-no-nav-loading class="data-link vk-focus">Viittaa tähän</a>
+                <a href="/tietoa#menetelma" class="data-link vk-focus">Näin laskemme</a>
+                <span class="data-license">CC&nbsp;BY&nbsp;4.0</span>
+            </div>
+        </div>
 
         @if (! $hasData)
             {{-- Empty state. Public-safe; no operator instructions. --}}
-            <section class="border border-slate-200 rounded-2xl px-8 py-16 text-center">
-                <p class="text-base text-slate-700 max-w-[40ch] mx-auto">
+            <section class="data-empty">
+                <p>
                     Tilastoja ei ole vielä saatavilla. Aineiston keruu on käynnissä, palaa myöhemmin.
                 </p>
             </section>
@@ -186,115 +222,122 @@
 
             @if ($hasIndexData)
                 {{-- Seller-set energy-price index: direct General c/kWh, independent of consumption. --}}
-                <section class="mb-20 border-b border-slate-200 pb-20" aria-labelledby="seller-set-index-heading">
-                    <div class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,23rem)] lg:gap-14">
-                        <div>
-                            <h2 id="seller-set-index-heading" class="text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">
-                                Sähkösopimusten energianhintaindeksi
-                            </h2>
-                            <p class="mt-3 max-w-[68ch] text-base leading-relaxed text-slate-600">
-                                Indeksi seuraa koko Suomessa saatavilla olevien kotitaloussopimusten suoria yleissähkön energiahintoja. Pörssisähkö ei ole mukana, eikä vuosikulutuksen valinta vaikuta tähän indeksiin.
-                            </p>
+                <section class="data-section" aria-labelledby="seller-set-index-heading">
+                    <div class="data-section-head">
+                        <x-site.section-heading id="seller-set-index-heading" :wave="320" class="data-heading">
+                            Sähkösopimusten energianhintaindeksi
+                        </x-site.section-heading>
+                        <p class="data-section-aside">
+                            Indeksi seuraa koko Suomessa saatavilla olevien kotitaloussopimusten suoria yleissähkön energiahintoja. Pörssisähkö ei ole mukana, eikä vuosikulutuksen valinta vaikuta tähän indeksiin.
+                        </p>
+                    </div>
 
-                            <div class="mt-8 flex flex-wrap items-baseline gap-x-5 gap-y-2">
-                                <p class="text-5xl font-extrabold leading-none tracking-tight text-slate-900 tabular-nums">
-                                    {{ $fmtNum($indexPayload['current'], 2) }}<span class="ml-2 text-base font-semibold tracking-normal text-slate-500">c/kWh</span>
+                    <div class="data-index">
+                        <div class="data-index-facts">
+                            <div>
+                                <p class="data-index-figure">
+                                    <span class="data-index-number">{{ $fmtNum($indexPayload['current'], 2) }}</span>
+                                    <span class="data-index-unit">c/kWh</span>
                                 </p>
-                                <p class="text-base font-semibold text-slate-700 tabular-nums">
-                                    @if ($indexPayload['delta_30d_pct'] !== null)
-                                        {{ $fmtPct($indexPayload['delta_30d_pct']) }} 30 päivässä
+                                <p class="data-index-change {{ $deltaClass($indexDelta) }}">
+                                    @if ($indexDelta !== null)
+                                        @if ($indexDelta > 0.5)
+                                            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false"><path d="M7 12 V2.5 M3 6.5 L7 2.5 L11 6.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                                        @elseif ($indexDelta < -0.5)
+                                            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false"><path d="M7 2 V11.5 M3 7.5 L7 11.5 L11 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                                        @endif
+                                        {{ $fmtPct($indexDelta) }} 30 päivässä
                                     @else
                                         Ei vertailupistettä täsmälleen 30 päivän takaa
                                     @endif
                                 </p>
-                            </div>
-                            <p class="mt-3 text-sm text-slate-500 tabular-nums">
-                                Tilanne {{ $fiDate($indexPayload['as_of']) }}
-                                @if ($indexPayload['comparison_date'])
-                                    <span aria-hidden="true"> · </span>Vertailupäivä {{ $fiDate($indexPayload['comparison_date']) }}
-                                @endif
-                            </p>
-                        </div>
-
-                        <dl class="grid grid-cols-2 gap-x-6 gap-y-6 border-t border-slate-200 pt-5 lg:border-t-0 lg:border-l lg:pl-8 lg:pt-0">
-                            <div>
-                                <dt class="text-sm font-semibold text-slate-500">Ehdot täyttäviä tarjouksia</dt>
-                                <dd class="mt-1 text-2xl font-bold text-slate-900 tabular-nums">{{ number_format($indexPayload['contract_count'], 0, ',', ' ') }}</dd>
-                            </div>
-                            <div>
-                                <dt class="text-sm font-semibold text-slate-500">Myyjiä</dt>
-                                <dd class="mt-1 text-2xl font-bold text-slate-900 tabular-nums">
-                                    {{ $indexPayload['supplier_count'] !== null ? number_format($indexPayload['supplier_count'], 0, ',', ' ') : '–' }}
-                                </dd>
-                            </div>
-                            <div class="col-span-2">
-                                <dt class="text-sm font-semibold text-slate-500">Kiinteät perhepainot</dt>
-                                <dd class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-700 tabular-nums">
-                                    <span>Määräaikainen {{ number_format((float) ($indexPayload['family_weights']['fixed_term'] ?? 0) * 100, 0, ',', ' ') }} %</span>
-                                    <span>Toistaiseksi {{ number_format((float) ($indexPayload['family_weights']['open_ended'] ?? 0) * 100, 0, ',', ' ') }} %</span>
-                                    <span>Jaksoittain vaihtuva {{ number_format((float) ($indexPayload['family_weights']['market_reset'] ?? 0) * 100, 0, ',', ' ') }} %</span>
-                                </dd>
-                            </div>
-                            @if ($indexPayload['hybrid_base'] !== null)
-                                <div class="col-span-2 border-t border-slate-200 pt-5">
-                                    <dt class="text-sm font-semibold text-slate-500">Hybridin perushinta, ei mukana indeksissä</dt>
-                                    <dd class="mt-1 text-xl font-bold text-slate-900 tabular-nums">
-                                        {{ $fmtNum($indexPayload['hybrid_base'], 2) }}<span class="text-sm font-normal text-slate-500"> c/kWh</span>
-                                    </dd>
-                                    @if ($indexPayload['hybrid_contract_count'] !== null && $indexPayload['hybrid_supplier_count'] !== null)
-                                        <p class="mt-1 text-sm text-slate-500 tabular-nums">
-                                            {{ number_format($indexPayload['hybrid_contract_count'], 0, ',', ' ') }} tarjousta, {{ number_format($indexPayload['hybrid_supplier_count'], 0, ',', ' ') }} myyjää
-                                        </p>
+                                <p class="data-index-date">
+                                    Tilanne {{ $fiDate($indexPayload['as_of']) }}
+                                    @if ($indexPayload['comparison_date'])
+                                        <span aria-hidden="true"> · </span>Vertailupäivä {{ $fiDate($indexPayload['comparison_date']) }}
                                     @endif
+                                </p>
+                            </div>
+
+                            <dl class="data-index-counts">
+                                <div>
+                                    <dt>Ehdot täyttäviä tarjouksia</dt>
+                                    <dd>{{ number_format($indexPayload['contract_count'], 0, ',', ' ') }}</dd>
+                                </div>
+                                <div>
+                                    <dt>Myyjiä</dt>
+                                    <dd>{{ $indexPayload['supplier_count'] !== null ? number_format($indexPayload['supplier_count'], 0, ',', ' ') : '–' }}</dd>
+                                </div>
+                            </dl>
+
+                            @php
+                                $weights = [
+                                    ['label' => 'Määräaikainen', 'key' => 'fixed_term', 'color' => 'var(--color-cat-fixed)'],
+                                    ['label' => 'Toistaiseksi', 'key' => 'open_ended', 'color' => 'var(--color-ink-muted)'],
+                                    ['label' => 'Jaksoittain vaihtuva', 'key' => 'market_reset', 'color' => 'var(--color-cat-periodic)'],
+                                ];
+                            @endphp
+                            <div class="data-index-block">
+                                <p class="data-index-block-title">Kiinteät perhepainot</p>
+                                <div class="data-weights" aria-hidden="true">
+                                    @foreach ($weights as $weight)
+                                        <span style="width: {{ max(0, (float) ($indexPayload['family_weights'][$weight['key']] ?? 0) * 100) }}%; background-color: {{ $weight['color'] }}"></span>
+                                    @endforeach
+                                </div>
+                                <p class="data-weight-labels">
+                                    @foreach ($weights as $weight)
+                                        <span style="color: {{ $weight['color'] }}">{{ $weight['label'] }} {{ number_format((float) ($indexPayload['family_weights'][$weight['key']] ?? 0) * 100, 0, ',', ' ') }} %</span>
+                                    @endforeach
+                                </p>
+                            </div>
+
+                            @if ($indexPayload['hybrid_base'] !== null)
+                                <div class="data-index-block">
+                                    <p class="data-index-block-title">Hybridin perushinta, ei mukana indeksissä</p>
+                                    <p class="flex flex-wrap items-baseline gap-x-2.5">
+                                        <span class="data-index-hybrid">{{ $fmtNum($indexPayload['hybrid_base'], 2) }} c/kWh</span>
+                                        @if ($indexPayload['hybrid_contract_count'] !== null && $indexPayload['hybrid_supplier_count'] !== null)
+                                            <span class="data-muted-caption">
+                                                {{ number_format($indexPayload['hybrid_contract_count'], 0, ',', ' ') }} tarjousta, {{ number_format($indexPayload['hybrid_supplier_count'], 0, ',', ' ') }} myyjää
+                                            </span>
+                                        @endif
+                                    </p>
                                 </div>
                             @endif
-                        </dl>
-                    </div>
-
-                    <figure class="mt-10">
-                        <div
-                            wire:key="seller-set-index-{{ $indexPayload['as_of'] }}"
-                            wire:ignore
-                            data-line-chart="seller-set-index"
-                            class="relative h-72 w-full select-none"
-                            role="img"
-                            aria-label="Sähkösopimusten energianhintaindeksi ja sen kolme sopimusryhmää sentteinä kilowattitunnilta."
-                            aria-describedby="seller-set-index-method"
-                        >
-                            <script type="application/json">{!! json_encode($indexPayload['chart'], JSON_UNESCAPED_UNICODE) !!}</script>
                         </div>
-                        <ul class="mt-2 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-slate-700" aria-hidden="true">
-                            @foreach ($indexPayload['chart']['series'] as $i => $series)
-                                @php
-                                    $indexLineStyles = [
-                                        ['stroke' => '#f97316', 'dash' => null, 'width' => 2.5],
-                                        ['stroke' => '#1e293b', 'dash' => null, 'width' => 1.8],
-                                        ['stroke' => '#64748b', 'dash' => '10,4', 'width' => 1.8],
-                                        ['stroke' => '#334155', 'dash' => '4,3', 'width' => 2.0],
-                                    ];
-                                    $lineStyle = $indexLineStyles[$i] ?? $indexLineStyles[3];
-                                @endphp
-                                <li class="inline-flex items-center gap-2 {{ $i === 0 ? 'font-semibold text-coral-700' : '' }}">
-                                    <svg width="22" height="10" viewBox="0 0 22 10" aria-hidden="true">
-                                        <line x1="0" y1="5" x2="22" y2="5"
-                                              stroke="{{ $lineStyle['stroke'] }}"
-                                              stroke-width="{{ $lineStyle['width'] }}"
-                                              stroke-linecap="round"
-                                              @if ($lineStyle['dash']) stroke-dasharray="{{ $lineStyle['dash'] }}" @endif />
-                                    </svg>
-                                    <span>{{ $series['label'] }}</span>
-                                </li>
-                            @endforeach
-                        </ul>
-                    </figure>
 
-                    <div id="seller-set-index-method" class="mt-8 grid gap-5 border-t border-slate-200 pt-6 text-base leading-relaxed text-slate-600 md:grid-cols-2 md:gap-10">
-                        <p>
-                            Jokainen sähköyhtiö saa sopimusryhmän sisällä saman painon riippumatta siitä, kuinka monta sopimusta sillä on.
-                        </p>
-                        <p>
-                            Kokonaisindeksi muodostuu määräaikaisista (50 %), toistaiseksi voimassa olevista (30 %) ja jaksoittain vaihtuvista sopimuksista (20 %). Pörssi-, aika- ja kausisähkö, energiapaketit ja kulutusvaikutussopimukset eivät ole mukana.
-                        </p>
+                        <figure class="data-index-chart">
+                            <ul class="data-legend" aria-hidden="true">
+                                @foreach ($indexPayload['chart']['series'] as $i => $series)
+                                    @php $style = $seriesStyle($series['label'], $i === 0); @endphp
+                                    <li class="{{ $i === 0 ? 'is-lead' : '' }}">
+                                        <span class="data-swatch {{ $style['dash'] ? 'is-dashed' : '' }}" style="--swatch: {{ $style['color'] }}; --swatch-width: {{ $style['width'] }}px"></span>
+                                        <span>{{ $series['label'] }}</span>
+                                    </li>
+                                @endforeach
+                            </ul>
+                            <div
+                                wire:key="seller-set-index-{{ $indexPayload['as_of'] }}"
+                                wire:ignore
+                                data-line-chart="seller-set-index"
+                                data-chart-skin="ink"
+                                data-chart-now="{{ $fmtNum($indexPayload['current'], 2) }}"
+                                class="relative h-72 w-full select-none"
+                                role="img"
+                                aria-label="Sähkösopimusten energianhintaindeksi ja sen kolme sopimusryhmää sentteinä kilowattitunnilta."
+                                aria-describedby="seller-set-index-method"
+                            >
+                                <script type="application/json">{!! json_encode($indexPayload['chart'], JSON_UNESCAPED_UNICODE) !!}</script>
+                            </div>
+                            <div id="seller-set-index-method" class="data-index-method">
+                                <p>
+                                    Jokainen sähköyhtiö saa sopimusryhmän sisällä saman painon riippumatta siitä, kuinka monta sopimusta sillä on.
+                                </p>
+                                <p class="data-muted">
+                                    Kokonaisindeksi muodostuu määräaikaisista (50 %), toistaiseksi voimassa olevista (30 %) ja jaksoittain vaihtuvista sopimuksista (20 %). Pörssi-, aika- ja kausisähkö, energiapaketit ja kulutusvaikutussopimukset eivät ole mukana.
+                                </p>
+                            </div>
+                        </figure>
                     </div>
 
                     <div class="sr-only">
@@ -324,39 +367,34 @@
             @endif
 
             {{-- Lead chart --}}
-            <section class="mb-16" aria-labelledby="lead-chart-heading">
-                <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
-                    <div>
-                        <h2 id="lead-chart-heading" class="text-2xl font-bold text-slate-900 tracking-tight">
-                            Vuosikustannus {{ $consumptionLabel }}&nbsp;kWh kulutuksella
-                        </h2>
-                        <p class="mt-2 text-base text-slate-600 leading-relaxed max-w-[68ch]">
-                            @if ($annualDataIsRetained)
-                                Vuosihinnat ovat päivältä {{ $fiDate($annualDataDate) }}. Ne ovat historiallisia arvioita, eivät tämän päivän hintavertailu.
-                            @endif
-                            Viivat näyttävät kunkin sopimustyypin tyypillisen 12 kuukauden kustannusarvion valitulla kulutuksella. Arvio vastaa kyseisen ajankohdan myynnissä olleita sopimuksia ja sisältää energian sekä perusmaksut.
-                            Näkymä: <span class="font-semibold text-slate-900">{{ $periods[$period] ?? $period }}</span>.
-                        </p>
-                    </div>
+            <section class="data-section" aria-labelledby="lead-chart-heading">
+                <div class="data-section-head">
+                    <x-site.section-heading id="lead-chart-heading" :wave="320" class="data-heading">
+                        Vuosikustannus {{ $consumptionLabel }}&nbsp;kWh kulutuksella
+                    </x-site.section-heading>
 
                     {{-- Period switcher --}}
-                    <div class="flex flex-col items-start gap-2 self-start">
-                        <div role="group" aria-label="Aikajakson valinta" class="inline-flex bg-slate-50 border border-slate-200 rounded-lg p-0.5">
-                            @foreach ($periods as $key => $label)
-                                <button
-                                    type="button"
-                                    wire:click="setPeriod('{{ $key }}')"
-                                    wire:loading.attr="disabled"
-                                    wire:target="setPeriod"
-                                    class="px-3.5 py-1.5 rounded-md text-xs font-semibold tracking-wide transition-colors disabled:cursor-wait disabled:opacity-60 {{ $period === $key ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900' }}"
-                                    aria-pressed="{{ $period === $key ? 'true' : 'false' }}"
-                                >
-                                    {{ $label }}
-                                </button>
-                            @endforeach
+                    <div class="flex flex-col items-start gap-2 lg:items-end">
+                        <div class="flex items-end gap-4">
+                            <span class="data-tabs-label" aria-hidden="true">Näkymä</span>
+                            <div role="group" aria-label="Aikajakson valinta" class="data-tabs">
+                                @foreach ($periods as $key => $label)
+                                    <button
+                                        type="button"
+                                        wire:click="setPeriod('{{ $key }}')"
+                                        wire:loading.attr="disabled"
+                                        wire:target="setPeriod"
+                                        class="data-tab {{ $period === $key ? 'is-current' : '' }}"
+                                        aria-pressed="{{ $period === $key ? 'true' : 'false' }}"
+                                    >
+                                        <span>{{ $label }}</span>
+                                        <x-ink.wave width="full" stroke="2.6" class="data-tab-wave" />
+                                    </button>
+                                @endforeach
+                            </div>
                         </div>
-                        <div wire:loading.delay.flex wire:target="setPeriod" class="hidden items-center gap-2 text-xs font-semibold text-slate-500" role="status" aria-live="polite">
-                            <svg class="h-3.5 w-3.5 animate-spin text-slate-400" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <div wire:loading.delay.flex wire:target="setPeriod" class="data-busy hidden" role="status" aria-live="polite">
+                            <svg class="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
                             </svg>
@@ -365,10 +403,29 @@
                     </div>
                 </div>
 
+                <p class="data-lead-text">
+                    @if ($annualDataIsRetained)
+                        Vuosihinnat ovat päivältä {{ $fiDate($annualDataDate) }}. Ne ovat historiallisia arvioita, eivät tämän päivän hintavertailu.
+                    @endif
+                    Viivat näyttävät kunkin sopimustyypin tyypillisen 12 kuukauden kustannusarvion valitulla kulutuksella. Arvio vastaa kyseisen ajankohdan myynnissä olleita sopimuksia ja sisältää energian sekä perusmaksut.
+                    Näkymä: <span class="font-bold text-ink">{{ $periods[$period] ?? $period }}</span>.
+                </p>
+
+                {{-- Legend above the chart. Swatches mirror the chart styles. --}}
+                <ul class="data-legend" aria-hidden="true">
+                    @foreach ($leadChartPayload['series'] as $i => $s)
+                        @php $style = $seriesStyle($s['label']); @endphp
+                        <li>
+                            <span class="data-swatch {{ $style['dash'] ? 'is-dashed' : '' }}" style="--swatch: {{ $style['color'] }}; --swatch-width: {{ $style['width'] }}px"></span>
+                            <span class="font-extrabold" style="color: {{ $style['color'] }}">{{ $s['label'] }}</span>
+                        </li>
+                    @endforeach
+                </ul>
+
                 <div class="relative">
-                    <div wire:loading.delay.flex wire:target="setPeriod,setConsumption" class="absolute inset-0 z-10 hidden items-center justify-center rounded-xl bg-white/70 backdrop-blur-[1px]" aria-hidden="true">
-                        <div class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm">
-                            <svg class="h-3.5 w-3.5 animate-spin text-slate-400" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <div wire:loading.delay.flex wire:target="setPeriod,setConsumption" class="data-chart-busy hidden" aria-hidden="true">
+                        <div class="data-busy">
+                            <svg class="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
                             </svg>
@@ -381,6 +438,7 @@
                         wire:loading.delay.class="opacity-40"
                         wire:target="setPeriod,setConsumption"
                         data-line-chart
+                        data-chart-skin="ink"
                         class="relative w-full h-80 select-none transition-opacity"
                         role="img"
                         aria-label="Vuosikustannus {{ $consumptionLabel }} kWh kulutuksella sopimustyypeittäin, viivakaavio."
@@ -390,70 +448,73 @@
                     </div>
                 </div>
 
-                {{-- Compact legend, shown only when end-labels can't fit. Swatches mirror chart styles. --}}
-                @php
-                    // Must match NON_LEAD_STYLES in resources/js/contract-price-statistics.js
-                    $nonLeadStyles = [
-                        ['stroke' => '#1e293b', 'dash' => null,        'width' => 1.8], // solid charcoal
-                        ['stroke' => '#64748b', 'dash' => '10,4',      'width' => 1.8], // long dashes
-                        ['stroke' => '#334155', 'dash' => '4,3',       'width' => 2.0], // dense small dashes
-                        ['stroke' => '#64748b', 'dash' => '6,3,2,3',   'width' => 1.8], // dash-dot
-                    ];
-                @endphp
-                <ul class="mt-1 flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs text-slate-700" aria-hidden="true">
-                    @foreach ($leadChartPayload['series'] as $i => $s)
-                        @php
-                            $isLead = $i === 0;
-                            $style = $isLead ? null : $nonLeadStyles[($i - 1) % count($nonLeadStyles)];
-                            $stroke = $isLead ? '#f97316' : $style['stroke'];
-                            $dash = $isLead ? null : $style['dash'];
-                        @endphp
-                        <li class="inline-flex items-center gap-2">
-                            <svg width="22" height="10" viewBox="0 0 22 10" aria-hidden="true">
-                                <line x1="0" y1="5" x2="22" y2="5"
-                                      stroke="{{ $stroke }}"
-                                      stroke-width="{{ $isLead ? 2.5 : ($style['width'] ?? 1.8) }}"
-                                      stroke-linecap="round"
-                                      @if ($dash) stroke-dasharray="{{ $dash }}" @endif />
-                            </svg>
-                            <span class="{{ $isLead ? 'font-semibold text-coral-700' : '' }}">{{ $s['label'] }}</span>
-                        </li>
-                    @endforeach
-                </ul>
+                {{-- Now figures: the editorial callouts in one row, inked hairlines between them. --}}
+                @if (! empty($callouts))
+                    <section class="data-now-figures" aria-label="Hintamuutokset lyhyesti">
+                        @foreach ($callouts as $callout)
+                            @php $calloutStyle = $seriesStyle($callout['segment_label']); @endphp
+                            <div class="data-now-figure">
+                                <p class="data-now-label" style="color: {{ $calloutStyle['color'] }}">
+                                    {{ $callout['segment_label'] }}
+                                </p>
+                                <p class="data-now-value">
+                                    <span class="data-now-word">Nyt</span>
+                                    {{ $fmtNum($callout['current_price'], 2) }}&nbsp;{{ $callout['unit'] }}
+                                </p>
+                                @php
+                                    $calloutParts = [];
+                                    if ($callout['delta_30d_pct'] !== null) {
+                                        $calloutParts[] = '<span class="'.$deltaClass($callout['delta_30d_pct']).'">'.e($fmtPct($callout['delta_30d_pct'])).'</span> 30 päivässä';
+                                    }
+                                    if ($callout['delta_since_start_pct'] !== null) {
+                                        $calloutParts[] = '<span class="'.$deltaClass($callout['delta_since_start_pct']).'">'.e($fmtPct($callout['delta_since_start_pct'])).'</span> aineiston alusta';
+                                    }
+                                @endphp
+                                @if ($calloutParts)
+                                    <p class="data-now-change">
+                                        {!! implode(', ', $calloutParts) !!}.
+                                    </p>
+                                @endif
+                            </div>
+                        @endforeach
+                    </section>
+                @endif
 
                 {{-- Editorial caption and chart-reading guide --}}
-                <div id="lead-chart-description" class="mt-10 text-slate-700 leading-relaxed">
+                <div id="lead-chart-description" class="data-quotes-guide">
                     @if (! empty($caption))
-                        <div class="max-w-[58ch] text-base">
+                        <div class="data-quotes">
                             @foreach ($caption as $sentence)
-                                <span class="block">{{ $sentence }}</span>
+                                <p class="data-quote">
+                                    <span class="data-quote-mark" aria-hidden="true">“</span>
+                                    <span class="data-quote-text">{{ $sentence }}</span>
+                                </p>
                             @endforeach
                         </div>
                     @endif
 
-                    <div class="{{ ! empty($caption) ? 'mt-7' : '' }} border-t border-slate-200 pt-5" aria-labelledby="chart-reading-heading">
-                        <h3 id="chart-reading-heading" class="text-base font-bold text-slate-900">
+                    <div class="data-guide" aria-labelledby="chart-reading-heading">
+                        <h3 id="chart-reading-heading" class="data-guide-title">
                             Näin luet kuvaajaa
                         </h3>
-                        <dl class="mt-3 grid gap-4 md:grid-cols-3 md:gap-7 text-base text-slate-600">
+                        <dl class="data-guide-list">
                             <div>
-                                <dt class="font-semibold text-slate-900">Katkos viivassa</dt>
-                                <dd class="mt-1">Vertailukelpoista hintaa ei ollut saatavilla tai vuosihinnan arviointitapa muuttui. Katkos estää yhdistämästä keskenään erilaisia arvioita.</dd>
+                                <dt>Katkos viivassa</dt>
+                                <dd>Vertailukelpoista hintaa ei ollut saatavilla tai vuosihinnan arviointitapa muuttui. Katkos estää yhdistämästä keskenään erilaisia arvioita.</dd>
                             </div>
                             <div>
-                                <dt class="font-semibold text-slate-900">Yksittäinen hyppy</dt>
-                                <dd class="mt-1">Hyppy ei aina tarkoita yleistä hinnanmuutosta. Se voi syntyä myös siitä, että myynnissä olevien sopimusten joukko muuttuu.</dd>
+                                <dt>Yksittäinen hyppy</dt>
+                                <dd>Hyppy ei aina tarkoita yleistä hinnanmuutosta. Se voi syntyä myös siitä, että myynnissä olevien sopimusten joukko muuttuu.</dd>
                             </div>
                             <div>
-                                <dt class="font-semibold text-slate-900">Uusin piste</dt>
-                                <dd class="mt-1">Viimeinen piste näyttää uusimman saatavilla olevan päivän tilanteen. Viikko- ja kuukausinäkymät tasoittavat sitä edeltävää päivittäistä vaihtelua.</dd>
+                                <dt>Uusin piste</dt>
+                                <dd>Viimeinen piste näyttää uusimman saatavilla olevan päivän tilanteen. Viikko- ja kuukausinäkymät tasoittavat sitä edeltävää päivittäistä vaihtelua.</dd>
                             </div>
                         </dl>
+                        <span class="data-source">
+                            Lähde: Voltikka, päivittäin kerätyt sähkösopimukset. Sisältää arvonlisäveron 25,5 %.
+                        </span>
                     </div>
-
-                    <span class="block mt-5 text-sm text-slate-500">
-                        Lähde: Voltikka, päivittäin kerätyt sähkösopimukset. Sisältää arvonlisäveron 25,5 %.
-                    </span>
                 </div>
 
                 {{-- Visually-hidden accessible table mirror of the chart.
@@ -484,219 +545,248 @@
                 </div>
             </section>
 
-            {{-- Editorial callouts --}}
-            @if (! empty($callouts))
-                <section class="grid grid-cols-1 md:grid-cols-3 gap-x-10 gap-y-8 mb-20" aria-label="Hintamuutokset lyhyesti">
-                    @foreach ($callouts as $callout)
-                        <div class="border-t-2 {{ $callout['is_lead'] ? 'border-coral-500' : 'border-slate-300' }} pt-4">
-                            <p class="text-[11px] font-semibold tracking-[0.16em] uppercase {{ $callout['is_lead'] ? 'text-coral-600' : 'text-slate-500' }}">
-                                {{ $callout['segment_label'] }}
-                            </p>
-                            <p class="mt-3 text-base leading-relaxed text-slate-700">
-                                Nyt
-                                <span class="font-bold text-slate-900 tabular-nums">{{ $fmtNum($callout['current_price'], 2) }}&nbsp;{{ $callout['unit'] }}</span>,
-                                @if ($callout['delta_30d_pct'] !== null)
-                                    <span class="tabular-nums {{ $deltaClass($callout['delta_30d_pct']) }}">{{ $fmtPct($callout['delta_30d_pct']) }}</span> 30 päivässä
-                                @endif
-                                @if ($callout['delta_30d_pct'] !== null && $callout['delta_since_start_pct'] !== null), @endif
-                                @if ($callout['delta_since_start_pct'] !== null)
-                                    <span class="tabular-nums {{ $deltaClass($callout['delta_since_start_pct']) }}">{{ $fmtPct($callout['delta_since_start_pct']) }}</span> aineiston alusta
-                                @endif.
-                            </p>
-                        </div>
-                    @endforeach
-                </section>
-            @endif
-
             {{-- Segment table --}}
-            <section class="mb-20" aria-labelledby="segment-table-heading">
-                <div class="mb-5 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,24rem)] gap-x-12 gap-y-4 items-start">
-                    <div>
-                        <h2 id="segment-table-heading" class="text-2xl font-bold text-slate-900 tracking-tight">
-                            Hinnat sopimustyypeittäin
-                        </h2>
-                        <p class="mt-2 text-sm text-slate-600 leading-relaxed max-w-[68ch]">
-                            Taulukko näyttää kunkin sopimustyypin uusimman saatavilla olevan tyypillisen energiahinnan sekä miten hinta on muuttunut aineiston aikana. Jos rivin tiedot ovat muita vanhempia, päivämäärä näkyy sopimustyypin alla. Luvut perustuvat päiväkohtaisiin mediaaneihin, eli yksittäiset poikkeavat tarjoukset eivät ohjaa tulosta. Sopimustyypit, joissa on alle 10 sopimusta, jätetään pois. Sopimuksia-luku kertoo, monenko sopimuksen julkaistusta energiahinnasta rivin luvut on laskettu. Sopimus jää tästä taulukosta pois, jos sen hinnastossa ilmoitettu yksikköhinta koskee vain kampanjajaksoa tai on muuten ristiriidassa sopimusehtojen kanssa: silloin luku ei kertoisi, mitä sopimus maksaa. Näidenkin sopimusten koko vuoden hinta lasketaan kaikista hintajaksoista, joten ne ovat mukana vuosikustannustaulukossa.
-                        </p>
-                    </div>
-                    <div class="text-sm text-slate-500 leading-relaxed lg:border-l lg:border-slate-200 lg:pl-6">
-                        <p>
-                            Päivä: <span class="font-semibold text-slate-700 tabular-nums">{{ $latestSnapshotDate ?? $fiDate($dataWindow['to']) }}</span>.
-                            Aineisto: <span class="font-semibold text-slate-700 tabular-nums">{{ $fiDate($dataWindow['from']) }}–{{ $fiDate($dataWindow['to']) }}</span>.
-                        </p>
-                        <p class="mt-2">
-                            Pörssisähkön energiahinta on viimeisen 12 kuukauden toteutunut päiväkeskiarvo + tyypillinen marginaali. Vaihteluväli näyttää saman 12 kuukauden päivähintojen tavanomaisen vaihtelun. Muiden sopimusten energiahinta on sopimuksen oma julkaistu hinta; aika- ja kausisähköissä se painotetaan tyypilliseksi yleishinnaksi.
-                        </p>
-                        <p class="mt-2">
-                            Trendi näyttää energiahinnan mediaanin kehityksen. Pörssisähkössä trendi seuraa 12 kuukauden liukuvaa päiväkeskiarvoa + tyypillistä marginaalia.
-                        </p>
-                    </div>
-                </div>
+            <section class="data-section" aria-labelledby="segment-table-heading">
+                <x-site.section-heading id="segment-table-heading" :wave="280" class="data-heading">
+                    Hinnat sopimustyypeittäin
+                </x-site.section-heading>
+                <p class="data-lead-text data-lead-text--wide">
+                    Taulukko näyttää kunkin sopimustyypin uusimman saatavilla olevan tyypillisen energiahinnan sekä miten hinta on muuttunut aineiston aikana. Jos rivin tiedot ovat muita vanhempia, päivämäärä näkyy sopimustyypin alla. Luvut perustuvat päiväkohtaisiin mediaaneihin, eli yksittäiset poikkeavat tarjoukset eivät ohjaa tulosta. Sopimustyypit, joissa on alle 10 sopimusta, jätetään pois. Sopimuksia-luku kertoo, monenko sopimuksen julkaistusta energiahinnasta rivin luvut on laskettu. Sopimus jää tästä taulukosta pois, jos sen hinnastossa ilmoitettu yksikköhinta koskee vain kampanjajaksoa tai on muuten ristiriidassa sopimusehtojen kanssa: silloin luku ei kertoisi, mitä sopimus maksaa. Näidenkin sopimusten koko vuoden hinta lasketaan kaikista hintajaksoista, joten ne ovat mukana vuosikustannustaulukossa.
+                </p>
+                <p class="data-dateline">
+                    Päivä: <span class="tabular-nums">{{ $latestSnapshotDate ?? $fiDate($dataWindow['to']) }}</span>.
+                    Aineisto: <span class="tabular-nums">{{ $fiDate($dataWindow['from']) }}–{{ $fiDate($dataWindow['to']) }}</span>.
+                </p>
 
-                <div class="-mx-4 sm:mx-0 overflow-x-auto">
-                    <table class="w-full text-sm border-collapse">
+                <div class="data-table-scroll">
+                    <table class="data-table data-table--segments">
                         <thead>
-                            <tr class="text-left text-[11px] font-semibold tracking-[0.12em] uppercase text-slate-500 border-b border-slate-300">
-                                <th class="py-3 pr-3 pl-4 sm:pl-0 font-semibold">Sopimustyyppi</th>
-                                <th class="py-3 px-3 font-semibold text-right">Sopimuksia</th>
-                                <th class="py-3 px-3 font-semibold text-right">Energiahinta</th>
-                                <th class="py-3 px-3 font-semibold text-right">Δ&nbsp;30&nbsp;pv</th>
-                                <th class="py-3 px-3 font-semibold text-right">Δ&nbsp;alusta</th>
-                                <th class="py-3 px-3 font-semibold text-right">Perusmaksu</th>
-                                <th class="py-3 pl-3 pr-4 sm:pr-0 font-semibold">Energiahinnan trendi</th>
+                            <tr>
+                                <th scope="col">Sopimustyyppi</th>
+                                <th scope="col">Sopimuksia</th>
+                                <th scope="col">Energiahinta</th>
+                                <th scope="col">Δ&nbsp;30&nbsp;pv</th>
+                                <th scope="col">Δ&nbsp;alusta</th>
+                                <th scope="col">Perusmaksu</th>
+                                <th scope="col">Energiahinnan trendi</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-100">
+                        <tbody>
                             @foreach ($segmentRows as $row)
-                                <tr class="{{ $row['is_lead'] ? 'bg-coral-50/40' : '' }}">
-                                    <td class="py-3 pr-3 pl-4 sm:pl-0">
-                                        <span class="font-semibold text-slate-900 {{ $row['is_lead'] ? 'text-coral-700' : '' }}">
-                                            {{ $row['segment_label'] }}
+                                @php
+                                    $bucket = $segmentBucket($row['segment_key'] ?? null);
+                                    $color = $segmentColor($row['segment_key'] ?? null);
+                                @endphp
+                                <tr>
+                                    <td>
+                                        <span class="data-type">
+                                            @if ($bucket)
+                                                <x-ink.glyph :bucket="$bucket" size="30" />
+                                            @else
+                                                <span class="data-type-blank" aria-hidden="true"></span>
+                                            @endif
+                                            <span class="flex flex-col">
+                                                <span class="data-type-name" style="color: {{ $color }}">{{ $row['segment_label'] }}</span>
+                                                @if (! $row['is_current'])
+                                                    <span class="data-type-note tabular-nums">Aineisto {{ $fiDate($row['latest_observation_date']) }} asti</span>
+                                                @elseif ($row['is_spot'])
+                                                    <span class="data-type-note">12 kk keskihinta + marginaali</span>
+                                                @endif
+                                            </span>
                                         </span>
-                                        @if (! $row['is_current'])
-                                            <span class="block text-sm font-medium text-slate-500 mt-0.5 tabular-nums">Aineisto {{ $fiDate($row['latest_observation_date']) }} asti</span>
-                                        @elseif ($row['is_spot'])
-                                            <span class="block text-[11px] text-slate-400 mt-0.5">12 kk keskihinta + marginaali</span>
-                                        @endif
                                     </td>
-                                    <td class="py-3 px-3 text-right tabular-nums text-slate-500">
+                                    <td class="data-cell-num">
                                         {{ $row['contract_count'] !== null ? number_format($row['contract_count'], 0, ',', ' ') : '–' }}
                                     </td>
-                                    <td class="py-3 px-3 text-right tabular-nums font-semibold text-slate-900">
-                                        {{ $fmtNum($row['current_price'], 2) }}<span class="text-slate-400 font-normal">&nbsp;{{ $row['unit'] }}</span>
+                                    <td>
+                                        <span class="data-cell-price">{{ $fmtNum($row['current_price'], 2) }}&nbsp;{{ $row['unit'] }}</span>
                                         @if ($row['is_spot'] && $row['spot_range_p20'] !== null && $row['spot_range_p80'] !== null)
-                                            <span class="mt-0.5 block text-[11px] font-medium text-slate-400">
+                                            <span class="data-type-note block">
                                                 {{ $fmtNum($row['spot_range_p20'], 2) }}–{{ $fmtNum($row['spot_range_p80'], 2) }}&nbsp;{{ $row['unit'] }}
                                             </span>
                                         @endif
                                     </td>
-                                    <td class="py-3 px-3 text-right tabular-nums {{ $deltaClass($row['delta_30d_pct']) }}">
+                                    <td class="data-cell-delta {{ $deltaClass($row['delta_30d_pct']) }}">
                                         {{ $fmtPct($row['delta_30d_pct']) }}
                                     </td>
-                                    <td class="py-3 px-3 text-right tabular-nums {{ $deltaClass($row['delta_since_start_pct']) }}">
+                                    <td class="data-cell-delta {{ $deltaClass($row['delta_since_start_pct']) }}">
                                         {{ $fmtPct($row['delta_since_start_pct']) }}
                                     </td>
-                                    <td class="py-3 px-3 text-right tabular-nums text-slate-700">
+                                    <td class="data-cell-num">
                                         @if ($row['monthly_fee'] !== null)
-                                            {{ $fmtNum($row['monthly_fee'], 2) }}<span class="text-slate-400 font-normal">&nbsp;€/kk</span>
+                                            {{ $fmtNum($row['monthly_fee'], 2) }}&nbsp;€/kk
                                         @else
-                                            <span class="text-slate-400">–</span>
+                                            –
                                         @endif
                                     </td>
-                                    <td class="py-3 pl-3 pr-4 sm:pr-0">
+                                    <td>
                                         @if ($row['sparkline_path'] ?? null)
-                                            <svg viewBox="0 0 80 24" width="80" height="24" class="block"
+                                            <svg viewBox="0 0 80 24" width="120" height="36" class="block"
                                                  aria-label="{{ $row['segment_label'] }}, hintatrendi"
                                                  preserveAspectRatio="none">
                                                 <path d="{{ $row['sparkline_path'] }}"
                                                       fill="none"
-                                                      stroke="{{ $row['is_lead'] ? '#f97316' : '#94a3b8' }}"
-                                                      stroke-width="1.5"
+                                                      style="stroke: {{ $color }}"
+                                                      stroke-width="1.8"
+                                                      @if (! $bucket) stroke-dasharray="4 3" @endif
+                                                      vector-effect="non-scaling-stroke"
                                                       stroke-linecap="round"
                                                       stroke-linejoin="round" />
                                             </svg>
                                         @else
-                                            <span class="text-slate-300">–</span>
+                                            <span class="text-ink-muted">–</span>
                                         @endif
                                     </td>
                                 </tr>
                             @endforeach
                         </tbody>
                     </table>
+                </div>
+
+                <div class="data-notes">
+                    <p>
+                        Pörssisähkön energiahinta on viimeisen 12 kuukauden toteutunut päiväkeskiarvo + tyypillinen marginaali. Vaihteluväli näyttää saman 12 kuukauden päivähintojen tavanomaisen vaihtelun. Muiden sopimusten energiahinta on sopimuksen oma julkaistu hinta; aika- ja kausisähköissä se painotetaan tyypilliseksi yleishinnaksi.
+                    </p>
+                    <p>
+                        Trendi näyttää energiahinnan mediaanin kehityksen. Pörssisähkössä trendi seuraa 12 kuukauden liukuvaa päiväkeskiarvoa + tyypillistä marginaalia.
+                    </p>
                 </div>
             </section>
 
             {{-- Consumption section: hintahaarukka at the page-level kulutus --}}
-            <section class="mb-20" aria-labelledby="consumption-heading">
-                <div class="mb-5 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,24rem)] gap-x-12 gap-y-4 items-start">
-                    <div>
-                        <h2 id="consumption-heading" class="text-2xl font-bold text-slate-900 tracking-tight">
-                            Hintahaarukka {{ $consumptionLabel }}&nbsp;kWh kulutuksella
-                        </h2>
-                        <p class="mt-2 text-sm text-slate-600 leading-relaxed max-w-[68ch]">
-                            @if ($annualDataIsRetained)
-                                Vuosihinnat ovat päivältä {{ $fiDate($annualDataDate) }}. Ne ovat historiallisia arvioita, eivät tämän päivän hintavertailu.
+            @php
+                // One € scale for all range bars (p20–p80 with a median tick), presentation only.
+                $rangeValues = collect($consumptionRows)->flatMap(fn ($r) => [$r['p20'] ?? null, $r['p80'] ?? null])->filter(fn ($v) => $v !== null);
+                $rangeScale = null;
+                if ($rangeValues->isNotEmpty()) {
+                    $rangeMinRaw = (float) $rangeValues->min();
+                    $rangeMaxRaw = (float) $rangeValues->max();
+                    $rangeSpanRaw = max(1.0, $rangeMaxRaw - $rangeMinRaw);
+                    $rangeStep = collect([10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000])
+                        ->first(fn ($step) => $rangeSpanRaw / $step <= 4) ?? 10000;
+                    $rangeMin = floor($rangeMinRaw / $rangeStep) * $rangeStep;
+                    $rangeMax = ceil($rangeMaxRaw / $rangeStep) * $rangeStep;
+                    if ($rangeMax - $rangeMin < $rangeStep) {
+                        $rangeMax = $rangeMin + $rangeStep;
+                    }
+                    $rangeScale = [
+                        'min' => $rangeMin,
+                        'max' => $rangeMax,
+                        'ticks' => range($rangeMin, $rangeMax, $rangeStep),
+                    ];
+                }
+                $rangeX = fn (float $value) => $rangeScale
+                    ? round(($value - $rangeScale['min']) / ($rangeScale['max'] - $rangeScale['min']) * 100, 2)
+                    : 0;
+            @endphp
+            <section class="data-section" aria-labelledby="consumption-heading">
+                <div class="data-section-head">
+                    <x-site.section-heading id="consumption-heading" :wave="320" class="data-heading">
+                        Hintahaarukka {{ $consumptionLabel }}&nbsp;kWh kulutuksella
+                    </x-site.section-heading>
+                    <p class="data-see-also">
+                        Katso myös:
+                        @foreach ($consumptionLevels as $level)
+                            @if ($level !== $consumption)
+                                <a href="?kulutus={{ $level }}" class="data-link vk-focus">
+                                    {{ number_format($level, 0, ',', ' ') }}&nbsp;kWh
+                                </a>{{ ! $loop->last ? ' · ' : '' }}
                             @endif
-                            Taulukko näyttää kunkin sopimustyypin uusimman saatavilla olevan vuosikustannusten jakauman. Jos rivin tiedot ovat muita vanhempia, päivämäärä näkyy sopimustyypin alla. Laskenta käyttää valittua {{ $consumptionLabel }}&nbsp;kWh vuosikulutusta ja sisältää energiahinnan sekä perusmaksut 12 kuukaudelta. Sopimustyypit, joissa on alle 10 sopimusta, jätetään pois.
-                        </p>
-                        <p class="mt-3 text-xs text-slate-500">
-                            Katso myös:
-                            @foreach ($consumptionLevels as $level)
-                                @if ($level !== $consumption)
-                                    <a href="?kulutus={{ $level }}" class="underline decoration-slate-300 decoration-2 underline-offset-4 hover:decoration-coral-500">
-                                        {{ number_format($level, 0, ',', ' ') }}&nbsp;kWh
-                                    </a>{{ ! $loop->last ? ' · ' : '' }}
-                                @endif
-                            @endforeach
-                        </p>
-                    </div>
-                    <div class="text-sm text-slate-500 leading-relaxed lg:border-l lg:border-slate-200 lg:pl-6">
-                        <p>
-                            Päivä: <span class="font-semibold text-slate-700 tabular-nums">{{ $latestSnapshotDate ?? $fiDate($dataWindow['to']) }}</span>.
-                            Mukana ovat sopimukset, joille voidaan laskea vuosikustannus valitulla {{ $consumptionLabel }}&nbsp;kWh kulutuksella.
-                        </p>
-                        <p class="mt-2">
-                            Halvempi&nbsp;20&nbsp;% on raja, jonka alle viidennes saman tyypin sopimuksista jää. Mediaani kuvaa tyypillistä sopimusta, ja kalliimpi&nbsp;20&nbsp;% on raja, jonka yli viidennes nousee.
-                        </p>
-                        <p class="mt-2">
-                            @if ($activeAnnualIsAsOf)
-                                Jokainen päivä käyttää vain silloin saatavilla olleita tietoja. Tulevia hintoja arvioidaan vain silloin, kun sopimuksen ehdot antavat siihen riittävät tiedot. Jos vertailukelpoista vuosihintaa ei voida muodostaa, sopimus jää kyseisen päivän tilastosta pois.
-                            @else
-                                Pörssisähkön nykyinen vuosikustannus käyttää tulevan 12 kuukauden tukkumarkkinan ennakkohintoja, historiallista päivä–yö-eroa ja sopimuksen marginaalia. Historialliset Spot-vuosikustannukset käyttävät kyseisestä päivästä taaksepäin laskettua 12 kuukauden toteutunutta pörssitasoa. Kuukausi- ja kvartaalihinnoissa sekä hinnaltaan muutettavissa toistaiseksi voimassa olevissa yleissähkösopimuksissa tulevat kuukaudet ovat arvioita. Muissa kiinteissä sopimuksissa käytetään julkaistuja hintoja. Trendi näyttää vuosikustannuksen mediaanin kehityksen valitulla kulutuksella.
-                            @endif
-                            Sopimusmäärä voi poiketa ylemmästä hintataulukosta kumpaankin suuntaan: sopimus jää pois, jos se ei ole tarjolla valitulle kulutukselle tai vuosihintaa ei voi laskea, ja mukana on myös sopimuksia, joiden ilmoitettua yksikköhintaa ei voi julkaista energiahintana mutta joiden koko vuoden hinta voidaan laskea hintajaksoista.
-                        </p>
-                    </div>
+                        @endforeach
+                    </p>
                 </div>
+                <p class="data-lead-text data-lead-text--wide">
+                    @if ($annualDataIsRetained)
+                        Vuosihinnat ovat päivältä {{ $fiDate($annualDataDate) }}. Ne ovat historiallisia arvioita, eivät tämän päivän hintavertailu.
+                    @endif
+                    Taulukko näyttää kunkin sopimustyypin uusimman saatavilla olevan vuosikustannusten jakauman. Jos rivin tiedot ovat muita vanhempia, päivämäärä näkyy sopimustyypin alla. Laskenta käyttää valittua {{ $consumptionLabel }}&nbsp;kWh vuosikulutusta ja sisältää energiahinnan sekä perusmaksut 12 kuukaudelta. Sopimustyypit, joissa on alle 10 sopimusta, jätetään pois.
+                </p>
+                <p class="data-dateline">
+                    Päivä: <span class="tabular-nums">{{ $latestSnapshotDate ?? $fiDate($dataWindow['to']) }}</span>.
+                    Mukana ovat sopimukset, joille voidaan laskea vuosikustannus valitulla {{ $consumptionLabel }}&nbsp;kWh kulutuksella.
+                </p>
 
-                <div class="-mx-4 sm:mx-0 overflow-x-auto">
-                    <table class="w-full text-sm border-collapse">
+                <div class="data-table-scroll">
+                    <table class="data-table data-table--range">
                         <caption class="sr-only">Vuosikustannus {{ $consumptionLabel }} kWh kulutuksella sopimustyypeittäin.</caption>
                         <thead>
-                            <tr class="text-left text-[11px] font-semibold tracking-[0.12em] uppercase text-slate-500 border-b border-slate-300">
-                                <th class="py-3 pr-3 pl-4 sm:pl-0 font-semibold">Sopimustyyppi</th>
-                                <th class="py-3 px-3 font-semibold text-right">
+                            <tr>
+                                <th scope="col">Sopimustyyppi</th>
+                                <th scope="col">
                                     <abbr title="20. persentiili: viidennes sopimuksista on tätä halvempia." class="no-underline cursor-help">Halvempi&nbsp;20&nbsp;%</abbr>
                                 </th>
-                                <th class="py-3 px-3 font-semibold text-right">
+                                <th scope="col">
                                     <abbr title="Mediaani: tasan puolet sopimuksista on tätä halvempia ja puolet kalliimpia. Robustimpi kuin keskiarvo, koska yksittäiset poikkeavat sopimukset eivät vinouta sitä." class="no-underline cursor-help">Mediaani</abbr>
                                 </th>
-                                <th class="py-3 px-3 font-semibold text-right">
+                                <th scope="col">
                                     <abbr title="80. persentiili: viidennes sopimuksista on tätä kalliimpia." class="no-underline cursor-help">Kalliimpi&nbsp;20&nbsp;%</abbr>
                                 </th>
-                                <th class="py-3 px-3 font-semibold text-right">Sopimuksia</th>
-                                <th class="py-3 pl-3 pr-4 sm:pr-0 font-semibold">Vuosihinnan trendi</th>
+                                <th scope="col" class="data-range-col">
+                                    @if ($rangeScale)
+                                        <span class="data-range-axis" aria-hidden="true">
+                                            @foreach ($rangeScale['ticks'] as $tick)
+                                                <span style="left: {{ $rangeX($tick) }}%">{{ number_format($tick, 0, ',', ' ') }}&nbsp;€</span>
+                                            @endforeach
+                                        </span>
+                                    @endif
+                                </th>
+                                <th scope="col">Sopimuksia</th>
+                                <th scope="col">Vuosihinnan trendi</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-100">
+                        <tbody>
                             @foreach ($consumptionRows as $row)
-                                <tr class="{{ $row['is_lead'] ? 'bg-coral-50/40' : '' }}">
-                                    <td class="py-3 pr-3 pl-4 sm:pl-0">
-                                        <span class="font-semibold text-slate-900 {{ $row['is_lead'] ? 'text-coral-700' : '' }}">
-                                            {{ $row['segment_label'] }}
+                                @php
+                                    $bucket = $segmentBucket($row['segment_key'] ?? null);
+                                    $color = $segmentColor($row['segment_key'] ?? null);
+                                @endphp
+                                <tr>
+                                    <td>
+                                        <span class="data-type">
+                                            @if ($bucket)
+                                                <x-ink.glyph :bucket="$bucket" size="28" />
+                                            @else
+                                                <span class="data-type-blank data-type-blank--small" aria-hidden="true"></span>
+                                            @endif
+                                            <span class="flex flex-col">
+                                                <span class="data-type-name" style="color: {{ $color }}">{{ $row['segment_label'] }}</span>
+                                                @if (! $row['is_current'])
+                                                    <span class="data-type-note tabular-nums">Aineisto {{ $fiDate($row['latest_observation_date']) }} asti</span>
+                                                @endif
+                                            </span>
                                         </span>
-                                        @if (! $row['is_current'])
-                                            <span class="block text-sm font-medium text-slate-500 mt-0.5 tabular-nums">Aineisto {{ $fiDate($row['latest_observation_date']) }} asti</span>
+                                    </td>
+                                    <td class="data-cell-num">{{ $fmtNum($row['p20'], 0) }}&nbsp;€</td>
+                                    <td><span class="data-cell-price">{{ $fmtNum($row['median'], 0) }}&nbsp;€</span></td>
+                                    <td class="data-cell-num">{{ $fmtNum($row['p80'], 0) }}&nbsp;€</td>
+                                    <td class="data-range-col">
+                                        @if ($rangeScale && $row['p20'] !== null && $row['p80'] !== null && $row['median'] !== null)
+                                            <span class="data-range" aria-hidden="true" style="--range-color: {{ $color }}">
+                                                @foreach ($rangeScale['ticks'] as $tick)
+                                                    <span class="data-range-grid" style="left: {{ $rangeX($tick) }}%"></span>
+                                                @endforeach
+                                                <span class="data-range-bar" style="left: {{ $rangeX((float) $row['p20']) }}%; width: {{ max(0.6, $rangeX((float) $row['p80']) - $rangeX((float) $row['p20'])) }}%"></span>
+                                                <span class="data-range-median" style="left: {{ $rangeX((float) $row['median']) }}%"></span>
+                                            </span>
                                         @endif
                                     </td>
-                                    <td class="py-3 px-3 text-right tabular-nums text-slate-700">{{ $fmtNum($row['p20'], 0) }}<span class="text-slate-400 font-normal">&nbsp;€</span></td>
-                                    <td class="py-3 px-3 text-right tabular-nums font-bold text-slate-900">{{ $fmtNum($row['median'], 0) }}<span class="text-slate-400 font-normal">&nbsp;€</span></td>
-                                    <td class="py-3 px-3 text-right tabular-nums text-slate-700">{{ $fmtNum($row['p80'], 0) }}<span class="text-slate-400 font-normal">&nbsp;€</span></td>
-                                    <td class="py-3 px-3 text-right tabular-nums text-slate-500">{{ number_format($row['contract_count'], 0, ',', ' ') }}</td>
-                                    <td class="py-3 pl-3 pr-4 sm:pr-0">
+                                    <td class="data-cell-num">{{ number_format($row['contract_count'], 0, ',', ' ') }}</td>
+                                    <td>
                                         @if ($row['sparkline_path'] ?? null)
-                                            <svg viewBox="0 0 80 24" width="80" height="24" class="block"
+                                            <svg viewBox="0 0 80 24" width="110" height="32" class="block"
                                                  aria-label="{{ $row['segment_label'] }}, vuosihinnan trendi"
                                                  preserveAspectRatio="none">
                                                 <path d="{{ $row['sparkline_path'] }}"
                                                       fill="none"
-                                                      stroke="{{ $row['is_lead'] ? '#f97316' : '#94a3b8' }}"
-                                                      stroke-width="1.5"
+                                                      style="stroke: {{ $color }}"
+                                                      stroke-width="1.8"
+                                                      @if (! $bucket) stroke-dasharray="4 3" @endif
+                                                      vector-effect="non-scaling-stroke"
                                                       stroke-linecap="round"
                                                       stroke-linejoin="round" />
                                             </svg>
                                         @else
-                                            <span class="text-slate-300">–</span>
+                                            <span class="text-ink-muted">–</span>
                                         @endif
                                     </td>
                                 </tr>
@@ -704,43 +794,57 @@
                         </tbody>
                     </table>
                 </div>
+
+                <div class="data-notes">
+                    <div class="flex flex-col gap-2">
+                        @if ($rangeScale)
+                            <p class="data-range-key" aria-hidden="true">
+                                <svg width="64" height="20" viewBox="0 0 64 20" focusable="false"><rect x="8" y="6" width="44" height="8" style="fill: color-mix(in srgb, var(--color-cat-fixed) 32%, transparent); stroke: var(--color-cat-fixed)" /><path d="M24 2 V18" style="stroke: var(--color-ink)" stroke-width="2.5" stroke-linecap="round" /></svg>
+                                <span>Palkki = halvempi 20 % – kalliimpi 20 %, viiva = mediaani</span>
+                            </p>
+                        @endif
+                        <p>
+                            Halvempi&nbsp;20&nbsp;% on raja, jonka alle viidennes saman tyypin sopimuksista jää. Mediaani kuvaa tyypillistä sopimusta, ja kalliimpi&nbsp;20&nbsp;% on raja, jonka yli viidennes nousee.
+                        </p>
+                    </div>
+                    <p>
+                        @if ($activeAnnualIsAsOf)
+                            Jokainen päivä käyttää vain silloin saatavilla olleita tietoja. Tulevia hintoja arvioidaan vain silloin, kun sopimuksen ehdot antavat siihen riittävät tiedot. Jos vertailukelpoista vuosihintaa ei voida muodostaa, sopimus jää kyseisen päivän tilastosta pois.
+                        @else
+                            Pörssisähkön nykyinen vuosikustannus käyttää tulevan 12 kuukauden tukkumarkkinan ennakkohintoja, historiallista päivä–yö-eroa ja sopimuksen marginaalia. Historialliset Spot-vuosikustannukset käyttävät kyseisestä päivästä taaksepäin laskettua 12 kuukauden toteutunutta pörssitasoa. Kuukausi- ja kvartaalihinnoissa sekä hinnaltaan muutettavissa toistaiseksi voimassa olevissa yleissähkösopimuksissa tulevat kuukaudet ovat arvioita. Muissa kiinteissä sopimuksissa käytetään julkaistuja hintoja. Trendi näyttää vuosikustannuksen mediaanin kehityksen valitulla kulutuksella.
+                        @endif
+                        Sopimusmäärä voi poiketa ylemmästä hintataulukosta kumpaankin suuntaan: sopimus jää pois, jos se ei ole tarjolla valitulle kulutukselle tai vuosihintaa ei voi laskea, ja mukana on myös sopimuksia, joiden ilmoitettua yksikköhintaa ei voi julkaista energiahintana mutta joiden koko vuoden hinta voidaan laskea hintajaksoista.
+                    </p>
+                </div>
             </section>
 
-            {{-- Per-segment deep-dive sections --}}
+            {{-- Per-segment deep dives (round 3, Paper "R3 · Data · Tilastot"): every contract type
+                 in the same cell anatomy, two cells per row from 1024px, one column below. --}}
             @if (! empty($deepDivePayloads))
                 @php
-                    // Tone classes for the quotable headline metric and the highlighted span in
-                    // the sentence. "down" reads as "cheaper / lower" which is good news for the
-                    // reader, hence emerald; "up" stays slate (no shouting reds — see DESIGN.md
-                    // bans on decorative red/amber/green).
-                    $toneHeadline = [
-                        'down' => 'text-emerald-700',
-                        'up' => 'text-slate-900',
-                        'neutral' => 'text-slate-900',
-                    ];
-                    $toneHighlight = [
-                        'down' => 'text-emerald-700',
-                        'up' => 'text-slate-900',
-                        'neutral' => 'text-slate-900',
+                    // Headline tone: "down" is cheaper (saving), "up" is a price rise (price-high).
+                    $toneClass = [
+                        'down' => 'data-delta--down',
+                        'up' => 'data-delta--up',
+                        'neutral' => 'data-delta--ink',
                     ];
                 @endphp
 
-                <section class="mb-20" aria-labelledby="deepdive-heading">
-                    <h2 id="deepdive-heading" class="text-2xl font-bold text-slate-900 tracking-tight mb-2">
+                <section class="data-section data-section--roomy" aria-labelledby="deepdive-heading">
+                    <x-site.section-heading id="deepdive-heading" :wave="320" class="data-heading">
                         Tarkemmin sopimustyypeittäin
-                    </h2>
-                    <p class="text-sm text-slate-500 max-w-[60ch] mb-7">
+                    </x-site.section-heading>
+                    <p class="data-lead-text data-lead-text--intro">
                         Kaavioissa viiva näyttää energiahinnan mediaanin ja vaalea alue tavanomaisen vaihteluvälin. Pörssisähkössä viiva on 12 kuukauden liukuva keskiarvo toteutuneista päivähinnoista + tyypillinen marginaali; vaalea alue näyttää saman liukuvan 12 kuukauden jakson päivähintojen vaihteluvälin. Muissa sopimustyypeissä viiva ja alue perustuvat sopimusten julkaistuihin energiahintoihin.
                     </p>
 
-                    {{-- In-page TOC: chip-style anchors --}}
-                    <nav aria-label="Sopimustyypit" class="mb-14 flex flex-wrap gap-2">
+                    {{-- In-page contents: inked anchors to each contract type. --}}
+                    <nav aria-label="Sopimustyypit" class="data-toc">
                         @foreach ($deepDivePayloads as $dive)
-                            <a href="#{{ $dive['anchor'] }}"
-                               class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200 text-xs font-semibold tracking-wide text-slate-700 hover:bg-white hover:border-slate-400 hover:text-slate-900 transition-colors">
+                            <a href="#{{ $dive['anchor'] }}" class="data-toc-link vk-focus">
                                 {{ $dive['segment_label'] }}
                                 @if ($dive['quotable'] && in_array($dive['quotable']['tone'], ['up', 'down'], true))
-                                    <span class="tabular-nums text-[11px] font-bold {{ $dive['quotable']['tone'] === 'down' ? 'text-emerald-700' : 'text-slate-500' }}">
+                                    <span class="data-toc-change {{ $toneClass[$dive['quotable']['tone']] }}">
                                         {{ $dive['quotable']['headline'] }}
                                     </span>
                                 @endif
@@ -750,171 +854,89 @@
 
                     <div class="relative">
                         <div wire:loading.delay.flex wire:target="setPeriod,setConsumption" class="absolute inset-x-0 top-0 z-10 hidden justify-center pt-4" role="status" aria-live="polite">
-                            <div class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/90 px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm backdrop-blur">
-                                <svg class="h-3.5 w-3.5 animate-spin text-slate-400" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <div class="data-busy data-busy--float">
+                                <svg class="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
                                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
                                 </svg>
                                 Päivitetään sopimustyyppejä
                             </div>
                         </div>
-                        <div wire:loading.delay.class="opacity-50" wire:target="setPeriod,setConsumption" class="divide-y divide-slate-200 transition-opacity">
-                        @foreach ($deepDivePayloads as $dive)
-                            <article id="{{ $dive['anchor'] }}" class="scroll-mt-24 pt-20 first:pt-0 pb-20 last:pb-0">
-                                <header class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 mb-3">
-                                    <h3 class="text-xl font-bold text-slate-900 tracking-tight">
-                                        {{ $dive['heading'] }}
-                                    </h3>
-                                    @if ($dive['contract_count'] !== null)
-                                        <span class="text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-400">
-                                            {{ number_format($dive['contract_count'], 0, ',', ' ') }} sopimusta
-                                        </span>
-                                    @elseif (! empty($dive['latest_observation_date']))
-                                        <span class="text-sm font-semibold text-slate-500 tabular-nums">
-                                            Aineisto {{ $fiDate($dive['latest_observation_date']) }} asti
-                                        </span>
-                                    @endif
-                                </header>
+                        <div wire:loading.delay.class="opacity-50" wire:target="setPeriod,setConsumption" class="data-types transition-opacity">
+                            @foreach ($deepDivePayloads as $dive)
+                                @php $diveColor = $segmentColor($dive['segment_key']); @endphp
+                                <article id="{{ $dive['anchor'] }}" class="data-type-cell scroll-mt-24">
+                                    <header class="data-type-head">
+                                        <h3 class="data-type-title">{{ $dive['heading'] }}</h3>
+                                        @if ($dive['contract_count'] !== null)
+                                            <span class="data-type-count" style="color: {{ $diveColor }}">{{ number_format($dive['contract_count'], 0, ',', ' ') }} sopimusta</span>
+                                        @elseif (! empty($dive['latest_observation_date']))
+                                            <span class="data-type-count tabular-nums">Aineisto {{ $fiDate($dive['latest_observation_date']) }} asti</span>
+                                        @endif
+                                    </header>
 
-                                @if ($dive['description'])
-                                    <p class="text-base text-slate-600 leading-relaxed max-w-[64ch] mb-8">
-                                        {{ $dive['description'] }}
-                                    </p>
-                                @endif
-
-                                @if (! $dive['has_data'])
-                                    <p class="text-sm text-slate-500">Aineistoa ei vielä riitä tämän sopimustyypin trendin näyttämiseen.</p>
-                                @else
-
-                                    {{-- Quotable pull-quote: the AI-citable claim --}}
-                                    @if ($dive['quotable'])
-                                        <figure class="mb-8 grid grid-cols-1 md:grid-cols-[minmax(0,11rem)_1fr] gap-x-10 gap-y-4 items-baseline"
-                                                x-data="voltikkaQuote({
-                                                    sentence: @js($dive['quotable']['sentence_plain']),
-                                                    citation: @js($citations['plain']),
-                                                    segment: @js($dive['anchor']),
-                                                })">
-                                            <div class="md:border-l-0 md:pl-0">
-                                                <p class="text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-500">
-                                                    {{ $dive['quotable']['headline_label'] }}
-                                                </p>
-                                                <p class="mt-1.5 text-3xl md:text-4xl font-extrabold tabular-nums leading-none {{ $toneHeadline[$dive['quotable']['tone']] }}">
-                                                    {{ $dive['quotable']['headline'] }}
-                                                </p>
-                                            </div>
-                                            <div>
-                                                <blockquote class="text-lg text-slate-700 leading-snug max-w-[58ch]">
-                                                    {{ $dive['quotable']['sentence_before'] }}<span class="font-bold tabular-nums {{ $toneHighlight[$dive['quotable']['tone']] }}">{{ $dive['quotable']['sentence_highlight'] }}</span>{{ $dive['quotable']['sentence_after'] }}
-                                                </blockquote>
-                                                <button type="button"
-                                                        @click="copy()"
-                                                        class="mt-3 inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-wide uppercase text-slate-500 hover:text-coral-600 transition-colors"
-                                                        :aria-label="copied ? 'Kopioitu' : 'Kopioi sitaatti'">
-                                                    <svg x-show="!copied" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                                        <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                                                    </svg>
-                                                    <svg x-show="copied" x-cloak class="w-3.5 h-3.5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                                        <path d="M20 6L9 17l-5-5"/>
-                                                    </svg>
-                                                    <span x-text="copied ? 'Kopioitu' : 'Kopioi sitaatti'"></span>
-                                                </button>
-                                            </div>
-                                        </figure>
-                                    @endif
-
-                                    {{-- Stats strip: scannable metric grid --}}
-                                    <dl class="mb-10 grid grid-cols-2 sm:grid-cols-4 gap-x-10 gap-y-8 sm:gap-x-6 sm:gap-y-5 pt-5 sm:pt-4 border-t border-slate-200">
-                                        <div>
-                                            <dt class="text-[11px] font-semibold tracking-[0.12em] uppercase text-slate-400">Energiahinta</dt>
-                                            <dd class="mt-1 text-base font-bold text-slate-900 tabular-nums">
-                                                {{ $fmtNum($dive['current'], 2) }}<span class="text-slate-400 font-normal">&nbsp;{{ $dive['unit'] }}</span>
-                                            </dd>
-                                        </div>
-                                        <div>
-                                            <dt class="text-[11px] font-semibold tracking-[0.12em] uppercase text-slate-400">30 päivän muutos</dt>
-                                            <dd class="mt-1 text-base font-semibold tabular-nums {{ $deltaClass($dive['delta_30d_pct']) }}">
-                                                {{ $fmtPct($dive['delta_30d_pct']) }}
-                                            </dd>
-                                        </div>
-                                        <div>
-                                            <dt class="text-[11px] font-semibold tracking-[0.12em] uppercase text-slate-400">Aineiston alusta</dt>
-                                            <dd class="mt-1 text-base font-semibold tabular-nums {{ $deltaClass($dive['delta_since_start_pct']) }}">
-                                                {{ $fmtPct($dive['delta_since_start_pct']) }}
-                                            </dd>
-                                        </div>
-                                        <div>
-                                            @if ($dive['is_current'])
-                                                <dt class="text-[11px] font-semibold tracking-[0.12em] uppercase text-slate-400">Tarjolla nyt</dt>
-                                                <dd class="mt-1 text-base font-semibold tabular-nums text-slate-700">
-                                                    @if ($dive['contract_count'] !== null)
-                                                        {{ number_format($dive['contract_count'], 0, ',', ' ') }}<span class="text-slate-400 font-normal">&nbsp;sopimusta</span>
-                                                    @else
-                                                        <span class="text-slate-400">–</span>
-                                                    @endif
-                                                </dd>
-                                            @else
-                                                <dt class="text-[11px] font-semibold tracking-[0.12em] uppercase text-slate-400">Viimeinen havainto</dt>
-                                                <dd class="mt-1 text-base font-semibold tabular-nums text-slate-700">
-                                                    {{ $fiDate($dive['latest_observation_date']) }}
-                                                </dd>
-                                            @endif
-                                        </div>
-                                    </dl>
-
-                                    @if ($dive['is_spot'] && ! empty($spotMarginPayload['x']))
-                                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
-                                            <figure class="lg:col-span-2">
-                                                <figcaption class="text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-500 mb-3">
-                                                    Energiahinta (12 ka.) &amp; vaihteluväli
-                                                </figcaption>
-                                                <div wire:key="dive-{{ $dive['anchor'] }}-{{ $period }}-{{ $dataWindow['to'] }}"
-                                                     wire:ignore
-                                                     data-line-chart="{{ $dive['segment_key'] }}"
-                                                     class="relative w-full h-64"
-                                                     role="img"
-                                                     aria-label="{{ $dive['segment_label'] }} hinnan kehitys ja markkinahaarukka aikajaksoittain.">
-                                                    <script type="application/json">{!! json_encode($dive['chart'], JSON_UNESCAPED_UNICODE) !!}</script>
-                                                </div>
-                                            </figure>
-                                            <figure>
-                                                <figcaption class="text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-500 mb-3">
-                                                    Marginaali ka.
-                                                </figcaption>
-                                                <div wire:key="spot-margin-{{ $period }}-{{ $dataWindow['to'] }}"
-                                                     wire:ignore
-                                                     data-line-chart="spot-margin"
-                                                     class="relative w-full h-64"
-                                                     role="img"
-                                                     aria-label="Pörssisähkön supplier-marginaalin mediaani aikajaksoittain.">
-                                                    <script type="application/json">{!! json_encode($spotMarginPayload, JSON_UNESCAPED_UNICODE) !!}</script>
-                                                </div>
-                                            </figure>
-                                        </div>
+                                    @if (! $dive['has_data'])
+                                        @if ($dive['description'])
+                                            <p class="data-type-note">{{ $dive['description'] }}</p>
+                                        @endif
+                                        <p class="data-muted-caption">Aineistoa ei vielä riitä tämän sopimustyypin trendin näyttämiseen.</p>
                                     @else
-                                        <figure>
+                                        <x-site.data-dive-stats :dive="$dive" />
+
+                                        <figure class="data-type-chart">
+                                            <figcaption class="data-type-chart-head">
+                                                <span>{{ $dive['is_spot'] ? 'Energiahinta (12 ka.) & vaihteluväli' : 'Mediaani & tavanomainen vaihteluväli' }}</span>
+                                                <span class="data-type-chart-unit">{{ $dive['unit'] }}</span>
+                                            </figcaption>
                                             <div wire:key="dive-{{ $dive['anchor'] }}-{{ $period }}-{{ $dataWindow['to'] }}"
                                                  wire:ignore
                                                  data-line-chart="{{ $dive['segment_key'] }}"
-                                                 class="relative w-full h-64"
+                                                 data-chart-skin="ink"
+                                                 data-chart-unit-badge="off"
+                                                 data-chart-end="{{ $fmtNum($dive['current'], 2) }}"
+                                                 class="data-type-plot"
                                                  role="img"
                                                  aria-label="{{ $dive['segment_label'] }} hinnan kehitys ja markkinahaarukka aikajaksoittain.">
                                                 <script type="application/json">{!! json_encode($dive['chart'], JSON_UNESCAPED_UNICODE) !!}</script>
                                             </div>
                                         </figure>
+
+                                        <x-site.data-dive-quote :dive="$dive" :citation="$citations['plain']" :description="$dive['description']">
+                                            @if ($dive['is_spot'] && ! empty($spotMarginPayload['x']))
+                                                <figure class="data-type-margin">
+                                                    <figcaption class="data-type-chart-head">
+                                                        <span class="data-type-margin-title">Marginaali, mediaani</span>
+                                                        <span class="data-type-chart-unit">c/kWh</span>
+                                                    </figcaption>
+                                                    <div wire:key="spot-margin-{{ $period }}-{{ $dataWindow['to'] }}"
+                                                         wire:ignore
+                                                         data-line-chart="spot-margin"
+                                                         data-chart-skin="ink"
+                                                         data-chart-unit-badge="off"
+                                                         data-chart-end=""
+                                                         class="data-type-margin-plot"
+                                                         role="img"
+                                                         aria-label="Pörssisähkön supplier-marginaalin mediaani aikajaksoittain.">
+                                                        <script type="application/json">{!! json_encode($spotMarginPayload, JSON_UNESCAPED_UNICODE) !!}</script>
+                                                    </div>
+                                                </figure>
+                                            @endif
+                                        </x-site.data-dive-quote>
                                     @endif
-                                @endif
-                            </article>
-                        @endforeach
+                                </article>
+                            @endforeach
                         </div>
                     </div>
                 </section>
             @endif
 
+            <x-site.interlude art="stats-interlude" />
+
             {{-- Methodology + citation --}}
-            <section id="viittaa" class="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 pt-12 border-t border-slate-200">
-                <div>
-                    <h2 class="text-2xl font-bold text-slate-900 tracking-tight mb-4">Mistä luvut tulevat</h2>
-                    <div class="space-y-4 text-base text-slate-600 leading-relaxed max-w-[58ch]">
+            <section id="viittaa" class="data-method">
+                <div class="data-method-main">
+                    <x-site.section-heading :wave="260" class="data-heading">Mistä luvut tulevat</x-site.section-heading>
+                    <div class="data-prose">
                         <p>
                             Voltikka kerää sähkösopimusten lähdetiedot päivittäin. Nykyisen päivän julkiset hinta-arvot lasketaan validoidusta kanonisesta hinnoittelusta. Jos kanonisella tuloksella ei ole merkityksellistä yksikköhintaa, kenttä jätetään tyhjäksi. Esimerkiksi energiapaketin ylityshintaa ei esitetä paketin keskimääräisenä energiahintana.
                         </p>
@@ -944,53 +966,21 @@
                     </div>
                 </div>
 
-                <div x-data="voltikkaCite({
+                <div class="data-cite" x-data="voltikkaCite({
                     plain: @js($citations['plain']),
                     markdown: @js($citations['markdown']),
                     html: @js($citations['html']),
                 })">
-                    <h2 class="text-2xl font-bold text-slate-900 tracking-tight mb-4">Viittaa tähän</h2>
-                    <p class="text-sm text-slate-500 mb-5 max-w-[48ch]">
+                    <x-site.section-heading :wave="200" class="data-heading">Viittaa tähän</x-site.section-heading>
+                    <p class="data-cite-text">
                         Käytä alla olevaa lähdemerkintää, jos lainaat tilastoa artikkelissa, tutkimuksessa tai sosiaalisessa mediassa. Aineisto on lisensoitu CC&nbsp;BY&nbsp;4.0.
                     </p>
 
-                    <div role="tablist" class="inline-flex bg-slate-50 border border-slate-200 rounded-lg p-0.5 mb-4">
-                        <template x-for="format in ['plain','markdown','html']" :key="format">
-                            <button
-                                type="button"
-                                role="tab"
-                                :aria-selected="active === format"
-                                @click="active = format"
-                                class="px-3.5 py-1.5 rounded-md text-xs font-semibold tracking-wide transition-colors capitalize"
-                                :class="active === format ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'"
-                                x-text="format === 'plain' ? 'Teksti' : (format === 'markdown' ? 'Markdown' : 'HTML')"
-                            ></button>
-                        </template>
-                    </div>
+                    <x-site.data-cite-formats />
 
-                    <pre x-text="formats[active]" class="bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm text-slate-700 whitespace-pre-wrap break-words leading-relaxed font-sans"></pre>
-
-                    <button
-                        type="button"
-                        @click="copy()"
-                        class="mt-4 inline-flex items-center gap-2 rounded-lg bg-slate-900 text-white text-sm font-semibold px-4 py-2 hover:bg-slate-800 transition-colors"
-                    >
-                        <svg x-show="!copied" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                        </svg>
-                        <svg x-show="copied" x-cloak class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M20 6L9 17l-5-5"/>
-                        </svg>
-                        <span x-text="copied ? 'Kopioitu' : 'Kopioi viittaus'"></span>
-                    </button>
-
-                    <div class="mt-8 text-sm">
-                        <a href="{{ $csvHref }}"
-                           class="inline-flex items-center gap-2 font-semibold text-slate-900 underline decoration-slate-300 decoration-2 underline-offset-4 hover:decoration-coral-500"
-                           download>
-                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <path d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16"/>
-                            </svg>
+                    <div class="pt-2.5">
+                        <a href="{{ $csvHref }}" class="data-link vk-focus" download>
+                            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 2v8m0 0l-3-3m3 3l3-3M3 13h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
                             Lataa koko aineisto CSV-muodossa
                         </a>
                     </div>

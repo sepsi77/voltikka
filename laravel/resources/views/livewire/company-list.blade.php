@@ -4,356 +4,295 @@
         {!! json_encode($jsonLd, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) !!}
     </script>
 
-    <!-- Hero Section -->
-    <section class="bg-slate-950 -mx-4 sm:-mx-6 lg:-mx-8">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="py-12 lg:py-16">
-                <!-- Back Link -->
-                <a href="{{ route('sahkosopimus.index') }}" class="inline-flex items-center text-slate-300 hover:text-white font-medium mb-6">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                    </svg>
-                    Takaisin sopimuksiin
-                </a>
-
-                <h1 class="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4">
-                    {{ $pageHeading }}
-                </h1>
-
-                <p class="text-lg text-slate-300 max-w-3xl">
-                    Vertaile {{ $companyCount }} sähköyhtiön {{ $contractCount }} sopimusta, hintaa ja energialähdettä.
-                    Mukana ovat kaikki sähköä myyvät energiayhtiöt suurista valtakunnallisista sähkönmyyjistä
-                    pieniin paikallisiin yhtiöihin – emme rajaa vertailua yhteistyökumppaneihimme.
-                </p>
-            </div>
-        </div>
-    </section>
+    {{-- Picture-book directory hero (Paper board 6R6-0 "Hero · village street", seasons EBQ-0).
+         The fox walks in the painting at the bottom left, below the text. --}}
+    <x-site.company-hero art="companies-hero" variant="list" :tone="\App\Support\Season::heroTone('companies-hero')">
+        <a href="{{ route('sahkosopimus.index') }}" class="vk-co-hero-back vk-focus">
+            <span aria-hidden="true">←</span> Takaisin sopimuksiin
+        </a>
+        <h1 class="vk-co-hero-h1">{{ $pageHeading }}</h1>
+        <p class="vk-co-hero-sub">Vertaile {{ $companyCount }} sähköyhtiön {{ $contractCount }} sopimusta, hintaa ja energialähdettä.</p>
+        <p class="vk-co-hero-lead">
+            Mukana ovat kaikki sähköä myyvät energiayhtiöt suurista valtakunnallisista sähkönmyyjistä
+            pieniin paikallisiin yhtiöihin – emme rajaa vertailua yhteistyökumppaneihimme.
+        </p>
+    </x-site.company-hero>
 
     <x-page-action-strip />
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    @php
+        $companyUrl = fn ($company) => '/sahkosopimus/sahkoyhtiot/'.$company->name_slug;
 
-        <!-- Ranking Categories Section -->
-        <section class="mb-12">
-            <h2 class="text-2xl font-bold text-slate-900 mb-2">Parhaat sähköyhtiöt</h2>
-            <p class="text-sm text-slate-500 mb-6 max-w-3xl leading-relaxed">
-                Sijoitukset perustuvat Voltikan riippumattomaan vertailuun: hinta-arviot lasketaan 5&nbsp;000 kWh vuosikulutuksella samalla logiikalla kaikille yhtiöille, hinnat sis. alv 25,5 % (siirtomaksu ei sisälly).
-                <a href="/tietoa#menetelma" class="text-coral-600 hover:text-coral-700 underline underline-offset-2 font-medium whitespace-nowrap">Näin laskemme &rarr;</a>
-            </p>
+        // Leaderboards (Paper "Leaderboards row 1/2"): title, inked icon, rows, value text and
+        // the accent of the first row (its rank and value). A board without rows is not shown.
+        $leaderboards = [
+            [
+                'title' => 'Halvimmat',
+                'icon' => 'coins',
+                'accent' => 'var(--color-fox-deep)',
+                'rows' => $cheapestCompanies,
+                'value' => fn ($data) => number_format($data['lowestPrice'], 0, ',', ' ').' EUR/v',
+            ],
+            [
+                'title' => 'Vihreimmät',
+                'icon' => 'leaf',
+                'accent' => 'var(--color-aurora)',
+                'rows' => $greenestCompanies,
+                'value' => fn ($data) => number_format($data['avgRenewable'], 0).'% uusiutuva',
+            ],
+            [
+                'title' => 'Puhtaimmat päästöt',
+                'icon' => 'cloud',
+                'accent' => 'var(--color-lake)',
+                'rows' => $cleanestEmissionsCompanies,
+                'value' => fn ($data) => number_format($data['avgEmissions'], 0).' gCO2/kWh',
+            ],
+            [
+                'title' => 'Eniten sopimuksia',
+                'icon' => 'papers',
+                'accent' => 'var(--color-ink)',
+                'rows' => $mostContractsCompanies,
+                'value' => fn ($data) => $data['contractCount'].' sopimusta',
+            ],
+            [
+                'title' => 'Parhaat pörssimarginaalit',
+                'icon' => 'spot',
+                'accent' => 'var(--color-aurora)',
+                'rows' => $bestSpotMarginsCompanies,
+                'value' => fn ($data) => number_format($data['lowestSpotMargin'], 2, ',', ' ').' c/kWh',
+            ],
+            [
+                'title' => 'Pienimmät perusmaksut',
+                'icon' => 'fee',
+                'accent' => 'var(--color-fox-deep)',
+                'rows' => $lowestMonthlyFeesCompanies,
+                'value' => fn ($data) => number_format($data['lowestMonthlyFee'], 2, ',', ' ').' EUR/kk',
+            ],
+        ];
+    @endphp
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <!-- Cheapest Companies -->
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-                    <div class="flex items-center mb-4">
-                        <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-3">
-                            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                        </div>
-                        <h3 class="text-lg font-bold text-slate-900">Halvimmat</h3>
-                    </div>
-                    <ul class="space-y-3">
-                        @foreach ($cheapestCompanies->take(5) as $index => $data)
-                            <li class="flex items-center justify-between">
-                                <a href="/sahkosopimus/sahkoyhtiot/{{ $data['company']->name_slug }}" class="text-slate-700 hover:text-coral-500 font-medium">
-                                    <span class="text-slate-400 mr-2">{{ $index + 1 }}.</span>
-                                    {{ $data['company']->name }}
-                                </a>
-                                <span class="text-sm text-slate-500">{{ number_format($data['lowestPrice'], 0, ',', ' ') }} EUR/v</span>
-                            </li>
-                        @endforeach
-                    </ul>
+    <div class="vk-wrap vk-co-page">
+
+        {{-- Ranking categories (Paper "Parhaat heading" + leaderboards): ruled lists, no cards. --}}
+        <section class="vk-co-section vk-co-section--first" aria-labelledby="parhaat-title">
+            <div class="vk-co-head vk-co-head--split">
+                <div class="vk-co-title-wrap">
+                    <h2 id="parhaat-title" class="vk-co-title vk-co-title--xl">Parhaat sähköyhtiöt</h2>
+                    <x-ink.wave width="300" stroke="3.5" />
                 </div>
-
-                <!-- Greenest Companies -->
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-                    <div class="flex items-center mb-4">
-                        <div class="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center mr-3">
-                            <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
-                            </svg>
-                        </div>
-                        <h3 class="text-lg font-bold text-slate-900">Vihreimmät</h3>
-                    </div>
-                    <ul class="space-y-3">
-                        @foreach ($greenestCompanies->take(5) as $index => $data)
-                            <li class="flex items-center justify-between">
-                                <a href="/sahkosopimus/sahkoyhtiot/{{ $data['company']->name_slug }}" class="text-slate-700 hover:text-coral-500 font-medium">
-                                    <span class="text-slate-400 mr-2">{{ $index + 1 }}.</span>
-                                    {{ $data['company']->name }}
-                                </a>
-                                <span class="text-sm text-green-600">{{ number_format($data['avgRenewable'], 0) }}% uusiutuva</span>
-                            </li>
-                        @endforeach
-                    </ul>
+                <div class="vk-co-head-note">
+                    <p>Sijoitukset perustuvat Voltikan riippumattomaan vertailuun: hinta-arviot lasketaan 5&nbsp;000 kWh vuosikulutuksella samalla logiikalla kaikille yhtiöille, hinnat sis. alv 25,5 % (siirtomaksu ei sisälly).</p>
+                    <a href="/tietoa#menetelma" class="vk-co-ink-link vk-focus">Näin laskemme &rarr;</a>
                 </div>
+            </div>
 
-                <!-- Cleanest Emissions -->
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-                    <div class="flex items-center mb-4">
-                        <div class="w-10 h-10 bg-sky-100 rounded-lg flex items-center justify-center mr-3">
-                            <svg class="w-6 h-6 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path>
-                            </svg>
-                        </div>
-                        <h3 class="text-lg font-bold text-slate-900">Puhtaimmat päästöt</h3>
+            <div class="vk-co-boards">
+                @foreach ($leaderboards as $board)
+                    @continue($board['rows']->isEmpty())
+                    <div class="vk-co-board">
+                        <h3 class="vk-co-board-head">
+                            <x-site.company-icon :icon="$board['icon']" />
+                            <span>{{ $board['title'] }}</span>
+                        </h3>
+                        <ol class="vk-co-board-list">
+                            @foreach ($board['rows']->take(5) as $index => $data)
+                                <li @class(['vk-co-board-row', 'vk-co-board-row--first' => $index === 0]) style="--co-accent: {{ $board['accent'] }}">
+                                    <span class="vk-co-board-rank">{{ $index + 1 }}.</span>
+                                    <a href="{{ $companyUrl($data['company']) }}" class="vk-co-board-name vk-focus">{{ $data['company']->name }}</a>
+                                    <span class="vk-co-board-value">
+                                        @if ($index === 0)
+                                            <x-ink.sparkle size="12" color="currentColor" />
+                                        @endif
+                                        {{ $board['value']($data) }}
+                                    </span>
+                                </li>
+                            @endforeach
+                        </ol>
                     </div>
-                    <ul class="space-y-3">
-                        @foreach ($cleanestEmissionsCompanies->take(5) as $index => $data)
-                            <li class="flex items-center justify-between">
-                                <a href="/sahkosopimus/sahkoyhtiot/{{ $data['company']->name_slug }}" class="text-slate-700 hover:text-coral-500 font-medium">
-                                    <span class="text-slate-400 mr-2">{{ $index + 1 }}.</span>
-                                    {{ $data['company']->name }}
-                                </a>
-                                <span class="text-sm text-slate-500">{{ number_format($data['avgEmissions'], 0) }} gCO2/kWh</span>
-                            </li>
-                        @endforeach
-                    </ul>
-                </div>
-
-                <!-- Most Contracts -->
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-                    <div class="flex items-center mb-4">
-                        <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
-                            <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                            </svg>
-                        </div>
-                        <h3 class="text-lg font-bold text-slate-900">Eniten sopimuksia</h3>
-                    </div>
-                    <ul class="space-y-3">
-                        @foreach ($mostContractsCompanies->take(5) as $index => $data)
-                            <li class="flex items-center justify-between">
-                                <a href="/sahkosopimus/sahkoyhtiot/{{ $data['company']->name_slug }}" class="text-slate-700 hover:text-coral-500 font-medium">
-                                    <span class="text-slate-400 mr-2">{{ $index + 1 }}.</span>
-                                    {{ $data['company']->name }}
-                                </a>
-                                <span class="text-sm text-slate-500">{{ $data['contractCount'] }} sopimusta</span>
-                            </li>
-                        @endforeach
-                    </ul>
-                </div>
-
-                <!-- Best Spot Margins -->
-                @if ($bestSpotMarginsCompanies->isNotEmpty())
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-                    <div class="flex items-center mb-4">
-                        <div class="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center mr-3">
-                            <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
-                            </svg>
-                        </div>
-                        <h3 class="text-lg font-bold text-slate-900">Parhaat pörssimarginaalit</h3>
-                    </div>
-                    <ul class="space-y-3">
-                        @foreach ($bestSpotMarginsCompanies->take(5) as $index => $data)
-                            <li class="flex items-center justify-between">
-                                <a href="/sahkosopimus/sahkoyhtiot/{{ $data['company']->name_slug }}" class="text-slate-700 hover:text-coral-500 font-medium">
-                                    <span class="text-slate-400 mr-2">{{ $index + 1 }}.</span>
-                                    {{ $data['company']->name }}
-                                </a>
-                                <span class="text-sm text-slate-500">{{ number_format($data['lowestSpotMargin'], 2, ',', ' ') }} c/kWh</span>
-                            </li>
-                        @endforeach
-                    </ul>
-                </div>
-                @endif
-
-                <!-- Lowest Monthly Fees -->
-                @if ($lowestMonthlyFeesCompanies->isNotEmpty())
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-                    <div class="flex items-center mb-4">
-                        <div class="w-10 h-10 bg-rose-100 rounded-lg flex items-center justify-center mr-3">
-                            <svg class="w-6 h-6 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
-                            </svg>
-                        </div>
-                        <h3 class="text-lg font-bold text-slate-900">Pienimmät perusmaksut</h3>
-                    </div>
-                    <ul class="space-y-3">
-                        @foreach ($lowestMonthlyFeesCompanies->take(5) as $index => $data)
-                            <li class="flex items-center justify-between">
-                                <a href="/sahkosopimus/sahkoyhtiot/{{ $data['company']->name_slug }}" class="text-slate-700 hover:text-coral-500 font-medium">
-                                    <span class="text-slate-400 mr-2">{{ $index + 1 }}.</span>
-                                    {{ $data['company']->name }}
-                                </a>
-                                <span class="text-sm text-slate-500">{{ number_format($data['lowestMonthlyFee'], 2, ',', ' ') }} EUR/kk</span>
-                            </li>
-                        @endforeach
-                    </ul>
-                </div>
-                @endif
+                @endforeach
             </div>
         </section>
 
         <!-- 100% Renewable Section -->
         @if ($fullyRenewableCompanies->isNotEmpty())
-        <section class="mb-12">
-            <h2 class="text-2xl font-bold text-slate-900 mb-4">100% uusiutuvaa energiaa tarjoavat yhtiöt</h2>
-            <p class="text-slate-600 mb-6">Nämä yhtiöt tarjoavat vähintään yhden täysin uusiutuvalla energialla tuotetun sähkösopimuksen.</p>
+            <section class="vk-co-section" aria-labelledby="uusiutuva-title">
+                <div class="vk-co-head vk-co-head--split">
+                    <div class="vk-co-title-wrap">
+                        <h2 id="uusiutuva-title" class="vk-co-title">100% uusiutuvaa energiaa tarjoavat yhtiöt</h2>
+                        <x-ink.wave width="420" stroke="3.5" color="var(--color-aurora)" class="max-w-full" />
+                    </div>
+                    <p class="vk-co-head-note vk-co-head-note--wide">Nämä yhtiöt tarjoavat vähintään yhden täysin uusiutuvalla energialla tuotetun sähkösopimuksen.</p>
+                </div>
 
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                @foreach ($fullyRenewableCompanies->take(10) as $data)
-                    <a
-                        href="/sahkosopimus/sahkoyhtiot/{{ $data['company']->name_slug }}"
-                        class="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4 text-center hover:shadow-md transition-shadow"
-                    >
-                        <x-company-logo
-                            :company="$data['company']"
-                            class="mx-auto mb-2 h-12 w-16 rounded bg-green-100 text-sm font-bold text-green-600"
-                            img-class="bg-white rounded"
-                        />
-                        <p class="text-sm font-medium text-slate-700 truncate">{{ $data['company']->name }}</p>
-                        <p class="text-xs text-green-600">100% uusiutuva</p>
-                    </a>
-                @endforeach
-            </div>
-        </section>
+                <ul class="vk-co-logos">
+                    @foreach ($fullyRenewableCompanies->take(10) as $data)
+                        <li>
+                            <a href="{{ $companyUrl($data['company']) }}" class="vk-co-logo-cell vk-focus">
+                                <x-company-logo
+                                    :company="$data['company']"
+                                    class="vk-co-logo vk-co-logo--cell"
+                                    data-logo="{{ $data['company']->name_slug }}"
+                                    img-class="vk-co-logo-img"
+                                />
+                                <span class="vk-co-logo-name">{{ $data['company']->name }}</span>
+                                <span class="vk-co-logo-tag"><x-ink.sparkle size="11" color="currentColor" />100% uusiutuva</span>
+                            </a>
+                        </li>
+                    @endforeach
+                </ul>
+            </section>
         @endif
 
         <!-- Small and Local Companies Section -->
         @if ($this->smallCompanies->isNotEmpty())
-        <section class="mb-12">
-            <h2 class="text-2xl font-bold text-slate-900 mb-4">Pienet ja paikalliset sähköyhtiöt</h2>
-            <p class="text-slate-600 mb-6 max-w-3xl leading-relaxed">
-                Pieni sähköyhtiö myy täsmälleen samaa sähköä kuin suuri, koska sähkö tulee samasta verkosta.
-                Ero on hinnassa ja palvelussa, ei sähkön laadussa. Moni pieni paikallinen energiayhtiö pärjää
-                hintavertailussa hyvin, koska se ei hanki asiakkaita kalliilla markkinoinnilla.
-            </p>
-
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                @php($localCompanies = $this->smallCompaniesOfGroup('local'))
-                @if ($localCompanies->isNotEmpty())
-                    <div>
-                        <h3 class="text-lg font-bold text-slate-900 mb-2">Paikalliset energiayhtiöt</h3>
-                        <p class="text-sm text-slate-500 mb-4">
-                            Kaupungin tai kunnan alueella toimivia yhtiöitä, joilla on usein oma sähköverkko.
-                            Useimmat myyvät sähköä myös oman alueensa ulkopuolelle.
-                        </p>
-                        <ul class="flex flex-wrap gap-2">
-                            @foreach ($localCompanies as $row)
-                                <li>
-                                    <a
-                                        href="/sahkosopimus/sahkoyhtiot/{{ $row['company']->name_slug }}"
-                                        class="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:border-coral-300 hover:text-coral-600 transition-colors"
-                                    >{{ $row['company']->name }}</a>
-                                </li>
-                            @endforeach
-                        </ul>
+            <section class="vk-co-section" aria-labelledby="pienet-title">
+                <div class="vk-co-small-head">
+                    <div class="vk-co-title-wrap lg:w-[420px] lg:shrink-0">
+                        <h2 id="pienet-title" class="vk-co-title">Pienet ja paikalliset sähköyhtiöt</h2>
+                        <x-ink.wave width="300" stroke="3.5" />
                     </div>
-                @endif
-
-                @php($challengerCompanies = $this->smallCompaniesOfGroup('challenger'))
-                @if ($challengerCompanies->isNotEmpty())
-                    <div>
-                        <h3 class="text-lg font-bold text-slate-900 mb-2">Pienet haastajat</h3>
-                        <p class="text-sm text-slate-500 mb-4">
-                            Yhtiöitä, jotka myyvät sähköä koko Suomeen ilman omaa sähköverkkoa.
-                            Ne kilpailevat yleensä hinnalla tai kapealla erikoistumisella.
+                    <div class="vk-co-small-intro">
+                        <p class="vk-co-pull">Pieni sähköyhtiö myy täsmälleen samaa sähköä kuin suuri, koska sähkö tulee samasta verkosta.</p>
+                        <p class="vk-co-small-body">
+                            Ero on hinnassa ja palvelussa, ei sähkön laadussa. Moni pieni paikallinen energiayhtiö pärjää
+                            hintavertailussa hyvin, koska se ei hanki asiakkaita kalliilla markkinoinnilla.
                         </p>
-                        <ul class="flex flex-wrap gap-2">
-                            @foreach ($challengerCompanies as $row)
-                                <li>
-                                    <a
-                                        href="/sahkosopimus/sahkoyhtiot/{{ $row['company']->name_slug }}"
-                                        class="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:border-coral-300 hover:text-coral-600 transition-colors"
-                                    >{{ $row['company']->name }}</a>
-                                </li>
-                            @endforeach
-                        </ul>
                     </div>
-                @endif
-            </div>
-        </section>
+                </div>
+
+                <div class="vk-co-small-groups">
+                    @php($localCompanies = $this->smallCompaniesOfGroup('local'))
+                    @if ($localCompanies->isNotEmpty())
+                        <div class="vk-co-small-group vk-co-small-group--local">
+                            <h3 class="vk-co-subtitle">Paikalliset energiayhtiöt</h3>
+                            <p class="vk-co-small-text">
+                                Kaupungin tai kunnan alueella toimivia yhtiöitä, joilla on usein oma sähköverkko.
+                                Useimmat myyvät sähköä myös oman alueensa ulkopuolelle.
+                            </p>
+                            <ul class="vk-co-name-list vk-co-name-list--columns">
+                                @foreach ($localCompanies as $row)
+                                    <li><a href="{{ $companyUrl($row['company']) }}" class="vk-co-name-link vk-focus">{{ $row['company']->name }}</a></li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+
+                    @php($challengerCompanies = $this->smallCompaniesOfGroup('challenger'))
+                    @if ($challengerCompanies->isNotEmpty())
+                        <div class="vk-co-small-group vk-co-small-group--challenger">
+                            <h3 class="vk-co-subtitle">Pienet haastajat</h3>
+                            <p class="vk-co-small-text">
+                                Yhtiöitä, jotka myyvät sähköä koko Suomeen ilman omaa sähköverkkoa.
+                                Ne kilpailevat yleensä hinnalla tai kapealla erikoistumisella.
+                            </p>
+                            <ul class="vk-co-name-list">
+                                @foreach ($challengerCompanies as $row)
+                                    <li><a href="{{ $companyUrl($row['company']) }}" class="vk-co-name-link vk-focus">{{ $row['company']->name }}</a></li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+                </div>
+            </section>
         @endif
 
         <!-- All Companies Section -->
-        <section>
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-                <h2 class="text-2xl font-bold text-slate-900 mb-4 sm:mb-0">Kaikki sähköyhtiöt</h2>
+        <section class="vk-co-section vk-co-section--all" aria-labelledby="kaikki-title">
+            <div class="vk-co-all-head">
+                <div class="vk-co-count-head">
+                    <div class="vk-co-title-wrap">
+                        <h2 id="kaikki-title" class="vk-co-title vk-co-title--xl">Kaikki sähköyhtiöt</h2>
+                        <x-ink.wave width="300" stroke="3.5" />
+                    </div>
+                    <p class="vk-co-count">
+                        @if ($search)
+                            Löytyi <span class="vk-co-count-number">{{ $filteredCompanies->count() }}</span> yhtiötä hakusanalla "{{ $search }}"
+                        @else
+                            <span class="vk-co-count-number">{{ $companyCount }}</span> sähköyhtiötä vertailussa
+                        @endif
+                    </p>
+                </div>
 
                 <!-- Search -->
-                <div class="relative">
+                <div class="vk-co-search">
+                    <label for="company-search" class="sr-only">Hae yhtiötä</label>
+                    <svg class="vk-co-search-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
                     <input
+                        id="company-search"
                         type="text"
                         wire:model.live.debounce.300ms="search"
                         data-search-input
                         placeholder="Hae yhtiötä..."
-                        class="w-full sm:w-64 pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
                     >
-                    <svg class="absolute left-3 top-2.5 w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                    </svg>
                 </div>
             </div>
 
-            <p class="text-slate-600 mb-6">
-                @if ($search)
-                    Löytyi <span class="font-semibold">{{ $filteredCompanies->count() }}</span> yhtiötä hakusanalla "{{ $search }}"
-                @else
-                    <span class="font-semibold">{{ $companyCount }}</span> sähköyhtiötä vertailussa
-                @endif
-            </p>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                @forelse ($filteredCompanies as $data)
-                    <a
-                        href="/sahkosopimus/sahkoyhtiot/{{ $data['company']->name_slug }}"
-                        class="bg-white border border-slate-100 rounded-2xl shadow-sm p-4 hover:shadow-md hover:border-coral-200 transition-all"
-                    >
-                        <div class="flex items-center gap-4">
-                            <x-company-logo
-                                :company="$data['company']"
-                                class="h-12 w-16 rounded-lg bg-slate-100 text-sm font-bold text-slate-500"
-                                img-class="bg-white rounded-lg border border-slate-100 p-1"
-                            />
-
-                            <div class="flex-1 min-w-0">
-                                <h3 class="font-bold text-slate-900 truncate">{{ $data['company']->name }}</h3>
-                                <p class="text-sm text-slate-500">{{ $data['contractCount'] }} sopimusta</p>
-
-                                <div class="flex flex-wrap gap-1 mt-2">
-                                    @if ($data['hasFullyRenewable'])
-                                        <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">100% uusiutuva</span>
-                                    @endif
-                                    @if ($data['hasSpotContracts'])
-                                        <span class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Pörssisähkö</span>
-                                    @endif
-                                </div>
-                            </div>
-
-                            <div class="flex-shrink-0 text-right">
-                                @if ($data['lowestPrice'] !== null)
-                                    <p class="text-sm font-semibold text-slate-900">{{ number_format($data['lowestPrice'], 0, ',', ' ') }} EUR</p>
-                                    <p class="text-xs text-slate-500">alkaen/vuosi</p>
-                                @else
-                                    <p class="text-xs text-slate-500">Hinta ei saatavilla</p>
-                                @endif
-                            </div>
-                        </div>
-                    </a>
-                @empty
-                    <div class="col-span-full bg-white rounded-2xl shadow-sm border border-slate-100 p-12 text-center">
-                        <svg class="w-12 h-12 mx-auto text-slate-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        <p class="text-slate-500">Ei yhtiöitä hakuehdoilla.</p>
-                    </div>
-                @endforelse
-            </div>
+            @if ($filteredCompanies->isEmpty())
+                <p class="vk-co-empty">Ei yhtiöitä hakuehdoilla.</p>
+            @else
+                {{-- Two ruled columns on a laptop: the first half of the list, then the second. --}}
+                <div class="vk-co-ledger">
+                    @foreach ($filteredCompanies->chunk((int) ceil($filteredCompanies->count() / 2)) as $half)
+                        <ul class="vk-co-ledger-col">
+                            @foreach ($half as $data)
+                                <li>
+                                    <a href="{{ $companyUrl($data['company']) }}" class="vk-co-row vk-focus">
+                                        <x-company-logo
+                                            :company="$data['company']"
+                                            class="vk-co-logo vk-co-logo--row"
+                                            data-logo="{{ $data['company']->name_slug }}"
+                                            img-class="vk-co-logo-img"
+                                        />
+                                        <span class="vk-co-row-main">
+                                            <span class="vk-co-row-name">{{ $data['company']->name }}</span>
+                                            <span class="vk-co-row-meta">
+                                                <span>{{ $data['contractCount'] }} sopimusta</span>
+                                                @if ($data['hasFullyRenewable'])
+                                                    <span class="vk-co-row-green"><x-ink.sparkle size="11" color="currentColor" />100% uusiutuva</span>
+                                                @endif
+                                                @if ($data['hasSpotContracts'])
+                                                    <span class="vk-co-row-spot"><span aria-hidden="true">·</span> Pörssisähkö</span>
+                                                @endif
+                                            </span>
+                                        </span>
+                                        <span class="vk-co-row-price">
+                                            @if ($data['lowestPrice'] !== null)
+                                                <span class="vk-co-row-amount">{{ number_format($data['lowestPrice'], 0, ',', ' ') }} EUR</span>
+                                                <span class="vk-co-row-unit">alkaen/vuosi</span>
+                                            @else
+                                                <span class="vk-co-row-unit">Hinta ei saatavilla</span>
+                                            @endif
+                                        </span>
+                                    </a>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endforeach
+                </div>
+            @endif
         </section>
 
         <!-- FAQ Section -->
-        <section class="mt-12">
-            <h2 class="text-2xl font-bold text-slate-900 mb-4">Usein kysyttyä sähköyhtiöistä</h2>
-            <div class="space-y-4">
+        <section class="vk-co-section vk-co-faq-section" aria-labelledby="faq-title">
+            <div class="vk-co-title-wrap">
+                <h2 id="faq-title" class="vk-co-title">Usein kysyttyä sähköyhtiöistä</h2>
+                <x-ink.wave width="300" stroke="3.5" />
+            </div>
+            <div class="vk-co-faq">
                 @foreach ($this->faqItems as $faq)
-                    <div class="border border-slate-200 rounded-lg p-4">
-                        <h3 class="font-semibold text-slate-900 mb-2">{{ $faq['question'] }}</h3>
-                        <p class="text-slate-700">{{ $faq['answer'] }}</p>
-                    </div>
+                    <details class="group vk-co-faq-row" @if ($loop->first) open @endif>
+                        <summary class="vk-focus vk-co-faq-q">
+                            <h3>{{ $faq['question'] }}</h3>
+                            <svg width="18" height="18" viewBox="0 0 18 18" class="shrink-0 transition-transform group-open:rotate-180 motion-reduce:transition-none" aria-hidden="true" focusable="false"><path d="M4 7l5 5 5-5" fill="none" style="stroke: var(--color-ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                        </summary>
+                        <p class="vk-co-faq-a">{{ $faq['answer'] }}</p>
+                    </details>
                 @endforeach
             </div>
         </section>
+
+        {{-- Villager interlude (Paper "Villager interlude · spruce"): a pause after the FAQ, far
+             from every seller block. --}}
+        <x-site.interlude art="companies-interlude" class="vk-co-interlude" />
     </div>
 </div>

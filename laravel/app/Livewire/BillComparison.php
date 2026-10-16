@@ -6,6 +6,7 @@ use App\Services\BillComparison\BillComparisonService;
 use App\Services\Caching\PublicPriceCalculationPolicy;
 use App\Services\DTO\BillComparisonRequest;
 use App\Services\DTO\BillComparisonResult;
+use App\Support\Season;
 use Carbon\Carbon;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Locked;
@@ -368,6 +369,8 @@ class BillComparison extends Component
             'title' => "Maksatko sähköstä liikaa? Vertaa laskuasi markkinoihin {$year} | Voltikka",
             'metaDescription' => 'Syötä sähkölaskusi tiedot ja näe heti, säästäisitko vaihtamalla. Voltikka vertaa laskuasi markkinoiden sähkösopimuksiin, et tarvitse vuosikulutusta. Ilmainen laskuri.',
             'canonical' => route('bill.comparison'),
+            // Painted hero: the overlay top bar uses the same tone as the hero text.
+            'heroTone' => Season::heroTone('maksatko-hero'),
         ]);
     }
 

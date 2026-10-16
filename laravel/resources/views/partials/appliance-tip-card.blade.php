@@ -1,5 +1,6 @@
 {{--
-    Appliance "best time" tip card. Compact 5-up layout.
+    Appliance "best time" entry on /spot-price (Paper board EBO-0 "Kodin energiavinkit").
+    No card: a villager does the task above the time window. Only /spot-price uses this partial.
     Required vars:
       - $title:        appliance name (e.g. "Saunan lämmitys")
       - $assumption:   one-line assumption + permitted window (e.g. "Illalla 17–22, 8 kW kiuas")
@@ -13,7 +14,7 @@
       - $diffPercent:  ?float, signed, vs 30 pv ka (-40.5 = 40.5% halvempi)
       - $savingsEuros:    ?float, euros saved compared to the worst case in the same permitted window
       - $comparisonLabel: string, what "kallein aika" means for this card.
-      - $icon:            SVG path d-attribute for the appliance icon
+      - $art:             season-bound villager art name from scripts/build-design-art.sh
 --}}
 @php
     $hStart = str_pad($startHour, 2, '0', STR_PAD_LEFT);
@@ -43,26 +44,32 @@
         $dateLabel = $startDateLabel . '–' . $endDateLabel;
     }
 @endphp
-<article class="flex flex-col bg-white rounded-xl border border-slate-200 p-3 lg:p-4 transition-all duration-200 hover:border-slate-300 hover:shadow-sm">
-    <div class="flex items-center gap-2 mb-2">
-        <span class="bg-slate-100 p-1.5 rounded-md shrink-0">
-            <svg class="w-4 h-4 text-slate-700" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="{{ $icon }}"/>
-            </svg>
-        </span>
-        <h4 class="text-sm font-bold text-slate-900 leading-tight min-w-0 truncate">{{ $title }}</h4>
+<article class="spot-tip">
+    <div class="spot-tip-art">
+        <img
+            src="{{ \App\Support\Season::art($art) }}"
+            alt=""
+            width="180"
+            height="180"
+            loading="lazy"
+            decoding="async"
+            class="relative z-[1] h-full w-full object-contain"
+        >
+        {{-- Phone: each villager stands on its own piece of the season ground line. --}}
+        <x-site.spot-ground class="spot-tip-ground lg:hidden" />
     </div>
 
-    <p class="text-xl lg:text-2xl font-extrabold text-slate-900 leading-none tabular-nums">
-        {{ $hStart }}<span class="text-slate-400 mx-0.5">–</span>{{ $hEnd }}
+    <h3 class="pt-1.5 font-display text-[18px] font-extrabold leading-[22px] text-ink sm:text-[20px] sm:leading-6">{{ $title }}</h3>
+    <p class="font-display text-[34px] font-extrabold leading-[38px] tracking-[-0.02em] text-ink tabular-nums sm:text-[40px] sm:leading-[44px]">
+        {{ $hStart }}–{{ $hEnd }}
     </p>
     @if ($dateLabel)
-        <p class="mt-1 text-[11px] font-semibold uppercase tracking-wide text-coral-600">{{ $dateLabel }}</p>
+        <p class="text-[13px] font-extrabold leading-4 uppercase tracking-[0.08em] text-fox-deep">{{ $dateLabel }}</p>
     @endif
-    <p class="mt-1 text-[11px] text-slate-500 leading-tight">{{ $assumption }}</p>
+    <p class="text-[13px] leading-4 text-ink-muted">{{ $assumption }}</p>
 
-    <div class="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <span class="text-sm font-semibold text-slate-700 tabular-nums">
+    <p class="flex flex-wrap items-baseline justify-center gap-x-2 pt-1.5 tabular-nums">
+        <span class="text-[17px] font-extrabold leading-[22px] text-ink">
             @if ($cost['type'] === 'cents')
                 {{ number_format($cost['value'], 0, ',', ' ') }} senttiä
             @else
@@ -71,17 +78,17 @@
         </span>
         @if ($diffPercent !== null)
             @if ($diffPercent < -5)
-                <span class="text-[11px] font-semibold text-emerald-700 tabular-nums">↓ {{ number_format(abs($diffPercent), 0, ',', ' ') }} %</span>
+                <span class="text-[14px] font-extrabold leading-[18px] text-aurora">↓ {{ number_format(abs($diffPercent), 0, ',', ' ') }} %</span>
             @elseif ($diffPercent > 5)
-                <span class="text-[11px] font-semibold text-rose-700 tabular-nums">↑ {{ number_format($diffPercent, 0, ',', ' ') }} %</span>
+                <span class="text-[14px] font-extrabold leading-[18px] text-price-high">↑ {{ number_format($diffPercent, 0, ',', ' ') }} %</span>
             @endif
         @endif
-    </div>
+    </p>
 
     @if ($savingsEuros !== null && $savingsEuros > 0)
-        <p class="mt-2 text-[11px] text-slate-500 tabular-nums leading-snug">
-            Säästät <span class="font-semibold text-slate-700">{{ number_format($savingsEuros, 2, ',', ' ') }} €</span>
-            <span class="block">{{ $comparisonLabel }}</span>
+        <p class="text-[14px] leading-[18px] text-ink-body tabular-nums">
+            Säästät {{ number_format($savingsEuros, 2, ',', ' ') }} €
         </p>
+        <p class="text-[13px] leading-4 text-ink-muted">{{ $comparisonLabel }}</p>
     @endif
 </article>

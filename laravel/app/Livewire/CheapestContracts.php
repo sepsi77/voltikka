@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Http\Middleware\SetPublicCacheHeaders;
 use App\Models\ElectricityContract;
+use App\Support\Season;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 
@@ -152,6 +153,8 @@ class CheapestContracts extends SeoContractsList
             'title' => $this->seoData['title'],
             'metaDescription' => $this->seoData['description'],
             'canonical' => $this->seoData['canonical'],
+            // Painted hero: the top bar sits over it in the hero's tone (never cached).
+            'heroTone' => Season::heroTone('cheapest-hero'),
         ])->response(function ($response) {
             app(SetPublicCacheHeaders::class)->applyCacheHeaders($response);
         });
