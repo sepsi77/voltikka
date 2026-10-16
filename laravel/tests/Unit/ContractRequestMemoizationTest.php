@@ -65,6 +65,47 @@ class ContractRequestMemoizationTest extends TestCase
         $this->assertSame($first, $second);
     }
 
+    public function test_a_batch_read_checks_availability_once_for_all_consumptions(): void
+    {
+        $metrics = fn (int $consumption): array => [
+            'contracts' => [],
+            'sorted_ids' => [],
+            'excluded_ids' => [],
+            'consumption' => $consumption,
+        ];
+
+        $lifecycle = $this->createMock(ContractPriceCacheLifecycle::class);
+        $lifecycle->method('active')->willReturn(['version' => 7, 'generation' => 'test']);
+        $evidence = $this->createMock(ContractPriceCacheEvidence::class);
+        $evidence->method('current')->willReturn([]);
+        foreach ([2000, 5000, 10000] as $consumption) {
+            Cache::shouldReceive('get')->once()
+                ->with('contract_list_metrics:v7:s'.CalculatedCostPayloadSchema::VERSION.':c0r0:'.$consumption.':gtest')
+                ->andReturn($metrics($consumption));
+        }
+
+        $canonical = $this->createMock(CanonicalContractPricingService::class);
+        $canonical->method('enabled')->willReturn(false);
+
+        $service = $this->getMockBuilder(ContractListCacheService::class)
+            ->setConstructorArgs([
+                $this->createMock(ContractPriceCalculator::class),
+                $this->createMock(CO2EmissionsCalculator::class),
+                $canonical,
+                new PricingMode(canonicalPricingEnabled: false, resetForwardShiftEnabled: false),
+                $lifecycle,
+                $evidence,
+            ])->onlyMethods(['currentAvailability'])->getMock();
+        $service->expects($this->once())->method('currentAvailability')->willReturn([]);
+
+        $sets = $service->getCachedMetricsForConsumptions([5000, 2000, 10000, 5000]);
+
+        $this->assertSame([5000, 2000, 10000], array_keys($sets));
+        foreach ($sets as $consumption => $set) {
+            $this->assertSame($metrics($consumption), $set->toArray());
+        }
+    }
+
     public function test_company_list_cache_reads_are_memoized_per_service_instance(): void
     {
         $companies = collect([['_availability' => hash('sha256', serialize([]))]]);

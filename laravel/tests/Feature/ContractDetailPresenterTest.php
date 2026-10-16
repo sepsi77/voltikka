@@ -17,11 +17,13 @@ use App\Services\CanonicalPricing\Enums\PhaseKind;
 use App\Services\CanonicalPricing\Enums\PriceRole;
 use App\Services\CompanyListCacheService;
 use App\Services\ContractListCacheService;
+use App\Services\ContractPricing\ContractMetricSet;
 use App\Services\ContractPricing\ContractPricingViewData;
 use Carbon\Carbon;
 use Database\Factories\Support\CanonicalPricingFixture;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
@@ -107,8 +109,18 @@ class ContractDetailPresenterTest extends TestCase
     {
         $contract = $this->contract('rank-date');
         $this->warmPrices();
-        $marketCache = \Mockery::mock(app(ContractListCacheService::class));
-        $marketCache->shouldReceive('calculatedAt')->with(10000)->once()->andReturn($calculatedAt);
+        // The rank date comes from the snapped 10 000 kWh set of the page's metrics batch.
+        $realCache = app(ContractListCacheService::class);
+        $marketCache = \Mockery::mock($realCache);
+        $marketCache->shouldReceive('getCachedMetricsForConsumptions')
+            ->andReturnUsing(function (array $levels) use ($realCache, $calculatedAt): array {
+                $sets = $realCache->getCachedMetricsForConsumptions($levels);
+                $payload = $sets[10000]->toArray();
+                $payload['calculated_at'] = $calculatedAt;
+                $sets[10000] = ContractMetricSet::fromArray($payload);
+
+                return $sets;
+            });
         $this->instance(ContractListCacheService::class, $marketCache);
         $component = new ContractDetail;
         $component->mount($contract->id);
@@ -141,15 +153,19 @@ class ContractDetailPresenterTest extends TestCase
         app()->forgetScopedInstances();
         $this->warmPrices();
         $marketCache = app(ContractListCacheService::class);
+        $requested = [];
         $mock = \Mockery::mock($marketCache);
-        foreach ([2000, 5000, 10000, 18000] as $tier) {
-            $mock->shouldReceive('getCachedMetrics')->with($tier)->atLeast()->once()
-                ->andReturnUsing(fn (int $consumption) => $marketCache->getCachedMetrics($consumption));
-        }
+        $mock->shouldReceive('getCachedMetricsForConsumptions')->atLeast()->once()
+            ->andReturnUsing(function (array $levels) use ($marketCache, &$requested): array {
+                array_push($requested, ...$levels);
+
+                return $marketCache->getCachedMetricsForConsumptions($levels);
+            });
         $this->instance(ContractListCacheService::class, $mock);
 
         $response = $this->get('/sahkosopimus/sopimus/'.$contract->id);
         $response->assertOk()->assertSee('Arvioitu kustannus eri vuosikulutuksilla');
+        $this->assertSame([], array_diff([2000, 5000, 10000, 18000], $requested));
 
         foreach ([2000, 5000, 10000, 18000] as $consumption) {
             $response->assertSee(number_format($consumption, 0, ',', ' '))
@@ -157,17 +173,21 @@ class ContractDetailPresenterTest extends TestCase
         }
 
         // All reference tiers share cached metrics, regardless of the selected tier.
+        $requested = [];
         $mock = \Mockery::mock($marketCache);
-        foreach ([2000, 5000, 10000, 18000] as $tier) {
-            $mock->shouldReceive('getCachedMetrics')->with($tier)->atLeast()->once()
-                ->andReturnUsing(fn (int $consumption) => $marketCache->getCachedMetrics($consumption));
-        }
+        $mock->shouldReceive('getCachedMetricsForConsumptions')->atLeast()->once()
+            ->andReturnUsing(function (array $levels) use ($marketCache, &$requested): array {
+                array_push($requested, ...$levels);
+
+                return $marketCache->getCachedMetricsForConsumptions($levels);
+            });
         $this->instance(ContractListCacheService::class, $mock);
         $component = new ContractDetail;
         $component->mount($contract->id);
         $component->consumption = 10000;
         $rows = $component->getConsumptionCostTableProperty();
         $this->assertSame([2000, 5000, 10000, 18000], array_column($rows, 'consumption'));
+        $this->assertSame([], array_diff([2000, 5000, 10000, 18000], $requested));
 
         $pricing = new \ReflectionMethod(ContractDetail::class, 'pricingViewDataFor');
         foreach ($rows as $row) {
@@ -875,6 +895,40 @@ class ContractDetailPresenterTest extends TestCase
             ->assertSee('Energia nyt, '.$periodEnd->format('j.n.').' asti')
             ->assertSee('12 kk keskihinta, arvio')
             ->assertSee('Hinta tarkistetaan neljännesvuosittain');
+    }
+
+    public function test_the_detail_render_checks_contract_availability_once_for_all_cost_table_levels(): void
+    {
+        config(['canonical_pricing.enabled' => true]);
+        app()->forgetScopedInstances();
+
+        $contract = $this->contract('availability-batch', $this->canonicalAttributes([
+            $this->phase(PhaseKind::CurrentStructured, BoundaryKind::ContractStart, BoundaryKind::None, [
+                [ComponentType::EnergyGeneral, 7.2],
+                [ComponentType::MonthlyFee, 3.9, ComponentUnit::EurPerMonth],
+            ]),
+        ]));
+        $this->warmPrices();
+        app()->forgetScopedInstances();
+
+        // The availability query is the only one that selects these JSON leaves.
+        $availabilityQueries = 0;
+        DB::listen(function ($query) use (&$availabilityQueries): void {
+            if (str_contains($query->sql, 'reset_present')) {
+                $availabilityQueries++;
+            }
+        });
+
+        $component = Livewire::test('contract-detail', ['contractId' => $contract->id]);
+
+        // All four reference levels are priced. The page reads them in one batch, so the render
+        // has two availability reads: that batch and the ranking service's own read. It had six
+        // when every level and the rank date read the metrics one by one.
+        $this->assertCount(4, array_filter(
+            $component->instance()->consumptionCostTable,
+            fn (array $row): bool => $row['total_cost'] !== null,
+        ));
+        $this->assertSame(2, $availabilityQueries);
     }
 
     public function test_supplier_adjusted_detail_keeps_current_facts_separate_and_shows_arvio_on_hold_flat(): void

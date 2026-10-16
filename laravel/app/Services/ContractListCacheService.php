@@ -107,6 +107,37 @@ class ContractListCacheService
         }
     }
 
+    /**
+     * Read several consumption levels against one availability read.
+     *
+     * getCachedMetrics() rereads current availability on every call, so a page that prices
+     * one contract at four levels ran the availability query four times. A batch is one read
+     * instant: every level is guarded with the same availability, a cold build still rechecks
+     * it fresh, and a conflict retries the whole batch.
+     *
+     * @param  list<int>  $consumptions
+     * @return array<int, ?ContractMetricSet>
+     */
+    public function getCachedMetricsForConsumptions(array $consumptions): array
+    {
+        for ($attempt = 1; ; $attempt++) {
+            try {
+                $current = $this->currentAvailability();
+                $sets = [];
+                foreach (array_unique($consumptions) as $consumption) {
+                    $sets[$consumption] = $this->readCachedMetrics($consumption, current: $current);
+                }
+
+                return $sets;
+            } catch (ContractPriceCacheConflict $exception) {
+                $this->resetCalculationState();
+                if ($attempt === 2) {
+                    throw $exception;
+                }
+            }
+        }
+    }
+
     public function resetCalculationState(): void
     {
         $this->cachedMetricsMemo = [];
@@ -133,11 +164,14 @@ class ContractListCacheService
         }
     }
 
-    private function readCachedMetrics(int $consumption, bool $prepareCustom = false): ?ContractMetricSet
+    /**
+     * @param  array<string, array<string, mixed>>|null  $current  Availability already read for this batch.
+     */
+    private function readCachedMetrics(int $consumption, bool $prepareCustom = false, ?array $current = null): ?ContractMetricSet
     {
         $generation = $this->lifecycle->active();
         $cacheKey = $this->getCacheKey($consumption, $generation);
-        $current = $this->currentAvailability();
+        $current ??= $this->currentAvailability();
         $memoKey = $cacheKey.':'.hash('sha256', serialize($current));
         if (array_key_exists($memoKey, $this->cachedMetricsMemo)) {
             return $this->cachedMetricsMemo[$memoKey];

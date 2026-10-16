@@ -27,6 +27,7 @@ use App\Services\ContractListCacheService;
 use App\Services\ContractPriceCalculator;
 use App\Services\ContractPriceHistory\ContractHistoryPresenter;
 use App\Services\ContractPriceHistory\PriceDevelopmentPresenter;
+use App\Services\ContractPricing\ContractMetricSet;
 use App\Services\ContractPricing\ContractPricingViewData;
 use App\Services\ContractRankingService;
 use App\Services\DTO\EnergyUsage;
@@ -66,6 +67,13 @@ class ContractDetail extends Component
 
     /** @var array<int, ContractPricingViewData|null> */
     protected array $pricingViewDataCache = [];
+
+    /**
+     * Shared metric sets read for this render, by consumption. Null until the first read.
+     *
+     * @var array<int, ContractMetricSet|null>|null
+     */
+    protected ?array $cachedMetricSets = null;
 
     /**
      * Request-scoped computed value cache. Livewire computed properties can be
@@ -201,6 +209,7 @@ class ContractDetail extends Component
         }
         app(PublicPriceCalculationPolicy::class)->allowUserAction();
         $this->pricingViewDataCache = [];
+        $this->cachedMetricSets = null;
         $this->consumption = $value;
         $this->directConsumption = $value;
     }
@@ -243,6 +252,7 @@ class ContractDetail extends Component
 
         app(PublicPriceCalculationPolicy::class)->allowUserAction();
         $this->pricingViewDataCache = [];
+        $this->cachedMetricSets = null;
         $this->consumption = $clamped;
         $this->directConsumption = $clamped;
     }
@@ -1054,7 +1064,7 @@ class ContractDetail extends Component
             return $this->pricingViewDataCache[$consumption] = null;
         }
 
-        $cachedMetric = app(ContractListCacheService::class)->getCachedMetrics($consumption)?->metric($contract->id);
+        $cachedMetric = $this->cachedMetricSetFor($consumption)?->metric($contract->id);
         if ($contract->isActive() && $cachedMetric !== null
             && ! in_array('cached_source_evidence_is_not_current', $cachedMetric->pricing()->assumptions(), true)) {
             $this->computedValueCache['pricingIntegrity:'.$consumption] = $cachedMetric->integrity()?->toArray();
@@ -1095,6 +1105,35 @@ class ContractDetail extends Component
         return $this->pricingViewDataCache[$consumption] = ContractPricingViewData::fromLegacyResult(
             $calculator->calculate($priceComponents, $contractData, $usage, $spotPriceDay, $spotPriceNight),
         );
+    }
+
+    /**
+     * The shared metric set for one consumption.
+     *
+     * The first read also loads the selected consumption and the in-range cost-table levels in
+     * one batch: each metrics read checks current contract availability with a database query,
+     * and a batch makes that check once instead of once per level (Sentry 154033205).
+     */
+    protected function cachedMetricSetFor(int $consumption): ?ContractMetricSet
+    {
+        if ($this->cachedMetricSets !== null && array_key_exists($consumption, $this->cachedMetricSets)) {
+            return $this->cachedMetricSets[$consumption];
+        }
+
+        $levels = [$consumption];
+        if ($this->cachedMetricSets === null) {
+            $levels[] = $this->consumption;
+            foreach (array_keys(self::COST_TABLE_CONSUMPTIONS) as $level) {
+                if ($this->contract?->isConsumptionInRange($level)) {
+                    $levels[] = $level;
+                }
+            }
+        }
+
+        $this->cachedMetricSets = ($this->cachedMetricSets ?? [])
+            + app(ContractListCacheService::class)->getCachedMetricsForConsumptions($levels);
+
+        return $this->cachedMetricSets[$consumption];
     }
 
     /**
@@ -1491,7 +1530,7 @@ class ContractDetail extends Component
      */
     protected function heroVerdictNote(): string
     {
-        $calculatedAt = app(ContractListCacheService::class)->calculatedAt($this->rankConsumption());
+        $calculatedAt = $this->cachedMetricSetFor($this->rankConsumption())?->toArray()['calculated_at'] ?? null;
         $note = $calculatedAt === null
             ? ''
             : 'Sijoitus laskettu '.Carbon::parse($calculatedAt)->setTimezone('Europe/Helsinki')->format('j.n.Y').'.';
