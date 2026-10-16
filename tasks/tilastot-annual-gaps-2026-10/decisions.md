@@ -81,3 +81,10 @@ on 8.10. No refetch is needed. The eex_futures checkpoints for 7.10 (`failed`, 2
   exactly 301 annual rows and 9 aggregates (rollback guard on the counts). Remaining v3 on 7.10:
   447 annual rows, 21 aggregates (fixed-term, hybrid and quarterly segments unchanged).
 - Restore: insert the rows of the export file unchanged (ids included) into the two tables.
+
+## Release (2026-10-16)
+Commit 3b95c81 pushed to main; Railway deployment 61dfaf9a-db61-4e7d-9370-35f441ae1a30 SUCCESS.
+Public weekly lead chart (5000 kWh) now has values for spot and open-ended in the weeks of 28.9 and
+5.10. Daily view: spot and open-ended have one null point on 7.10 (the removed rows; other segments
+keep that date), 1.10 has no point at all. Full local suite: 3041 passed, 1 failed
+(`LayoutAssetLoadingTest`, local `public/hot` file only).

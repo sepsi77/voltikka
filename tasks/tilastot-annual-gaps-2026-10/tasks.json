@@ -21,7 +21,7 @@
   },
   {
     "name": "Release chart, curve and import fixes",
-    "status": "in_progress"
+    "status": "done"
   },
   {
     "name": "Follow-up: historical v3 path differs from current writer after 22.9",
