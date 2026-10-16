@@ -40,7 +40,7 @@ Parity report before/after with remaining documented differences; focused tests 
 
 Fixes, numbers and remaining differences: `decisions.md`. Raw outputs: `results/`. Tools: `tools/`.
 
-## Production plan with dated replacement lineage (prepared, NOT run; needs approval)
+## Production plan with dated replacement lineage (approved and applied 2026-10-16; see decisions.md)
 
 Prerequisites: explicit Git push approval (a push to main deploys; `docker-entrypoint.sh` runs
 `php artisan migrate --force` at container start, so migration `2026_10_16_000001` runs during the

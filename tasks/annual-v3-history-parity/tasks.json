@@ -44,7 +44,7 @@
     "status": "completed"
   },
   {
-    "name": "Production: release (migration runs on deploy), backup, re-apply 221 dates (needs approval)",
-    "status": "pending"
+    "name": "Production: release (migration runs on deploy), backup, re-apply 221 dates",
+    "status": "completed"
   }
 ]

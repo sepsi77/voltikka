@@ -107,3 +107,8 @@ not investigated.
   leaves the source API and the new one appears). Historical v3 trusts a link only when its date is on
   or before the target. Existing links are backfilled from the successor's first observed date; a link
   without a derivable date is not trusted in history. Work is in tasks/annual-v3-history-parity/.
+
+## Final state (2026-10-16)
+The approved v3 re-apply with dated replacement lineage is complete (221 dates, 0 failed; see
+tasks/annual-v3-history-parity/decisions.md). Public CSV at 5,000 kWh: spot and open_ended have a value on
+every evidence date from 2026-01-21 to 2026-10-16. Only 2026-02-12 and 2026-10-01 have no data at all.

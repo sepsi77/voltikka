@@ -185,3 +185,20 @@ three invocations: 02-13..02-27 (15 dates, 39 s, 124.6 MB max RSS), 03-01..09-21
 Per-date expected totals: `results/reapply-expected-totals.csv`. Protected hashes equal before/after:
 non-v3 annual rows, v3 rows on untouched dates, non-v3 daily rows, v3 aggregates on untouched dates,
 snapshots. A recompare after apply shows the stored rows equal the in-memory result.
+
+## Production re-apply with dated lineage (2026-10-16)
+- User approval 2026-10-16 ("2) Yes, apply"). Release 2e6b350 (deployment d3ae3423) ran migration
+  2026_10_16_000001: 4,103 links dated, 0 undated. Fresh full backup before the apply (76.92 MB).
+- Production preview of the three ranges matched `results/reapply-expected-totals.csv` on all 221 dates.
+- Apply: one `nohup` job on the app container, `nice -n 15`, memory_limit 512M, `--apply --stop-on-error`,
+  17:48–22:37 UTC. Totals: 02-13..02-27 15 dates / 14,703 rows / 450 aggregates; 03-01..09-21 205 dates /
+  184,978 / 6,165; 10-07 1 date / 748 / 30. 0 failed; coverage lost 0. Sum 200,429 rows, 6,645 aggregates
+  (equal to the scratch proof). Log: `/tmp/v3-reapply/apply.log` on the container (lost on next deploy).
+- Read-only checks after apply: every one of the 221 dates has the expected v3 row and aggregate count and
+  `updated_at` inside the apply window; the other 46 v3 dates (01-21..02-11, 02-28, 09-22..10-16 except
+  10-07) keep their earlier `updated_at`; 0 non-v3 annual rows, 0 non-v3 daily rows and 0 snapshots have
+  `updated_at` after the apply start. (Check by counts and timestamps, not by full-row hashes.)
+  Production v3 now: 267 evidence dates, 240,029 annual rows, 8,025 aggregates (02-12 and 10-01 absent).
+- Public `/sahkosopimus/tilastot` HTTP 200; CSV (active v3, 5,000 kWh): spot and open_ended have a value on
+  every evidence date 01-21..10-16. Seam 09-21 → 09-22: open_ended 788.87 → 774.41, spot 568.83 → 554.88.
+  10-07: open_ended 746.98 (as planned), spot 527.05.
