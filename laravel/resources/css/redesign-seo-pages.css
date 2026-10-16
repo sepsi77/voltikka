@@ -59,26 +59,52 @@
         padding-bottom: 72px;
     }
 
-    /* Paper places the 1440x810 plate at top -250 (river) / -160 (city) in a 460 hero, so it
-       ends 100 / 190px below the hero (`--seo-plate-drop`, a share of the plate height).
-       Anchored at the bottom, the scene stays in view when the live text makes the hero
-       taller. Wider than 1440 the plate grows: the line of the fox's ears
-       (`--seo-plate-focus`) keeps its 1440 position, so the extra height is cropped below the
-       fox and the head never goes under the top bar. 810px is the plate height at 1440. */
-    .vk-seo-hero {
-        --seo-plate-drop: 0.1235;
-        --seo-plate-focus: 0.35;
-    }
-
-    .vk-seo-hero--city {
-        --seo-plate-drop: 0.2345;
-        --seo-plate-focus: 0.33;
-    }
-
+    /* River plate: Paper places the 1440x810 plate at top -250 in a 460 hero, so it ends 100px
+       (12.35% of the plate) below the hero. Anchored at the bottom, the scene stays in view
+       when the live text makes the hero taller. Wider than 1440 the plate grows: the line of
+       the fox's ears (35% of the plate) keeps its 1440 position, so the extra height is cropped
+       below the fox and the head never goes under the top bar. 810px is the plate height at
+       1440. */
     .vk-seo-hero .vk-hero-plate {
-        bottom: calc((1 - var(--seo-plate-focus) - var(--seo-plate-drop)) * 810px);
+        bottom: calc((1 - 0.35 - 0.1235) * 810px);
         width: max(100%, 1440px);
-        transform: translate(-50%, calc((1 - var(--seo-plate-focus)) * 100%));
+        transform: translate(-50%, 65%);
+    }
+
+    /* City plates: the reader must recognise the city, so its landmarks (the skyline, from
+       50% of the plate height down) sit in a clear band below the text, not behind it. The
+       hero gets `--city-band` more bottom space; the skyline line stays at the top of that
+       band at every width, and the shade fades out above it. The plate is at least 1600 wide
+       so the sky above the skyline (50% of 900px) covers the 104px top space plus the text.
+       When a long city name wraps, the hero is taller: the box then grows to twice the hero
+       height above the band and `object-fit: cover` keeps the skyline line at its middle. */
+    .vk-seo-hero--city {
+        --city-band: 190px;
+    }
+
+    .vk-seo-hero--city > .vk-wrap {
+        padding-bottom: calc(var(--city-band) + 12px);
+    }
+
+    /* `--city-x` is the share of the cropped plate width that is cut at the left (0.5 =
+       centred). Tampere's tower stands at the far left of its plate, so that crop keeps more of
+       the left edge: the tower is in view from 1440px, and the fox head stays in view at 1024. */
+    .vk-seo-hero--city .vk-hero-plate {
+        left: calc((100% - max(100%, 1600px)) * var(--city-x, 0.5));
+        bottom: var(--city-band);
+        width: max(100%, 1600px);
+        height: max(max(100vw, 1600px) * 0.5628, 2 * (100% - var(--city-band)));
+        object-fit: cover;
+        transform: translate(0, 50%);
+    }
+
+    .vk-seo-hero--hero-city-tampere {
+        --city-x: 0.35;
+    }
+
+    .vk-seo-hero--city .vk-hero-shade {
+        -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - var(--city-band) - 60px), transparent calc(100% - var(--city-band) + 20px));
+        mask-image: linear-gradient(180deg, #000 calc(100% - var(--city-band) - 60px), transparent calc(100% - var(--city-band) + 20px));
     }
 
     /* The shade sits at the text side only: the fox fills the right half. */

@@ -25,7 +25,7 @@
         };
     @endphp
     @if ($seoHero)
-        <x-site.hero :art="$heroArt" :tone="$heroTone" class="vk-seo-hero vk-seo-hero--{{ $seoHero }} vk-seo-title-fit" data-comparison-hero>
+        <x-site.hero :art="$heroArt" :tone="$heroTone" class="vk-seo-hero vk-seo-hero--{{ $seoHero }} vk-seo-hero--{{ $heroArt }} vk-seo-title-fit" data-comparison-hero>
             <h1 class="vk-hero-h1">{{ $pageHeading }}</h1>
             <p class="vk-hero-lead">{{ $seoIntroText }}</p>
             <x-site.price-index :insight="$marketInsight ?? null" class="vk-seo-hero-index" />
