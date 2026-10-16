@@ -171,11 +171,14 @@ class AsOfAnnualCostCalculatorTest extends TestCase
         $this->assertSame('supplier_adjusted_forward_premium', $target->estimateMethod);
         $this->assertSameEvidenceCurrentParity();
         $audit = $target->sourceEvidenceIds['supplied_premium_observations'];
-        $this->assertSame('premium-donor', $audit[0]['lineageId']);
+        // Shared replacement-lineage identity, as in the current loader (user decision 2026-10-16).
+        $this->assertSame(ElectricityContract::getLineageIdentitiesByContractIds(['premium-donor'])['premium-donor']['key'], $audit[0]['lineageId']);
         $this->assertNotSame('Poison Current Company', $audit[0]['companyName']);
         $this->assertStringContainsString('2026-08-01', $audit[0]['provenance']);
         $this->assertStringContainsString('retrospective', $audit[0]['provenance']);
-        $this->assertFalse(collect($queries)->contains(fn ($sql) => str_contains($sql, 'electricity_contracts') || str_contains($sql, 'retail_premium')));
+        // Only the shared lineage read touches contracts: no company, publication or currentness pointer.
+        $this->assertFalse(collect($queries)->contains(fn ($sql) => str_contains($sql, 'retail_premium')
+            || (str_contains($sql, 'electricity_contracts') && ! str_contains($sql, 'replacement_lineage') && ! str_contains($sql, '"replaced_by_contract_id", "id"'))));
     }
 
     public function test_later_source_observation_and_interpretation_are_ignored(): void
@@ -378,7 +381,7 @@ class AsOfAnnualCostCalculatorTest extends TestCase
             $flags = json_decode($row->provenance, true)['flags'];
             $this->assertContains('price_episode_left_censored', $flags);
             $this->assertContains('price_episode_observed_proxy', $flags);
-            $this->assertContains('historical_exact_contract_only', $flags);
+            $this->assertContains('historical_trusted_replacement_lineage', $flags);
         }
     }
 
@@ -631,7 +634,7 @@ class AsOfAnnualCostCalculatorTest extends TestCase
         $result = collect($calculator->calculate(self::DATE, AnnualCostMethodVersion::AsOfV3))->first(fn ($row) => $row->contractId === 'reset-premium-target');
         $this->assertSame('recurring_forward_premium', $result->estimateMethod);
         $this->assertSameEvidenceCurrentParity();
-        $this->assertSame('reset-premium-donor', $result->sourceEvidenceIds['supplied_premium_observations'][0]['lineageId']);
+        $this->assertSame(ElectricityContract::getLineageIdentitiesByContractIds(['reset-premium-donor'])['reset-premium-donor']['key'], $result->sourceEvidenceIds['supplied_premium_observations'][0]['lineageId']);
         $curve->sameDay = true;
         $result = collect($calculator->calculate(self::DATE, AnnualCostMethodVersion::AsOfV3))->first(fn ($row) => $row->contractId === 'reset-premium-target');
         $this->assertSame('hold_current_recurring_price', $result->estimateMethod);

@@ -11,7 +11,8 @@
 Explicit annual AsOf v3 now calls this same pure selector through
 `ContractStatistics/AsOfPremiumEvidenceAdapter`, not `CurrentPremiumEvidenceLoader`. It uses only
 the exact-date v3 evidence universe, full normalized bucket spreads, dated historical anchors and
-strictly earlier reference trades. Exact contract IDs are conservative lineage identities; historical
+strictly earlier reference trades. Lineage identities come from the shared lineage API with links
+dated on or before the target (`replaced_by_linked_on`, user decision 2026-10-16); historical
 company names come from dated evidence. Dedicated historical and approved later exact-source
 interpretations are valid donors, with completion retained as private processing provenance.
 Older absent donors are not carried forward. V1/v2 still use Historical without premiums. V5 rules

@@ -7,6 +7,7 @@ use App\Enums\MeteringType;
 use App\Enums\PricingModel;
 use App\Enums\TargetGroup;
 use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -426,7 +427,7 @@ class ElectricityContract extends Model
      * @param  array<array-key, string>  $contractIds
      * @return array<array-key, Collection<int, string>> Keyed by requested contract ID.
      */
-    public static function getReplacementLineageIdsByContractIds(array $contractIds): array
+    public static function getReplacementLineageIdsByContractIds(array $contractIds, ?CarbonInterface $asOf = null): array
     {
         $contractIds = array_values(array_unique($contractIds));
         $lineages = [];
@@ -439,6 +440,9 @@ class ElectricityContract extends Model
         }
 
         $placeholders = implode(', ', array_fill(0, count($contractIds), '?'));
+        // With an as-of date (historical statistics) a link counts only from its dated effective
+        // day; an undated link is not trusted. Without one (current writer) every link counts.
+        $dated = $asOf === null ? '' : 'AND contracts.replaced_by_linked_on IS NOT NULL AND DATE(contracts.replaced_by_linked_on) <= ?';
         $rows = DB::select(<<<SQL
             WITH RECURSIVE replacement_lineage(root_id, id) AS (
                 SELECT id AS root_id, id
@@ -450,11 +454,11 @@ class ElectricityContract extends Model
                 SELECT lineage.root_id, contracts.id
                 FROM electricity_contracts AS contracts
                 INNER JOIN replacement_lineage AS lineage
-                    ON contracts.replaced_by_contract_id = lineage.id
+                    ON contracts.replaced_by_contract_id = lineage.id {$dated}
             )
             SELECT root_id, id
             FROM replacement_lineage
-            SQL, $contractIds);
+            SQL, $asOf === null ? $contractIds : [...$contractIds, $asOf->toDateString()]);
 
         foreach ($rows as $row) {
             $lineages[(string) $row->root_id]->push((string) $row->id);
@@ -464,14 +468,17 @@ class ElectricityContract extends Model
     }
 
     /** @return array<array-key, array{key: string, contract_ids: list<string>, root_ids: list<string>}> */
-    public static function getLineageIdentitiesByContractIds(array $contractIds): array
+    public static function getLineageIdentitiesByContractIds(array $contractIds, ?CarbonInterface $asOf = null): array
     {
-        $lineages = self::getReplacementLineageIdsByContractIds($contractIds);
+        $lineages = self::getReplacementLineageIdsByContractIds($contractIds, $asOf);
         if ($lineages === []) {
             return [];
         }
         $members = collect($lineages)->flatten()->unique()->all();
-        $edges = self::query()->whereIn('id', $members)->pluck('replaced_by_contract_id', 'id');
+        $edges = self::query()->whereIn('id', $members)
+            ->when($asOf !== null, fn ($query) => $query->whereNotNull('replaced_by_linked_on')
+                ->whereDate('replaced_by_linked_on', '<=', $asOf->toDateString()))
+            ->pluck('replaced_by_contract_id', 'id');
         $result = [];
         foreach ($lineages as $id => $lineage) {
             $lineage = $lineage->sort()->values();

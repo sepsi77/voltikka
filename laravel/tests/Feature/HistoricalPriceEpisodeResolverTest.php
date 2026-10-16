@@ -269,8 +269,36 @@ class HistoricalPriceEpisodeResolverTest extends TestCase
         });
         $anchors = (new HistoricalPriceEpisodeResolver)->resolve($this->date('2026-06-03'), $candidates, methodVersion: AnnualCostMethodVersion::AsOfV3);
         $this->assertCount(3, $anchors);
-        $this->assertCount(4, $queries, implode("\n", $queries));
-        $this->assertStringNotContainsString('"electricity_contracts"', implode("\n", $queries));
+        $this->assertCount(5, $queries, implode("\n", $queries));
+        // Only the shared replacement-lineage query reads contracts, never a currentness pointer.
+        $this->assertCount(1, array_filter($queries, fn (string $sql): bool => str_contains($sql, 'electricity_contracts')));
+        $this->assertStringContainsString('replacement_lineage', collect($queries)->first(fn (string $sql): bool => str_contains($sql, 'electricity_contracts')));
+    }
+
+    public function test_v3_trusts_replacement_lineage_only_from_its_linked_date(): void
+    {
+        // User decision 2026-10-16: history trusts a replacement link from its dated effective day.
+        $this->contract('old');
+        $this->contract('new');
+        $this->snapshot('old', '2026-06-01', 7, 2);
+        $this->snapshot('old', '2026-06-02', 7, 2);
+        $this->snapshot('new', '2026-06-03', 7, 9);
+        $candidate = new SupplierAdjustedCandidate('new', 7, 9);
+        $this->assertSame('2026-06-03', $this->v3('2026-06-03', $candidate)->startedAt?->toDateString());
+        // An undated link, or a link dated after the target, is not trusted historically.
+        ElectricityContract::whereKey('old')->update(['replaced_by_contract_id' => 'new']);
+        $this->assertSame('2026-06-03', $this->v3('2026-06-03', $candidate)->startedAt?->toDateString());
+        ElectricityContract::whereKey('old')->update(['replaced_by_linked_on' => '2026-06-04']);
+        $this->assertSame('2026-06-03', $this->v3('2026-06-03', $candidate)->startedAt?->toDateString());
+        ElectricityContract::whereKey('old')->update(['replaced_by_linked_on' => '2026-06-03']);
+        $anchor = $this->v3('2026-06-03', $candidate);
+        $this->assertSame('2026-06-01', $anchor->startedAt?->toDateString());
+        $this->assertContains('historical_trusted_replacement_lineage', $anchor->flags);
+        // A predecessor's later evidence still cannot enter: everything stays dated on or before the target.
+        $this->snapshot('old', '2026-06-04', 20, 2);
+        $this->assertSame('2026-06-01', $this->v3('2026-06-03', $candidate)->startedAt?->toDateString());
+        $this->snapshot('old', '2026-05-31', 20, 2);
+        $this->assertSame('2026-06-01', $this->v3('2026-06-03', $candidate)->startedAt?->toDateString());
     }
 
     public function test_v3_rechecks_day_after_inclusive_conflict_end_when_an_observation_still_covers_it(): void

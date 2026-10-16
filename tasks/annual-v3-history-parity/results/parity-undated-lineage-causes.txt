@@ -1,0 +1,8 @@
+dates=22 excluded=['2026-10-01', '2026-10-07']
+ 16092 pairs  488 contracts  equal  {'fixed_term_24': 2810, 'spot': 3270, 'open_ended': 2599, 'fixed_term_6': 603, 'quarterly': 1026, 'fixed_term_12': 2759, 'hybrid': 2473, 'market_reset': 420, 'fixed_term_over24': 66, 'fixed_term_13_23': 66}
+   158 pairs   54 contracts  G_amount_same_method_same_anchor:forward_curve_spot  {'spot': 158}
+    67 pairs   24 contracts  G_amount_same_method_same_anchor:recurring_forward_curve_shift  {'quarterly': 46, 'market_reset': 21}
+    66 pairs   18 contracts  G_amount_same_method_same_anchor:supplier_adjusted_forward_premium  {'open_ended': 66}
+    55 pairs   19 contracts  G_amount_same_method_same_anchor:supplier_adjusted_forward_curve_shift  {'open_ended': 55}
+    11 pairs    4 contracts  E_anchor_start:supplier_adjusted_forward_curve_shift->supplier_adjusted_forward_curve_shift  {'open_ended': 11}
+     3 pairs    1 contracts  A_target_validation_rejected:validator  {'quarterly': 3}

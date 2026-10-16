@@ -1,12 +1,50 @@
 [
-  {"name": "Comparison tool and baseline parity report (2026-09-22..2026-10-15)", "status": "completed"},
-  {"name": "Fix historical v3 path: supplier anchors and premium rung (a)", "status": "completed"},
-  {"name": "Fix historical v3 path: quarterly exact-target validation (b)", "status": "completed"},
-  {"name": "Fix other causes found by step 1 (relative months, ranges, analysis-date citations)", "status": "completed"},
-  {"name": "Parity report after fix (remaining: lineage, 2026-10-02 EEX, one stale interpretation)", "status": "completed"},
-  {"name": "Older-history impact (all v3 dates before 2026-09-22)", "status": "completed"},
-  {"name": "Plan and scratch preview for 2026-10-01 and 2026-10-07", "status": "completed"},
-  {"name": "Tests and context documentation", "status": "completed"},
-  {"name": "Manager decision: dated replacement lineage for v3 anchors", "status": "pending"},
-  {"name": "Production: release, backup, 2026-10-07 apply, 76-date re-apply (needs approval)", "status": "pending"}
+  {
+    "name": "Comparison tool and baseline parity report (2026-09-22..2026-10-15)",
+    "status": "completed"
+  },
+  {
+    "name": "Fix historical v3 path: supplier anchors and premium rung (a)",
+    "status": "completed"
+  },
+  {
+    "name": "Fix historical v3 path: quarterly exact-target validation (b)",
+    "status": "completed"
+  },
+  {
+    "name": "Fix other causes found by step 1 (relative months, ranges, analysis-date citations)",
+    "status": "completed"
+  },
+  {
+    "name": "Parity report after fix (remaining: lineage, 2026-10-02 EEX, one stale interpretation)",
+    "status": "completed"
+  },
+  {
+    "name": "Older-history impact (all v3 dates before 2026-09-22)",
+    "status": "completed"
+  },
+  {
+    "name": "Plan and scratch preview for 2026-10-01 and 2026-10-07",
+    "status": "completed"
+  },
+  {
+    "name": "Tests and context documentation",
+    "status": "completed"
+  },
+  {
+    "name": "Dated replacement lineage: column, linker, backfill migration, as-of lineage API, v3 use",
+    "status": "completed"
+  },
+  {
+    "name": "Parity with dated lineage (only 2026-10-02 differs)",
+    "status": "completed"
+  },
+  {
+    "name": "Older-history impact and re-apply plan with dated lineage (220 dates + 2026-10-07)",
+    "status": "completed"
+  },
+  {
+    "name": "Production: release (migration runs on deploy), backup, re-apply 221 dates (needs approval)",
+    "status": "pending"
+  }
 ]

@@ -16,11 +16,14 @@ use App\Services\ContractStatistics\DTO\AsOfAnnualCostEvidence;
 use App\Services\ContractStatistics\HistoricalPriceEpisodeResolver;
 use Carbon\CarbonImmutable;
 use Database\Factories\Support\CanonicalPricingFixture;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery;
 use Tests\TestCase;
 
 class AsOfPremiumEvidenceAdapterTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_full_time_and_season_buckets_normalize_vat_and_ignore_fee_and_consumption_masks(): void
     {
         foreach (['Time' => ['energy_day', 'energy_night'], 'Season' => ['energy_seasonal_winter', 'energy_seasonal_other']] as $metering => $buckets) {

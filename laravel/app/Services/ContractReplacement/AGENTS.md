@@ -164,6 +164,34 @@ unchanged SHA-256 of roots joined with `|`. Cycles use sorted members when no ro
 RetailPremium's wrapper and the current supplier premium evidence loader share this helper.
 There is no new matching, graph write, or persistent identity cache.
 
+## Dated links: `replaced_by_linked_on` (2026-10-16)
+
+`electricity_contracts.replaced_by_linked_on` is the Europe/Helsinki calendar date from which a
+link is effective. It is a date, not a timestamp: historical statistics trust a link per Helsinki
+target date, and the backfill can only derive a calendar date.
+
+- `ContractReplacementLinker` sets it to the Helsinki date when it writes a new link (during a
+  complete `contracts:fetch` or `contracts:link-replacements`). It never changes an existing link or
+  its date (the "do not overwrite existing links" rule above).
+- Migration `2026_10_16_000001` adds the column and fills existing links (idempotent; it changes only
+  null dates): date = max(successor first seen, predecessor last seen) + 1 day. "Seen" is the earliest
+  or latest Helsinki date in source observations or price components (source observations start on
+  2026-07-23 for every contract, so they alone would hide earlier evidence). Reason (user statement
+  2026-10-16: a link is usually made on the day the old contract disappears and the new one becomes
+  available): the linker links an inactive predecessor (first import without it = last seen + 1) to an
+  active successor, and a new contract becomes active only after its first validation, which runs
+  after its first import (first linkable import = first seen + 1). Production evidence: the current
+  writer used no lineage on a successor's first day (2026-10-10, 2026-10-13) and used it from the next day.
+- Local production copy (2026-10-16 11:27): 4,083 links, 0 left null. Successor first seen came from
+  price components for 2,861 links and from source observations for 1,222 (ties count as source);
+  49 links were bounded by the predecessor's later last observation (median 11 days, max 231).
+  Dates span 2026-01-24..2026-10-15. Migration time on that copy: about 1.5 s, 87 MB RSS.
+- `getReplacementLineageIdsByContractIds($ids, $asOf = null)` and
+  `getLineageIdentitiesByContractIds($ids, $asOf = null)`: with `$asOf`, a link counts only when its
+  date is not null and on or before `$asOf`. Without `$asOf` (current writer, presenters,
+  RetailPremium) every link counts as before. Historical v3 statistics pass the target date; see
+  `../ContractStatistics/AGENTS.md` ("V3 history parity").
+
 ## If you work on price history features
 
 Relevant starting points:

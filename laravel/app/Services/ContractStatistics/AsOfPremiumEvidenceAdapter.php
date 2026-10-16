@@ -3,6 +3,7 @@
 namespace App\Services\ContractStatistics;
 
 use App\Enums\MeteringType;
+use App\Models\ElectricityContract;
 use App\Services\CanonicalPricing\CanonicalContractPriceCalculator;
 use App\Services\CanonicalPricing\DTO\ContractContext;
 use App\Services\CanonicalPricing\Enums\ComparisonPolicy;
@@ -20,7 +21,7 @@ use App\Services\ContractStatistics\DTO\AsOfAnnualCostEvidence;
 use App\Services\ContractStatistics\Enums\AnnualCostMethodVersion;
 use Carbon\CarbonImmutable;
 
-/** One date-local universe, shared by all consumptions. No current identity or publication reads. */
+/** One date-local universe, shared by all consumptions. Only dated replacement links are read; no publication pointers. */
 class AsOfPremiumEvidenceAdapter
 {
     public function __construct(
@@ -52,6 +53,9 @@ class AsOfPremiumEvidenceAdapter
             $items[$item->contractId] = $item;
         }
         $anchors = $this->anchors->resolve($target, $suppliers, $bases, AnnualCostMethodVersion::AsOfV3);
+        // The current loader's shared lineage identity, with links dated on or before the target.
+        $lineages = array_map(fn (array $identity): ?string => $identity['contract_ids'] === [] ? null : $identity['key'],
+            ElectricityContract::getLineageIdentitiesByContractIds(array_map('strval', array_keys($suppliers + $resets)), $target));
         $observations = [];
         foreach ($suppliers + $resets as $id => $candidate) {
             $item = $items[$id];
@@ -88,7 +92,7 @@ class AsOfPremiumEvidenceAdapter
             $rates = $candidate->normalizedEnergyRates();
             try {
                 $observations[] = new PremiumObservation(
-                    (string) $id, $item->companyName, $this->compatibility($candidate),
+                    $lineages[$id] ?? (string) $id, $item->companyName, $this->compatibility($candidate),
                     array_map(fn ($rate) => $rate - $referenceRate, $rates),
                     json_encode([$candidate->metering, $candidate->includesVat, $reset ? $candidate->cadence : $candidate->pricingMechanism, $rates], JSON_THROW_ON_ERROR),
                     $target, $trade, $start, $end, $deliveryStart, $deliveryEnd,
@@ -107,7 +111,7 @@ class AsOfPremiumEvidenceAdapter
         foreach ($suppliers + $resets as $id => $candidate) {
             if (trim($items[$id]->companyName ?? '') !== '') {
                 $premiums[$id] = (new ForwardPremiumResolver)->resolve(new PremiumTarget(
-                    (string) $id, (string) $id, $items[$id]->companyName, $this->compatibility($candidate), $target,
+                    (string) $id, $lineages[$id] ?? (string) $id, $items[$id]->companyName, $this->compatibility($candidate), $target,
                 ), $observations);
             }
         }

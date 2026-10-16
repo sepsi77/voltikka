@@ -40,26 +40,24 @@ Parity report before/after with remaining documented differences; focused tests 
 
 Fixes, numbers and remaining differences: `decisions.md`. Raw outputs: `results/`. Tools: `tools/`.
 
-## Production plan (prepared, NOT run; each step needs the manager's and the user's approval)
+## Production plan with dated replacement lineage (prepared, NOT run; needs approval)
 
-Prerequisites: the code release (Git push to main deploys), and a fresh verified full production
-backup as in `../annual-statistics-correction/rollout.md`. Production data is newer than the local
-copy, so every step previews first and compares with the expected numbers below; stop on a difference
-that is not explained.
+Prerequisites: explicit Git push approval (a push to main deploys; `docker-entrypoint.sh` runs
+`php artisan migrate --force` at container start, so migration `2026_10_16_000001` runs during the
+deploy outage: about 1.5 s for 4,083 links on the local copy), then a fresh verified full backup.
 
-1. 2026-10-07, full-date v3 apply (restores spot/open_ended/market_reset, repairs quarterly):
-   ```
-   php -d memory_limit=512M artisan contracts:rebuild-annual-cost-statistics --date=2026-10-07 \
-     --method=annual_cost_as_of_v3 --baseline=annual_cost_as_of_v3
-   ```
-   Expected (scratch): evidence=1113 available=748 unavailable=365; contracts_matched=447,
-   contracts_new=301, aggregates_matched=21, aggregates_new=9. Then the same command with `--apply`:
-   persisted=748 aggregates=30. Verify: medians as in `decisions.md`, display regime equal to both
-   neighbours, non-target rows unchanged (full-row hashes before/after).
-2. 2026-10-01: no apply. The fixed path has no dated snapshot identity for that date.
-3. Older history (required by "History follows the current method"): the same command, one date
-   per process, sequential, `nice -n 15`, 512 MiB, preview then `--apply`, for 2026-02-13..2026-02-27
-   and 2026-07-23..2026-09-21 (76 dates). Expected changes per date: `results/older-history-impact.txt`
-   and the per-date JSON method in `tools/`. Retained v1/v2 rows and other dates stay unchanged.
-4. Public checks: `/sahkosopimus/tilastot` daily and weekly at 5,000 kWh, CSV for 2026-10-07 and the
-   re-applied range.
+Commands (one `nice -n 15` process per range, memory_limit 512M; locally 129 MB max RSS for 205 dates
+in one process; production about 16 s/date, so about 59 min for 221 dates):
+```
+php -d memory_limit=512M artisan contracts:rebuild-annual-cost-statistics --from=2026-02-13 --to=2026-02-27 \
+  --method=annual_cost_as_of_v3 --baseline=annual_cost_as_of_v3            # preview first
+php -d memory_limit=512M artisan contracts:rebuild-annual-cost-statistics --from=2026-02-13 --to=2026-02-27 \
+  --method=annual_cost_as_of_v3 --baseline=annual_cost_as_of_v3 --apply --stop-on-error
+# same two steps for --from=2026-03-01 --to=2026-09-21, then for --date=2026-10-07
+```
+Verify each date against `results/reapply-expected-totals.csv` (evidence, available, unavailable,
+persisted, aggregates). Production data is newer than the local copy; stop and inspect any difference.
+Do NOT touch: 2026-01-21..2026-02-11, 2026-02-28 (unchanged), 2026-09-22..2026-10-16 except 2026-10-07
+(current-writer rows), 2026-10-01 (no snapshot identity; stays empty).
+Before/after: full-row hashes of non-v3 rows, v3 rows on untouched dates, snapshots. Then check
+`/sahkosopimus/tilastot` daily and weekly at 2,000/5,000/18,000 kWh and the CSV.

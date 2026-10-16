@@ -16,7 +16,8 @@ company identities, full bucket rates and a month/quarter reference strictly bef
 start, target). It never calls the current premium loader or reads current publication pointers.
 Dedicated historical output and approved later exact-source interpretations are eligible; their
 completion is processing provenance only. The reset flag and known-period/short-term rules remain.
-V1/v2 keep Historical; older absent donors, dated replacement lineage and V5 rules remain unsupported.
+V1/v2 keep Historical; older absent donors and V5 rules remain unsupported. Lineage uses only
+replacement links dated on or before the target (`replaced_by_linked_on`).
 Since 2026-10-16 v3 target validation accepts a cited monthly/quarterly current window that contains
 the observed target date, a cited same-year `D.M.–D.M.YYYY` range, an in-observation `analysis_date`
 citation and relative month boundaries, so quarterly resets that the current writer prices no longer

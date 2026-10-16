@@ -125,7 +125,8 @@ forecast improvement. No full current-v3 database replay is claimed.
 
 Keep 664 short-duration-proof losses explicit. The 703 temporal-proof losses of the 2026-09-21
 preview are reduced by the 2026-10-16 target-date proof rules; see "V3 history parity". V5 dated
-validation, dated replacement lineage and older absent donors remain unsupported. Preview must use an explicit 512 MiB limit and
+validation and older absent donors remain unsupported (dated replacement lineage exists since
+2026-10-16, see "V3 history parity"). Preview must use an explicit 512 MiB limit and
 one `nice -n 15` worker per date, sequentially. The 144.5 MiB measured allocated peak does not prove
 128 MiB worker safety or safety for an unbounded multi-date command.
 
@@ -156,23 +157,33 @@ Fixes (v3 only; v1/v2, the current writer and code defaults are unchanged):
   validated interpretations; the old guard sent 22 quarterly/reset/promotion contracts to relational
   hold-flat or exclusion.
 
-Remaining, documented differences on 2026-09-22..2026-10-15 (2026-10-01 has no stored rows;
-2026-10-07 stored rows are the incomplete-futures day):
-- Replacement lineage (date safety): the current resolver reads `replaced_by_contract_id`, which has
-  no dated creation record. Eight open-ended targets (Iin Yleissähkö, Imatra Huoleton, Oomi Vakaa,
-  Parikkala Kesto Valo, Vihreä Älyenergia Vakaa valinta, three Seinäjoki SE Oikea) start later or
-  earlier, and the comparable-premium donor pool differs for 16 more. Effect: open_ended median +EUR
-  8 to 16 at 5,000 kWh (+33 to 117 at 18,000). A scratch experiment with current lineage links gave
-  zero differences on four dates, so lineage is the whole remainder.
-- 2026-10-02 only: EEX rows for trade dates 1.10 and 2.10 arrived on 3.10. History uses the market
-  vintage by trade date (before the target), the writer had only older rows. Spot/reset/forward
-  shift move EUR 5 to 7 at 5,000 kWh.
-- 2026-10-02 only, one contract (Kokkola Vuodenaika Uusiutuva): its observed Q3 interpretation ends
-  2026-09-30; full target validation rejects a phase that ended before the target date.
+Dated replacement lineage (user decision 2026-10-16; explicit exception to "no current pointers"):
+- History uses the same shared lineage API as the current writer
+  (`ElectricityContract::getReplacementLineageIdsByContractIds()` / `getLineageIdentitiesByContractIds()`)
+  for anchors (carriers) and premium identities (lineage keys). The v3 path passes the target date:
+  a link counts only when `electricity_contracts.replaced_by_linked_on` is on or before the target.
+  A null date is not trusted in history. The current writer calls without a date (all links count).
+- Reason: `replaced_by_contract_id` is a current pointer. Without a date, a link made later would let
+  history use a predecessor on a day when the current writer could not. Every other rule stays: each
+  piece of evidence that a carrier supplies is still dated on or before the target; no later seller
+  facts or prices and no future curves.
+- `replaced_by_linked_on` is a Europe/Helsinki calendar date. `ContractReplacementLinker` writes the
+  Helsinki date of a new link and never changes an existing link or its date. Migration
+  `2026_10_16_000001` derives existing dates as max(successor first seen, predecessor last seen)
+  + 1 day; see `../ContractReplacement/AGENTS.md` for the reason and the production-copy counts.
+- Flag `historical_trusted_replacement_lineage` replaces `historical_exact_contract_only` on v3 anchors.
 
-Older history moves: 76 of 243 stored v3 dates (2026-02-13..02-27 and every date 2026-07-23..
-2026-09-21) change; fixed-term and hybrid medians do not change. A rebuild of these dates is
-required by "History follows the current method"; see the task folder for the plan and numbers.
+Remaining, documented differences on 2026-09-22..2026-10-15 (2026-10-01 has no stored rows;
+2026-10-07 stored rows are the incomplete-futures day): only 2026-10-02.
+- EEX rows for trade dates 1.10 and 2.10 arrived on 3.10. History uses the market vintage by trade
+  date (before the target); the writer had only older rows. Spot/reset/forward shift move EUR 5 to 7
+  at 5,000 kWh.
+- One contract (Kokkola Vuodenaika Uusiutuva): its observed Q3 interpretation ends 2026-09-30; full
+  target validation rejects a phase that ended before the target date.
+All other 21 dates match the stored current-writer rows exactly (16,115 pairs).
+
+Older history moves; the exact re-apply date list and numbers are in the task folder. A rebuild of
+those dates is required by "History follows the current method".
 
 ## V3 dated premium integration
 
@@ -180,7 +191,8 @@ required by "History follows the current method"; see the task folder for the pl
 Current helpers. It receives the already loaded exact-date v3 evidence universe and resolves all
 supplier anchors in one batch with `HistoricalPriceEpisodeResolver`. The result is reused for all
 three consumptions and discarded after that date. The shared market provider memoizes dated curves;
-there is no new persistent premium store or cache, and no current contract/company/lineage lookup.
+there is no new persistent premium store or cache, and no current contract/company lookup. Lineage
+identities come from the dated shared lineage API (links dated on or before the target).
 
 Validated dedicated episodes are eligible before immutable coverage (including Apr 8–Jul 22).
 Retrospective exact-source completion is processing provenance, not the donor observation date.
@@ -192,7 +204,7 @@ produce no donor, never zero. Reference trade dates must be exact ISO calendar d
 `InvalidArgumentException`/`ValueError` skip only the bad donor and preserve valid alternatives.
 Do not use permissive `Carbon::parse()` for premium reference dates.
 `ForwardPremiumResolver` owns family/VAT/cadence compatibility,
-exact-contract own evidence, company then company-balanced market selection, and clone deduplication.
+own dated-lineage evidence, company then company-balanced market selection, and clone deduplication.
 Hybrid base families stay separate. Current estimator guards, reset flag, short-term rules, known
 phases and fees are unchanged. Spot/seasonal/EEX inputs retain their explicit dated bounds.
 
@@ -208,8 +220,8 @@ Schema-v5/known-rule selected output fails closed with
 `historical_energy_rule_source_validation_unavailable`; rule parsing stays disabled. Full dated V5
 validation and normal-map evidence are NOT implemented.
 
-Remaining bounds: only exact-date donors are loaded (no older absent donor carry-forward); exact
-contract IDs stand in for trusted lineage until dated replacement trust exists. Missing identity,
+Remaining bounds: only exact-date donors are loaded (no older absent donor carry-forward); lineage
+uses only links dated on or before the target. Missing identity,
 missing full Time/Season proof, missing exact-source output, and genuine pre-Apr-8 FI reference gaps
 stay unresolved or use the shared fallback ladder. The bounded local continuity acceptance above
 does not remove these limits or authorize production release.
@@ -267,7 +279,7 @@ does not remove these limits or authorize production release.
 - `HistoricalPriceEpisodeResolver` selects policy by explicit method version; its default and v1/v2
   remain strict. V3 accepts first-observed, left-censored energy proxies, never proven repricing or
   hedge dates. The calculator passes its selected method. Since 2026-10-16 the v3 event model is
-  the `SupplierAdjusted/CurrentPriceEpisodeResolver` model with dated, exact-contract inputs (see
+  the `SupplierAdjusted/CurrentPriceEpisodeResolver` model with dated inputs (see
   "V3 history parity" below): before the contract's first immutable source observation, dated
   General/FixedPrice snapshots and raw Time/Season component tariffs (the current resolver's public
   `snapshotCandidate`/`historicalTariffs`/`historicalTariffCandidate`) are the evidence; after it,
@@ -279,9 +291,9 @@ does not remove these limits or authorize production release.
   observations must agree. Dedicated historical interpretations no longer supply anchor signatures,
   because the current method never uses them. Shared candidate signature comparison includes buckets,
   metering, mechanism and VAT, but not fees. Unknown, conflicting or different energy breaks the run;
-  the next match starts another uncertain proxy. Gaps keep `price_episode_observation_gap`. V3 uses
-  only exact-contract dated identity: current replacement links cannot prove lineage trust on a past
-  date (the one remaining parity difference). It reads no current pointers or peer evidence.
+  the next match starts another uncertain proxy. Gaps keep `price_episode_observation_gap`. Carriers
+  are the replacement lineage with links dated on or before the target (`replaced_by_linked_on`,
+  see "V3 history parity"). It reads no other current pointer and no peer evidence.
 - The v1/v2 episode branch makes one batch query only to `contract_price_snapshots` through the explicit target date. A
   matching observed target row wins. Another basis is eligible only when the caller passes that
   basis explicitly, either once or per candidate. The matching run has a proven start only when the

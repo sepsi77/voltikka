@@ -73,7 +73,7 @@ class RebuildAnnualCostStatisticsCommandTest extends TestCase
         $stored = DB::table('contract_price_annual_costs')->orderBy('id')->get()->toJson();
         $options = ['--date' => self::DATE, '--method' => AnnualCostMethodVersion::AsOfV3->value, '--baseline' => AnnualCostMethodVersion::AsOfV2->value];
         $this->artisan('contracts:rebuild-annual-cost-statistics', $options)
-            ->expectsOutputToContain('V3 is not ready for release: full-history target-evidence and continuity review, dated current-producer parity')->assertSuccessful();
+            ->expectsOutputToContain('V3 rows are public history: preview first; --apply needs a verified full backup and explicit approval.')->assertSuccessful();
         $this->assertSame($stored, DB::table('contract_price_annual_costs')->orderBy('id')->get()->toJson());
         $this->artisan('contracts:rebuild-annual-cost-statistics', [...$options, '--apply' => true])->assertSuccessful();
         $this->assertSame($stored, DB::table('contract_price_annual_costs')->where('method_version', AnnualCostMethodVersion::AsOfV2->value)->orderBy('id')->get()->toJson());

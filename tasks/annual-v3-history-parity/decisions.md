@@ -119,3 +119,69 @@ scratch: `contracts:backfill-price-statistics` for 2026-10-01 creates observed-b
 writes 744 rows / 27 aggregates. market_reset has no point, hybrid/open_ended/quarterly get a
 different stored compatibility key, observed unit rows appear inside the canonical era.
 Recommendation: leave 2026-10-01 empty (one missing day).
+
+## 2026-10-16 (later) — Dated replacement lineage (user decisions)
+
+State before this unit: c12cc7a (the fixes above) is deployed; production 2026-10-07 was refilled
+with a full-date apply (748 rows / 30 aggregates). This unit is local and uncommitted.
+
+1. User decision: historical v3 trusts replacement links (`replaced_by_contract_id`) like the current
+   writer. Explicit, documented exception to "no current pointers".
+2. User scope addition: a link gets a date, and history trusts it only when that date is on or before
+   the target ("The link is usually created on the date when old contract disappears from the source
+   API and a new one becomes available").
+
+Implementation:
+- Column `electricity_contracts.replaced_by_linked_on` (nullable DATE, Europe/Helsinki). A date, not
+  a timestamp: history trusts a link per Helsinki target date, and a backfill can only derive dates.
+- `ContractReplacementLinker` writes the Helsinki date of a new link; it never changes existing links.
+- Migration `2026_10_16_000001` adds the column and fills null dates: max(successor first seen,
+  predecessor last seen) + 1 day, from source observations and price components (sources start on
+  2026-07-23 for every contract, so they alone would hide earlier evidence). Why "+ 1 day" also for the
+  successor: the matcher links only to ACTIVE candidates, and a new contract is active only after its
+  first validation, which runs after its first import. Evidence: with "successor first seen" alone,
+  history used lineage on 2026-10-10 (Vihreä Vakaa valinta) and 2026-10-13 (three Seinäjoki SE Oikea),
+  but the stored current rows show no lineage on those first days; with "+ 1 day" both dates match.
+  Production copy: 4,083 links, 0 null; successor date from price components 2,861, from source
+  observations 1,222 (ties count as source); 49 bounded by the predecessor's later last observation
+  (median 11 days, max 231). Migration time about 1.5 s, 87 MB RSS.
+- Shared model API: `getReplacementLineageIdsByContractIds($ids, ?$asOf)` and
+  `getLineageIdentitiesByContractIds($ids, ?$asOf)`. With an as-of date a link counts only when its
+  date is non-null and ≤ as-of. Without it (current writer, presenters, RetailPremium) nothing changes.
+- V3 anchors (`HistoricalPriceEpisodeResolver`) use lineage carriers like the current resolver, and the
+  premium adapter uses lineage identity keys; both pass the target date. Anchor flag
+  `historical_trusted_replacement_lineage` replaces `historical_exact_contract_only`.
+- The rebuild command's stale warning "V3 is not ready for release…" is now "V3 rows are public
+  history: preview first; --apply needs a verified full backup and explicit approval. Do not apply
+  dates written by the current daily writer."
+
+Parity, 22 dates 2026-09-22..2026-10-15 without 10-01/10-07 (`results/parity-dated-lineage-*.txt`):
+16,115 pairs equal; the 337 different pairs are all on 2026-10-02 (late EEX import 334, Kokkola stale
+interpretation 3). All other 21 dates are exact. Undated lineage (first unit of this task) left
+2+21 extra pairs on 2026-10-10/13 (`results/parity-undated-lineage-causes.txt`).
+
+2026-10-07 (production holds the c12cc7a full-date apply): with dated lineage 33 open_ended pairs
+(11 contracts) change; open_ended median 755.26 → 746.98 at 5,000 kWh (335.28 / 2,538.42 at
+2,000 / 18,000). Neighbours stored: 748.42 (10-06), 753.00 (10-08). It must be re-applied.
+
+Older history (`results/older-history-impact-dated-lineage.txt`): 220 of 243 dates change:
+2026-02-13..2026-02-27 and 2026-03-01..2026-09-21 (`results/reapply-dates-dated-lineage.txt`).
+Unchanged: 2026-01-21..2026-02-11, 2026-02-28 (2026-02-12 has no data). Pairs: 213,217 equal,
+8,150 changed, 714 new, 9 lost, 60 contracts. Method moves: none → recurring_forward_curve_shift
+768, premium → own-reference shift 432, shift → premium 315, none → hybrid_base_only 48 (equal cost).
+Medians at 5,000 kWh: fixed-term and hybrid 0; open_ended median −0.5 (p10 −72, p90 +16, min −109,
+max +25; 156 days ≥ 1 EUR); quarterly ≤ +6.6; spot ≥ −1.7; market_reset ≤ +5. At 18,000 kWh open_ended
+min −427, max +92. Main effect: 2026-07-24..2026-09-14 open_ended −60…−109 (old series jumped
+661 → 750 on 07-24; the new one goes 668 → 682). New one-day step 2026-08-08 → 08-09 (733 → 693):
+the Iin Yleissähkö link becomes effective on 08-09, Iin stops being a high-premium donor and becomes
+a premium target; same display family, so no chart gap. Seam: 2026-09-21 new 788.87 → stored current
+2026-09-22 774.41 (old 794.26).
+Display regimes after a full scratch apply (aggregateDisplayKey, from 2026-05-01): only the real
+quarterly 2026-07-01 transition remains in open_ended/hybrid/spot/market_reset/quarterly; none created.
+
+Scratch apply proof (copy of the migrated local copy): the real command, `--apply --stop-on-error`,
+three invocations: 02-13..02-27 (15 dates, 39 s, 124.6 MB max RSS), 03-01..09-21 (205 dates, 539 s,
+129.2 MB max RSS), 10-07 (3.5 s). 0 failed. Totals 221 dates, 200,429 rows, 6,645 aggregates.
+Per-date expected totals: `results/reapply-expected-totals.csv`. Protected hashes equal before/after:
+non-v3 annual rows, v3 rows on untouched dates, non-v3 daily rows, v3 aggregates on untouched dates,
+snapshots. A recompare after apply shows the stored rows equal the in-memory result.

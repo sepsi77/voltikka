@@ -155,15 +155,16 @@ See `../../../../tasks/annual-statistics-history-continuity/production-rollout.m
 final checkpoint, backup and scoped preservation proof, and public HTTP/CSV checks.
 
 History parity (2026-10-16, local, not deployed): v3 anchors now use the current episode resolver's
-event model with dated exact-contract inputs, and v3 target validation accepts year proofs that come
-from the observed target date (cited recurring window, same-year range, in-observation analysis date,
-relative months). On the 22 current-writer dates 2026-09-22..2026-10-15 every remaining difference
-comes from replacement lineage or the late 2026-10-02 EEX import. See
+event model with dated inputs, and v3 target validation accepts year proofs that come from the
+observed target date (cited recurring window, same-year range, in-observation analysis date, relative
+months). History trusts a replacement link only from its `replaced_by_linked_on` date (user decision
+2026-10-16). On the 22 current-writer dates 2026-09-22..2026-10-15 only 2026-10-02 differs (late EEX
+import, one stale interpretation). See
 `../ContractStatistics/AGENTS.md` ("V3 history parity") and `tasks/annual-v3-history-parity/`.
 
 Historical-policy statements below apply to v1/v2, not explicit annual v3. Dated release records
-remain records of those releases. V3 still lacks dated V5 validation, trusted replacement lineage
-and older absent donor carry-forward. Source-backed temporal and short-duration proof limits stay
+remain records of those releases. V3 still lacks dated V5 validation and older absent donor
+carry-forward. Source-backed temporal and short-duration proof limits stay
 explicit; see the statistics context for losses, bounded preview resources and release approvals.
 
 ## Current local status
@@ -195,7 +196,7 @@ in `tasks/annualized-pricing-implementation/final-verification.md`. Detailed pro
   and dated expired-promotion evidence. Complete promotions remain eligible.
 - Current history and energy episodes share trusted lineage, full tariff buckets, fee-independent
   identity, and explicit dated anchors. V1/v2 Historical retain narrower identity/reference
-  behavior. V3 uses dated exact-contract anchors and Current semantics, not current lineage trust;
+  behavior. V3 uses dated anchors, links dated on or before the target, and Current semantics;
   this is not a universal evidence or lineage parity claim. See `SupplierAdjusted/AGENTS.md`.
 - `RESET_FORWARD_SHIFT_ENABLED` controls only Reset, not Supplier. Current estimators require finite,
   safe prior-vintage evidence and report effective hold beta 0. Supplier seasonal anchors use the full

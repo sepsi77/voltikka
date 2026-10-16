@@ -51,7 +51,7 @@ class RebuildAnnualCostStatistics extends Command
             return self::FAILURE;
         }
         if ($method === AnnualCostMethodVersion::AsOfV3) {
-            $this->warn('V3 is not ready for release: full-history target-evidence and continuity review, dated current-producer parity, verified backup, apply approval and active-method approval remain required.');
+            $this->warn('V3 rows are public history: preview first; --apply needs a verified full backup and explicit approval. Do not apply dates written by the current daily writer.');
         }
         $selection = $this->dateSelection();
         if ($selection === null) {

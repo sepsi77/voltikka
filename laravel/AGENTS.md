@@ -34,6 +34,7 @@ Voltikka keeps inactive contracts in `electricity_contracts` for historical cont
 - If a contract is inactive and no trusted replacement exists, `ContractDetail` still renders the normal contract detail page for historical reference with a `noindex` robots meta tag. Its history timeline includes a newest “no longer on sale” status node; because availability transitions are not persisted, the date shown is explicitly the last import date on which Voltikka observed that exact contract (`MAX(price_components.price_date)`), not an asserted expiry date.
 - Inactive contract detail pages without a trusted replacement must not be included in the sitemap.
 - On the current/live contract detail page, the visible contract history is built from the backward replacement chain so users can see older linked versions, newest first.
+- Each link has `replaced_by_linked_on`, the Helsinki date from which it is effective. The linker writes it for new links and never changes it. Historical v3 annual statistics trust a link only from that date; null means not trusted in history. Current pricing, presenters and redirects ignore the date. See `app/Services/ContractReplacement/AGENTS.md`.
 
 Primary implementation:
 - `app/Livewire/ContractDetail.php`
@@ -237,6 +238,7 @@ Important semantics:
 - Points forward from an old contract to the contract that replaced it
 - Only high-confidence links are persisted automatically
 - Existing links are preserved so chains can grow over time instead of being rewritten
+- `replaced_by_linked_on` (nullable date, Europe/Helsinki): the day the link became effective. Set by the linker for new links; migration `2026_10_16_000001` derived existing dates (max(successor first seen, predecessor last seen) + 1 day). The shared lineage API takes an optional as-of date; only historical v3 statistics pass it
 
 Typical chain:
 - `A -> B -> C`

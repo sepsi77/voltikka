@@ -3,13 +3,13 @@
 namespace App\Services\ContractReplacement;
 
 use App\Models\ElectricityContract;
+use Carbon\CarbonImmutable;
 
 class ContractReplacementLinker
 {
     public function __construct(
         protected ContractReplacementMatcher $matcher,
-    ) {
-    }
+    ) {}
 
     /**
      * Link currently inactive contracts to their detected replacements.
@@ -36,6 +36,7 @@ class ContractReplacementLinker
         foreach ($inactiveContracts as $inactive) {
             if ($inactive->replaced_by_contract_id) {
                 $skippedExisting++;
+
                 continue;
             }
 
@@ -43,11 +44,13 @@ class ContractReplacementLinker
 
             if (! $match) {
                 $skippedNoMatch++;
+
                 continue;
             }
 
             if (($match['confidence'] ?? null) !== 'high') {
                 $skippedNotHigh++;
+
                 continue;
             }
 
@@ -56,15 +59,19 @@ class ContractReplacementLinker
 
             if ($candidate->id === $inactive->id) {
                 $skippedNoMatch++;
+
                 continue;
             }
 
             if ($this->wouldCreateCycle($inactive, $candidate)) {
                 $skippedNoMatch++;
+
                 continue;
             }
 
             $inactive->replaced_by_contract_id = $candidate->id;
+            // The Helsinki date the link became known. Historical v3 trusts it from this date on.
+            $inactive->replaced_by_linked_on = CarbonImmutable::now('Europe/Helsinki')->toDateString();
             $inactive->save();
             $linked++;
         }

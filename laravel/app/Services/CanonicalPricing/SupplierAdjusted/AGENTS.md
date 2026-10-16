@@ -102,12 +102,13 @@ v1/v2 strict. Since 2026-10-16 explicit v3 uses this resolver's event model with
 exact-contract inputs: the same pre-source raw evidence (`snapshotCandidate`, `historicalTariffs`,
 `historicalTariffCandidate`, public for that reuse only), observation-boundary events after the first
 immutable observation, and per-observation exact-source v3 signatures with classification from the
-dated payload. Dedicated historical output is not anchor evidence. No current lineage links are read;
-that is the only measured difference from current anchors (see
+dated payload. Dedicated historical output is not anchor evidence. Carriers are the shared
+replacement lineage, but a link counts only when its `replaced_by_linked_on` date is on or before
+the target (user decision 2026-10-16; see `../../ContractStatistics/AGENTS.md` and
 `../../../../../tasks/annual-v3-history-parity/`). Explicit v3 now uses shared Current
 candidate/calculation semantics with explicit historical dates and supplied exact-date premiums.
 V1/v2 still use Historical. The dated adapter never invokes the current episode resolver or current
-premium loader. Older absent donors and dated replacement lineage are not implemented; V5 rules
+premium loader. Older absent donors are not implemented; V5 rules
 fail closed without dated source validation. See `../../ContractStatistics/AGENTS.md`.
 
 Current immutable interpretations now use the shared current extraction for redundant and fully disclosed fee-only phases. Real energy changes and unknown energy still break the episode. V1/v2 Historical replay keeps strict single-phase eligibility; v3 dated replay uses the shared Current extractor. Missing evidence never creates fabricated buckets. The resolver uses four batched queries for General and five for Time/Season. The General API now uses ten queries because current-curve availability adds one preflight; older nine-query results in task notes are run history. See `tasks/annualized-pricing-implementation/energy-episodes.md` for the narrow historical follow-up.

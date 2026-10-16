@@ -81,6 +81,13 @@ on 8.10. No refetch is needed. The eex_futures checkpoints for 7.10 (`failed`, 2
   exactly 301 annual rows and 9 aggregates (rollback guard on the counts). Remaining v3 on 7.10:
   447 annual rows, 21 aggregates (fixed-term, hybrid and quarterly segments unchanged).
 - Restore: insert the rows of the export file unchanged (ids included) into the two tables.
+- Superseded 2026-10-16 about 19:15 Helsinki: after commit c12cc7a (historical v3 parity) the user
+  approved a full-date historical apply of 7.10. Production preview equalled the scratch preview;
+  apply persisted 748 annual rows and 30 aggregates. Daily chart is continuous (spot 527 €,
+  open-ended 755 € at 5000 kWh). Pre-apply export: `tasks/annual-v3-history-parity/
+  production-2026-10-07-before-apply.json` (447 + 21 rows, SHA-256 63a60d4d…).
+- User decisions 2026-10-16: re-apply the older v3 history; historical v3 trusts replacement links.
+  The re-apply waits for the lineage change, so history is rewritten once.
 
 ## Release (2026-10-16)
 Commit 3b95c81 pushed to main; Railway deployment 61dfaf9a-db61-4e7d-9370-35f441ae1a30 SUCCESS.
@@ -96,3 +103,7 @@ until the deadline, so no forecast or retail rows were written on those days. Th
 has no retry, so one partial run loses the whole day. The run lasts 04:01–about 07:35 Helsinki.
 morning_retail also ended `failed` / `execution_failed` (RuntimeException) on 30.9, 6.10 and 10.10;
 not investigated.
+- User decision 2026-10-16: replacement links get an effective date (usually the day the old contract
+  leaves the source API and the new one appears). Historical v3 trusts a link only when its date is on
+  or before the target. Existing links are backfilled from the successor's first observed date; a link
+  without a derivable date is not trusted in history. Work is in tasks/annual-v3-history-parity/.

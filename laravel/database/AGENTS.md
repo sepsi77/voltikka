@@ -28,6 +28,16 @@ The boolean defaults to false. Filament panel access requires it to be true. Val
 - Migration `2026_07_31_000001` fails before DDL if an existing row violates these rules. It does not clean or infer data.
 - MySQL uses one named CHECK constraint. SQLite uses named BEFORE INSERT and BEFORE UPDATE triggers without rebuilding `electricity_contracts`. Other database drivers fail clearly.
 
+## `electricity_contracts.replaced_by_linked_on`
+
+Nullable `date` (Europe/Helsinki calendar date) for the day a `replaced_by_contract_id` link became
+effective. Migration `2026_10_16_000001` adds it and fills only null dates of existing links with
+max(successor first seen, predecessor last seen) + 1 day from source observations and price
+components (`chunkById`, because the update changes the filtered column). It is idempotent and runs on
+deploy through `docker-entrypoint.sh` (`php artisan migrate --force`); on the 2026-10-16 production
+copy it took about 1.5 s for 4,083 links. Down drops the column. See
+`../app/Services/ContractReplacement/AGENTS.md`.
+
 ## Contract test factories
 
 - `ElectricityContract::factory()` requires an existing company through `forCompany()`; it never creates a company implicitly.
