@@ -55,6 +55,8 @@ The `voltikka` app service is connected to the GitHub repository and automatical
 
 Every deploy has a short outage. The app service mounts a volume on `/app/storage`, and Railway never runs two deployments of a volume-backed service at once, so the old container stops before the new one is healthy. The service health check (`/up`, 600 s timeout, `PORT=8000` because Railway probes `PORT` and Caddy listens on 8000; set 2026-10-15) only keeps a broken start from being marked live. The outage lasts as long as `docker-entrypoint.sh` takes before FrankenPHP starts. Keep that script fast: the volume holds the file cache (about 116k files in October 2026), so never walk it at start: a recursive `chmod -R`/`chown -R` took about 2 min 20 s, and even a read-only `find` over it took about 70 s. The script skips `storage/framework/cache` contents; every process runs as root, so their ownership has no effect.
 
+Do not deploy between 04:00 and about 07:40 Europe/Helsinki. The scheduled `futures:fetch-eex` starts at 04:00 and is throttled to about 15 s per EEX call; in October 2026 each run finished at about 07:35 (its checkpoint row shows the start and finish). A deploy stops the old container and kills the run. On 2026-10-02 a deploy at about 04:18 stopped it: its checkpoint stayed `running`, and trade dates 2026-10-01 and 2026-10-02 arrived only with the next day's run. Check the time before you push, and wait until the import has finished.
+
 A push to `origin/main` is a production mutation because it starts an automatic deployment. State the branch, command, target project/environment/service, and expected effect, and get explicit user confirmation before pushing.
 
 Safe-operation rules for agents:
