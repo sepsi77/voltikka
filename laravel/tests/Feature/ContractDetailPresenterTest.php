@@ -797,9 +797,20 @@ class ContractDetailPresenterTest extends TestCase
             'canonical_pricing.reset_forward_shift.enabled' => true,
             'price_forecasting.fixed_term.vat_multiplier' => 1.255,
         ]);
+        // PricingMode is a scoped snapshot of the flags; start a new scope after changing them.
+        app()->forgetScopedInstances();
 
+        $periodStart = now('Europe/Helsinki')->startOfQuarter();
         $periodEnd = now('Europe/Helsinki')->startOfDay()->addMonths(2)->endOfMonth()->startOfDay();
-        $tradeDate = now('Europe/Helsinki')->subDay()->format('Y-m-d');
+
+        // Two curve vintages, as in production: the forward months read the latest curve before
+        // today, and the reference reads the pricing vintage, the latest curve before the current
+        // period began. With only yesterday's curve, the reference is missing on every day except
+        // the first day of a quarter, and current pricing then holds the price flat.
+        $tradeDates = array_unique([
+            $periodStart->copy()->subDay()->format('Y-m-d'),
+            now('Europe/Helsinki')->subDay()->format('Y-m-d'),
+        ]);
 
         // A rising forward curve, so the estimated tail is visibly above the current price.
         $rows = [];
@@ -824,11 +835,13 @@ class ContractDetailPresenterTest extends TestCase
             }
         }
 
-        foreach ($rows as $row) {
-            ElectricityFuturesEodPrice::create(array_merge([
-                'exchange' => 'EEX', 'commodity' => 'POWER', 'pricing' => 'F', 'product' => 'Base', 'area' => 'FI',
-                'trade_date' => $tradeDate,
-            ], $row));
+        foreach ($tradeDates as $tradeDate) {
+            foreach ($rows as $row) {
+                ElectricityFuturesEodPrice::create(array_merge([
+                    'exchange' => 'EEX', 'commodity' => 'POWER', 'pricing' => 'F', 'product' => 'Base', 'area' => 'FI',
+                    'trade_date' => $tradeDate,
+                ], $row));
+            }
         }
 
         $contract = $this->contract('reset-contract', [
@@ -842,13 +855,21 @@ class ContractDetailPresenterTest extends TestCase
                 status: CalculationStatus::EstimateRequired,
                 recurringSchedule: CanonicalPricingFixture::recurringSchedule(
                     cadence: 'quarterly',
-                    currentPeriodStart: now('Europe/Helsinki')->startOfQuarter()->format('Y-m-d'),
+                    currentPeriodStart: $periodStart->format('Y-m-d'),
                     currentPeriodEnd: $periodEnd->format('Y-m-d'),
                     futurePriceKnown: false,
                 ),
                 issueCodes: ['recurring_reset_requires_estimate'],
             ),
         ], ['General' => 8.0, 'Monthly' => 2.53]);
+
+        // Check the estimate basis first, so a fixture or estimator change fails with the basis
+        // that was used instead of a missing copy string in a page dump.
+        $this->warmPrices();
+        $pricing = app(ContractListCacheService::class)->getCachedMetrics(5000)?->metric($contract->id)?->pricing()->toArray();
+        $this->assertSame('recurring_forward_curve_shift', $pricing['estimate_method'] ?? null);
+        $this->assertSame('forward_curve_shift', $pricing['reset_estimate']['basis'] ?? null);
+        $this->assertGreaterThan(8.0, $pricing['reset_estimate']['annual_equivalent_energy_price']);
 
         $this->mountWithPrices('contract-detail', ['contractId' => $contract->id])
             ->assertSee('Energia nyt, '.$periodEnd->format('j.n.').' asti')
