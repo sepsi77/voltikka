@@ -12,6 +12,12 @@ return [
     'request_delay_jitter_seconds' => (float) env('EEX_FUTURES_REQUEST_DELAY_JITTER_SECONDS', 5),
     'history_window_days' => (int) env('EEX_FUTURES_HISTORY_WINDOW_DAYS', 45),
 
+    // In-run retry of failed discovery tenors and EOD requests after the main pass. More failed
+    // units than the limit means an outage, which keeps the normal failure outcome.
+    'retry_passes' => 2,
+    'retry_pause_seconds' => 60,
+    'retry_max_failed_units' => 25,
+
     // Discovery scan ceilings. EOD fetching stops earlier when price-ticker returns empty data.
     'months_back' => (int) env('EEX_FUTURES_MONTHS_BACK', 1),
     'months_ahead' => (int) env('EEX_FUTURES_MONTHS_AHEAD', 24),

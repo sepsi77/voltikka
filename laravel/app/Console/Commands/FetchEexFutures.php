@@ -13,6 +13,7 @@ use Illuminate\Console\Command;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Sleep;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -81,6 +82,13 @@ class FetchEexFutures extends Command
 
     private ?string $checkpointOwner = null;
 
+    private int $totalFetched = 0;
+
+    private int $totalSaved = 0;
+
+    /** @var array<string, string> latest prior-date FI Base trade date per maturity type in this run */
+    private array $latestPriorFiTradeDateByTenor = [];
+
     private function fetch(): int
     {
         $fullScope = $this->isFullScheduledScope();
@@ -107,8 +115,11 @@ class FetchEexFutures extends Command
             return $fullScope ? Command::FAILURE : Command::SUCCESS;
         }
 
-        $failures = 0;
-        $requests = $this->buildInstrumentMaturityRequests($instruments, $endDate, $failures);
+        $this->totalFetched = 0;
+        $this->totalSaved = 0;
+        $this->latestPriorFiTradeDateByTenor = [];
+
+        [$requests, $failedDiscoveries] = $this->buildInstrumentMaturityRequests($instruments, $endDate);
 
         $this->info(sprintf(
             'Fetching EEX futures EOD data for %d instruments, %d discovered instrument/maturity requests, %s to %s.',
@@ -118,9 +129,116 @@ class FetchEexFutures extends Command
             $endDate->toDateString()
         ));
 
-        $totalFetched = 0;
-        $totalSaved = 0;
-        $latestCurrentRunPriorFiTradeDate = null;
+        $requestCount = count($requests);
+        $failedRequests = $this->fetchRequests($requests, $startDate, $endDate, $effectiveDate);
+        $failuresBeforeRetry = count($failedDiscoveries) + count($failedRequests);
+        $retryPasses = 0;
+
+        // One transient connection failure used to fail the whole day (2026-10-07: month discovery;
+        // 2026-10-09: one year request). Retry only the failed units, with the same service
+        // throttle, after a pause. A wide failure is an outage: retrying hundreds of units would
+        // add hours, so it keeps the original failure outcome.
+        $maxRetryPasses = max(0, (int) config('eex_futures.retry_passes', 2));
+        $maxRetryUnits = max(0, (int) config('eex_futures.retry_max_failed_units', 25));
+        while ($retryPasses < $maxRetryPasses && ($failedDiscoveries !== [] || $failedRequests !== [])) {
+            $failedUnits = count($failedDiscoveries) + count($failedRequests);
+            if ($failedUnits > $maxRetryUnits) {
+                $this->warn("Not retrying {$failedUnits} failed EEX units; the retry limit is {$maxRetryUnits}.");
+
+                break;
+            }
+
+            $retryPasses++;
+            $pauseSeconds = max(0, (int) config('eex_futures.retry_pause_seconds', 60));
+            $this->warn("Retry pass {$retryPasses}/{$maxRetryPasses}: {$failedUnits} failed EEX units after a {$pauseSeconds} s pause.");
+            Sleep::for($pauseSeconds)->seconds();
+
+            [$discoveredRequests, $failedDiscoveries] = $this->discoverRequests(
+                $instruments,
+                array_map(fn (array $failure) => $failure['instrument'], $failedDiscoveries),
+                $endDate,
+            );
+            $requestCount += count($discoveredRequests);
+            $failedRequests = $this->fetchRequests(
+                [...array_column($failedRequests, 'request'), ...$discoveredRequests],
+                $startDate,
+                $endDate,
+                $effectiveDate,
+            );
+        }
+
+        // Only failures that remain after the retry passes reach the aggregate Issue.
+        foreach ($failedDiscoveries as $failure) {
+            $this->failureReporter->fail('discovery', $failure['exception']);
+        }
+        foreach ($failedRequests as $failure) {
+            $this->failureReporter->fail('acquisition', $failure['exception']);
+        }
+        $failures = count($failedDiscoveries) + count($failedRequests);
+        $totalFetched = $this->totalFetched;
+        $totalSaved = $this->totalSaved;
+        $latestCurrentRunPriorFiTradeDate = $this->latestPriorFiTradeDateByTenor === []
+            ? null
+            : max($this->latestPriorFiTradeDateByTenor);
+        $priorFiTradeDatesByTenor = [];
+        foreach (MorningJobFreshnessService::EEX_PROOF_TENORS as $tenor) {
+            $priorFiTradeDatesByTenor[$tenor] = $this->latestPriorFiTradeDateByTenor[$tenor] ?? null;
+        }
+        // The proof needs month, quarter and year rows on the run's latest prior FI trade date,
+        // so a run that silently returns no month rows cannot become ready.
+        $completeFiProof = $latestCurrentRunPriorFiTradeDate !== null
+            && array_filter(
+                $priorFiTradeDatesByTenor,
+                fn (?string $tradeDate) => $tradeDate !== $latestCurrentRunPriorFiTradeDate,
+            ) === [];
+
+        $this->failureReporter->count('maturity_requests', $requestCount);
+        $this->failureReporter->count('fetched_points', $totalFetched);
+        $this->failureReporter->count('saved_points', $totalSaved);
+        $this->failureReporter->count('retry_passes', $retryPasses);
+        $this->failureReporter->count('failures_before_retry', $failuresBeforeRetry);
+        if ($fullScope && ! $completeFiProof) {
+            $this->failureReporter->fail('missing_current_run_prior_fi');
+        }
+
+        $this->info("EEX futures fetch complete. Fetched {$totalFetched} price points, upserted {$totalSaved}. Failures: {$failures} ({$failuresBeforeRetry} before {$retryPasses} retry passes).");
+
+        // FI Base futures are a direct input to canonical Spot, market-reset, and supplier-adjusted
+        // annual prices. Invalidate every calculated-cost-dependent cache after a real FI write.
+        // Downstream company, ranking, and prepared-page keys include this shared list version.
+        if (! $this->option('dry-run') && $totalSaved > 0 && $latestCurrentRunPriorFiTradeDate !== null) {
+            $this->contractListCache->bumpVersion();
+        }
+
+        if (! $fullScope) {
+            return $failures > 0 ? Command::FAILURE : Command::SUCCESS;
+        }
+
+        $ready = $failures === 0
+            && $totalFetched > 0
+            && $completeFiProof;
+        $recorded = $this->recordFullScopeCheckpoint($fullScope, $effectiveDate, [
+            'fetched_points' => $totalFetched,
+            'saved_points' => $totalSaved,
+            'failures' => $failures,
+            'failures_before_retry' => $failuresBeforeRetry,
+            'retry_passes' => $retryPasses,
+            'current_run_latest_prior_fi_trade_date' => $latestCurrentRunPriorFiTradeDate,
+            'current_run_latest_prior_fi_trade_dates_by_tenor' => $priorFiTradeDatesByTenor,
+        ], $ready);
+
+        return $ready && $recorded ? Command::SUCCESS : Command::FAILURE;
+    }
+
+    /**
+     * Fetch, extract and upsert each request. Returns the failed requests for a retry pass.
+     *
+     * @param  array<int, array{instrument: array<string, mixed>, maturity: string}>  $requests
+     * @return list<array{request: array{instrument: array<string, mixed>, maturity: string}, exception: Throwable}>
+     */
+    private function fetchRequests(array $requests, Carbon $startDate, Carbon $endDate, string $effectiveDate): array
+    {
+        $failed = [];
 
         foreach ($requests as $request) {
             $instrument = $request['instrument'];
@@ -129,18 +247,19 @@ class FetchEexFutures extends Command
             try {
                 $payload = $this->eexFuturesService->fetchEndOfDayData($instrument, $maturity, $startDate, $endDate);
                 $points = $this->eexFuturesService->extractPricePoints($payload, $instrument, $maturity);
-                $totalFetched += count($points);
+                $this->totalFetched += count($points);
 
                 foreach ($points as $point) {
                     $tradeDate = $point['trade_date'] ?? null;
+                    $tenor = (string) ($point['maturity_type'] ?? '');
 
                     if (($point['exchange'] ?? null) === 'EEX'
                         && ($point['area'] ?? null) === 'FI'
                         && ($point['product'] ?? null) === 'Base'
                         && is_string($tradeDate)
                         && $tradeDate < $effectiveDate
-                        && ($latestCurrentRunPriorFiTradeDate === null || $tradeDate > $latestCurrentRunPriorFiTradeDate)) {
-                        $latestCurrentRunPriorFiTradeDate = $tradeDate;
+                        && $tradeDate > ($this->latestPriorFiTradeDateByTenor[$tenor] ?? '')) {
+                        $this->latestPriorFiTradeDateByTenor[$tenor] = $tradeDate;
                     }
                 }
 
@@ -158,7 +277,7 @@ class FetchEexFutures extends Command
                 }
 
                 $saved = $this->savePricePoints($points);
-                $totalSaved += $saved;
+                $this->totalSaved += $saved;
 
                 $this->line(sprintf(
                     '%s %s %s %s: fetched %d, upserted %d',
@@ -170,7 +289,7 @@ class FetchEexFutures extends Command
                     $saved
                 ));
             } catch (RequestException|ConnectionException $e) {
-                $failures++;
+                $failed[] = ['request' => $request, 'exception' => $e];
                 $this->warn(sprintf(
                     'Failed to fetch %s %s %s %s: %s',
                     $instrument['area'] ?? 'unknown-area',
@@ -179,41 +298,10 @@ class FetchEexFutures extends Command
                     $maturity,
                     $e::class
                 ));
-                $this->failureReporter->fail('acquisition', $e);
             }
         }
 
-        $this->failureReporter->count('maturity_requests', count($requests));
-        $this->failureReporter->count('fetched_points', $totalFetched);
-        $this->failureReporter->count('saved_points', $totalSaved);
-        if ($fullScope && $latestCurrentRunPriorFiTradeDate === null) {
-            $this->failureReporter->fail('missing_current_run_prior_fi');
-        }
-
-        $this->info("EEX futures fetch complete. Fetched {$totalFetched} price points, upserted {$totalSaved}. Failures: {$failures}.");
-
-        // FI Base futures are a direct input to canonical Spot, market-reset, and supplier-adjusted
-        // annual prices. Invalidate every calculated-cost-dependent cache after a real FI write.
-        // Downstream company, ranking, and prepared-page keys include this shared list version.
-        if (! $this->option('dry-run') && $totalSaved > 0 && $latestCurrentRunPriorFiTradeDate !== null) {
-            $this->contractListCache->bumpVersion();
-        }
-
-        if (! $fullScope) {
-            return $failures > 0 ? Command::FAILURE : Command::SUCCESS;
-        }
-
-        $ready = $failures === 0
-            && $totalFetched > 0
-            && $latestCurrentRunPriorFiTradeDate !== null;
-        $recorded = $this->recordFullScopeCheckpoint($fullScope, $effectiveDate, [
-            'fetched_points' => $totalFetched,
-            'saved_points' => $totalSaved,
-            'failures' => $failures,
-            'current_run_latest_prior_fi_trade_date' => $latestCurrentRunPriorFiTradeDate,
-        ], $ready);
-
-        return $ready && $recorded ? Command::SUCCESS : Command::FAILURE;
+        return $failed;
     }
 
     private function isFullScheduledScope(): bool
@@ -356,9 +444,9 @@ class FetchEexFutures extends Command
 
     /**
      * @param  array<int, array<string, mixed>>  $instruments
-     * @return array<int, array{instrument: array<string, mixed>, maturity: string}>
+     * @return array{0: array<int, array{instrument: array<string, mixed>, maturity: string}>, 1: array<string, array{instrument: array<string, mixed>, exception: Throwable}>}
      */
-    private function buildInstrumentMaturityRequests(array $instruments, Carbon $referenceDate, int &$failures): array
+    private function buildInstrumentMaturityRequests(array $instruments, Carbon $referenceDate): array
     {
         $requests = [];
         $explicitMaturities = array_values(array_filter((array) $this->option('maturity')));
@@ -372,16 +460,32 @@ class FetchEexFutures extends Command
                 }
             }
 
-            return $requests;
+            return [$requests, []];
         }
 
-        $maturitiesByTenor = [];
         $representativeByTenor = [];
 
         foreach ($instruments as $instrument) {
             $tenor = strtolower((string) ($instrument['maturity_type'] ?? 'year'));
             $representativeByTenor[$tenor] ??= $instrument;
         }
+
+        return $this->discoverRequests($instruments, $representativeByTenor, $referenceDate);
+    }
+
+    /**
+     * Discover maturities once per tenor and build the requests for every instrument of that tenor.
+     * A failed tenor is returned with its representative so a retry pass can discover it again.
+     *
+     * @param  array<int, array<string, mixed>>  $instruments
+     * @param  array<string, array<string, mixed>>  $representativeByTenor
+     * @return array{0: array<int, array{instrument: array<string, mixed>, maturity: string}>, 1: array<string, array{instrument: array<string, mixed>, exception: Throwable}>}
+     */
+    private function discoverRequests(array $instruments, array $representativeByTenor, Carbon $referenceDate): array
+    {
+        $requests = [];
+        $maturitiesByTenor = [];
+        $failed = [];
 
         foreach ($representativeByTenor as $tenor => $representativeInstrument) {
             try {
@@ -394,7 +498,7 @@ class FetchEexFutures extends Command
                     $representativeInstrument['short_code'] ?? 'unknown-code'
                 ));
             } catch (RequestException|ConnectionException $e) {
-                $failures++;
+                $failed[$tenor] = ['instrument' => $representativeInstrument, 'exception' => $e];
                 $this->warn(sprintf(
                     'Failed to discover %s maturities using %s %s: %s',
                     $tenor,
@@ -402,7 +506,6 @@ class FetchEexFutures extends Command
                     $representativeInstrument['short_code'] ?? 'unknown-code',
                     $e::class
                 ));
-                $this->failureReporter->fail('discovery', $e);
             }
         }
 
@@ -414,7 +517,7 @@ class FetchEexFutures extends Command
             }
         }
 
-        return $requests;
+        return [$requests, $failed];
     }
 
     /**

@@ -856,7 +856,10 @@ class DeferredContractImportCompletionTest extends TestCase
     {
         DataFreshnessCheckpoint::create([
             'key' => DataFreshnessCheckpoint::KEY_EEX_FUTURES, 'effective_date' => self::DATE,
-            'status' => 'ready', 'metadata' => ['current_run_latest_prior_fi_trade_date' => '2026-09-15'],
+            'status' => 'ready', 'metadata' => [
+                'current_run_latest_prior_fi_trade_date' => '2026-09-15',
+                'current_run_latest_prior_fi_trade_dates_by_tenor' => ['month' => '2026-09-15', 'quarter' => '2026-09-15', 'year' => '2026-09-15'],
+            ],
             'recorded_at' => now(),
         ]);
         ElectricityFuturesEodPrice::create([

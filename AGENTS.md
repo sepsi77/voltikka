@@ -55,7 +55,7 @@ The `voltikka` app service is connected to the GitHub repository and automatical
 
 Every deploy has a short outage. The app service mounts a volume on `/app/storage`, and Railway never runs two deployments of a volume-backed service at once, so the old container stops before the new one is healthy. The service health check (`/up`, 600 s timeout, `PORT=8000` because Railway probes `PORT` and Caddy listens on 8000; set 2026-10-15) only keeps a broken start from being marked live. The outage lasts as long as `docker-entrypoint.sh` takes before FrankenPHP starts. Keep that script fast: the volume holds the file cache (about 116k files in October 2026), so never walk it at start: a recursive `chmod -R`/`chown -R` took about 2 min 20 s, and even a read-only `find` over it took about 70 s. The script skips `storage/framework/cache` contents; every process runs as root, so their ownership has no effect.
 
-Do not deploy between 04:00 and about 07:40 Europe/Helsinki. The scheduled `futures:fetch-eex` starts at 04:00 and is throttled to about 15 s per EEX call; in October 2026 each run finished at about 07:35 (its checkpoint row shows the start and finish). A deploy stops the old container and kills the run. On 2026-10-02 a deploy at about 04:18 stopped it: its checkpoint stayed `running`, and trade dates 2026-10-01 and 2026-10-02 arrived only with the next day's run. Check the time before you push, and wait until the import has finished.
+Do not deploy between 04:00 and about 09:00 Europe/Helsinki. The scheduled `futures:fetch-eex` starts at 04:00 and is throttled to about 15 s per EEX call; in October 2026 a clean run finished at about 07:35, and a run that retries failed requests can last until about 09:00 (its checkpoint row shows the start and finish). Also deploy only after both morning consumers have finished, or before 04:00. A deploy stops the old container and kills the run. On 2026-10-02 a deploy at about 04:18 stopped it: its checkpoint stayed `running`, and trade dates 2026-10-01 and 2026-10-02 arrived only with the next day's run. Check the time before you push, and wait until the import has finished.
 
 A push to `origin/main` is a production mutation because it starts an automatic deployment. State the branch, command, target project/environment/service, and expected effect, and get explicit user confirmation before pushing.
 
@@ -227,6 +227,8 @@ Retail collection and forecast generation use independent five-minute background
 
 ## Import failure Issues
 
+`futures:fetch-eex` retries only its failed discovery tenors and EOD requests after the main pass (at most 2 passes after a 60 s pause, and only when at most 25 units failed). Recovered failures do not alert. A full run is `ready` only when this run extracted prior-date FI Base month, quarter and year rows for its latest FI trade date; the morning gate rejects a quarter/year-only run (2026-10-07: a failed month probe lost that day's forecast and retail collection). See `laravel/app/Services/ElectricityFutures/AGENTS.md`.
+
 `spot:fetch`, `futures:fetch-eex`, and `contracts:fetch` send one explicit Sentry Issue and one safe aggregate Laravel log for a failed or incomplete invocation. Repeated failures group by import. Recovered retries and normal empty EEX maturities do not alert. Optional interpretation/logo failures do not create import Issues. Sentry Logs are separate from Issues; scheduler listeners remain unchanged. See `laravel/AGENTS.md` for the outcome, severity, and privacy rules.
 
 ## Key Features
@@ -316,6 +318,7 @@ Retail collection and forecast generation use independent five-minute background
 - Immediate purpose is calibrating the market-reset estimate above; longer term it supports pass-through asymmetry analysis and seller value profiling
 - Rows are immutable by default and `method_version` is part of row identity, so a method change inserts new rows beside the old ones. **Any analysis must filter to the current `method_version` pair**
 - Command `retail-premiums:collect` (bounded five-minute background ticks from 07:15 through 12:00 Europe/Helsinki); the scheduled form uses `--scheduled` and defers unless the same-day full contract and EEX checkpoints, exactly one pointed source-observation episode and current publication for every active contract, current-run prior-date FI Base proof, and recent FI Base database data are ready. Historical/manual collection remains opt-in and compatible. Read-only diagnostic: `retail-premiums:cross-check`
+- Scheduled collection failed on every ready day from 2026-09-21 to 2026-10-16 because a same-payload reinterpretation rewrote phase labels and evidence text; the compatibility check now ignores only that text when the episode, snapshot and price signature are the same
 - See `laravel/app/Services/RetailPremium/AGENTS.md`
 
 ### 3. Fixed-term Price Forecasting

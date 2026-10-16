@@ -229,6 +229,88 @@ class RetailPremiumCollectionTest extends TestCase
         }
     }
 
+    public function test_scheduled_reinterpretation_with_rewritten_label_and_evidence_completes_without_changing_stored_row(): void
+    {
+        // Production 2026-09-21..10-16: a schema-v4 reinterpretation of the same payload rewrote the
+        // phase label and evidence quotes, and every scheduled run stopped at that row.
+        CarbonImmutable::setTestNow('2026-07-26 08:00 Europe/Helsinki');
+        try {
+            $contract = $this->publishedSpotContract('relabelled-spot', margin: 0.50, monthlyFee: 3.00);
+            $this->artisan('retail-premiums:collect --as-of=2026-07-25')->assertSuccessful();
+            $original = RetailPremiumObservation::sole();
+            $this->republishSameEpisode($contract, function (array $pricing): array {
+                $pricing['phases'][0]['label'] = 'Nykyinen spot-hinnoittelu';
+                foreach ($pricing['phases'][0]['components'] as $index => $component) {
+                    $pricing['phases'][0]['components'][$index]['source_kind'] = 'both';
+                    $pricing['phases'][0]['components'][$index]['evidence'][] = ['source' => 'extra_information_fi', 'quote' => 'Pörssihinta + marginaali.'];
+                }
+
+                return $pricing;
+            });
+
+            $this->artisan('retail-premiums:collect --scheduled')->assertSuccessful();
+
+            $stored = RetailPremiumObservation::sole();
+            $this->assertSame($original->id, $stored->id);
+            $this->assertSame($original->published_interpretation_id, $stored->published_interpretation_id);
+            $this->assertSame('Current price', $stored->phase_label);
+            $this->assertEquals($original->energy_components, $stored->energy_components);
+            $this->assertSame('2026-07-26', $stored->last_observed_date->toDateString());
+            $checkpoint = DataFreshnessCheckpoint::where('key', 'morning_retail')->whereDate('effective_date', '2026-07-26')->sole();
+            $this->assertSame('ready', $checkpoint->status);
+            $this->assertTrue($checkpoint->metadata['scheduled_complete']);
+        } finally {
+            CarbonImmutable::setTestNow();
+        }
+    }
+
+    public function test_scheduled_reinterpretation_that_changes_an_unsigned_component_amount_still_requires_inspection(): void
+    {
+        CarbonImmutable::setTestNow('2026-07-26 08:00 Europe/Helsinki');
+        try {
+            $contract = $this->publishedSpotContract('unsigned-change-spot', margin: 0.50, monthlyFee: 3.00);
+            $pricing = $contract->canonical_pricing;
+            $pricing['phases'][0]['components'][] = ['component_type' => 'one_time_fee', 'amount' => 10.0, 'normal_amount' => null,
+                'unit' => 'eur', 'vat_status' => 'included', 'price_role' => 'current', 'source_kind' => 'structured', 'evidence' => []];
+            $contract->update(['canonical_pricing' => $pricing]);
+            $this->artisan('retail-premiums:collect --as-of=2026-07-25')->assertSuccessful();
+            $this->republishSameEpisode($contract, function (array $pricing): array {
+                $pricing['phases'][0]['label'] = 'Nykyinen hinta';
+                $pricing['phases'][0]['components'][2]['amount'] = 25.0;
+
+                return $pricing;
+            });
+
+            $this->artisan('retail-premiums:collect --scheduled')
+                ->expectsOutputToContain('differs in energy_components')
+                ->assertSuccessful();
+
+            $this->assertDatabaseHas('data_freshness_checkpoints', ['key' => 'morning_retail', 'effective_date' => '2026-07-26', 'status' => 'failed']);
+            $this->assertSame('Current price', RetailPremiumObservation::sole()->phase_label);
+            $this->assertSame('2026-07-25', RetailPremiumObservation::sole()->last_observed_date->toDateString());
+        } finally {
+            CarbonImmutable::setTestNow();
+        }
+    }
+
+    /** Publish a new interpretation of the same snapshot and episode, with ready freshness. */
+    private function republishSameEpisode(ElectricityContract $contract, callable $rewrite): void
+    {
+        $contract->refresh();
+        $pricing = $rewrite($contract->canonical_pricing);
+        $interpretation = $contract->publishedInterpretation->replicate();
+        $interpretation->analysis_fingerprint = hash('sha256', 'reinterpretation');
+        $interpretation->schema_version = 'schema-v4';
+        $interpretation->output = ['pricing' => $pricing, 'confidence' => ['pricing' => 'high']];
+        $interpretation->published_at = '2026-07-26 06:05:00';
+        $interpretation->save();
+        $contract->update(['published_interpretation_id' => $interpretation->id, 'canonical_pricing' => $pricing]);
+        $contract->currentSourceObservation->update(['last_observed_at' => '2026-07-26 06:00:00']);
+        $freshness = $this->createMock(MorningJobFreshnessService::class);
+        $freshness->method('checkRetailPremium')->willReturn(new MorningFreshnessResult([]));
+        $this->app->instance(MorningJobFreshnessService::class, $freshness);
+    }
+
     private function publishedSpotContract(
         string $id,
         float $margin,

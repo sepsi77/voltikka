@@ -373,6 +373,7 @@ class MorningJobFreshnessGateTest extends TestCase
         $this->assertArrayHasKey('futures_data', $retail->failures);
         $this->checkpoint(DataFreshnessCheckpoint::KEY_EEX_FUTURES, DataFreshnessCheckpoint::STATUS_READY, [
             'current_run_latest_prior_fi_trade_date' => '2026-07-31',
+            'current_run_latest_prior_fi_trade_dates_by_tenor' => ['month' => '2026-07-31', 'quarter' => '2026-07-31', 'year' => '2026-07-31'],
         ]);
         $this->future('2026-07-20');
         $this->assertArrayHasKey('futures_data', app(MorningJobFreshnessService::class)->checkFixedTermForecast($date)->failures);
@@ -422,8 +423,38 @@ class MorningJobFreshnessGateTest extends TestCase
             '--as-of' => self::DATE,
             '--require-freshness' => true,
         ])
-            ->expectsOutput('Morning job deferred: The current EEX fetch has no prior-date FI Base point from this run.')
+            ->expectsOutput('Morning job deferred: The current EEX fetch has no prior-date FI Base month, quarter and year points from this run.')
             ->assertExitCode(1);
+    }
+
+    public function test_ready_eex_checkpoint_requires_month_quarter_and_year_on_the_latest_trade_date(): void
+    {
+        $this->readyContractCheckpoint([1], []);
+        $this->future('2026-07-31');
+        $this->forecastStatistics();
+        $date = CarbonImmutable::parse(self::DATE, 'Europe/Helsinki');
+
+        foreach ([
+            'pre-tenor metadata' => null,
+            'no month rows (2026-10-07)' => ['month' => null, 'quarter' => '2026-07-31', 'year' => '2026-07-31'],
+            'month one day behind' => ['month' => '2026-07-30', 'quarter' => '2026-07-31', 'year' => '2026-07-31'],
+        ] as $case => $byTenor) {
+            DataFreshnessCheckpoint::query()->where('key', DataFreshnessCheckpoint::KEY_EEX_FUTURES)->delete();
+            $this->checkpoint(DataFreshnessCheckpoint::KEY_EEX_FUTURES, DataFreshnessCheckpoint::STATUS_READY, array_filter([
+                'current_run_latest_prior_fi_trade_date' => '2026-07-31',
+                'current_run_latest_prior_fi_trade_dates_by_tenor' => $byTenor,
+            ], fn ($value) => $value !== null));
+
+            $this->assertArrayHasKey('eex_metadata', app(MorningJobFreshnessService::class)->checkFixedTermForecast($date)->failures, $case);
+            $this->assertArrayHasKey('eex_metadata', app(MorningJobFreshnessService::class)->checkRetailPremium($date)->failures, $case);
+        }
+
+        DataFreshnessCheckpoint::query()->where('key', DataFreshnessCheckpoint::KEY_EEX_FUTURES)->delete();
+        $this->checkpoint(DataFreshnessCheckpoint::KEY_EEX_FUTURES, DataFreshnessCheckpoint::STATUS_READY, [
+            'current_run_latest_prior_fi_trade_date' => '2026-07-31',
+            'current_run_latest_prior_fi_trade_dates_by_tenor' => ['month' => '2026-07-31', 'quarter' => '2026-07-31', 'year' => '2026-07-31'],
+        ]);
+        $this->assertArrayNotHasKey('eex_metadata', app(MorningJobFreshnessService::class)->checkFixedTermForecast($date)->failures);
     }
 
     public function test_valid_retail_gate_is_ready(): void
@@ -772,6 +803,7 @@ class MorningJobFreshnessGateTest extends TestCase
     {
         $this->checkpoint(DataFreshnessCheckpoint::KEY_EEX_FUTURES, DataFreshnessCheckpoint::STATUS_READY, [
             'current_run_latest_prior_fi_trade_date' => '2026-07-31',
+            'current_run_latest_prior_fi_trade_dates_by_tenor' => ['month' => '2026-07-31', 'quarter' => '2026-07-31', 'year' => '2026-07-31'],
         ]);
         $this->future('2026-07-31');
     }

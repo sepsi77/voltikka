@@ -426,14 +426,16 @@ class CollectRetailPremiumObservations extends Command
     {
         $comparison = clone $existing;
         $comparison->fill($observation);
+        // Republishing the same source episode preserves immutable original provenance.
+        $episode = $observation['source_metadata']['source_observation_id'] ?? null;
+        $republished = is_int($episode)
+            && $episode === ($existing->source_metadata['source_observation_id'] ?? null)
+            && $existing->source_snapshot_id === ($observation['source_snapshot_id'] ?? null)
+            && $existing->observation_key === $observation['observation_key']
+            && $existing->price_signature === $observation['price_signature'];
         foreach (array_diff(array_keys($comparison->getDirty()), ['first_observed_date', 'last_observed_date', 'source_metadata']) as $field) {
-            // Republishing the same source episode preserves immutable original provenance.
-            $episode = $observation['source_metadata']['source_observation_id'] ?? null;
-            if ($field === 'published_interpretation_id' && is_int($episode)
-                && $episode === ($existing->source_metadata['source_observation_id'] ?? null)
-                && $existing->source_snapshot_id === ($observation['source_snapshot_id'] ?? null)
-                && $existing->observation_key === $observation['observation_key']
-                && $existing->price_signature === $observation['price_signature']) {
+            // A reinterpretation of the same payload rewrites its free-text phase label and evidence quotes.
+            if ($republished && in_array($field, ['published_interpretation_id', 'phase_label'], true)) {
                 continue;
             }
             $stored = $existing->getAttribute($field);
@@ -444,8 +446,27 @@ class CollectRetailPremiumObservations extends Command
             if (is_array($stored) && is_array($incoming) && $stored == $incoming) {
                 continue;
             }
+            if ($republished && $field === 'energy_components' && is_array($stored) && is_array($incoming)
+                && $this->withoutComponentProvenance($stored) == $this->withoutComponentProvenance($incoming)) {
+                continue;
+            }
+            $this->error("Existing retail observation {$existing->id} differs in {$field}; inspect before further writes.");
             throw new \RuntimeException('Existing retail observation requires inspection.');
         }
+    }
+
+    /**
+     * Drop interpreter provenance (evidence quotes and their source kind) and keep every price fact.
+     *
+     * @param  array<int, mixed>  $components
+     * @return array<int, mixed>
+     */
+    private function withoutComponentProvenance(array $components): array
+    {
+        return array_map(
+            fn ($component) => is_array($component) ? array_diff_key($component, ['evidence' => true, 'source_kind' => true]) : $component,
+            $components,
+        );
     }
 
     /**

@@ -1,0 +1,9 @@
+[
+  {"name": "Root cause of 2026-10-07 and 2026-10-09 failures from code and production log", "status": "done"},
+  {"name": "In-run retry pass for failed discovery and EOD units", "status": "done"},
+  {"name": "Complete month/quarter/year current-run FI proof in command and freshness gate", "status": "done"},
+  {"name": "Tests (command, freshness gate fixtures)", "status": "done"},
+  {"name": "Context files (ElectricityFutures, MorningFreshness, laravel AGENTS.md)", "status": "done"},
+  {"name": "Verification: focused tests, pint --test, git diff --check", "status": "done"},
+  {"name": "Root AGENTS.md text (manager) and release timing (user approval)", "status": "pending"}
+]

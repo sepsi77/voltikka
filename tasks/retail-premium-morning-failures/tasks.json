@@ -1,0 +1,9 @@
+[
+  {"name":"Find the production exception and failing observations (read-only)","status":"completed"},
+  {"name":"Reproduce on a scratch copy of the local production database","status":"completed"},
+  {"name":"Fix the scheduled compatibility check","status":"completed"},
+  {"name":"Add regression tests and run focused suites","status":"completed"},
+  {"name":"Verify the fix end to end on the database copy","status":"completed"},
+  {"name":"Backfill recommendation and context update","status":"completed"},
+  {"name":"Release (Git push) and first production run: needs explicit user approval","status":"pending"}
+]

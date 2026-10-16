@@ -26,6 +26,13 @@ class MorningJobFreshnessService
         'fixed_term_24',
     ];
 
+    /**
+     * FI Base tenors that `futures:fetch-eex` must extract for the run's latest prior trade date.
+     *
+     * @var list<string>
+     */
+    public const EEX_PROOF_TENORS = ['month', 'quarter', 'year'];
+
     public function __construct(
         private readonly ConfigRepository $config,
         private readonly LoggerInterface $logger,
@@ -174,8 +181,8 @@ class MorningJobFreshnessService
             $failures['eex_checkpoint'] = 'The current EEX futures checkpoint is missing.';
         } elseif ($eexCheckpoint->status !== DataFreshnessCheckpoint::STATUS_READY) {
             $failures['eex_checkpoint'] = "The current EEX futures fetch is {$eexCheckpoint->status}.";
-        } elseif (! $this->hasCurrentRunPriorFiPoint($eexCheckpoint->metadata, $date)) {
-            $failures['eex_metadata'] = 'The current EEX fetch has no prior-date FI Base point from this run.';
+        } elseif (! $this->hasCurrentRunPriorFiVintage($eexCheckpoint->metadata, $date)) {
+            $failures['eex_metadata'] = 'The current EEX fetch has no prior-date FI Base month, quarter and year points from this run.';
         }
 
         $latestTradeDate = ElectricityFuturesEodPrice::query()
@@ -244,13 +251,26 @@ class MorningJobFreshnessService
         ];
     }
 
-    /** @param array<string, mixed>|null $metadata */
-    private function hasCurrentRunPriorFiPoint(?array $metadata, string $effectiveDate): bool
+    /**
+     * The run's latest prior-date FI Base trade date must have month, quarter and year points from
+     * that same run. A quarter/year-only run (2026-10-07) or an old checkpoint without the tenor map
+     * fails closed.
+     *
+     * @param  array<string, mixed>|null  $metadata
+     */
+    private function hasCurrentRunPriorFiVintage(?array $metadata, string $effectiveDate): bool
     {
         $tradeDate = $metadata['current_run_latest_prior_fi_trade_date'] ?? null;
+        $byTenor = $metadata['current_run_latest_prior_fi_trade_dates_by_tenor'] ?? null;
 
-        if (! is_string($tradeDate) || $tradeDate === '') {
+        if (! is_string($tradeDate) || $tradeDate === '' || ! is_array($byTenor)) {
             return false;
+        }
+
+        foreach (self::EEX_PROOF_TENORS as $tenor) {
+            if (($byTenor[$tenor] ?? null) !== $tradeDate) {
+                return false;
+            }
         }
 
         try {
