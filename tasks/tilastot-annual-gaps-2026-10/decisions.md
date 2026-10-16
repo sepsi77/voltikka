@@ -88,3 +88,11 @@ Public weekly lead chart (5000 kWh) now has values for spot and open-ended in th
 5.10. Daily view: spot and open-ended have one null point on 7.10 (the removed rows; other segments
 keep that date), 1.10 has no point at all. Full local suite: 3041 passed, 1 failed
 (`LayoutAssetLoadingTest`, local `public/hot` file only).
+
+## Correction: EEX gate (2026-10-16, production read-only)
+The morning gate did block partial EEX runs: eex_futures 7.10 (`failed`, 2 failures) and 9.10
+(`failed`, 1 failure) left morning_forecast and morning_retail `waiting` (`dependencies_not_ready`)
+until the deadline, so no forecast or retail rows were written on those days. The gap is that EEX
+has no retry, so one partial run loses the whole day. The run lasts 04:01–about 07:35 Helsinki.
+morning_retail also ended `failed` / `execution_failed` (RuntimeException) on 30.9, 6.10 and 10.10;
+not investigated.

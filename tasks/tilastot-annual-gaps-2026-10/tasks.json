@@ -28,7 +28,7 @@
     "status": "pending"
   },
   {
-    "name": "Follow-up: EEX freshness gate accepts quarter/year-only runs",
+    "name": "Follow-up: a partial EEX run loses that day's forecast and retail collection (no retry)",
     "status": "pending"
   },
   {
