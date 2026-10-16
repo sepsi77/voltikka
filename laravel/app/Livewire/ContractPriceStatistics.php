@@ -318,16 +318,14 @@ class ContractPriceStatistics extends Component
 
         $latestDate = $latest->stat_date->toDateString();
         $comparisonDate = Carbon::parse($latestDate, 'Europe/Helsinki')->subDays(30)->toDateString();
-        $previous = $rows->first(fn (ContractPriceDailyStatistic $row): bool =>
-            $row->segment_key === SellerSetEnergyPriceIndexService::SEGMENT_OVERALL
+        $previous = $rows->first(fn (ContractPriceDailyStatistic $row): bool => $row->segment_key === SellerSetEnergyPriceIndexService::SEGMENT_OVERALL
             && $row->stat_date->toDateString() === $comparisonDate
             && $row->compatibility_key === $latest->compatibility_key
         );
         $metadata = is_array($latest->basis_counts) ? $latest->basis_counts : [];
         $current = (float) $latest->avg_value;
         $previousValue = $previous?->avg_value !== null ? (float) $previous->avg_value : null;
-        $hybrid = $rows->first(fn (ContractPriceDailyStatistic $row): bool =>
-            $row->segment_key === SellerSetEnergyPriceIndexService::SEGMENT_HYBRID_BASE
+        $hybrid = $rows->first(fn (ContractPriceDailyStatistic $row): bool => $row->segment_key === SellerSetEnergyPriceIndexService::SEGMENT_HYBRID_BASE
             && $row->stat_date->toDateString() === $latestDate
         );
 
@@ -833,7 +831,7 @@ class ContractPriceStatistics extends Component
 
     private function statisticsViewDataCacheKey(): string
     {
-        return 'contract-price-statistics:view-data:v21:'.md5(json_encode([
+        return 'contract-price-statistics:view-data:v22:'.md5(json_encode([
             'period' => $this->period,
             'consumption' => $this->consumption,
             'pricing_basis' => app(PricingMode::class)->expectedContractPriceBasis()->value,
@@ -914,8 +912,7 @@ class ContractPriceStatistics extends Component
         }
 
         return $this->sellerSetIndexRowsCache = $this->dailyStats
-            ->filter(fn (ContractPriceDailyStatistic $row): bool =>
-                $row->method_version === ContractPriceDailyStatistic::UNIT_STATISTICS_METHOD_VERSION
+            ->filter(fn (ContractPriceDailyStatistic $row): bool => $row->method_version === ContractPriceDailyStatistic::UNIT_STATISTICS_METHOD_VERSION
                 && $row->metric_key === SellerSetEnergyPriceIndexService::METRIC_KEY
                 && $row->pricing_basis === ContractPriceBasis::CanonicalCalculation->value
                 && $row->calculation_basis === SellerSetEnergyPriceIndexService::CALCULATION_BASIS

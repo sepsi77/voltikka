@@ -193,7 +193,7 @@ class HomePage extends Component
             ->where('stat_date', '<=', $latestExpectedDate)
             ->selectRaw('COUNT(*) as row_count, MAX(updated_at) as latest_update')
             ->first();
-        $cacheKey = 'home-page:contract-price-trend:v8:'.md5(json_encode([
+        $cacheKey = 'home-page:contract-price-trend:v9:'.md5(json_encode([
             'annual_method' => ContractPriceDailyStatistic::activeAnnualMethodVersion()->value,
             'pricing_basis' => $expectedBasis,
             'latest_expected_date' => (string) $latestExpectedDate,

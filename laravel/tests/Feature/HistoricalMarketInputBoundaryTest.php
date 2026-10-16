@@ -15,10 +15,12 @@ use App\Services\CanonicalPricing\SupplierAdjusted\SupplierAdjustedPriceEstimato
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Tests\Concerns\CompletesFuturesVintages;
 use Tests\TestCase;
 
 class HistoricalMarketInputBoundaryTest extends TestCase
 {
+    use CompletesFuturesVintages;
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -192,6 +194,7 @@ class HistoricalMarketInputBoundaryTest extends TestCase
             'area' => 'FI', 'short_code' => 'FNBM', 'maturity_type' => 'month',
             'maturity' => $maturity, 'trade_date' => $trade, 'settlement_price' => $price,
         ]);
+        $this->completeFuturesVintages($trade);
     }
 
     private function provider(): EexMarketReferenceCurveProvider

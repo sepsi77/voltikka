@@ -16,9 +16,10 @@ use Carbon\CarbonImmutable;
  * Important properties, do not change casually:
  *
  * - **Vintage per lookup.** One ordered scalar query loads the available FI Base trade dates for
- *   this provider lifetime. Every lookup then resolves the latest date strictly before its own
- *   `$asOfDate` in memory. The caller decides the anchor: today for the forward months `F_m`, the
- *   current period's start for `F_reference`.
+ *   this provider lifetime. Only complete vintages (month, quarter and year rows) count. Every
+ *   lookup then resolves the latest date strictly before its own `$asOfDate` in memory. The
+ *   caller decides the anchor: today for the forward months `F_m`, the current period's start for
+ *   `F_reference`.
  * - **One curve query per vintage, not per month.** A listing rebuild costs 32 reset contracts x
  *   12 months of lookups; without the memoized curve that is hundreds of queries per page build.
  * - The reference-period lookup delegates to the retail-premium service's exact-vintage boundary,
@@ -242,16 +243,28 @@ class EexMarketReferenceCurveProvider implements MarketReferenceCurveProvider
         return $this->fixedTermMedianMemo = is_numeric($value) ? (float) $value : null;
     }
 
-    /** @return list<string> */
+    /**
+     * Trade dates whose FI Base curve has at least one month, one quarter and one year row.
+     *
+     * An incomplete vintage is skipped, so a lookup resolves to the latest complete one. On
+     * 2026-10-07 the EEX import stored only quarter and year rows for trade date 2026-10-06 (its
+     * months arrived on 2026-10-08); that vintage had no November price, so every Spot and
+     * supplier-adjusted estimate fell back for the whole day. `DATE()` groups SQLite date and
+     * datetime strings together and works the same on MySQL.
+     *
+     * @return list<string>
+     */
     private function availableTradeDates(): array
     {
         return $this->availableTradeDatesMemo ??= ElectricityFuturesEodPrice::query()
             ->where('area', config('price_forecasting.fixed_term.area', 'FI'))
             ->where('product', 'Base')
-            ->select('trade_date')
-            ->distinct()
-            ->orderBy('trade_date')
-            ->pluck('trade_date')
+            ->whereIn('maturity_type', ['month', 'quarter', 'year'])
+            ->selectRaw('DATE(trade_date) AS vintage_date')
+            ->groupByRaw('DATE(trade_date)')
+            ->havingRaw('COUNT(DISTINCT maturity_type) = 3')
+            ->orderBy('vintage_date')
+            ->pluck('vintage_date')
             ->map(fn ($tradeDate) => CarbonImmutable::parse($tradeDate)->toDateString())
             ->all();
     }

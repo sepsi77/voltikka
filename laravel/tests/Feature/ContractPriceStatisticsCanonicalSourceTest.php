@@ -20,6 +20,7 @@ use App\Services\DTO\EnergyUsage;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Tests\Concerns\CompletesFuturesVintages;
 use Tests\TestCase;
 
 /**
@@ -32,6 +33,7 @@ use Tests\TestCase;
  */
 class ContractPriceStatisticsCanonicalSourceTest extends TestCase
 {
+    use CompletesFuturesVintages;
     use RefreshDatabase;
 
     private const DATE = '2026-07-27';
@@ -194,6 +196,7 @@ class ContractPriceStatisticsCanonicalSourceTest extends TestCase
         $this->future('month', '202607', '2026-06-30', 80.0);
         $this->future('year', '202601', '2026-07-26', 80.0);
         $this->future('year', '202701', '2026-07-26', 80.0);
+        $this->completeFuturesVintages('2026-06-30', '2026-07-26');
 
         $contract = $this->createContract('spot-1', [
             $this->phaseWithComponents([

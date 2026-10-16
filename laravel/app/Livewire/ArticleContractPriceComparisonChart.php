@@ -46,7 +46,7 @@ class ArticleContractPriceComparisonChart extends Component
         $from = Carbon::parse($to)->subYear()->toDateString();
 
         return Cache::remember(
-            'article:contract-price-comparison-chart:prepared:v5:'.ContractPriceDailyStatistic::activeAnnualMethodVersion()->value.':'.$pricingBasis.':'.$to,
+            'article:contract-price-comparison-chart:prepared:v6:'.ContractPriceDailyStatistic::activeAnnualMethodVersion()->value.':'.$pricingBasis.':'.$to,
             now()->addHours(6),
             function () use ($from, $pricingBasis, $to): array {
                 $rows = ContractPriceDailyStatistic::query()

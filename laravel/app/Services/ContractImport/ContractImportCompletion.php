@@ -316,8 +316,11 @@ class ContractImportCompletion
             if (! Cache::forget(SitemapService::CACHE_KEY) && Cache::has(SitemapService::CACHE_KEY)) {
                 throw new RuntimeException('Sitemap cache invalidation failed.');
             }
-            $facts['initial_statistics_started_at'] ??= $started->toIso8601String();
-            $facts['initial_statistics_completed_at'] ??= $completed->toIso8601String();
+            // A run that deferred before its initial statistics has no initial times; a tick never invents them.
+            if (! $delayed) {
+                $facts['initial_statistics_started_at'] = $started->toIso8601String();
+                $facts['initial_statistics_completed_at'] = $completed->toIso8601String();
+            }
             $facts['statistics_started_at'] = $started->toIso8601String();
             $facts['statistics_completed_at'] = $completed->toIso8601String();
             $stage = 'price_cache_refresh';
@@ -355,8 +358,12 @@ class ContractImportCompletion
                 }
             }
         } catch (Throwable $exception) {
+            // A complete full import also defers when the active set changed under its initial statistics
+            // (2026-10-01: month-start activations). The fence threw inside the rolled-back statistics
+            // transaction, so nothing partial was written; the completion tick recalculates.
             if ($uuid !== null && $complete
-                && (($exception instanceof ContractPriceCacheConflict && ($delayed || ($completed !== null && $stage === 'price_cache_refresh')))
+                && (($exception instanceof ContractPriceCacheConflict && ($delayed || ($completed !== null && $stage === 'price_cache_refresh')
+                    || ($completed === null && $stage === 'daily_statistics' && $exception->reason === ContractPriceCacheConflict::EVIDENCE_CHANGED)))
                     || ($delayed && $exception instanceof ContractImportCompletionStopped && $exception->reason === 'waiting'))) {
                 $deferred = true;
             } else {
@@ -400,8 +407,12 @@ class ContractImportCompletion
             || ! is_bool($facts['interpretation_enabled'] ?? null) || ! is_int($facts['checks'] ?? null)
             || $facts['checks'] < 0 || ! is_string($facts['deadline'] ?? null)
             || ! is_array($facts['initial_active_contract_ids'] ?? null)
-            || ! is_array($facts['observed_source_observation_ids'] ?? null)
-            || ! is_string($facts['statistics_started_at'] ?? null) || ! is_string($facts['statistics_completed_at'] ?? null)) {
+            || ! is_array($facts['observed_source_observation_ids'] ?? null)) {
+            return false;
+        }
+        // Statistics times are absent only when the initial statistics deferred; then both are absent.
+        $statisticsRecorded = array_key_exists('statistics_started_at', $facts) || array_key_exists('statistics_completed_at', $facts);
+        if ($statisticsRecorded && (! is_string($facts['statistics_started_at'] ?? null) || ! is_string($facts['statistics_completed_at'] ?? null))) {
             return false;
         }
         $observations = $contracts = [];
@@ -421,15 +432,17 @@ class ContractImportCompletion
         }
         try {
             $date = CarbonImmutable::createFromFormat('!Y-m-d', $facts['effective_date'], 'Europe/Helsinki');
-            $started = CarbonImmutable::parse($facts['statistics_started_at']);
-            $completed = CarbonImmutable::parse($facts['statistics_completed_at']);
             $deadline = CarbonImmutable::parse($facts['deadline']);
             if (isset($facts['claim_token']) && (! is_string($facts['claim_token']) || ! Str::isUuid($facts['claim_token'])
                 || ! is_string($facts['claim_until'] ?? null) || ! CarbonImmutable::parse($facts['claim_until']))) {
                 return false;
             }
 
-            return $date->toDateString() === $facts['effective_date'] && $completed->gte($started)
+            if ($statisticsRecorded && CarbonImmutable::parse($facts['statistics_completed_at'])->lt(CarbonImmutable::parse($facts['statistics_started_at']))) {
+                return false;
+            }
+
+            return $date->toDateString() === $facts['effective_date']
                 && $deadline->gte($date) && $deadline->lte($date->addDay()->addHours(2));
         } catch (Throwable) {
             return false;

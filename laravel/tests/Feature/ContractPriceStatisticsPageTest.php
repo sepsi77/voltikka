@@ -617,9 +617,9 @@ class ContractPriceStatisticsPageTest extends TestCase
         app()->forgetScopedInstances();
         $asOfKey = $method->invoke(app(ContractPriceStatistics::class));
 
-        $this->assertStringStartsWith('contract-price-statistics:view-data:v21:', $legacyKey);
-        $this->assertStringStartsWith('contract-price-statistics:view-data:v21:', $canonicalKey);
-        $this->assertStringStartsWith('contract-price-statistics:view-data:v21:', $asOfKey);
+        $this->assertStringStartsWith('contract-price-statistics:view-data:v22:', $legacyKey);
+        $this->assertStringStartsWith('contract-price-statistics:view-data:v22:', $canonicalKey);
+        $this->assertStringStartsWith('contract-price-statistics:view-data:v22:', $asOfKey);
         $this->assertNotSame($legacyKey, $canonicalKey);
         $this->assertNotSame($canonicalKey, $asOfKey);
     }
@@ -877,7 +877,7 @@ class ContractPriceStatisticsPageTest extends TestCase
     }
 
     /**
-     * @param  array{0:float,1:float,2:float,3:float}  $values Overall, fixed, open-ended, market-reset.
+     * @param  array{0:float,1:float,2:float,3:float}  $values  Overall, fixed, open-ended, market-reset.
      */
     private function seedSellerSetIndex(
         string $date,

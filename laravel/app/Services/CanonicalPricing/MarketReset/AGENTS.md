@@ -107,6 +107,25 @@ discounts do not create offer savings. Exact-period calculation receives no annu
 
 `EexMarketReferenceCurveProvider::resetMemoization()` clears trade dates, curves, references, seasonal indices, and the fixed-term median. The canonical orchestrator calls it on the shared provider before price-cache retries and full candidate builds, so an EEX invalidation cannot make a new generation reuse an earlier request-local curve. Normal reads still memoize within an attempt. No market formula, vintage rule, or persistent data changes. `EexMarketReferenceCurveProviderTest` verifies a previously missing curve is reloaded through the list-cache reset boundary.
 
+## Incomplete vintages are skipped (2026-10-16)
+
+`EexMarketReferenceCurveProvider` counts a trade date as an available vintage only when its FI Base
+curve has at least one `month`, one `quarter` and one `year` row. The one trade-date query groups by
+`DATE(trade_date)` with `HAVING COUNT(DISTINCT maturity_type) = 3` (same SQL on MySQL and SQLite).
+Every lookup (`F_m`, `F_reference`, the Spot strip, premium curve checks) then resolves to the latest
+**complete** vintage strictly before its as-of date.
+
+Reason: on 2026-10-07 the 04:00 EEX import stored only quarter and year rows for trade date
+2026-10-06; its month rows arrived on 2026-10-08. The 06:14 statistics run picked that vintage, found
+no November month (quarters start at 202701), and every Spot contract fell back to rolling-365
+(`missing_forward_month_2026_11`) and 37 supplier-adjusted contracts to the seasonal index, although
+the complete 2026-10-05 vintage was only two days old. On 2026-10-16 no stored FI Base trade date
+was incomplete, so this changes results only for a calculation that runs during a partial import.
+No `calculated_cost` field changes, so `CalculatedCostPayloadSchema::VERSION` stays 19.
+`FixedTermHedgeCostService::latestTradeDateBefore()`/`loadCurvesBefore()` still accept incomplete
+vintages; they must not be refactored (immutable stored forecasts), and the retail-premium reference
+service still uses them.
+
 ## Original-reference estimator (unchanged financial formula)
 
 ```
@@ -346,8 +365,9 @@ here; see the calibration section in `../AGENTS.md`.
   settings arrive as `DTO/ResetEstimatorSettings`, market data through the provider seam.
 - `MarketReferenceCurveProvider.php` — the market-data seam.
 - `EexMarketReferenceCurveProvider.php` — FI EEX curve, realized-spot seasonal index, fixed-term
-  median. One ordered/distinct scalar query loads all available FI Base trade dates for the scoped
-  provider lifetime. Strict `latest trade_date < as-of date` resolution then happens in memory,
+  median. One ordered, grouped scalar query loads all complete FI Base trade dates (at least one
+  month, quarter and year row; see "Incomplete vintages are skipped") for the scoped provider
+  lifetime. Strict `latest trade_date < as-of date` resolution then happens in memory,
   including memoized null misses. It also memoizes one curve per vintage. Exact-vintage reads use an
   index-friendly half-open `trade_date` range, so SQLite date strings and datetimes both work while
   MySQL keeps direct DATE/index comparisons. This request/command/job-scoped shared market-data state
@@ -452,7 +472,9 @@ Pinned by `tests/Unit/CanonicalPricing/MarketResetForwardShiftTest.php`.
 - `tests/Unit/CanonicalPricing/MarketResetForwardShiftTest.php` — the ladder, the guards, and the
   arithmetic against a fake curve. Includes flag-off byte-identity and the negative floor.
 - `tests/Feature/EexMarketReferenceCurveProviderTest.php` — per-lookup vintage resolution, no
-  same-day leakage, the month/quarter/year ladder, the quarter before and during delivery, the
-  seasonal index.
+  same-day leakage, skipped incomplete vintages (also through the Spot strip), the
+  month/quarter/year ladder, the quarter before and during delivery, the seasonal index.
+  Fixtures that use the real provider make their trade dates complete with
+  `tests/Concerns/CompletesFuturesVintages.php` (far-future 2099 filler rows).
 - `tests/Feature/MarketResetEstimateSurfacesTest.php` — cache-key participation, container wiring,
   and the Finnish copy.

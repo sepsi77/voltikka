@@ -197,6 +197,87 @@ class FetchContractsCommandTest extends TestCase
         $this->assertSame([], $this->sentryIssues);
     }
 
+    public function test_full_import_defers_when_the_active_set_changes_during_initial_statistics(): void
+    {
+        // 2026-10-01: month-start replacements were activated while the initial statistics ran.
+        $this->captureSentryIssues();
+        Queue::fake();
+        config(['contract_interpretation.enabled' => true, 'services.openrouter.api_key' => 'test-key']);
+        Http::fake(['*' => Http::response(array_merge(
+            $this->getSampleApiResponse(),
+            $this->getSampleApiResponse('contract-new', 'Sähkösopimus Uusi'),
+        ), 200)]);
+        // A first run leaves both contracts inactive; one then becomes active through earlier publication.
+        // Artisan keeps the first command instance, so the proxy passes the first run through.
+        $this->activateDuringStatistics(passThrough: 1);
+        $this->artisan('contracts:fetch', ['--skip-logos' => true])->assertSuccessful();
+        ActiveContract::create(['id' => ElectricityContract::where('api_id', 'contract-12345')->value('id')]);
+        $this->artisan('contracts:fetch', ['--skip-logos' => true])
+            ->expectsOutput('Contracts imported. Required completion is deferred until current interpretations settle.')
+            ->doesntExpectOutput('Required post-import stage daily_statistics failed.')
+            ->assertSuccessful();
+        $row = DataFreshnessCheckpoint::sole();
+        $this->assertSame(ContractImportCompletion::PENDING, $row->status);
+        $this->assertArrayNotHasKey('statistics_started_at', $row->metadata);
+        $this->assertArrayNotHasKey('statistics_completed_at', $row->metadata);
+        $this->assertSame(1, count($row->metadata['initial_active_contract_ids']));
+        $this->assertDatabaseCount('active_contracts', 2);
+        $this->assertDatabaseCount('contract_price_snapshots', 0);
+        $this->assertSame([], $this->sentryIssues);
+        $this->assertSame('waiting', app(ContractImportCompletion::class)->tick());
+        $this->assertSame([], $this->sentryIssues);
+    }
+
+    public function test_active_set_change_during_scoped_statistics_stays_a_failure(): void
+    {
+        $this->captureSentryIssues();
+        Http::fake(fn () => Http::response($this->getSampleApiResponse()));
+        $this->activateDuringStatistics();
+        $this->artisan('contracts:fetch', ['--postcodes' => '00100', '--skip-logos' => true])
+            ->expectsOutput('Required post-import stage daily_statistics failed.')
+            ->assertExitCode(1);
+        $this->assertImportIssue('contracts', 'error', ['daily_statistics' => 1]);
+        $this->assertSame(['daily_statistics' => ['evidence_changed' => 1]], $this->sentryIssues[0]->getContexts()['data_fetch']['reasons']);
+        $this->assertDatabaseCount('data_freshness_checkpoints', 0);
+    }
+
+    public function test_full_import_statistics_error_stays_terminal(): void
+    {
+        $this->captureSentryIssues();
+        Http::fake(fn () => Http::response($this->getSampleApiResponse()));
+        $statistics = $this->createMock(ContractPriceStatisticsService::class);
+        $statistics->method('calculateForDate')->willThrowException(new \RuntimeException('private'));
+        $this->app->instance(ContractPriceStatisticsService::class, $statistics);
+        $this->artisan('contracts:fetch', ['--skip-logos' => true])->assertExitCode(1);
+        $row = DataFreshnessCheckpoint::sole();
+        $this->assertSame(DataFreshnessCheckpoint::STATUS_FAILED, $row->status);
+        $this->assertSame('post_import', $row->metadata['stage']);
+        $this->assertImportIssue('contracts', 'error', ['daily_statistics' => 1]);
+        $this->assertSame('no_pending_completion', app(ContractImportCompletion::class)->tick());
+    }
+
+    /** Activates every imported contract after the caller captured the active set. */
+    private function activateDuringStatistics(int $passThrough = 0): void
+    {
+        $real = app(ContractPriceStatisticsService::class);
+        $proxy = \Mockery::mock($real)->makePartial();
+        $proxy->shouldReceive('calculateForDate')->times($passThrough + 1)->andReturnUsing(function ($date, $ids, $overwrite, $canonical, $fence) use ($real, &$passThrough): array {
+            if ($passThrough-- > 0) {
+                return $real->calculateForDate($date, $ids, $overwrite, $canonical, $fence);
+            }
+            $active = ActiveContract::pluck('id')->all();
+            foreach (ElectricityContract::whereNotIn('id', $active)->pluck('id') as $id) {
+                ActiveContract::create(['id' => $id]);
+            }
+            if (ActiveContract::count() === count($active)) {
+                ActiveContract::query()->delete();
+            }
+
+            return $real->calculateForDate($date, $ids, $overwrite, $canonical, $fence);
+        });
+        $this->app->instance(ContractPriceStatisticsService::class, $proxy);
+    }
+
     public function test_full_scope_stops_before_acquisition_when_initial_checkpoint_fails(): void
     {
         $freshness = $this->createMock(ContractImportCompletion::class);

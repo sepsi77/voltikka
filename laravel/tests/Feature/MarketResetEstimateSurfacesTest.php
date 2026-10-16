@@ -25,6 +25,7 @@ use App\Services\DTO\EnergyUsage;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Tests\Concerns\CompletesFuturesVintages;
 use Tests\TestCase;
 
 /**
@@ -36,6 +37,7 @@ use Tests\TestCase;
  */
 class MarketResetEstimateSurfacesTest extends TestCase
 {
+    use CompletesFuturesVintages;
     use RefreshDatabase;
 
     public function test_page_cache_version_changes_when_the_reset_shift_flag_flips(): void
@@ -219,6 +221,7 @@ class MarketResetEstimateSurfacesTest extends TestCase
                 'trade_date' => '2026-07-24', 'settlement_price' => $price,
             ]);
         }
+        $this->completeFuturesVintages('2026-06-30', '2026-07-24');
 
         $contract = ElectricityContract::create([
             'id' => 'reset-wiring-test',

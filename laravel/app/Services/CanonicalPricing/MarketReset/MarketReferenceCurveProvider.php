@@ -8,8 +8,8 @@ use Carbon\CarbonImmutable;
  * Market data the reset estimator needs, behind a seam so the estimator's arithmetic and
  * guards can be tested without a database.
  *
- * Every method resolves its vintage as the latest `trade_date < $asOfDate` (no same-day
- * leakage). The estimator deliberately passes **two different** `$asOfDate` values: today for
+ * Every method resolves its vintage as the latest complete `trade_date < $asOfDate` (no
+ * same-day leakage; a complete vintage has month, quarter and year rows). The estimator deliberately passes **two different** `$asOfDate` values: today for
  * the forward months `F_m`, and the current period's start for `F_reference`. See the
  * two-vintage rule in AGENTS.md.
  */

@@ -195,9 +195,11 @@ class FetchContracts extends Command
             $postImport->completionMetadata + [
                 'observed_source_observation_ids' => $import->observedObservationIds,
                 'active_contract_ids' => $import->activeContractIds,
+            ] + ($postImport->statisticsCompletedAt === null ? [] : [
+                // A completion deferred before its initial statistics records no statistics times.
                 'statistics_started_at' => $postImport->statisticsStartedAt?->toIso8601String(),
-                'statistics_completed_at' => $postImport->statisticsCompletedAt?->toIso8601String(),
-            ],
+                'statistics_completed_at' => $postImport->statisticsCompletedAt->toIso8601String(),
+            ]),
         );
 
         if ($fullScope && ! $checkpointRecorded) {

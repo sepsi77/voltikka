@@ -15,6 +15,20 @@ final class AnnualSeriesCompatibility
 {
     private const LEGACY_REGIME = "\0legacy";
 
+    /**
+     * Display families for the aggregate chart regime. The own-reference shift
+     * and the comparable-premium fallback are two variants of one forward-curve
+     * method; contract replacements move near ties between them, which is not a
+     * method change. Supplier and recurring families stay separate, and every
+     * real fallback (seasonal index, hold, rolling-365 Spot) is its own family.
+     */
+    private const DISPLAY_FAMILIES = [
+        'supplier_adjusted_forward_curve_shift' => 'supplier_adjusted_forward',
+        'supplier_adjusted_forward_premium' => 'supplier_adjusted_forward',
+        'recurring_forward_curve_shift' => 'recurring_forward',
+        'recurring_forward_premium' => 'recurring_forward',
+    ];
+
     private bool $hasPreviousRegime = false;
 
     private ?string $previousRegime = null;
@@ -56,7 +70,7 @@ final class AnnualSeriesCompatibility
     }
 
     /**
-     * Use the dominant estimate method as the aggregate chart regime.
+     * Use the dominant estimate method family as the aggregate chart regime.
      * Stored compatibility remains unchanged and strict for audit use.
      *
      * @param  array<string, mixed>|null  $basisCounts
@@ -81,9 +95,15 @@ final class AnnualSeriesCompatibility
             }
         }
 
-        $maximum = max($methodCounts);
+        $familyCounts = [];
+        foreach ($methodCounts as $method => $count) {
+            $family = self::DISPLAY_FAMILIES[$method] ?? $method;
+            $familyCounts[$family] = ($familyCounts[$family] ?? 0) + $count;
+        }
+
+        $maximum = max($familyCounts);
         $dominantMethods = array_keys(array_filter(
-            $methodCounts,
+            $familyCounts,
             static fn (int $count): bool => $count === $maximum,
         ));
         sort($dominantMethods, SORT_STRING);

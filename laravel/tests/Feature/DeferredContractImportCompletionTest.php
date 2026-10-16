@@ -490,6 +490,98 @@ class DeferredContractImportCompletionTest extends TestCase
         $this->assertSame([], $this->sentryIssues);
     }
 
+    public function test_activation_during_initial_statistics_defers_without_statistics_and_next_tick_completes(): void
+    {
+        // 2026-10-01: month-start replacements were activated while the initial statistics ran.
+        $old = $this->fixture('old', true);
+        $this->publish($old);
+        $new = $this->fixture('new', false);
+        $this->activateDuringStatistics(fn () => $this->publish($new));
+        $this->begin([$old, $new]);
+        $row = $this->checkpoint();
+        $this->assertSame(ContractImportCompletion::PENDING, $row->status);
+        foreach (['statistics_started_at', 'statistics_completed_at', 'initial_statistics_started_at', 'initial_statistics_completed_at'] as $key) {
+            $this->assertArrayNotHasKey($key, $row->metadata);
+        }
+        $this->assertSame(0, ContractPriceSnapshot::count());
+        $this->assertSame('eligible', app(ContractImportCompletion::class)->tick(true));
+        Queue::assertNotPushed(WarmContractPriceStatisticsCache::class);
+        $this->assertSame([], $this->sentryIssues);
+
+        app()->instance(ContractPriceStatisticsService::class, $this->realStatistics);
+        $this->travel(1)->minutes();
+        $this->assertSame('ready', app(ContractImportCompletion::class)->tick());
+        $row = $this->checkpoint();
+        $this->assertSame(['new', 'old'], $row->metadata['active_contract_ids']);
+        $this->assertSame('2026-09-16T06:01:00+03:00', $row->metadata['statistics_started_at']);
+        $this->assertArrayNotHasKey('initial_statistics_started_at', $row->metadata);
+        $this->assertDatabaseHas('contract_price_snapshots', ['contract_id' => 'new', 'snapshot_date' => self::DATE.' 00:00:00']);
+        $this->assertTrue(app(ContractImportCompletion::class)->readyCurrent($row->metadata));
+        $failures = $this->forecastFreshness()->failures;
+        $this->assertArrayNotHasKey('contract_checkpoint', $failures);
+        $this->assertArrayNotHasKey('contract_metadata', $failures);
+        $this->assertSame([], $this->sentryIssues);
+    }
+
+    public function test_activation_just_before_statistics_without_waiting_targets_defers_then_completes(): void
+    {
+        $old = $this->fixture('old', true);
+        $this->publish($old);
+        $late = $this->fixture('late', false);
+        $this->publish($late);
+        ActiveContract::whereKey('late')->delete();
+        $this->activateDuringStatistics(fn () => ActiveContract::create(['id' => 'late']));
+        $this->begin([$old, $late]);
+        $this->assertSame(ContractImportCompletion::PENDING, $this->checkpoint()->status);
+        $this->assertSame(0, ContractPriceSnapshot::count());
+
+        app()->instance(ContractPriceStatisticsService::class, $this->realStatistics);
+        $this->assertSame('ready', app(ContractImportCompletion::class)->tick());
+        $this->assertSame(['late', 'old'], $this->checkpoint()->metadata['active_contract_ids']);
+        $this->assertDatabaseHas('contract_price_snapshots', ['contract_id' => 'late', 'snapshot_date' => self::DATE.' 00:00:00']);
+        $this->assertSame([], $this->sentryIssues);
+    }
+
+    public function test_initial_statistics_conflict_stays_terminal_for_scoped_or_partial_imports(): void
+    {
+        $old = $this->fixture('old', true);
+        $this->publish($old);
+        $late = $this->fixture('late', false);
+        $this->publish($late);
+        ActiveContract::whereKey('late')->delete();
+        $this->activateDuringStatistics(fn () => ActiveContract::firstOrCreate(['id' => 'late']), times: 2);
+        $service = app(ContractImportCompletion::class);
+        $targets = [$old[1]->id => $old[2]->id, $late[1]->id => $late[2]->id];
+
+        foreach ([[null, true], [$service->start(self::DATE), false]] as [$uuid, $complete]) {
+            ActiveContract::whereKey('late')->delete();
+            $result = $service->initial($this->import([$old, $late], $complete), self::DATE, $uuid, $targets);
+            $this->assertFalse($result->succeeded());
+            $this->assertFalse($result->deferred);
+            $this->assertSame(['daily_statistics'], array_keys($result->requiredFailures));
+            $this->assertSame(ContractPriceCacheConflict::EVIDENCE_CHANGED, $result->requiredExceptions['daily_statistics']->reason);
+            $this->assertSame([], $result->completionMetadata);
+        }
+        $this->assertSame(0, ContractPriceSnapshot::count());
+    }
+
+    public function test_other_initial_statistics_failures_stay_terminal_for_a_complete_full_import(): void
+    {
+        $fixture = $this->fixture('terminal', true);
+        $this->publish($fixture);
+        foreach ([new RuntimeException('private'), ContractPriceCacheConflict::generationChanged()] as $exception) {
+            $statistics = Mockery::mock(ContractPriceStatisticsService::class);
+            $statistics->shouldReceive('calculateForDate')->once()->andThrow($exception);
+            app()->instance(ContractPriceStatisticsService::class, $statistics);
+            $service = app(ContractImportCompletion::class);
+            $result = $service->initial($this->import([$fixture]), self::DATE, $service->start(self::DATE), [$fixture[1]->id => $fixture[2]->id]);
+            $this->assertFalse($result->succeeded());
+            $this->assertFalse($result->deferred);
+            $this->assertSame(['daily_statistics'], array_keys($result->requiredFailures));
+            $this->assertSame($exception, $result->requiredExceptions['daily_statistics']);
+        }
+    }
+
     public function test_publication_during_candidate_build_retires_both_candidates_and_waits_for_new_statistics(): void
     {
         $fixture = $this->fixture('during-build', true);
@@ -787,12 +879,27 @@ class DeferredContractImportCompletionTest extends TestCase
         $this->assertTrue($service->record(self::DATE, $uuid, $result->deferred ? ContractImportCompletion::PENDING : 'ready', $result->completionMetadata));
     }
 
-    private function import(array $fixtures): ContractImportResult
+    private function import(array $fixtures, bool $complete = true): ContractImportResult
     {
         $ids = array_map(fn ($fixture) => $fixture[1]->id, $fixtures);
         $active = ActiveContract::orderBy('id')->pluck('id')->all();
 
-        return new ContractImportResult(true, count($fixtures), count($active), 0, [], $ids, $ids, $active, []);
+        return new ContractImportResult($complete, count($fixtures), count($active), 0, [], $ids, $ids, $active, []);
+    }
+
+    private ?ContractPriceStatisticsService $realStatistics = null;
+
+    /** Changes the active set after the caller captured it, before the statistics transaction fence. */
+    private function activateDuringStatistics(\Closure $activate, int $times = 1): void
+    {
+        $this->realStatistics = $real = app(ContractPriceStatisticsService::class);
+        $proxy = Mockery::mock($real)->makePartial();
+        $proxy->shouldReceive('calculateForDate')->times($times)->andReturnUsing(function ($date, $ids, $overwrite, $canonical, $fence) use ($real, $activate): array {
+            $activate();
+
+            return $real->calculateForDate($date, $ids, $overwrite, $canonical, $fence);
+        });
+        app()->instance(ContractPriceStatisticsService::class, $proxy);
     }
 
     private function checkpoint(): DataFreshnessCheckpoint

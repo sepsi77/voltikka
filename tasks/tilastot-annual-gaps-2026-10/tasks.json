@@ -1,0 +1,38 @@
+[
+  {
+    "name": "Chart display family for forward-curve variants",
+    "status": "done"
+  },
+  {
+    "name": "Skip incomplete futures vintages in the curve provider",
+    "status": "done"
+  },
+  {
+    "name": "Local preview of 7.10 v3 recalculation",
+    "status": "done"
+  },
+  {
+    "name": "Production 7.10: remove wrong spot/open_ended/market_reset v3 rows",
+    "status": "done"
+  },
+  {
+    "name": "Investigate missing 1.10 snapshots",
+    "status": "done"
+  },
+  {
+    "name": "Release chart, curve and import fixes",
+    "status": "in_progress"
+  },
+  {
+    "name": "Follow-up: historical v3 path differs from current writer after 22.9",
+    "status": "pending"
+  },
+  {
+    "name": "Follow-up: EEX freshness gate accepts quarter/year-only runs",
+    "status": "pending"
+  },
+  {
+    "name": "Defer initial evidence_changed statistics conflict to completion",
+    "status": "done"
+  }
+]

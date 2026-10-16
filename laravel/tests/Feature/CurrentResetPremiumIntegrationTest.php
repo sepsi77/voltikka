@@ -32,6 +32,7 @@ use Database\Factories\Support\CanonicalPricingFixture;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Concerns\CompletesFuturesVintages;
 use Tests\TestCase;
 
 class CurrentResetPremiumIntegrationTest extends TestCase
@@ -44,6 +45,7 @@ class CurrentResetPremiumIntegrationTest extends TestCase
         app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
     }
 
+    use CompletesFuturesVintages;
     use RefreshDatabase;
 
     private ResetPremiumCurve $curve;
@@ -379,6 +381,7 @@ class CurrentResetPremiumIntegrationTest extends TestCase
                 'maturity_type' => $kind, 'trade_date' => $trade, 'settlement_price' => $price,
             ]);
         }
+        $this->completeFuturesVintages('2026-04-09', '2026-04-14');
         $provider = app(EexMarketReferenceCurveProvider::class);
         $this->app->forgetScopedInstances();
         $this->app->instance(MarketReferenceCurveProvider::class, $provider);

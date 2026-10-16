@@ -5,12 +5,17 @@ namespace Tests\Feature;
 use App\Models\ContractPriceDailyStatistic;
 use App\Models\ElectricityFuturesEodPrice;
 use App\Models\SpotPriceAverage;
+use App\Services\CanonicalPricing\DTO\SpotAssumptions;
+use App\Services\CanonicalPricing\MarketReset\DTO\ResetEstimatorSettings;
 use App\Services\CanonicalPricing\MarketReset\MarketReferenceCurveProvider;
+use App\Services\CanonicalPricing\SpotForward\Enums\SpotEstimateBasis;
+use App\Services\CanonicalPricing\SpotForward\SpotForwardPriceEstimator;
 use App\Services\ContractListCacheService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Tests\Concerns\CompletesFuturesVintages;
 use Tests\TestCase;
 
 /**
@@ -20,6 +25,7 @@ use Tests\TestCase;
  */
 class EexMarketReferenceCurveProviderTest extends TestCase
 {
+    use CompletesFuturesVintages;
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -170,6 +176,66 @@ class EexMarketReferenceCurveProviderTest extends TestCase
         $this->assertEqualsWithDelta(87.05 / 10 * 1.255, $forward['price_cents_per_kwh'], 0.0001);
     }
 
+    public function test_an_incomplete_newest_vintage_is_skipped_for_forward_months_and_references(): void
+    {
+        // On 2026-10-07 the EEX import stored only quarter and year rows for trade date 2026-10-06;
+        // its month rows arrived a day later. That vintage had no November price, so every lookup
+        // must use the complete 2026-10-05 vintage instead.
+        $this->future('month', '202610', '2026-10-05', 50.0);
+        $this->future('month', '202611', '2026-10-05', 60.0);
+        $this->future('quarter', '202701', '2026-10-05', 70.0);
+        $this->future('year', '202701', '2026-10-05', 55.0);
+        $this->future('quarter', '202701', '2026-10-06', 90.0, completeVintage: false);
+        $this->future('year', '202701', '2026-10-06', 95.0, completeVintage: false);
+
+        $provider = app(MarketReferenceCurveProvider::class);
+        $asOf = CarbonImmutable::parse('2026-10-07');
+
+        $this->assertSame('2026-10-05', $provider->tradeDate($asOf)?->toDateString());
+
+        $november = $provider->forwardPriceForMonth($asOf, CarbonImmutable::parse('2026-11-01'));
+        $this->assertSame('month', $november['kind']);
+        $this->assertEqualsWithDelta(60.0 / 10 * 1.255, $november['price_cents_per_kwh'], 0.0001);
+
+        $january = $provider->forwardPriceForMonth($asOf, CarbonImmutable::parse('2027-01-01'));
+        $this->assertSame('quarter', $january['kind']);
+        $this->assertEqualsWithDelta(70.0 / 10 * 1.255, $january['price_cents_per_kwh'], 0.0001);
+
+        $reference = $provider->referencePrice($asOf, CarbonImmutable::parse('2026-10-01'), ['month']);
+        $this->assertSame('2026-10-05', $reference['trade_date']);
+        $this->assertEqualsWithDelta(50.0 / 10 * 1.255, $reference['price_cents_per_kwh'], 0.0001);
+
+        // The same trade date becomes a vintage once its month rows arrive.
+        $this->future('month', '202611', '2026-10-06', 80.0, completeVintage: false);
+        $provider->resetMemoization();
+
+        $this->assertSame('2026-10-06', $provider->tradeDate($asOf)?->toDateString());
+        $this->assertEqualsWithDelta(80.0 / 10 * 1.255, $provider->forwardPriceForMonth($asOf, CarbonImmutable::parse('2026-11-01'))['price_cents_per_kwh'], 0.0001);
+    }
+
+    public function test_spot_forward_strip_uses_the_previous_complete_vintage_not_a_missing_month_fallback(): void
+    {
+        // The 2026-10-07 Spot case end to end: the newest vintage has no November month, so the
+        // strip used to return `missing_forward_month_2026_11` and fall back to rolling-365.
+        $this->future('month', '202610', '2026-09-30', 50.0);
+        $this->future('month', '202611', '2026-10-05', 60.0);
+        $this->future('month', '202612', '2026-10-05', 70.0);
+        $this->future('quarter', '202701', '2026-10-05', 80.0);
+        $this->future('year', '202701', '2026-10-05', 55.0);
+        $this->future('quarter', '202701', '2026-10-06', 90.0, completeVintage: false);
+        $this->future('year', '202701', '2026-10-06', 95.0, completeVintage: false);
+
+        $estimate = (new SpotForwardPriceEstimator(app(MarketReferenceCurveProvider::class), new ResetEstimatorSettings))
+            ->estimate(CarbonImmutable::parse('2026-10-07', 'Europe/Helsinki'), new SpotAssumptions(null, null));
+
+        $this->assertSame(SpotEstimateBasis::ForwardCurve, $estimate->basis);
+        $this->assertSame('2026-09-30', $estimate->currentCurveTradeDate);
+        $this->assertSame('2026-10-05', $estimate->futureCurveTradeDate);
+        $this->assertSame('month', $estimate->months['2026-11']['source_kind']);
+        $this->assertSame('quarter', $estimate->months['2027-02']['source_kind']);
+        $this->assertSame('year', $estimate->months['2027-10']['source_kind']);
+    }
+
     public function test_a_quarter_not_yet_in_delivery_resolves_to_the_direct_quarter_contract(): void
     {
         // At the pricing vintage of a Q3 period (30 June, before Q3 starts) EEX still publishes the
@@ -310,7 +376,8 @@ class EexMarketReferenceCurveProviderTest extends TestCase
             $sql = strtolower($query->sql);
             $bindings = array_map('strval', $query->bindings);
 
-            return str_contains($sql, 'select distinct')
+            return str_contains($sql, 'group by')
+                && str_contains($sql, 'having')
                 && str_contains($sql, 'trade_date')
                 && str_contains($sql, 'order by')
                 && in_array('FI', $bindings, true)
@@ -329,7 +396,7 @@ class EexMarketReferenceCurveProviderTest extends TestCase
         ));
     }
 
-    private function future(string $maturityType, string $maturity, string $tradeDate, float $settlementPrice): void
+    private function future(string $maturityType, string $maturity, string $tradeDate, float $settlementPrice, bool $completeVintage = true): void
     {
         ElectricityFuturesEodPrice::create([
             'exchange' => 'EEX',
@@ -347,6 +414,10 @@ class EexMarketReferenceCurveProviderTest extends TestCase
             'trade_date' => $tradeDate,
             'settlement_price' => $settlementPrice,
         ]);
+
+        if ($completeVintage) {
+            $this->completeFuturesVintages($tradeDate);
+        }
     }
 
     private function monthlySpotAverage(int $year, int $month, float $price): void

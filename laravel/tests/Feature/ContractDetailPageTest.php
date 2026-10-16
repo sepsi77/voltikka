@@ -24,10 +24,12 @@ use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
+use Tests\Concerns\CompletesFuturesVintages;
 use Tests\TestCase;
 
 class ContractDetailPageTest extends TestCase
 {
+    use CompletesFuturesVintages;
     use RefreshDatabase;
 
     protected Company $company;
@@ -1407,6 +1409,7 @@ class ContractDetailPageTest extends TestCase
             'short_code' => 'FNBQ', 'maturity' => '202607', 'maturity_type' => 'quarter',
             'trade_date' => '2026-06-30', 'settlement_price' => 50.0,
         ]);
+        $this->completeFuturesVintages('2026-07-24', '2026-06-30');
 
         $contract = $this->createComparisonContract('reset-qualifier-contract', 'Kvartaalisähkö', 8.0);
         $contract->update([
