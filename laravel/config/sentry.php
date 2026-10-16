@@ -67,6 +67,10 @@ return [
         // Invalid local Artisan invocations (for example unsupported command options) are CLI
         // usage errors raised by Symfony Console before any application command code runs.
         Symfony\Component\Console\Exception\RuntimeException::class,
+
+        // `php artisan test --parallel` without ParaTest installed. Collision is a dev dependency;
+        // `::class` needs no autoloading, so this entry is safe where the class is absent.
+        NunoMaduro\Collision\Adapters\Laravel\Exceptions\RequirementsException::class,
     ],
 
     // @see: https://docs.sentry.io/platforms/php/guides/laravel/configuration/options/#ignore_transactions
