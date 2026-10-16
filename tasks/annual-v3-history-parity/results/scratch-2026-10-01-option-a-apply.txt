@@ -1,0 +1,17 @@
+V3 is not ready for release: full-history target-evidence and continuity review, dated current-producer parity, verified backup, apply approval and active-method approval remain required.
+Applying annual_cost_as_of_v3 against stored annual_cost_as_of_v3 for 1 historical snapshot date(s).
+2026-10-01 contract-consumption coverage: aggregates_lost=0, aggregates_matched=0, aggregates_new=27, contracts_lost=0, contracts_matched=0, contracts_new=744
+  baseline: NO BASELINE unavailable=not stored
+2026-10-01 evidence=1107 available=744 unavailable=363 persisted=744 aggregates=27
+  estimate methods: forward_curve_spot=149, hybrid_base_only=112, none=643, recurring_forward_curve_shift=67, supplier_adjusted_forward_curve_shift=58, supplier_adjusted_forward_premium=51, term_price_annualized=27
+  pricing basis: observed_seller_data=1107
+  calculation basis: canonical_outcome=783, observed_relational_components=324
+  estimate basis: canonical_disclosed_phase_timeline=431, exact_date_components_held_flat=3, forward_curve=149, market_reset_forward_curve_shift=67, none=345, relational_open_ended_conservative_hold_flat=3, supplier_adjusted_forward_curve_shift=58, supplier_adjusted_forward_premium=51
+  provenance flags: ambiguous_energy_mechanisms=3, canonical_interpretation_rejected_by_exact_target_validation=33, canonical_omitted_no_valid_interpretation_as_of_date=6, canonical_source_energy_continuation=24, exact_source_legacy_null_observation_binding=783, excludes_consumption_effect=121, forward_month_from_quarter_contract=274, historical_consumption_out_of_range=27, …
+  unavailable reasons: canonical_outcome_not_listed=18, historical_consumption_out_of_range=27, missing_historical_snapshot_identity=318
+
+Totals: dates=1 failed=0 evidence=1107 available=744 unavailable=363 persisted=744 aggregates=27
+Coverage totals (compared dates, including failed writes): aggregates_lost=0, aggregates_matched=0, aggregates_new=27, contracts_lost=0, contracts_matched=0, contracts_new=744
+Dates without baseline: 1
+Estimate methods: forward_curve_spot=149, hybrid_base_only=112, none=643, recurring_forward_curve_shift=67, supplier_adjusted_forward_curve_shift=58, supplier_adjusted_forward_premium=51, term_price_annualized=27
+Unavailable reasons: canonical_outcome_not_listed=18, historical_consumption_out_of_range=27, missing_historical_snapshot_identity=318

@@ -1,0 +1,19 @@
+V3 is not ready for release: full-history target-evidence and continuity review, dated current-producer parity, verified backup, apply approval and active-method approval remain required.
+Applying annual_cost_as_of_v3 against stored annual_cost_as_of_v3 for 1 historical snapshot date(s).
+2026-10-07 contract-consumption coverage: aggregates_lost=0, aggregates_matched=21, aggregates_new=9, contracts_lost=0, contracts_matched=447, contracts_new=301
+  baseline: stored evidence unavailable=not stored
+2026-10-07 evidence=1113 available=748 unavailable=365 persisted=748 aggregates=30
+  estimate methods: forward_curve_spot=158, hold_last_known_price=3, hybrid_base_only=112, none=636, recurring_forward_curve_shift=67, supplier_adjusted_forward_curve_shift=59, supplier_adjusted_forward_premium=51, term_price_annualized=27
+  pricing basis: canonical_calculation=774, observed_seller_data=339
+  calculation basis: canonical_outcome=774, observed_relational_components=339
+  estimate basis: canonical_disclosed_phase_timeline=413, forward_curve=158, market_reset_forward_curve_shift=67, none=365, supplier_adjusted_forward_curve_shift=59, supplier_adjusted_forward_premium=51
+  provenance flags: canonical_interpretation_rejected_by_exact_target_validation=30, canonical_source_energy_continuation=24, exact_source_legacy_null_observation_binding=774, excludes_consumption_effect=121, forward_month_from_quarter_contract=284, held_current_price_forward=3, historical_consumption_out_of_range=26, historical_exact_contract_only=110, …
+  unavailable reasons: historical_consumption_out_of_range=26, missing_historical_snapshot_identity=339
+  matched aggregate median deltas: n=21 min=-0.00 EUR max=+42.60 EUR
+
+Totals: dates=1 failed=0 evidence=1113 available=748 unavailable=365 persisted=748 aggregates=30
+Coverage totals (compared dates, including failed writes): aggregates_lost=0, aggregates_matched=21, aggregates_new=9, contracts_lost=0, contracts_matched=447, contracts_new=301
+Dates without baseline: 0
+Matched median delta totals: n=21 min=-0.00 EUR max=+42.60 EUR
+Estimate methods: forward_curve_spot=158, hold_last_known_price=3, hybrid_base_only=112, none=636, recurring_forward_curve_shift=67, supplier_adjusted_forward_curve_shift=59, supplier_adjusted_forward_premium=51, term_price_annualized=27
+Unavailable reasons: historical_consumption_out_of_range=26, missing_historical_snapshot_identity=339

@@ -349,6 +349,62 @@ class AsOfAnnualCostEvidenceResolver
     }
 
     /**
+     * V3 energy-episode evidence for each immutable source observation that starts by the
+     * target: the exact-source selection validated on the observation's first Helsinki date,
+     * with the dated payload's own classification. No statistics snapshot is needed, so a
+     * day without snapshots inside an observation is not an evidence break. Three queries.
+     *
+     * @param  list<string>  $contractIds
+     * @return array<string, list<array{first_observed_at: string, start: CarbonImmutable, end: CarbonImmutable, data: ?CanonicalContractData, details: array<string, mixed>, flags: list<string>, provenance: ?SourceInterpretationProvenance}>>
+     */
+    public function sourceObservationEvidence(CarbonImmutable $target, array $contractIds): array
+    {
+        $observations = DB::table('contract_source_observations')
+            ->whereIn('contract_id', $contractIds)
+            ->where('first_observed_at', '<=', $target->endOfDay()->utc()->format('Y-m-d H:i:s'))
+            ->orderBy('contract_id')->orderBy('first_observed_at')->orderBy('id')
+            ->get(['id', 'contract_id', 'source_snapshot_id', 'first_observed_at', 'last_observed_at']);
+        $sourceIds = $observations->pluck('source_snapshot_id')->unique()->values()->all();
+        $payloads = DB::table('contract_source_snapshots')->whereIn('id', $sourceIds)->get(['id', 'contract_id', 'source_payload'])->keyBy('id');
+        $interpretations = DB::table('contract_interpretations')
+            ->whereIn('source_snapshot_id', $sourceIds)->whereNotNull('completed_at')
+            ->orderBy('source_snapshot_id')->orderBy('completed_at')->orderBy('id')
+            ->get(['id', 'contract_id', 'source_snapshot_id', 'analysis_source_observation_id', 'schema_version', 'prompt_version',
+                'validator_version', 'status', 'output', 'validation_errors', 'completed_at'])
+            ->groupBy('source_snapshot_id');
+
+        $resolved = [];
+        foreach ($observations as $observation) {
+            $start = CarbonImmutable::parse((string) $observation->first_observed_at, 'UTC')->setTimezone(self::TIMEZONE)->startOfDay();
+            $end = CarbonImmutable::parse((string) ($observation->last_observed_at ?? $observation->first_observed_at), 'UTC')
+                ->setTimezone(self::TIMEZONE)->startOfDay()->min($target);
+            [$data, , $flags] = $selection = $this->canonicalEvidence(
+                (string) $observation->contract_id, $start, (object) [], collect(), collect([$observation]),
+                $interpretations, collect(), collect(), AnnualCostMethodVersion::AsOfV3, $payloads,
+            );
+            $source = $payloads->get($observation->source_snapshot_id);
+            $payload = $source !== null && (string) $source->contract_id === (string) $observation->contract_id
+                ? json_decode((string) $source->source_payload, true) : null;
+            $details = is_array($payload['Details'] ?? null) ? $payload['Details'] : [];
+            if ($data !== null && (! is_array($payload) || ($details['TargetGroup'] ?? null) === 'Company')) {
+                $data = null;
+                $flags[] = is_array($payload) ? 'historical_company_only_household_conflict' : 'historical_promotion_source_payload_unavailable';
+            }
+            $resolved[(string) $observation->contract_id][] = [
+                'first_observed_at' => (string) $observation->first_observed_at,
+                'start' => $start,
+                'end' => $end,
+                'data' => $data?->withComparisonEvidence(sourceCampaignEnergyRates: CurrentSourcePromotionEvidence::campaignRatesFromPayload($payload)),
+                'details' => $details,
+                'flags' => $flags,
+                'provenance' => $selection[3] ?? null,
+            ];
+        }
+
+        return $resolved;
+    }
+
+    /**
      * @param  Collection<int, object>  $rawComponents
      * @param  Collection<int, object>  $contractObservations
      * @param  Collection<int|string, Collection<int, object>>  $interpretations
@@ -460,7 +516,9 @@ class AsOfAnnualCostEvidenceResolver
                     $profile = ContractInterpretationProfile::stored($row->schema_version, $row->prompt_version, $row->validator_version);
                     $source = new ContractSourceSnapshot(['contract_id' => $contractId, 'source_payload' => $payload]);
                     $input = $this->inputBuilder->build($source, $target, $profile);
-                    $errors = $this->validator->validate($output, $input, $profile);
+                    $observedFrom = $covering->map(fn (object $observation): string => CarbonImmutable::parse((string) $observation->first_observed_at, 'UTC')
+                        ->setTimezone(self::TIMEZONE)->toDateString())->min();
+                    $errors = $this->validator->validate($this->withObservedAnalysisDates($output, $observedFrom, $target->toDateString()), $input, $profile);
                     if ($errors === [] && ! $this->hasSupportedTargetDates($output, $input)) {
                         $errors[] = 'Historical date boundaries lack exact source proof.';
                         $targetValidationFlags[] = 'historical_temporal_source_validation_unavailable';
@@ -537,33 +595,36 @@ class AsOfAnnualCostEvidenceResolver
     }
 
     /**
-     * Legacy validation checks discount coverage, but does not prove arbitrary dates
-     * inferred from relative prose. Keep those cases unresolved, not date assumptions.
+     * Legacy validation checks discount coverage, but does not prove calendar years
+     * inferred from prose. Keep unproved years unresolved, not date assumptions.
      * This runs only after full validation of the exact target input.
+     *
+     * Relative month boundaries count from the customer's contract start, which the
+     * calculation places on the comparison date; they make no calendar claim, so the
+     * current writer's validated reading is kept. A calendar date needs a validated
+     * citation with its year, a cited range ending in that year, an active structured
+     * UntilDate, or the cited recurring window that contains the observed target date.
      */
     private function hasSupportedTargetDates(array $output, array $input): bool
     {
+        $schedule = $output['pricing']['recurring_schedule'] ?? [];
+        $quotes = array_values(array_filter(array_merge(
+            array_column($schedule['evidence'] ?? [], 'quote'),
+            ...array_map(fn (array $phase): array => array_column($phase['evidence'] ?? [], 'quote'), $output['pricing']['phases'] ?? []),
+        ), 'is_string'));
+        $window = $this->recurringWindowDates($schedule, (string) ($input['analysis_date'] ?? ''), $quotes);
         foreach ($output['pricing']['phases'] ?? [] as $phase) {
             foreach (['starts', 'ends'] as $side) {
                 $boundary = $phase[$side];
-                if (in_array($boundary['kind'], ['contract_start', 'none', 'unknown', 'period_boundary'], true)
-                    || ($side === 'starts' && $boundary['kind'] === 'after_months' && (int) $boundary['value'] === 0)) {
+                if (in_array($boundary['kind'], ['contract_start', 'none', 'unknown', 'period_boundary', 'after_months'], true)) {
                     continue;
                 }
-                $supported = $boundary['kind'] === 'after_months'
-                    && ($input['contract_type'] ?? null) === 'FixedTerm'
-                    && in_array($input['fixed_time_range'] ?? null, ['Fixed6', 'Fixed12', 'Fixed24'], true)
-                    && (int) $boundary['value'] === (int) substr($input['fixed_time_range'], 5);
+                $supported = $boundary['kind'] === 'date' && in_array($boundary['value'], $window, true);
                 foreach ($input['components'] ?? [] as $component) {
                     $type = $this->validator->canonicalComponentTypeForSource($component['price_component_type'] ?? null, $input['pricing_model'] ?? null);
                     if (($component['has_discount'] ?? false) !== true
                         || ! in_array($type, array_column($phase['components'] ?? [], 'component_type'), true)) {
                         continue;
-                    }
-                    if ($boundary['kind'] === 'after_months'
-                        && $component['discount_type'] === 'NFirstMonth'
-                        && (int) $boundary['value'] === (int) $component['discount_n_first_months']) {
-                        $supported = true;
                     }
                     if ($boundary['kind'] === 'date' && $component['discount_type'] === 'UntilDate') {
                         $until = substr((string) $component['discount_until_date'], 0, 10);
@@ -577,13 +638,10 @@ class AsOfAnnualCostEvidenceResolver
                     }
                 }
                 if ($boundary['kind'] === 'date') {
-                    // Exact calendar dates in validated phase citations are allowed.
                     // A bare day/month or relative phrase cannot supply its own year.
                     $date = CarbonImmutable::parse($boundary['value']);
                     foreach ($phase['evidence'] ?? [] as $evidence) {
-                        $quote = (string) ($evidence['quote'] ?? '');
-                        $supported = $supported || str_contains($quote, $date->toDateString())
-                            || preg_match('/(?<!\d)0?'.$date->day.'\.0?'.$date->month.'\.'.$date->year.'(?!\d)/u', $quote) === 1;
+                        $supported = $supported || $this->quoteProvesDate((string) ($evidence['quote'] ?? ''), $date);
                     }
                 }
                 if (! $supported) {
@@ -594,18 +652,105 @@ class AsOfAnnualCostEvidenceResolver
 
         // Calendar reset windows must also be explicit, not guessed at completion.
         foreach (['current_period_start', 'current_period_end'] as $key) {
-            $value = $output['pricing']['recurring_schedule'][$key] ?? null;
-            if ($value !== null) {
-                $quotes = array_column($output['pricing']['recurring_schedule']['evidence'] ?? [], 'quote');
+            $value = $schedule[$key] ?? null;
+            if ($value !== null && ! in_array($value, $window, true)) {
                 $date = CarbonImmutable::parse($value);
-                if (! collect($quotes)->contains(fn (string $quote): bool => str_contains($quote, $value)
-                    || preg_match('/(?<!\d)0?'.$date->day.'\.0?'.$date->month.'\.'.$date->year.'(?!\d)/u', $quote) === 1)) {
+                if (! collect($quotes)->contains(fn (string $quote): bool => $this->quoteProvesDate($quote, $date))) {
                     return false;
                 }
             }
         }
 
         return true;
+    }
+
+    /**
+     * A monthly or quarterly current window proves its year only when it contains the
+     * observed target date and its first day is stated by a validated citation. The year
+     * then comes from the date the exact source was observed, never from processing time.
+     * The schedule itself may only use the current window; phases may also use the next one.
+     *
+     * @param  array<string, mixed>  $schedule
+     * @param  list<string>  $quotes
+     * @return list<string>
+     */
+    private function recurringWindowDates(array $schedule, string $target, array $quotes): array
+    {
+        $months = match ($schedule['cadence'] ?? null) {
+            'monthly' => 1,
+            'quarterly' => 3,
+            default => null,
+        };
+        $start = $this->isoDate($schedule['current_period_start'] ?? null);
+        $end = $this->isoDate($schedule['current_period_end'] ?? null);
+        if ($months === null || $start === null || $end === null || $start->day !== 1) {
+            return [];
+        }
+        $lastDay = $start->addMonthsNoOverflow($months)->subDay();
+        if ((! $end->equalTo($lastDay) && ! $end->equalTo($lastDay->addDay()))
+            || $start->toDateString() > $target || $lastDay->toDateString() < $target) {
+            return [];
+        }
+        $dayMonth = '/(?<!\d)0?'.$start->day.'\.0?'.$start->month.'\.(?!\d)/u';
+        if (! collect($quotes)->contains(fn (string $quote): bool => $this->quoteProvesDate($quote, $start) || preg_match($dayMonth, $quote) === 1)) {
+            return [];
+        }
+
+        // An announced next-period price uses the following window of the same cadence.
+        $nextLastDay = $lastDay->addDay()->addMonthsNoOverflow($months)->subDay();
+
+        return [$start->toDateString(), $lastDay->toDateString(), $lastDay->addDay()->toDateString(),
+            $nextLastDay->toDateString(), $nextLastDay->addDay()->toDateString()];
+    }
+
+    /** ISO date, D.M.YYYY, or the first date of a cited same-year D.M.–D.M.YYYY range. */
+    private function quoteProvesDate(string $quote, CarbonImmutable $date): bool
+    {
+        if (str_contains($quote, $date->toDateString())
+            || preg_match('/(?<!\d)0?'.$date->day.'\.0?'.$date->month.'\.'.$date->year.'(?!\d)/u', $quote) === 1) {
+            return true;
+        }
+        if (preg_match_all('/(?<!\d)0?'.$date->day.'\.0?'.$date->month.'\.?\s*[-–—]\s*(\d{1,2})\.(\d{1,2})\.'.$date->year.'(?!\d)/u', $quote, $ranges, PREG_SET_ORDER) > 0) {
+            foreach ($ranges as [, $day, $month]) {
+                if ([(int) $month, (int) $day] >= [$date->month, $date->day]) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private function isoDate(mixed $value): ?CarbonImmutable
+    {
+        if (! is_string($value) || preg_match('/^\d{4}-\d{2}-\d{2}$/D', $value) !== 1) {
+            return null;
+        }
+        $date = CarbonImmutable::createFromFormat('!Y-m-d', $value, self::TIMEZONE);
+
+        return $date !== false && $date->toDateString() === $value ? $date : null;
+    }
+
+    /**
+     * A validated `analysis_date` citation records a date on which this exact source was
+     * observed. Inside the covering observation it stays true on the later target date, so
+     * only that citation is moved to the target before full target validation.
+     */
+    private function withObservedAnalysisDates(mixed $value, ?string $observedFrom, string $target): mixed
+    {
+        if (! is_array($value) || $observedFrom === null) {
+            return $value;
+        }
+        if (($value['source'] ?? null) === 'analysis_date' && is_string($value['quote'] ?? null)
+            && preg_match('/\d{4}-\d{2}-\d{2}/', $value['quote'], $match) === 1
+            && $this->isoDate($match[0]) !== null && $match[0] >= $observedFrom && $match[0] <= $target) {
+            $value['quote'] = str_replace($match[0], $target, $value['quote']);
+        }
+        foreach ($value as $key => $child) {
+            $value[$key] = $this->withObservedAnalysisDates($child, $observedFrom, $target);
+        }
+
+        return $value;
     }
 
     /**

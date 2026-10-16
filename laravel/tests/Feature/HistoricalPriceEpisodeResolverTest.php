@@ -12,7 +12,6 @@ use App\Services\CanonicalPricing\Enums\ComponentUnit;
 use App\Services\CanonicalPricing\SupplierAdjusted\DTO\SupplierAdjustedCandidate;
 use App\Services\CanonicalPricing\SupplierAdjusted\Enums\PriceEpisodeEvidenceBasis;
 use App\Services\ContractInterpretation\ContractInterpretationValidator;
-use App\Services\ContractStatistics\AsOfAnnualCostEvidenceResolver;
 use App\Services\ContractStatistics\ContractPriceBasis;
 use App\Services\ContractStatistics\Enums\AnnualCostMethodVersion;
 use App\Services\ContractStatistics\HistoricalPriceEpisodeResolver;
@@ -145,7 +144,7 @@ class HistoricalPriceEpisodeResolverTest extends TestCase
         $anchor = $this->v3('2026-06-03', $candidate);
         $this->assertSame('2026-06-01', $anchor->startedAt?->toDateString());
         $this->assertContains('price_episode_left_censored', $anchor->flags);
-        $this->assertContains('calendar_gap_within_observed_price_episode', $anchor->flags);
+        $this->assertContains('price_episode_observation_gap', $anchor->flags);
         $this->snapshot('proxy', '2026-06-04', 20, 30);
         $this->source('proxy', '2026-06-04', ['energy_general' => 20]);
         $this->assertEquals($anchor, $this->v3('2026-06-03', $candidate));
@@ -163,9 +162,9 @@ class HistoricalPriceEpisodeResolverTest extends TestCase
                 $this->snapshot($metering, $date, 10, 2);
             }
             DB::table('contract_price_snapshots')->where('contract_id', $metering)->update(['metering' => $metering]);
-            $this->source($metering, '2026-06-01', [$first => 10, $second => 10]);
-            $this->source($metering, '2026-06-02', [$first => 10 + $deltaFirst, $second => 10 + $deltaSecond]);
-            $this->source($metering, '2026-06-03', [$first => 10, $second => 10]);
+            $this->source($metering, '2026-06-01', [$first => 10, $second => 10], $metering);
+            $this->source($metering, '2026-06-02', [$first => 10 + $deltaFirst, $second => 10 + $deltaSecond], $metering);
+            $this->source($metering, '2026-06-03', [$first => 10, $second => 10], $metering);
             $candidate = new SupplierAdjustedCandidate($metering, 10, 2, [$first => 10, $second => 10], $metering);
             $this->assertSame('2026-06-01', $this->v3('2026-06-01', $candidate)->startedAt?->toDateString());
             $this->assertNull($this->v3('2026-06-02', $candidate)->startedAt);
@@ -204,7 +203,10 @@ class HistoricalPriceEpisodeResolverTest extends TestCase
         $anchor = $this->v3('2026-06-03', $candidate);
         $this->assertSame('2026-06-03', $anchor->startedAt?->toDateString());
         $this->assertContains('prior_energy_evidence_changed_unknown_or_conflicting', $anchor->flags);
+        // Like the current resolver, equal overlapping observations agree; a conflicting one breaks.
         $this->source('unsafe', '2026-06-03', ['energy_general' => 7]);
+        $this->assertSame('2026-06-03', $this->v3('2026-06-03', $candidate)->startedAt?->toDateString());
+        $this->source('unsafe', '2026-06-03', ['energy_general' => 8]);
         $this->assertNull($this->v3('2026-06-03', $candidate)->startedAt);
     }
 
@@ -219,7 +221,7 @@ class HistoricalPriceEpisodeResolverTest extends TestCase
         $this->assertSame(PriceEpisodeEvidenceBasis::ObservedSellerSnapshotRun, $anchor->evidenceBasis);
     }
 
-    public function test_v3_component_only_unknown_day_breaks_a_matching_run(): void
+    public function test_v3_day_without_snapshot_is_a_gap_like_the_current_resolver(): void
     {
         $this->contract('unknown');
         $this->snapshot('unknown', '2026-06-01', 7, 2);
@@ -230,8 +232,25 @@ class HistoricalPriceEpisodeResolverTest extends TestCase
             'price' => 7, 'payment_unit' => 'CentPerKiloWattHour', 'has_discount' => false,
         ]);
         $anchor = $this->v3('2026-06-03', new SupplierAdjustedCandidate('unknown', 7, 2));
-        $this->assertSame('2026-06-03', $anchor->startedAt?->toDateString());
-        $this->assertContains('prior_energy_evidence_changed_unknown_or_conflicting', $anchor->flags);
+        $this->assertSame('2026-06-01', $anchor->startedAt?->toDateString());
+        $this->assertContains('price_episode_observation_gap', $anchor->flags);
+        $this->assertNotContains('prior_energy_evidence_changed_unknown_or_conflicting', $anchor->flags);
+    }
+
+    public function test_v3_source_observation_bridges_and_starts_on_days_without_snapshots(): void
+    {
+        // 2026-10-01 in production: complete source chronology, but no statistics snapshots.
+        $this->contract('bridge');
+        $this->snapshot('bridge', '2026-06-01', 7, 2);
+        $this->snapshot('bridge', '2026-06-04', 8, 2);
+        $first = $this->source('bridge', '2026-06-01', ['energy_general' => 7]);
+        ContractSourceObservation::where('id', $first->analysis_source_observation_id)->update(['last_observed_at' => '2026-06-01 18:00:00']);
+        $second = $this->source('bridge', '2026-06-02', ['energy_general' => 8]);
+        ContractSourceObservation::where('id', $second->analysis_source_observation_id)->update(['last_observed_at' => '2026-06-04 18:00:00']);
+        $anchor = $this->v3('2026-06-04', new SupplierAdjustedCandidate('bridge', 8, 2));
+        $this->assertSame('2026-06-02', $anchor->startedAt?->toDateString());
+        $this->assertSame(PriceEpisodeEvidenceBasis::CanonicalSourceObservationRun, $anchor->evidenceBasis);
+        $this->assertNotContains('price_episode_observation_gap', $anchor->flags);
     }
 
     public function test_v3_batches_all_contract_dates_and_never_reads_current_contracts(): void
@@ -250,7 +269,7 @@ class HistoricalPriceEpisodeResolverTest extends TestCase
         });
         $anchors = (new HistoricalPriceEpisodeResolver)->resolve($this->date('2026-06-03'), $candidates, methodVersion: AnnualCostMethodVersion::AsOfV3);
         $this->assertCount(3, $anchors);
-        $this->assertCount(7, $queries, implode("\n", $queries));
+        $this->assertCount(4, $queries, implode("\n", $queries));
         $this->assertStringNotContainsString('"electricity_contracts"', implode("\n", $queries));
     }
 
@@ -264,18 +283,9 @@ class HistoricalPriceEpisodeResolverTest extends TestCase
         ContractSourceObservation::where('id', $long->analysis_source_observation_id)->update(['last_observed_at' => '2026-06-10 18:00:00']);
         $short = $this->source('interval-end', '2026-06-02', ['energy_general' => 9]);
         ContractSourceObservation::where('id', $short->analysis_source_observation_id)->update(['last_observed_at' => '2026-06-03 18:00:00']);
-        $real = app(AsOfAnnualCostEvidenceResolver::class);
-        $resolver = \Mockery::mock(AsOfAnnualCostEvidenceResolver::class);
-        $resolver->shouldReceive('resolveForDates')->once()->andReturnUsing(function ($dates, $method, $ids, $prefer) use ($real) {
-            $this->assertContains('2026-06-04', $dates);
-            $this->assertNotContains('2026-06-11', $dates);
-
-            return $real->resolveForDates($dates, $method, $ids, $prefer);
-        });
-        $this->app->instance(AsOfAnnualCostEvidenceResolver::class, $resolver);
         $anchor = $this->v3('2026-06-10', new SupplierAdjustedCandidate('interval-end', 8, 0));
-        // No dated identity exists on June 4. Rechecking it cannot invent a known signature.
-        $this->assertSame('2026-06-08', $anchor->startedAt?->toDateString());
+        // June 4 has no snapshot, but the long observation still covers it with its own signature.
+        $this->assertSame('2026-06-04', $anchor->startedAt?->toDateString());
     }
 
     private function v3(string $date, SupplierAdjustedCandidate $candidate, ?ContractPriceBasis $basis = null)
@@ -283,11 +293,11 @@ class HistoricalPriceEpisodeResolverTest extends TestCase
         return (new HistoricalPriceEpisodeResolver)->resolve($this->date($date), [$candidate->contractId => $candidate], $basis, AnnualCostMethodVersion::AsOfV3)[$candidate->contractId];
     }
 
-    private function source(string $id, string $date, array $rates): ContractInterpretation
+    private function source(string $id, string $date, array $rates, string $metering = 'General'): ContractInterpretation
     {
         $source = ContractSourceSnapshot::create([
             'contract_id' => $id, 'source_fingerprint' => hash('sha256', uniqid('', true)),
-            'source_payload' => ['Details' => ['TargetGroup' => 'Household']],
+            'source_payload' => ['Details' => ['TargetGroup' => 'Household', 'PricingModel' => 'FixedPrice', 'ContractType' => 'OpenEnded', 'Metering' => $metering]],
             'first_observed_at' => $date.' 08:00:00', 'last_observed_at' => $date.' 18:00:00',
         ]);
         $observation = ContractSourceObservation::create([

@@ -1,0 +1,2 @@
+dates=4 excluded=[]
+  2999 pairs  425 contracts  equal  {'fixed_term_24': 512, 'spot': 626, 'open_ended': 495, 'fixed_term_6': 111, 'quarterly': 196, 'fixed_term_12': 503, 'hybrid': 451, 'market_reset': 81, 'fixed_term_over24': 12, 'fixed_term_13_23': 12}

@@ -331,19 +331,20 @@ class AsOfHistoricalInterpretationIntegrationTest extends TestCase
         $this->assertSame(AnnualCostMethodVersion::Legacy->value, config('contract_statistics.annual_cost.active_method_version'));
     }
 
-    public function test_v3_anchor_uses_dedicated_evidence_and_does_not_reopen_invalid_manifest(): void
+    public function test_v3_anchor_uses_dated_snapshot_evidence_before_sources_like_the_current_resolver(): void
     {
+        // Dedicated output is cost evidence, not energy-episode evidence: the current resolver
+        // proves pre-source episodes from dated snapshots and raw tariffs only.
         $contract = $this->evidence('dedicated-anchor', 8.0);
         [$episode] = $this->historicalInterpretation($contract, 8.0);
         $resolver = app(HistoricalPriceEpisodeResolver::class);
         $candidates = [$contract->id => new SupplierAdjustedCandidate($contract->id, 8, 0)];
         $anchor = $resolver->resolve(CarbonImmutable::parse(self::DATE, 'Europe/Helsinki'), $candidates, methodVersion: AnnualCostMethodVersion::AsOfV3)[$contract->id];
         $this->assertSame(self::DATE, $anchor->startedAt?->toDateString());
-        $this->assertSame('canonical_snapshot_run', $anchor->evidenceBasis->value);
-        $this->assertContains('price_episode_uses_dedicated_historical_interpretation', $anchor->flags);
+        $this->assertSame('observed_seller_snapshot_run', $anchor->evidenceBasis->value);
+        $this->assertNotContains('price_episode_uses_dedicated_historical_interpretation', $anchor->flags);
         $episode->update(['manifest_fingerprint' => 'invalid']);
-        $rejected = $resolver->resolve(CarbonImmutable::parse(self::DATE, 'Europe/Helsinki'), $candidates, methodVersion: AnnualCostMethodVersion::AsOfV3)[$contract->id];
-        $this->assertNull($rejected->startedAt);
+        $this->assertEquals($anchor, $resolver->resolve(CarbonImmutable::parse(self::DATE, 'Europe/Helsinki'), $candidates, methodVersion: AnnualCostMethodVersion::AsOfV3)[$contract->id]);
     }
 
     private function evidence(string $id, float $price): ElectricityContract
@@ -471,7 +472,10 @@ class AsOfHistoricalInterpretationIntegrationTest extends TestCase
         $snapshot = ContractSourceSnapshot::create([
             'contract_id' => $contract->id,
             'source_fingerprint' => hash('sha256', $contract->id.$firstObserved),
-            'source_payload' => ['id' => $contract->id],
+            'source_payload' => ['id' => $contract->id, 'Details' => [
+                'PricingModel' => $contract->pricing_model, 'ContractType' => $contract->contract_type,
+                'Metering' => $contract->metering, 'TargetGroup' => 'Household',
+            ]],
             'first_observed_at' => $firstObserved,
             'last_observed_at' => $lastObserved,
         ]);

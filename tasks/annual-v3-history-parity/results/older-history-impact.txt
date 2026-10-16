@@ -1,0 +1,127 @@
+dates=243 (2026-01-21..2026-09-21)
+pairs {'equal': 216304, 'changed': 5063, 'new': 714, 'lost': 9} contracts with any change 52
+per segment:
+  fixed_term_12      {'equal': 37268}
+  fixed_term_13_23   {'equal': 2427}
+  fixed_term_24      {'equal': 37457}
+  fixed_term_6       {'equal': 13176}
+  fixed_term_below6  {'equal': 69}
+  fixed_term_other   {'equal': 552}
+  fixed_term_over24  {'equal': 870}
+  hybrid             {'equal': 33896, 'changed': 48}
+  market_reset       {'equal': 1330, 'new': 6, 'changed': 195}
+  open_ended         {'equal': 37434, 'changed': 4233, 'new': 12, 'lost': 9}
+  quarterly          {'equal': 9377, 'changed': 564, 'new': 24}
+  spot               {'equal': 42448, 'changed': 23, 'new': 672}
+method moves (top):
+     768 none -> recurring_forward_curve_shift
+      48 none -> hybrid_base_only
+segment median delta new-stored: n, median, p10, p90, min, max, |delta|>=1 days
+  fixed_term_12       2000 n=243 med=   +0.00 p10=   +0.00 p90=   +0.00 min=   +0.00 max=   +0.00 days|d|>=1:0
+  fixed_term_12       5000 n=243 med=   +0.00 p10=   +0.00 p90=   +0.00 min=   +0.00 max=   +0.00 days|d|>=1:0
+  fixed_term_12      18000 n=243 med=   +0.00 p10=   +0.00 p90=   +0.00 min=   +0.00 max=   +0.00 days|d|>=1:0
+  fixed_term_13_23    2000 n=243 med=   +0.00 p10=   +0.00 p90=   +0.00 min=   +0.00 max=   +0.00 days|d|>=1:0
+  fixed_term_13_23    5000 n=243 med=   +0.00 p10=   +0.00 p90=   +0.00 min=   +0.00 max=   +0.00 days|d|>=1:0
+  fixed_term_13_23   18000 n=243 med=   +0.00 p10=   +0.00 p90=   +0.00 min=   +0.00 max=   +0.00 days|d|>=1:0
+  fixed_term_24       2000 n=243 med=   +0.00 p10=   +0.00 p90=   +0.00 min=   +0.00 max=   +0.00 days|d|>=1:0
+  fixed_term_24       5000 n=243 med=   +0.00 p10=   +0.00 p90=   +0.00 min=   +0.00 max=   +0.00 days|d|>=1:0
+  fixed_term_24      18000 n=243 med=   +0.00 p10=   +0.00 p90=   +0.00 min=   +0.00 max=   +0.00 days|d|>=1:0
+  fixed_term_6        2000 n=243 med=   +0.00 p10=   +0.00 p90=   +0.00 min=   +0.00 max=   +0.00 days|d|>=1:0
+  fixed_term_6        5000 n=243 med=   +0.00 p10=   +0.00 p90=   +0.00 min=   +0.00 max=   +0.00 days|d|>=1:0
+  fixed_term_6       18000 n=243 med=   +0.00 p10=   +0.00 p90=   +0.00 min=   +0.00 max=   +0.00 days|d|>=1:0
+  fixed_term_below6   2000 n= 21 med=   +0.00 p10=   +0.00 p90=   +0.00 min=   +0.00 max=   +0.00 days|d|>=1:0
+  fixed_term_below6   5000 n= 21 med=   +0.00 p10=   +0.00 p90=   +0.00 min=   +0.00 max=   +0.00 days|d|>=1:0
+  fixed_term_below6  18000 n= 21 med=   +0.00 p10=   +0.00 p90=   +0.00 min=   +0.00 max=   +0.00 days|d|>=1:0
+  fixed_term_other    2000 n=184 med=   +0.00 p10=   +0.00 p90=   +0.00 min=   +0.00 max=   +0.00 days|d|>=1:0
+  fixed_term_other    5000 n=184 med=   +0.00 p10=   +0.00 p90=   +0.00 min=   +0.00 max=   +0.00 days|d|>=1:0
+  fixed_term_other   18000 n=184 med=   +0.00 p10=   +0.00 p90=   +0.00 min=   +0.00 max=   +0.00 days|d|>=1:0
+  fixed_term_over24   2000 n=242 med=   +0.00 p10=   +0.00 p90=   +0.00 min=   +0.00 max=   +0.00 days|d|>=1:0
+  fixed_term_over24   5000 n=242 med=   +0.00 p10=   +0.00 p90=   +0.00 min=   +0.00 max=   +0.00 days|d|>=1:0
+  fixed_term_over24  18000 n=242 med=   +0.00 p10=   +0.00 p90=   +0.00 min=   +0.00 max=   +0.00 days|d|>=1:0
+  hybrid              2000 n=243 med=   +0.00 p10=   +0.00 p90=   +0.00 min=   +0.00 max=   +0.00 days|d|>=1:0
+  hybrid              5000 n=243 med=   +0.00 p10=   +0.00 p90=   +0.00 min=   +0.00 max=   +0.00 days|d|>=1:0
+  hybrid             18000 n=243 med=   +0.00 p10=   +0.00 p90=   +0.00 min=   +0.00 max=   +0.00 days|d|>=1:0
+  market_reset        2000 n= 51 med=   +0.00 p10=   +0.00 p90=   +0.00 min=   +0.00 max=   +6.22 days|d|>=1:2
+  market_reset        5000 n= 51 med=   +0.00 p10=   +0.00 p90=   +0.00 min=   +0.00 max=   +4.99 days|d|>=1:2
+  market_reset       18000 n= 51 med=   +0.00 p10=   +0.00 p90=   +0.00 min=   -0.00 max=   +1.74 days|d|>=1:2
+  open_ended          2000 n=243 med=   +0.00 p10=  -17.96 p90=   +0.00 min=  -22.26 max=   +5.18 days|d|>=1:60
+  open_ended          5000 n=243 med=   +0.00 p10=  -46.51 p90=   +0.00 min=  -55.77 max=   +7.07 days|d|>=1:70
+  open_ended         18000 n=243 med=   +0.00 p10=  -71.99 p90=   +0.00 min= -119.80 max=  +35.80 days|d|>=1:74
+  quarterly           2000 n=236 med=   +0.00 p10=   +0.00 p90=   +0.00 min=   +0.00 max=   +2.64 days|d|>=1:10
+  quarterly           5000 n=236 med=   +0.00 p10=   +0.00 p90=   +0.00 min=   +0.00 max=   +6.60 days|d|>=1:10
+  quarterly          18000 n=236 med=   +0.00 p10=   +0.00 p90=   +0.00 min=   -0.00 max=  +23.76 days|d|>=1:10
+  spot                2000 n=243 med=   +0.00 p10=   -1.08 p90=   +0.00 min=   -2.46 max=   +0.00 days|d|>=1:36
+  spot                5000 n=243 med=   +0.00 p10=   -0.93 p90=   +0.00 min=   -1.74 max=   +0.00 days|d|>=1:20
+  spot               18000 n=243 med=   +0.00 p10=   -0.74 p90=   +0.00 min=   -1.24 max=   +0.00 days|d|>=1:16
+transitions of dominant family (stored -> new), after 2026-05-01 for open_ended/hybrid/quarterly/market_reset/spot:
+  hybrid          2000 stored=0 []
+                       new   =0 []
+  hybrid          5000 stored=0 []
+                       new   =0 []
+  hybrid         18000 stored=0 []
+                       new   =0 []
+  market_reset    2000 stored=0 []
+                       new   =0 []
+  market_reset    5000 stored=0 []
+                       new   =0 []
+  market_reset   18000 stored=0 []
+                       new   =0 []
+  open_ended      2000 stored=0 []
+                       new   =0 []
+  open_ended      5000 stored=0 []
+                       new   =0 []
+  open_ended     18000 stored=0 []
+                       new   =0 []
+  quarterly       2000 stored=1 ['2026-07-01']
+                       new   =1 ['2026-07-01']
+  quarterly       5000 stored=1 ['2026-07-01']
+                       new   =1 ['2026-07-01']
+  quarterly      18000 stored=1 ['2026-07-01']
+                       new   =1 ['2026-07-01']
+  spot            2000 stored=0 []
+                       new   =0 []
+  spot            5000 stored=0 []
+                       new   =0 []
+  spot           18000 stored=0 []
+                       new   =0 []
+5000 kWh median deltas >= 25 EUR: 48
+   ('2026-07-24', 'open_ended', 749.59, 719.47, -30.12)
+   ('2026-07-25', 'open_ended', 750.5, 718.26, -32.24)
+   ('2026-07-26', 'open_ended', 749.81, 717.77, -32.05)
+   ('2026-07-27', 'open_ended', 749.12, 717.69, -31.43)
+   ('2026-07-28', 'open_ended', 739.21, 704.68, -34.53)
+   ('2026-07-29', 'open_ended', 734.12, 703.67, -30.45)
+   ('2026-07-30', 'open_ended', 748.03, 717.72, -30.31)
+   ('2026-07-31', 'open_ended', 745.68, 717.58, -28.1)
+   ('2026-08-01', 'open_ended', 770.33, 733.64, -36.69)
+   ('2026-08-02', 'open_ended', 772.09, 740.53, -31.56)
+   ('2026-08-03', 'open_ended', 772.04, 740.09, -31.95)
+   ('2026-08-04', 'open_ended', 762.66, 729.92, -32.74)
+   ('2026-08-05', 'open_ended', 767.44, 737.87, -29.57)
+   ('2026-08-06', 'open_ended', 758.05, 729.03, -29.01)
+   ('2026-08-07', 'open_ended', 760.1, 731.31, -28.79)
+   ('2026-08-08', 'open_ended', 796.13, 747.58, -48.55)
+   ('2026-08-09', 'open_ended', 795.64, 746.82, -48.82)
+   ('2026-08-10', 'open_ended', 795.15, 746.06, -49.08)
+   ('2026-08-11', 'open_ended', 800.52, 751.17, -49.35)
+   ('2026-08-12', 'open_ended', 797.11, 748.25, -48.86)
+   ('2026-08-13', 'open_ended', 796.63, 748.41, -48.22)
+   ('2026-08-14', 'open_ended', 788.39, 740.81, -47.58)
+   ('2026-08-15', 'open_ended', 783.89, 736.96, -46.94)
+   ('2026-08-16', 'open_ended', 783.2, 736.19, -47.01)
+   ('2026-08-17', 'open_ended', 783.2, 735.43, -47.77)
+   ('2026-08-18', 'open_ended', 789.95, 744.68, -45.27)
+   ('2026-08-19', 'open_ended', 792.45, 746.67, -45.77)
+   ('2026-08-20', 'open_ended', 788.55, 742.27, -46.28)
+   ('2026-08-21', 'open_ended', 785.79, 739.0, -46.79)
+   ('2026-08-22', 'open_ended', 792.1, 744.8, -47.29)
+   ('2026-08-23', 'open_ended', 791.84, 744.04, -47.8)
+   ('2026-08-24', 'open_ended', 791.69, 743.27, -48.42)
+   ('2026-08-25', 'open_ended', 787.17, 738.35, -48.81)
+   ('2026-08-26', 'open_ended', 777.38, 727.43, -49.95)
+   ('2026-08-27', 'open_ended', 765.2, 720.8, -44.4)
+   ('2026-08-28', 'open_ended', 772.91, 722.58, -50.33)
+   ('2026-08-29', 'open_ended', 769.91, 720.8, -49.11)
+   ('2026-08-30', 'open_ended', 769.66, 720.8, -48.86)
+   ('2026-08-31', 'open_ended', 769.41, 720.8, -48.61)
+   ('2026-09-01', 'open_ended', 779.16, 735.01, -44.15)

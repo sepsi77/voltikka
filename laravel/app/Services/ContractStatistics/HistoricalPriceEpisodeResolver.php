@@ -5,6 +5,7 @@ namespace App\Services\ContractStatistics;
 use App\Services\CanonicalPricing\CanonicalContractPriceCalculator;
 use App\Services\CanonicalPricing\DTO\ContractContext;
 use App\Services\CanonicalPricing\Enums\ComparisonPolicy;
+use App\Services\CanonicalPricing\SupplierAdjusted\CurrentPriceEpisodeResolver;
 use App\Services\CanonicalPricing\SupplierAdjusted\DTO\PriceEpisodeAnchor;
 use App\Services\CanonicalPricing\SupplierAdjusted\DTO\SupplierAdjustedCandidate;
 use App\Services\CanonicalPricing\SupplierAdjusted\Enums\PriceEpisodeEvidenceBasis;
@@ -38,7 +39,7 @@ class HistoricalPriceEpisodeResolver
             ->startOfDay();
         $targetDateString = $target->toDateString();
         if ($methodVersion === AnnualCostMethodVersion::AsOfV3) {
-            return $this->resolveObservedProxies($target, $candidates, $explicitHistoricalBasis);
+            return $this->resolveObservedProxies($target, $candidates);
         }
 
         $rowsByContract = DB::table('contract_price_snapshots')
@@ -183,117 +184,139 @@ class HistoricalPriceEpisodeResolver
     /**
      * Exact-contract dated evidence only. Current replacement/publication pointers are not dated proof.
      *
+     * The event model follows CurrentPriceEpisodeResolver: before the first immutable source
+     * observation, dated snapshots (General) and raw component tariffs (Time/Season) are the
+     * evidence; after it, only source observation boundaries are events and each observation
+     * carries its own exact-source v3 signature. A day without a snapshot inside an observation
+     * is therefore not an evidence break. The only remaining difference is the dated identity:
+     * no replacement lineage and the latest target-validated exact-source interpretation.
+     *
      * @param  array<string, SupplierAdjustedCandidate>  $candidates
      * @return array<string, PriceEpisodeAnchor>
      */
-    private function resolveObservedProxies(CarbonImmutable $target, array $candidates, ContractPriceBasis|array|null $explicitBasis): array
+    private function resolveObservedProxies(CarbonImmutable $target, array $candidates): array
     {
-        $rows = DB::table('contract_price_snapshots')
-            ->whereIn('contract_id', array_keys($candidates))
+        $ids = array_map('strval', array_keys($candidates));
+        $sources = app(AsOfAnnualCostEvidenceResolver::class)->sourceObservationEvidence($target, $ids);
+        $snapshots = DB::table('contract_price_snapshots')
+            ->whereIn('contract_id', $ids)
             ->whereDate('snapshot_date', '<=', $target->toDateString())
-            ->orderBy('snapshot_date')->get(['contract_id', 'snapshot_date', 'pricing_basis', 'energy_price_cents_per_kwh', 'has_discount']);
-        $observations = DB::table('contract_source_observations')
-            ->whereIn('contract_id', array_keys($candidates))
-            ->where('first_observed_at', '<=', $target->endOfDay()->utc()->format('Y-m-d H:i:s'))
-            ->orderBy('first_observed_at')->get(['contract_id', 'first_observed_at', 'last_observed_at']);
-        $events = [];
-        $firstSource = [];
-        foreach ($rows as $row) {
-            $events[$this->date($row)->toDateString()][$row->contract_id] = true;
-        }
-        $componentDates = DB::table('price_components')
-            ->whereIn('electricity_contract_id', array_keys($candidates))
-            ->whereDate('price_date', '<=', $target->toDateString())
-            ->select('electricity_contract_id', DB::raw('DATE(price_date) as evidence_date'))->distinct()->get();
-        foreach ($componentDates as $row) {
-            $events[$row->evidence_date][$row->electricity_contract_id] = true;
-        }
-        foreach ($observations as $observation) {
-            $first = CarbonImmutable::parse($observation->first_observed_at, 'UTC')->setTimezone(self::TIMEZONE)->startOfDay();
-            $last = CarbonImmutable::parse($observation->last_observed_at, 'UTC')->setTimezone(self::TIMEZONE)->startOfDay();
-            $firstSource[$observation->contract_id] ??= $first->toDateString();
-            $boundaries = [$first, $last];
-            $after = $last->addDay();
-            if ($after <= $target && $observations->contains(function ($other) use ($observation, $after): bool {
-                return $other->contract_id === $observation->contract_id
-                    && CarbonImmutable::parse($other->first_observed_at, 'UTC')->setTimezone(self::TIMEZONE)->startOfDay() <= $after
-                    && CarbonImmutable::parse($other->last_observed_at, 'UTC')->setTimezone(self::TIMEZONE)->startOfDay() >= $after;
-            })) {
-                $boundaries[] = $after;
-            }
-            foreach ($boundaries as $event) {
-                if ($event <= $target) {
-                    $events[$event->toDateString()][$observation->contract_id] = true;
-                }
-            }
-        }
-        $events[$target->toDateString()] = array_fill_keys(array_keys($candidates), true);
-        ksort($events);
-        $evidence = app(AsOfAnnualCostEvidenceResolver::class)->resolveForDates(
-            array_keys($events), AnnualCostMethodVersion::AsOfV3, array_keys($candidates), preferObservedSnapshots: true,
-        );
+            ->orderBy('snapshot_date')
+            ->get(['contract_id', 'snapshot_date', 'pricing_basis', 'energy_price_cents_per_kwh', 'metering', 'pricing_model'])
+            ->groupBy('contract_id');
+        $raw = app(CurrentPriceEpisodeResolver::class);
+        $firstObservations = collect($sources)->map(fn (array $intervals) => collect([(object) ['first_observed_at' => $intervals[0]['first_observed_at']]]));
+        $tariffs = $raw->historicalTariffs($candidates, array_combine($ids, array_map(fn (string $id): array => [$id], $ids)), $firstObservations, $target);
         $calculator = app(CanonicalContractPriceCalculator::class);
-        $snapshots = $rows->groupBy(fn ($row) => $row->contract_id.'|'.$this->date($row)->toDateString());
         $resolved = [];
         foreach ($candidates as $id => $candidate) {
+            $id = (string) $id;
+            $intervals = [];
+            $events = [];
+            foreach ($sources[$id] ?? [] as $source) {
+                $signature = null;
+                if ($source['data'] !== null) {
+                    $details = $source['details'];
+                    $signature = $calculator->supplierAdjustedCandidate($id, $source['data'], new ContractContext(
+                        (string) ($details['PricingModel'] ?? ''), (string) ($details['ContractType'] ?? ''),
+                        is_string($details['Metering'] ?? null) ? $details['Metering'] : null,
+                        is_string($details['FixedTimeRange'] ?? null) ? $details['FixedTimeRange'] : null, 'Household',
+                    ), $source['start'], ComparisonPolicy::Current);
+                }
+                $intervals[] = ['start' => $source['start']->toDateString(), 'end' => $source['end']->toDateString(),
+                    'candidate' => $signature, 'provenance' => $source['provenance'], 'flags' => $source['flags']];
+                $events[$source['start']->toDateString()] ??= [];
+                $events[$source['end']->toDateString()] ??= [];
+            }
+            $firstSource = $intervals[0]['start'] ?? null;
+            $rawEvents = [];
+            if (in_array($candidate->metering, ['Time', 'Season'], true)) {
+                foreach ($tariffs[$id] ?? [] as $date => $rows) {
+                    $rawEvents[$date] = $raw->historicalTariffCandidate($rows, $candidate);
+                    $events[$date] ??= [];
+                }
+            }
+            foreach ($snapshots->get($id, collect()) as $snapshot) {
+                $date = substr((string) $snapshot->snapshot_date, 0, 10);
+                // Once immutable chronology starts, gaps and invalid output cannot reopen raw evidence.
+                if ($firstSource === null || $date < $firstSource) {
+                    $events[$date][] = $snapshot;
+                }
+            }
+            // Inclusive ends can remove conflicting evidence while another source still covers the next day.
+            foreach ($intervals as $interval) {
+                $next = CarbonImmutable::parse($interval['end'], self::TIMEZONE)->addDay()->toDateString();
+                if ($next <= $target->toDateString()
+                    && collect($intervals)->contains(fn (array $other): bool => $other['start'] <= $next && $other['end'] >= $next)) {
+                    $events[$next] ??= [];
+                }
+            }
+            ksort($events);
+
             $start = null;
             $previous = null;
-            $basis = PriceEpisodeEvidenceBasis::ObservedSellerSnapshotRun;
             $flags = ['price_episode_observed_proxy', 'price_episode_left_censored', 'historical_exact_contract_only'];
-            $allowedBasis = is_array($explicitBasis) ? ($explicitBasis[$id] ?? null) : $explicitBasis;
-            foreach ($events as $date => $contracts) {
-                if (! isset($contracts[$id])) {
-                    continue;
+            $basis = PriceEpisodeEvidenceBasis::ObservedSellerSnapshotRun;
+            $rawStart = false;
+            foreach ($events as $date => $dailySnapshots) {
+                $covering = array_values(array_filter($intervals, fn (array $interval): bool => $interval['start'] <= $date && $interval['end'] >= $date));
+                if ($covering !== []) {
+                    $evidence = array_column($covering, 'candidate');
+                    $dailyBasis = PriceEpisodeEvidenceBasis::CanonicalSourceObservationRun;
+                } elseif (array_key_exists($date, $rawEvents)) {
+                    $evidence = [$rawEvents[$date]];
+                    $dailyBasis = PriceEpisodeEvidenceBasis::ObservedSellerSnapshotRun;
+                } else {
+                    $known = collect($dailySnapshots)->filter(fn ($row): bool => $row->energy_price_cents_per_kwh !== null);
+                    $observed = $known->where('pricing_basis', ContractPriceBasis::ObservedSellerData->value);
+                    $selected = $observed->isNotEmpty() ? $observed : $known;
+                    $evidence = $selected->map(fn ($row) => $raw->snapshotCandidate($row))->values()->all();
+                    $dailyBasis = $observed->isNotEmpty() ? PriceEpisodeEvidenceBasis::ObservedSellerSnapshotRun : PriceEpisodeEvidenceBasis::CanonicalSnapshotRun;
                 }
-                $item = $evidence[$date][$id] ?? null;
-                $signature = null;
-                $dailyBasis = PriceEpisodeEvidenceBasis::ObservedSellerSnapshotRun;
-                if ($item !== null && $item->exclusionReason === null && ! $item->householdAudienceConflict
-                    && ($item->pricingBasis === ContractPriceBasis::ObservedSellerData || $item->pricingBasis === $allowedBasis)) {
-                    if ($item->canonicalData !== null
-                        && ($item->sourceEvidenceIds['source_snapshot_id'] !== null
-                            || ! isset($firstSource[$id]) || $date < $firstSource[$id])) {
-                        $signature = $calculator->supplierAdjustedCandidate($id, $item->canonicalData,
-                            new ContractContext($item->pricingModel, $item->contractType, $item->metering, $item->fixedTimeRange, 'Household'),
-                            comparisonDate: $item->date, policy: ComparisonPolicy::Current);
-                        $dailyBasis = $item->sourceEvidenceIds['source_snapshot_id'] !== null
-                            ? PriceEpisodeEvidenceBasis::CanonicalSourceObservationRun : PriceEpisodeEvidenceBasis::CanonicalSnapshotRun;
-                    } elseif ((! isset($firstSource[$id]) || $date < $firstSource[$id])
-                        && in_array('historical_canonical_omitted_no_covering_current_builder_episode', $item->provenanceFlags, true)
-                        && $item->metering === 'General' && $item->pricingModel === 'FixedPrice'
-                        && $item->contractType === 'OpenEnded') {
-                        $selected = $snapshots->get($id.'|'.$date, collect())->where('pricing_basis', $item->pricingBasis->value);
-                        $row = $selected->count() === 1 ? $selected->first() : null;
-                        if ($row !== null && ! $row->has_discount && $row->energy_price_cents_per_kwh !== null
-                            && is_finite((float) $row->energy_price_cents_per_kwh)) {
-                            $signature = new SupplierAdjustedCandidate($id, (float) $row->energy_price_cents_per_kwh, 0, metering: 'General');
-                            $dailyBasis = $item->pricingBasis === ContractPriceBasis::ObservedSellerData
-                                ? PriceEpisodeEvidenceBasis::ObservedSellerSnapshotRun : PriceEpisodeEvidenceBasis::CanonicalSnapshotRun;
-                        }
-                    }
-                }
-                if ($signature === null || ! $candidate->hasSameEnergySignature($signature)) {
+                $matches = $evidence !== [] && collect($evidence)->every(fn ($item): bool => $item !== null && $candidate->hasSameEnergySignature($item));
+                if (! $matches) {
                     $start = null;
                     $flags = ['price_episode_observed_proxy', 'price_episode_left_censored', 'historical_exact_contract_only',
                         'prior_energy_evidence_changed_unknown_or_conflicting'];
+                    $previous = $date;
+
+                    continue;
+                }
+                if ($start === null) {
+                    $start = $date;
+                    $basis = $dailyBasis;
+                    $rawStart = $covering === [] && array_key_exists($date, $rawEvents);
+                    if ($rawStart) {
+                        $flags[] = 'observed_full_tariff_energy_evidence';
+                    }
                 } else {
-                    if ($start === null) {
-                        $start = CarbonImmutable::parse($date, self::TIMEZONE);
+                    $continuouslyObserved = collect($intervals)->contains(fn (array $interval): bool => $interval['start'] <= $previous
+                        && $interval['end'] >= $date && $interval['candidate'] !== null && $candidate->hasSameEnergySignature($interval['candidate']));
+                    if (! $continuouslyObserved && CarbonImmutable::parse($previous, self::TIMEZONE)->addDay()->toDateString() < $date) {
+                        $flags[] = 'price_episode_observation_gap';
+                    }
+                    if ($rawStart) {
+                        if ($dailyBasis === PriceEpisodeEvidenceBasis::CanonicalSourceObservationRun) {
+                            $flags[] = 'canonical_source_energy_continuation';
+                        }
+                    } elseif ($dailyBasis === PriceEpisodeEvidenceBasis::CanonicalSourceObservationRun || $basis === PriceEpisodeEvidenceBasis::CanonicalSourceObservationRun) {
+                        $basis = PriceEpisodeEvidenceBasis::CanonicalSourceObservationRun;
+                    } elseif ($dailyBasis === PriceEpisodeEvidenceBasis::CanonicalSnapshotRun) {
                         $basis = $dailyBasis;
-                    } elseif ($previous !== null && $previous->addDay()->toDateString() !== $date) {
-                        $flags[] = 'calendar_gap_within_observed_price_episode';
                     }
-                    if ($item->sourceEvidenceIds['historical_interpretation_id'] !== null) {
-                        $flags[] = 'price_episode_uses_dedicated_historical_interpretation';
-                    }
-                    if ($item->sourceInterpretationProvenance?->retrospective) {
+                }
+                foreach ($covering as $interval) {
+                    if ($interval['provenance']?->retrospective) {
                         $flags[] = 'price_episode_uses_retrospective_exact_source_interpretation';
                     }
                 }
-                $previous = CarbonImmutable::parse($date, self::TIMEZONE);
+                $previous = $date;
+            }
+            if ($previous !== null && $previous < $target->toDateString()) {
+                $flags[] = 'price_episode_right_observation_gap';
             }
             $resolved[$id] = $start === null ? $this->missing($flags)
-                : new PriceEpisodeAnchor($start, $basis, array_values(array_unique($flags)));
+                : new PriceEpisodeAnchor(CarbonImmutable::parse($start, self::TIMEZONE)->startOfDay(), $basis, array_values(array_unique($flags)));
         }
 
         return $resolved;

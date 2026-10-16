@@ -17,7 +17,11 @@ start, target). It never calls the current premium loader or reads current publi
 Dedicated historical output and approved later exact-source interpretations are eligible; their
 completion is processing provenance only. The reset flag and known-period/short-term rules remain.
 V1/v2 keep Historical; older absent donors, dated replacement lineage and V5 rules remain unsupported.
-See `../../ContractStatistics/AGENTS.md` for these evidence limits and private audit provenance.
+Since 2026-10-16 v3 target validation accepts a cited monthly/quarterly current window that contains
+the observed target date, a cited same-year `D.M.–D.M.YYYY` range, an in-observation `analysis_date`
+citation and relative month boundaries, so quarterly resets that the current writer prices no longer
+fall back to relational hold-flat. See `../../ContractStatistics/AGENTS.md` for these evidence limits
+and private audit provenance.
 
 This directory annualises **market-reset** contracts — `canonical_pricing.recurring_schedule.present
 = true` with cadence `monthly`, `quarterly`, `seasonal`, or `other`. Those products publish one price

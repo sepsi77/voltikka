@@ -1102,7 +1102,10 @@ class AsOfAnnualCostCalculatorTest extends TestCase
         $snapshot = ContractSourceSnapshot::create([
             'contract_id' => $contract->id,
             'source_fingerprint' => hash('sha256', $contract->id.$firstObserved.$lastObserved),
-            'source_payload' => ['id' => $contract->id],
+            'source_payload' => ['id' => $contract->id, 'Details' => [
+                'PricingModel' => $contract->pricing_model, 'ContractType' => $contract->contract_type,
+                'Metering' => $contract->metering, 'TargetGroup' => 'Household',
+            ]],
             'first_observed_at' => $firstObserved,
             'last_observed_at' => $lastObserved,
         ]);

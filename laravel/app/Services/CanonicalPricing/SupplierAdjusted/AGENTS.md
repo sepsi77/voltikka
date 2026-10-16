@@ -98,10 +98,13 @@ legitimate past anchors are unchanged. Forward months use the request date, neve
 Before immutable chronology starts for a carrier ID, a compatible General/FixedPrice snapshot can prove an exact singleton. Time and Season use one additional batched raw historical query only before immutable coverage. A same-date observed household snapshot must prove full tariff identity and VAT; weighted averages alone cannot prove buckets. Company, unknown units, promotional energy, missing buckets, and conflicts remain unknown. Source-covered invalid evidence never falls back to raw rows. Within immutable chronology, complete parser-valid ordinary unchanged-energy interpretations supply exact normalized tariff signatures through the shared current extraction; observation-scoped analysis, current publication pointers, validation errors, completion dates, source identity, and VAT remain checked. Unsupported output stays unknown except for the proven current base-effect extension above; conflicting output stays unknown. Source intervals carry their actual first/last coverage; there is no pointer-only anchor fallback. No snapshot after the first immutable observation can reopen missing or unsafe source evidence.
 
 Matching ignores carrier ID and fees, but compares every energy bucket, metering, mechanism, and VAT basis. A→B→A stays separate. Same-date legacy observed evidence has local precedence over canonical snapshots. Missing dates between unchanged observations retain one observed proxy with explicit gap flags; they do not prove rates on missing days. Unknown/conflicting evidence clears the run with uncertainty flags. Every start is left-censored observed evidence, not a known seller repricing or hedge date. Immutable runs use `canonical_source_observation_run`. The separate historical AsOf resolver keeps
-v1/v2 strict. Explicit v3 now accepts dated left-censored exact-contract proxies with fee-independent
-full energy signatures, exact-source or dedicated historical evidence, and no current lineage links.
-Pre-source raw proof is limited to General singletons; Time/Season require valid dated canonical
-buckets. Missing dated snapshot identity remains unknown. Explicit v3 now uses shared Current
+v1/v2 strict. Since 2026-10-16 explicit v3 uses this resolver's event model with dated,
+exact-contract inputs: the same pre-source raw evidence (`snapshotCandidate`, `historicalTariffs`,
+`historicalTariffCandidate`, public for that reuse only), observation-boundary events after the first
+immutable observation, and per-observation exact-source v3 signatures with classification from the
+dated payload. Dedicated historical output is not anchor evidence. No current lineage links are read;
+that is the only measured difference from current anchors (see
+`../../../../../tasks/annual-v3-history-parity/`). Explicit v3 now uses shared Current
 candidate/calculation semantics with explicit historical dates and supplied exact-date premiums.
 V1/v2 still use Historical. The dated adapter never invokes the current episode resolver or current
 premium loader. Older absent donors and dated replacement lineage are not implemented; V5 rules

@@ -1,0 +1,47 @@
+dates=22 excluded=['2026-10-01', '2026-10-07']
+ 15346 pairs  476 contracts  equal  {'fixed_term_24': 2810, 'spot': 3270, 'open_ended': 1853, 'fixed_term_6': 603, 'quarterly': 1026, 'fixed_term_12': 2759, 'hybrid': 2473, 'market_reset': 420, 'fixed_term_over24': 66, 'fixed_term_13_23': 66}
+            ('2026-09-22', '0gktyo-aanekosken-energia-oy-maalaisjarkisahko-aikasahko-24-kk-paastoton', 617.13, 617.13, None, None)
+            ('2026-09-22', '0haoj3-nurmijarven-sahko-oy-porssisahko-plus', 581.2228, 581.2228, None, None)
+            ('2026-09-22', '0lpjxi-parikkalan-valo-oy-spot-valo', 550.1428, 550.1428, None, None)
+   534 pairs   16 contracts  G_amount_same_method_same_anchor:supplier_adjusted_forward_premium  {'open_ended': 534}
+            ('2026-09-22', 'ccs6hf-keuruun-sahko-oy-yleissahko', 769.1704, 781.6633, '2026-01-21', '2026-01-21')
+            ('2026-09-22', 'fu2xdq-vattenfall-oy-kesto', 774.4079, 786.9008, '2026-01-21', '2026-01-21')
+            ('2026-09-22', 'hwmfco-aalto-energia-oyj-tyyni-jatkuva', 781.4329, 793.9258, '2026-01-31', '2026-01-31')
+            contracts: ['68g91h-keuruun-sahko-oy-yosahko', 'ccs6hf-keuruun-sahko-oy-yleissahko', 'fu2xdq-vattenfall-oy-kesto', 'gywy8t-aanekosken-energia-oy-aikasahko', 'hwmfco-aalto-energia-oyj-tyyni-jatkuva', 'iwjgsd-pohjois-karjalan-sahko-oy-tove-pe', 'lazesb-keuruun-sahko-oy-kausisahko', 'onnuwd-nurmijarven-sahko-oy-aikasahko', 'ozjhpb-helen-oy-kayttosahko', 'pszotq-nurmijarven-sahko-oy-kausisahko', 'qftxhb-oomi-oy-toimitusvelvollinen-sahko', 'v7juwr-aanekosken-energia-oy-kausisahko', 'wsnmgc-nurmijarven-sahko-oy-yleissahko', 'xx5uxn-oomi-oy-toimitusvelvollinen-sahko', 'ymqe7v-helen-oy-perussahko', 'zsxqiy-oomi-oy-toimitusvelvollinen-sahko']
+   158 pairs   54 contracts  G_amount_same_method_same_anchor:forward_curve_spot  {'spot': 158}
+            ('2026-10-02', '0haoj3-nurmijarven-sahko-oy-porssisahko-plus', 578.1306, 584.8897, None, None)
+            ('2026-10-02', '1xpsyz-paneliankosken-voima-oy-kosken-markkinawoima', 547.7506, 554.5097, None, None)
+            ('2026-10-02', '408nd7-imatran-seudun-sahko-oy-ajantasa-kampanja-4-ensimmaista-kk-ilman-perusmaksua', 537.9506, 544.7097, None, None)
+   132 pairs    2 contracts  E_anchor_start:supplier_adjusted_forward_premium->supplier_adjusted_forward_curve_shift  {'open_ended': 132}
+            ('2026-09-22', 'bcztkj-iin-energia-oy-yleissahko', 787.6354, 810.5533, '2026-03-01', '2026-08-08')
+            ('2026-09-22', 'bgbqwj-imatran-seudun-sahko-oy-huoleton', 778.5329, 875.8723, '2026-01-21', '2026-06-19')
+            ('2026-09-23', 'bcztkj-iin-energia-oy-yleissahko', 773.2823, 796.2654, '2026-03-01', '2026-08-08')
+            contracts: ['bcztkj-iin-energia-oy-yleissahko', 'bgbqwj-imatran-seudun-sahko-oy-huoleton']
+    67 pairs   24 contracts  G_amount_same_method_same_anchor:recurring_forward_curve_shift  {'quarterly': 46, 'market_reset': 21}
+            ('2026-10-02', '1hcqlj-kokkolan-energia-oy-vuodenaika', 552.4993, 557.4701, None, None)
+            ('2026-10-02', '3h1cfg-kokkolan-energia-oy-tyyni', 658.3758, 665.135, None, None)
+            ('2026-10-02', '7dfcfq-pohjois-karjalan-sahko-oy-oiva-plus', 761.2093, 766.1801, None, None)
+            contracts: ['1hcqlj-kokkolan-energia-oy-vuodenaika', '3h1cfg-kokkolan-energia-oy-tyyni', '7dfcfq-pohjois-karjalan-sahko-oy-oiva-pl', '9hkzpi-pohjois-karjalan-sahko-oy-oiva-pl', 'arbtdt-turku-energia-oy-louna-varma', 'cnvyyy-keravan-energia-oy-tuulikvartaali', 'cqzm7o-vaasan-sahko-myynti-oy-vaikuttaja', 'dcroez-keravan-energia-oy-biokvartaalisa', 'duxuxz-vaasan-sahko-myynti-oy-toimitusve', 'ezitdc-pohjois-karjalan-sahko-oy-optimi-', 'fbgodz-vaasan-sahko-myynti-oy-perussahko', 'g8qntd-pohjois-karjalan-sahko-oy-oiva', 'lotkc3-helen-oy-markkinahintasahko', 'm7yecr-vaasan-sahko-myynti-oy-perussahko', 'mjsp23-pohjois-karjalan-sahko-oy-optimi-', 'next4d-aalto-energia-oyj-aalto-kuukausih', 'nmlhzy-pohjois-karjalan-sahko-oy-oiva-pl', 'rbuzj1-vaasan-sahko-myynti-oy-tuulisahko', 'rdwlmp-korpelan-energia-oy-korpela-kvart', 'tiwz85-iin-energia-oy-kulutusvaikutustuo', 'urklm3-keravan-energia-oy-kvartaalisahko', 'uxs95u-pohjois-karjalan-sahko-oy-optimi-', 'xpdssk-keravan-energia-oy-kvartaalisahko', 'xrhzk5-vaasan-sahko-myynti-oy-tuulisahko']
+    66 pairs    1 contracts  E_anchor_start:supplier_adjusted_forward_premium->supplier_adjusted_forward_premium  {'open_ended': 66}
+            ('2026-09-22', '2wzfba-oomi-oy-oomi-vakaa', 779.2529, 791.7458, '2026-01-21', '2026-02-28')
+            ('2026-09-23', '2wzfba-oomi-oy-oomi-vakaa', 764.3512, 776.8797, '2026-01-21', '2026-02-28')
+            ('2026-09-24', '2wzfba-oomi-oy-oomi-vakaa', 786.0852, 797.6095, '2026-01-21', '2026-02-28')
+            contracts: ['2wzfba-oomi-oy-oomi-vakaa']
+    66 pairs    1 contracts  E_anchor_start:supplier_adjusted_forward_curve_shift->supplier_adjusted_forward_premium  {'open_ended': 66}
+            ('2026-09-22', 'gduez1-parikkalan-valo-oy-kesto-valo-kanta-asiakas', 727.6954, 678.0883, '2026-09-10', '2026-01-21')
+            ('2026-09-23', 'gduez1-parikkalan-valo-oy-kesto-valo-kanta-asiakas', 712.7969, 663.0486, '2026-09-10', '2026-01-21')
+            ('2026-09-24', 'gduez1-parikkalan-valo-oy-kesto-valo-kanta-asiakas', 728.2523, 678.3626, '2026-09-10', '2026-01-21')
+            contracts: ['gduez1-parikkalan-valo-oy-kesto-valo-kan']
+    52 pairs   18 contracts  G_amount_same_method_same_anchor:supplier_adjusted_forward_curve_shift  {'open_ended': 52}
+            ('2026-10-02', '6avnao-lammaisten-energia-oy-toimitusvelvollinen-aikasahko', 981.6908, 988.45, '2026-10-01', '2026-10-01')
+            ('2026-10-02', '7s44nk-fortum-markets-oy-fortum-kesto-kausisahko', 858.8243, 865.5834, '2026-09-24', '2026-09-24')
+            ('2026-10-02', 'esb4na-turku-energia-oy-louna-varma-yritykset-yosahko', 574.4108, 581.17, '2026-10-01', '2026-10-01')
+            contracts: ['6avnao-lammaisten-energia-oy-toimitusvel', '7s44nk-fortum-markets-oy-fortum-kesto-ka', 'esb4na-turku-energia-oy-louna-varma-yrit', 'hbdxeg-vihrea-alyenergia-oy-vakaa-valint', 'k5jsrm-turku-energia-oy-louna-arki', 'khvntz-herrfors-oy-ab-yleissahko', 'l2vcnk-lammaisten-energia-oy-toimitusvel', 'p0islx-parikkalan-valo-oy-q-valo', 'qu8iem-seinajoen-energia-oy-se-oikea-aik', 'r25sux-aanekosken-energia-oy-yleissahko', 'rlqfli-seinajoen-energia-oy-se-oikea-yle', 'rrjczl-seinajoen-energia-oy-se-oikea-vuo', 'v3mggw-pohjois-karjalan-sahko-oy-tove-pe', 'vcdbn0-lammaisten-energia-oy-toimitusvel', 'vmq1rx-fortum-markets-oy-fortum-kesto-yl', 'wlovru-herrfors-oy-ab-vakaa', 'wrd5dd-fortum-markets-oy-fortum-kesto-ai', 'yzrni3-aanekosken-energia-oy-yleissahko']
+    28 pairs    4 contracts  E_anchor_start:supplier_adjusted_forward_curve_shift->supplier_adjusted_forward_curve_shift  {'open_ended': 28}
+            ('2026-10-11', 'ckriqr-vihrea-alyenergia-oy-vakaa-valinta', 804.7448, 877.0966, '2026-10-03', '2026-10-10')
+            ('2026-10-12', 'ckriqr-vihrea-alyenergia-oy-vakaa-valinta', 804.4638, 877.0217, '2026-10-03', '2026-10-10')
+            ('2026-10-13', 'ckriqr-vihrea-alyenergia-oy-vakaa-valinta', 824.2876, 897.0516, '2026-10-03', '2026-10-10')
+            contracts: ['ckriqr-vihrea-alyenergia-oy-vakaa-valint', 'jsyqpm-seinajoen-energia-oy-se-oikea-vuo', 'ma2kdn-seinajoen-energia-oy-se-oikea-yle', 'p42pjw-seinajoen-energia-oy-se-oikea-aik']
+     3 pairs    1 contracts  A_target_validation_rejected:validator  {'quarterly': 3}
+            ('2026-10-02', 'qutzbc-kokkolan-energia-oy-vuodenaika-uusiutuva', 571.4993, 441.36, None, None)
+            contracts: ['qutzbc-kokkolan-energia-oy-vuodenaika-uu']

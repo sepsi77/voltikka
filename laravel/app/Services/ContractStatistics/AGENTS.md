@@ -88,16 +88,21 @@ prices and active/expired discount timing before selection. Invalid candidates a
 same newest-valid order. `target_evidence_rejected_interpretation_ids` and the target-validation
 flag survive in evidence/result/writer provenance. Unsupported stored profiles have a separate
 flag. Registered legacy profiles use retained schemas and today's pre-extension checks, not
-archived validator implementations. A supplemental date guard rejects unproved relative prose:
-calendar boundaries need exact ISO/full Finnish dates in validated phase citations or supported
-component-scoped structured discount boundaries. Active UntilDate coverage can prove an earlier
-phase start for the exact target. Relative month boundaries need matching scoped NFirstMonth
-metadata or the exact source Fixed6/Fixed12/Fixed24 term. Zero-month starts equal contract start.
+archived validator implementations. A supplemental date guard rejects unproved calendar years
+(updated 2026-10-16, see "V3 history parity" below): a calendar boundary needs an exact ISO/full
+Finnish date in a validated phase citation, a cited same-year range `D.M.–D.M.YYYY`, a supported
+component-scoped structured UntilDate boundary, or the cited monthly/quarterly window that contains
+the observed target date (its first day stated as `D.M.`; phases may also use the following window).
+Active UntilDate coverage can prove an earlier phase start for the exact target. Relative
+`after_months` boundaries count from the customer's contract start, which the calculation places on
+the comparison date; they make no calendar claim and are accepted like in the current writer.
+A validated `analysis_date=X` citation is moved to the target only when X lies between the first
+day of the covering observation and the target, so the full validator still checks the target.
 Unknown boundaries add no calendar claim and retain the shared timeline behavior.
-Calendar reset windows need exact dated schedule citations; absent windows remain
-available to the shared cadence estimator. Unsupported proof stays explicit as
-`historical_temporal_source_validation_unavailable`; no year or processing-date assumption is
-invented. V5 remains excluded. This is bounded legacy support, not a general prose-date parser.
+Absent schedule windows remain available to the shared cadence estimator. Unsupported proof stays
+explicit as `historical_temporal_source_validation_unavailable`; no year or processing-date
+assumption is invented. V5 remains excluded. This is bounded legacy support, not a general
+prose-date parser.
 `SourceInterpretationProvenance` records source/covering observation/interpretation IDs, optional
 analysis observation ID, target date, UTC completion and retrospective/legacy-null-binding flags;
 it passes from typed evidence to typed results and writer JSON only for v3 source selections.
@@ -118,9 +123,9 @@ rows. The recorded full suite passes 2,878 tests / 21,930 assertions. Endpoint d
 agreement and same-input fixtures do not prove full-store current/historical amount equality or
 forecast improvement. No full current-v3 database replay is claimed.
 
-Keep 703 temporal-proof losses across seven contracts and 664 short-duration-proof losses explicit.
-Recovery needs bounded source-backed proof, not weaker guards. V5 dated validation, dated replacement
-lineage and older absent donors remain unsupported. Preview must use an explicit 512 MiB limit and
+Keep 664 short-duration-proof losses explicit. The 703 temporal-proof losses of the 2026-09-21
+preview are reduced by the 2026-10-16 target-date proof rules; see "V3 history parity". V5 dated
+validation, dated replacement lineage and older absent donors remain unsupported. Preview must use an explicit 512 MiB limit and
 one `nice -n 15` worker per date, sequentially. The 144.5 MiB measured allocated peak does not prove
 128 MiB worker safety or safety for an unbounded multi-date command.
 
@@ -134,6 +139,40 @@ Local current-writer evidence is in `tasks/annual-statistics-history-continuity/
 anchors and dated donors for supplier premium, reset premium, Hybrid and Fixed6. They prove
 same-input calculation parity, not equality between unequal current and historical evidence stores.
 Partial parser fixtures mock full source validation; separate exact-source tests retain that proof.
+
+## V3 history parity with the current writer (2026-10-16, local, not deployed)
+
+Requirement: the historical v3 path must give the current writer's result on the same date, except
+for a documented date-safety reason. Before this unit, a preview of 2026-10-06 differed by up to
+EUR 295 in segment medians. Read-only tool and full report: `../../../../tasks/annual-v3-history-parity/`.
+
+Fixes (v3 only; v1/v2, the current writer and code defaults are unchanged):
+- Anchors: `HistoricalPriceEpisodeResolver` v3 follows `CurrentPriceEpisodeResolver` (see the
+  resolver bullet in "Versioned annual-cost persistence foundation"). The old per-day snapshot and
+  component events made 2026-10-01 (no snapshots) an evidence break for every contract, and dedicated
+  backcast output with a different mechanism broke pre-source runs. Both gave the forward-curve shift
+  instead of the comparable premium.
+- Target validation: the year proofs in "V3 reconstruction" above. The current writer prices these
+  validated interpretations; the old guard sent 22 quarterly/reset/promotion contracts to relational
+  hold-flat or exclusion.
+
+Remaining, documented differences on 2026-09-22..2026-10-15 (2026-10-01 has no stored rows;
+2026-10-07 stored rows are the incomplete-futures day):
+- Replacement lineage (date safety): the current resolver reads `replaced_by_contract_id`, which has
+  no dated creation record. Eight open-ended targets (Iin Yleissähkö, Imatra Huoleton, Oomi Vakaa,
+  Parikkala Kesto Valo, Vihreä Älyenergia Vakaa valinta, three Seinäjoki SE Oikea) start later or
+  earlier, and the comparable-premium donor pool differs for 16 more. Effect: open_ended median +EUR
+  8 to 16 at 5,000 kWh (+33 to 117 at 18,000). A scratch experiment with current lineage links gave
+  zero differences on four dates, so lineage is the whole remainder.
+- 2026-10-02 only: EEX rows for trade dates 1.10 and 2.10 arrived on 3.10. History uses the market
+  vintage by trade date (before the target), the writer had only older rows. Spot/reset/forward
+  shift move EUR 5 to 7 at 5,000 kWh.
+- 2026-10-02 only, one contract (Kokkola Vuodenaika Uusiutuva): its observed Q3 interpretation ends
+  2026-09-30; full target validation rejects a phase that ended before the target date.
+
+Older history moves: 76 of 243 stored v3 dates (2026-02-13..02-27 and every date 2026-07-23..
+2026-09-21) change; fixed-term and hybrid medians do not change. A rebuild of these dates is
+required by "History follows the current method"; see the task folder for the plan and numbers.
 
 ## V3 dated premium integration
 
@@ -227,26 +266,22 @@ does not remove these limits or authorize production release.
   alone never select policy. No current premium loader or current episode resolver is called.
 - `HistoricalPriceEpisodeResolver` selects policy by explicit method version; its default and v1/v2
   remain strict. V3 accepts first-observed, left-censored energy proxies, never proven repricing or
-  hedge dates. The calculator passes its selected method. V3 uses only exact-contract dated identity:
-  current replacement links cannot prove lineage trust on a past date. It batches snapshot/component
-  dates and source interval boundaries through the target, then reuses `AsOfAnnualCostEvidenceResolver` with
-  contract filtering and local observed-basis priority. No annual price calculation proves a signature.
-  Source-covered dates use v3 exact-source selection; pre-source dates can use validated dedicated
-  historical evidence. Invalid/missing covering source output never reopens raw proof; after the first
-  immutable observation, source gaps cannot reopen raw proof either. Only an undiscounted dated
-  General/FixedPrice/OpenEnded singleton can use raw snapshot evidence before immutable coverage and
-  when no dedicated episode exists. Time/Season need valid dated canonical full buckets; raw weighted
-  averages never prove them. Shared candidate signature comparison includes buckets, metering, mechanism
-  and VAT, but not fees. Unknown, conflicting, or different energy breaks the run; the next match starts
-  another uncertain proxy. Missing calendar dates between matching evidence can retain a flagged proxy,
-  not fabricated observed days. Missing dated snapshot identity at a source boundary remains unknown;
-  this unit does not reconstruct identity from current metadata. Source and dedicated retrospective-use
-  flags survive in the anchor. Signature proof alone uses the pure shared Current candidate extractor
-  with the exact historical date, so redundant/fee-only phases do not reset energy. It reads no current
-  pointers or peer evidence. V3 target candidate eligibility and estimator policy now use Current
-  with explicit dated inputs; v1/v2 stay Historical. Source event dates include the day after an
-  inclusive interval end when another interval covers that day. An ended conflict is rechecked
-  without waiting for an unrelated event; a missing dated identity still cannot prove a signature.
+  hedge dates. The calculator passes its selected method. Since 2026-10-16 the v3 event model is
+  the `SupplierAdjusted/CurrentPriceEpisodeResolver` model with dated, exact-contract inputs (see
+  "V3 history parity" below): before the contract's first immutable source observation, dated
+  General/FixedPrice snapshots and raw Time/Season component tariffs (the current resolver's public
+  `snapshotCandidate`/`historicalTariffs`/`historicalTariffCandidate`) are the evidence; after it,
+  only observation boundaries (first day, last day, and the day after an inclusive end that another
+  observation covers) are events. Each observation carries the signature of its exact-source v3
+  selection, validated on the observation's first Helsinki date, with classification from that dated
+  payload (`AsOfAnnualCostEvidenceResolver::sourceObservationEvidence`, three queries). A day without
+  a snapshot inside an observation (for example 2026-10-01) is not a break, and overlapping
+  observations must agree. Dedicated historical interpretations no longer supply anchor signatures,
+  because the current method never uses them. Shared candidate signature comparison includes buckets,
+  metering, mechanism and VAT, but not fees. Unknown, conflicting or different energy breaks the run;
+  the next match starts another uncertain proxy. Gaps keep `price_episode_observation_gap`. V3 uses
+  only exact-contract dated identity: current replacement links cannot prove lineage trust on a past
+  date (the one remaining parity difference). It reads no current pointers or peer evidence.
 - The v1/v2 episode branch makes one batch query only to `contract_price_snapshots` through the explicit target date. A
   matching observed target row wins. Another basis is eligible only when the caller passes that
   basis explicitly, either once or per candidate. The matching run has a proven start only when the

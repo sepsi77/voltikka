@@ -187,8 +187,8 @@ class CurrentPriceEpisodeResolver
         return $resolved;
     }
 
-    /** One compact, date-bounded query only for requested multi-rate lineages. */
-    private function historicalTariffs(array $candidates, array $lineages, $observations, CarbonImmutable $asOf): array
+    /** One compact, date-bounded query only for requested multi-rate lineages. Shared with dated v3 anchors. */
+    public function historicalTariffs(array $candidates, array $lineages, $observations, CarbonImmutable $asOf): array
     {
         $ids = [];
         foreach ($candidates as $id => $candidate) {
@@ -234,7 +234,7 @@ class CurrentPriceEpisodeResolver
     }
 
     /** Historical household snapshot membership proves the VAT convention, not current VAT metadata. */
-    private function historicalTariffCandidate(array $rows, SupplierAdjustedCandidate $selected): ?SupplierAdjustedCandidate
+    public function historicalTariffCandidate(array $rows, SupplierAdjustedCandidate $selected): ?SupplierAdjustedCandidate
     {
         // Observed statistics include Household/Both/null only. They cannot prove Company VAT0 history.
         if (! $selected->includesVat || $selected->pricingMechanism !== 'FixedPrice') {
@@ -291,7 +291,7 @@ class CurrentPriceEpisodeResolver
     }
 
     /** General statistics are exact singleton energy evidence; multi-rate averages are not. */
-    private function snapshotCandidate(object $row): ?SupplierAdjustedCandidate
+    public function snapshotCandidate(object $row): ?SupplierAdjustedCandidate
     {
         if ($row->metering !== 'General' || $row->pricing_model !== 'FixedPrice'
             || $row->energy_price_cents_per_kwh === null || ! is_finite((float) $row->energy_price_cents_per_kwh)) {

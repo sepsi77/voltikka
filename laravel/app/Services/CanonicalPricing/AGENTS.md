@@ -154,6 +154,13 @@ Public HTTP/CSV checks pass through September 22, not browser interaction. No au
 See `../../../../tasks/annual-statistics-history-continuity/production-rollout.md` for the manager's
 final checkpoint, backup and scoped preservation proof, and public HTTP/CSV checks.
 
+History parity (2026-10-16, local, not deployed): v3 anchors now use the current episode resolver's
+event model with dated exact-contract inputs, and v3 target validation accepts year proofs that come
+from the observed target date (cited recurring window, same-year range, in-observation analysis date,
+relative months). On the 22 current-writer dates 2026-09-22..2026-10-15 every remaining difference
+comes from replacement lineage or the late 2026-10-02 EEX import. See
+`../ContractStatistics/AGENTS.md` ("V3 history parity") and `tasks/annual-v3-history-parity/`.
+
 Historical-policy statements below apply to v1/v2, not explicit annual v3. Dated release records
 remain records of those releases. V3 still lacks dated V5 validation, trusted replacement lineage
 and older absent donor carry-forward. Source-backed temporal and short-duration proof limits stay
