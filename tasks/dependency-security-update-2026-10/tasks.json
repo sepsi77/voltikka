@@ -1,0 +1,6 @@
+[
+  {"name": "Update Livewire, Filament and advisory packages in composer.lock", "status": "done"},
+  {"name": "Run full test suite and production asset build", "status": "done"},
+  {"name": "Commit and push to main (needs explicit user approval)", "status": "pending"},
+  {"name": "Decide the Laravel major-version upgrade", "status": "pending"}
+]
