@@ -77,3 +77,13 @@ Cache-Control headers equal production for every checked route; browser checks o
 filters, solar presets, bill comparison, statistics charts, contract detail and admin login pass
 with no console errors. The two existing Pint findings in `routes/web.php` and
 `OptimizeLogos.php` are also on `main` and were left unchanged.
+
+## Production deployment (2026-10-20)
+
+With user approval, `main` was fast-forwarded to `upgrade/laravel-13` (e0e2237) and pushed at 15:33
+Helsinki time. Railway deployment `e505a6be-2b35-487c-b9c6-719b2f6da5e0` reached SUCCESS. The
+container start cached config, routes and views; frankenphp, scheduler and queue-worker started.
+Production checks: all checked routes 200 (404 for a missing page), cookie and Cache-Control headers
+unchanged per route, Livewire build `8ea5922c` served, solar page JSON-LD has `@context`.
+The first laravel-backup 10 run in production is still unproved (scheduled 03:00, or a manual run
+with separate approval).
