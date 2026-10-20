@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
+use Intervention\Image\Encoders\WebpEncoder;
 use Intervention\Image\Laravel\Facades\Image;
 
 class OptimizeLogos extends Command
@@ -120,7 +121,7 @@ class OptimizeLogos extends Command
     private function optimizeImage($disk, string $filePath, bool $removeOriginal): void
     {
         $content = $disk->get($filePath);
-        $image = Image::read($content);
+        $image = Image::decodeBinary($content);
 
         $currentWidth = $image->width();
 
@@ -128,7 +129,7 @@ class OptimizeLogos extends Command
             $image->scaleDown(width: self::MAX_WIDTH);
         }
 
-        $webpContent = $image->toWebp(self::WEBP_QUALITY)->toString();
+        $webpContent = $image->encode(new WebpEncoder(self::WEBP_QUALITY))->toString();
 
         $directory = pathinfo($filePath, PATHINFO_DIRNAME);
         $filename = pathinfo($filePath, PATHINFO_FILENAME);

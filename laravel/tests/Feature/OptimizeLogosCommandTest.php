@@ -4,6 +4,10 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
+use Intervention\Image\Encoders\GifEncoder;
+use Intervention\Image\Encoders\JpegEncoder;
+use Intervention\Image\Encoders\PngEncoder;
+use Intervention\Image\Encoders\WebpEncoder;
 use Intervention\Image\Laravel\Facades\Image;
 use Tests\TestCase;
 
@@ -22,9 +26,9 @@ class OptimizeLogosCommandTest extends TestCase
      */
     private function createTestImage(int $width, int $height): string
     {
-        $image = Image::create($width, $height)->fill('ff0000');
+        $image = Image::createImage($width, $height)->fill('ff0000');
 
-        return $image->toPng()->toString();
+        return $image->encode(new PngEncoder)->toString();
     }
 
     /**
@@ -42,7 +46,7 @@ class OptimizeLogosCommandTest extends TestCase
         Storage::disk('public')->assertExists('logos/large-company.webp');
 
         $optimizedContent = Storage::disk('public')->get('logos/large-company.webp');
-        $optimizedImage = Image::read($optimizedContent);
+        $optimizedImage = Image::decodeBinary($optimizedContent);
 
         $this->assertLessThanOrEqual(200, $optimizedImage->width());
     }
@@ -60,7 +64,7 @@ class OptimizeLogosCommandTest extends TestCase
         Storage::disk('public')->assertExists('logos/wide-company.webp');
 
         $optimizedContent = Storage::disk('public')->get('logos/wide-company.webp');
-        $optimizedImage = Image::read($optimizedContent);
+        $optimizedImage = Image::decodeBinary($optimizedContent);
 
         $this->assertEquals(200, $optimizedImage->width());
         $expectedHeight = (int) round(200 * (200 / 600));
@@ -80,7 +84,7 @@ class OptimizeLogosCommandTest extends TestCase
         Storage::disk('public')->assertExists('logos/small-company.webp');
 
         $optimizedContent = Storage::disk('public')->get('logos/small-company.webp');
-        $optimizedImage = Image::read($optimizedContent);
+        $optimizedImage = Image::decodeBinary($optimizedContent);
 
         $this->assertEquals(100, $optimizedImage->width());
         $this->assertEquals(50, $optimizedImage->height());
@@ -91,7 +95,7 @@ class OptimizeLogosCommandTest extends TestCase
      */
     public function test_command_handles_jpg_files(): void
     {
-        $jpgImage = Image::create(400, 300)->fill('00ff00')->toJpeg()->toString();
+        $jpgImage = Image::createImage(400, 300)->fill('00ff00')->encode(new JpegEncoder)->toString();
         Storage::disk('public')->put('logos/jpg-company.jpg', $jpgImage);
 
         $this->artisan('logos:optimize')->assertExitCode(0);
@@ -104,7 +108,7 @@ class OptimizeLogosCommandTest extends TestCase
      */
     public function test_command_handles_jpeg_files(): void
     {
-        $jpegImage = Image::create(400, 300)->fill('0000ff')->toJpeg()->toString();
+        $jpegImage = Image::createImage(400, 300)->fill('0000ff')->encode(new JpegEncoder)->toString();
         Storage::disk('public')->put('logos/jpeg-company.jpeg', $jpegImage);
 
         $this->artisan('logos:optimize')->assertExitCode(0);
@@ -118,7 +122,7 @@ class OptimizeLogosCommandTest extends TestCase
     public function test_command_processes_multiple_images(): void
     {
         Storage::disk('public')->put('logos/company-a.png', $this->createTestImage(500, 300));
-        Storage::disk('public')->put('logos/company-b.jpg', Image::create(400, 200)->fill('ff0000')->toJpeg()->toString());
+        Storage::disk('public')->put('logos/company-b.jpg', Image::createImage(400, 200)->fill('ff0000')->encode(new JpegEncoder)->toString());
         Storage::disk('public')->put('logos/company-c.png', $this->createTestImage(300, 150));
 
         $this->artisan('logos:optimize')
@@ -145,7 +149,7 @@ class OptimizeLogosCommandTest extends TestCase
      */
     public function test_command_skips_existing_webp_files(): void
     {
-        $webpImage = Image::create(100, 100)->fill('ff0000')->toWebp()->toString();
+        $webpImage = Image::createImage(100, 100)->fill('ff0000')->encode(new WebpEncoder)->toString();
         Storage::disk('public')->put('logos/already-optimized.webp', $webpImage);
 
         $this->artisan('logos:optimize')
@@ -211,7 +215,7 @@ class OptimizeLogosCommandTest extends TestCase
      */
     public function test_optimized_file_is_smaller(): void
     {
-        $largeImage = Image::create(1000, 800)->fill('ff0000')->toPng()->toString();
+        $largeImage = Image::createImage(1000, 800)->fill('ff0000')->encode(new PngEncoder)->toString();
         Storage::disk('public')->put('logos/big-logo.png', $largeImage);
 
         $originalSize = strlen($largeImage);
@@ -229,7 +233,7 @@ class OptimizeLogosCommandTest extends TestCase
      */
     public function test_command_handles_gif_files(): void
     {
-        $gifImage = Image::create(300, 200)->fill('00ffff')->toGif()->toString();
+        $gifImage = Image::createImage(300, 200)->fill('00ffff')->encode(new GifEncoder)->toString();
         Storage::disk('public')->put('logos/gif-company.gif', $gifImage);
 
         $this->artisan('logos:optimize')->assertExitCode(0);

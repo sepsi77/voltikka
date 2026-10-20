@@ -20,7 +20,7 @@ use App\Livewire\SpotPrice;
 use App\Livewire\TermsOfService;
 use App\Models\Municipality;
 use App\Services\SitemapService;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
@@ -35,14 +35,14 @@ Route::get('/spot-price', SpotPrice::class)
     ->withoutMiddleware([
         StartSession::class,
         ShareErrorsFromSession::class,
-        ValidateCsrfToken::class,
+        PreventRequestForgery::class,
     ])
     ->name('spot-price');
 Route::get('/spot-price.csv', SpotPriceCsvController::class)
     ->withoutMiddleware([
         StartSession::class,
         ShareErrorsFromSession::class,
-        ValidateCsrfToken::class,
+        PreventRequestForgery::class,
     ])
     ->name('spot-price.csv');
 
@@ -81,7 +81,7 @@ Route::get('/sahkosopimus/sopimus/{contractId}', ContractDetail::class)
     ->withoutMiddleware([
         StartSession::class,
         ShareErrorsFromSession::class,
-        ValidateCsrfToken::class,
+        PreventRequestForgery::class,
     ])
     ->name('contract.detail');
 
@@ -91,7 +91,7 @@ Route::get('/sahkosopimus/sopimus/{contractId}', ContractDetail::class)
 $publicListingWithoutMiddleware = [
     StartSession::class,
     ShareErrorsFromSession::class,
-    ValidateCsrfToken::class,
+    PreventRequestForgery::class,
 ];
 
 Route::withoutMiddleware($publicListingWithoutMiddleware)

@@ -5,7 +5,7 @@ namespace Tests\Feature;
 use App\Models\ContractOrderClick;
 use App\Services\Analytics\ContractOrderClickContextSigner;
 use Carbon\CarbonImmutable;
-use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Route;
@@ -225,7 +225,7 @@ class AnalyticsEventTest extends TestCase
         $middleware = $route->gatherMiddleware();
 
         $this->assertNotContains(StartSession::class, $middleware);
-        $this->assertNotContains(VerifyCsrfToken::class, $middleware);
+        $this->assertNotContains(PreventRequestForgery::class, $middleware);
         $this->assertContains('throttle:analytics-events', $middleware);
 
         $this->postJson('/api/analytics/events', $this->validEnvelope())
