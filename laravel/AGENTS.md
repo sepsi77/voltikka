@@ -317,6 +317,8 @@ in `tests/Feature/AboutPageMethodologyTest.php`, including visible-note order an
 
 `resources/views/layouts/app.blade.php` relies on Laravel Vite's generated CSS preload/modulepreload tags and Livewire's own versioned script tag. Do not add a manual `as="script"` preload for the Vite module: its request mode differs from the module request and can cause a duplicate download. Do not preload an unversioned `/vendor/livewire/livewire.min.js`; Livewire emits the versioned file it actually executes. `tests/Feature/LayoutAssetLoadingTest.php` guards both rules.
 
+The Livewire JavaScript is published into git (`public/vendor/livewire/`), and the page loads that copy, not the package copy. It must match the installed Livewire PHP version: from August to 2026-10-20 it stayed at an older build while Livewire was updated, and the browser warned "The published Livewire assets are out of date". `composer.json` `post-update-cmd` now republishes the `livewire:assets` tag on each `composer update`; commit the changed files with the lock file. `public/vendor/livewire/manifest.json` must equal `vendor/livewire/livewire/dist/manifest.json`.
+
 ### Global page navigation feedback
 
 `resources/views/layouts/app.blade.php` shows an immediate page-loading indicator for normal same-origin link navigation. Same-document hash links (for example `/sahkosopimus/tilastot?kulutus=5000#viittaa`) must not start or leave this indicator active, because no page or Livewire request is expected. Keep the hash-only `click`/`popstate`/`hashchange` guards in sync if changing navigation feedback.
