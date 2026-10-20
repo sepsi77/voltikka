@@ -700,7 +700,7 @@ class DeferredContractImportCompletionTest extends TestCase
         $fence = app(ContractImportCompletion::class)->statisticsFence(self::DATE, $this->checkpoint()->metadata['run_uuid']);
         $connection = DB::connection();
         $grammar = $connection->getQueryGrammar();
-        $connection->setQueryGrammar(new MySqlGrammar);
+        $connection->setQueryGrammar(new MySqlGrammar($connection));
         try {
             app(ContractPriceStatisticsService::class)->calculateForDate(self::DATE, ['mysql-fence'], true, transactionFence: $fence);
             $this->fail('SQLite must reject the MySQL lock statement.');

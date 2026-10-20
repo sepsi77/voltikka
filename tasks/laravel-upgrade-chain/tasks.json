@@ -1,0 +1,7 @@
+[
+  {"name": "Step 1: upgrade laravel/framework to ^12.0 and check breaking changes", "status": "done"},
+  {"name": "Step 1: full test suite, asset build, boot checks", "status": "done"},
+  {"name": "Step 1: user approval, merge to main, deploy and verify", "status": "pending"},
+  {"name": "Step 2: upgrade to Laravel 13 with tinker 3.x and laravel-backup 10.x", "status": "pending"},
+  {"name": "Step 2: tests, deploy approval, verify, approved manual backup run", "status": "pending"}
+]

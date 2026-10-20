@@ -17,7 +17,7 @@ Project-local Pi agents live in `.pi/agents/`. When you call a trusted project-l
 
 ## Project Overview
 
-Voltikka is a Finnish electricity contract comparison platform built with **Laravel 11 and Livewire 4**. The site helps consumers find and compare electricity contracts, view real-time spot prices, and calculate solar panel production estimates.
+Voltikka is a Finnish electricity contract comparison platform built with **Laravel 12 and Livewire 4**. The site helps consumers find and compare electricity contracts, view real-time spot prices, and calculate solar panel production estimates.
 
 Every real public HTML page renders the shared Preferred Sources action strip directly after its hero or primary editorial header. The Blade page templates own this explicit placement; the internal contract comparison widget does not render the strip. The component owns the Google action, fallbacks, one-time script load, and the global `post_hero` analytics placement. Since round 3 (2026-10-16) it is the first element after the painted hero on every page (contract and company pages included): a low strip with villagers at the notice board (season art `noticeboard`, desktop only) beside a title, text and a pinned paper-note button (`laravel/resources/views/components/page-action-strip.blade.php`).
 
@@ -141,7 +141,7 @@ This moves real published prices for named companies, so treat a retune as a rev
 
 ```
 voltikka/
-├── laravel/                 # Main Laravel 11 application
+├── laravel/                 # Main Laravel 12 application
 │   ├── app/
 │   │   ├── Livewire/        # Livewire components
 │   │   ├── Models/          # Eloquent models

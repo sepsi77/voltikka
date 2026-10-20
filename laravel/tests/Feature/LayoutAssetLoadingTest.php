@@ -75,7 +75,11 @@ class LayoutAssetLoadingTest extends TestCase
         $this->assertStringContainsString('<link rel="stylesheet" href="'.$cssUrl.'"', $html);
 
         $this->assertSame(2, substr_count($html, $jsUrl));
-        $this->assertStringContainsString('<link rel="modulepreload" href="'.$jsUrl.'" />', $html);
+        // Laravel 12 adds as="script", the default destination of a module preload.
+        $this->assertMatchesRegularExpression(
+            '~<link rel="modulepreload"(?: as="script")? href="'.preg_quote($jsUrl, '~').'" />~',
+            $html
+        );
         $this->assertStringContainsString('<script type="module" src="'.$jsUrl.'"', $html);
         $this->assertDoesNotMatchRegularExpression(
             '~<link\b(?=[^>]*\brel="preload")(?=[^>]*\bhref="'.preg_quote($jsUrl, '~').'")(?=[^>]*\bas="script")[^>]*>~i',

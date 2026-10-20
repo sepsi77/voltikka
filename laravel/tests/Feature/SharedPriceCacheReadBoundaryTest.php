@@ -450,7 +450,7 @@ class SharedPriceCacheReadBoundaryTest extends TestCase
         // Compile the same bounded query with MySQL grammar, without opening a connection.
         $connection = DB::connection();
         $grammar = $connection->getQueryGrammar();
-        $connection->setQueryGrammar(new MySqlGrammar);
+        $connection->setQueryGrammar(new MySqlGrammar($connection));
         try {
             $mysql = ElectricityContract::query()->select([
                 'canonical_pricing->recurring_schedule->present as reset_present',
