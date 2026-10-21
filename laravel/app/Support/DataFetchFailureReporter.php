@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Services\Caching\ContractPriceCacheConflict;
 use App\Services\Caching\ContractPriceCacheStorageException;
 use App\Services\ContractImport\ContractImportCompletionStopped;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Log;
 use Sentry\Severity;
 use Sentry\State\Scope;
@@ -32,10 +33,13 @@ class DataFetchFailureReporter
         $this->failures[$stage] = ($this->failures[$stage] ?? 0) + 1;
         if ($exception !== null) {
             $this->exceptionClasses[$exception::class] = true;
-            $reason = $exception instanceof ContractPriceCacheConflict || $exception instanceof ContractPriceCacheStorageException
-                || $exception instanceof ContractImportCompletionStopped
-                ? $exception->reason
-                : 'unexpected';
+            $reason = match (true) {
+                $exception instanceof ContractPriceCacheConflict, $exception instanceof ContractPriceCacheStorageException,
+                $exception instanceof ContractImportCompletionStopped => $exception->reason,
+                // The numeric status only; the response body and URL can contain upstream text and tokens.
+                $exception instanceof RequestException && $exception->response !== null => 'http_'.$exception->response->status(),
+                default => 'unexpected',
+            };
             $this->reasons[$stage][$reason] = ($this->reasons[$stage][$reason] ?? 0) + 1;
         }
     }

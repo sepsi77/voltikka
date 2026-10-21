@@ -283,7 +283,14 @@ class FetchContracts extends Command
                 return true;
             }
 
-            return $this->runUuid !== null && $this->completion->record($date, $this->runUuid, $status, $metadata);
+            if ($this->runUuid !== null && $this->completion->record($date, $this->runUuid, $status, $metadata)) {
+                return true;
+            }
+
+            // A refused record fails the run; the scheduler exception for it is not reported.
+            $this->failureReporter->fail('checkpoint');
+
+            return false;
         } catch (Throwable $exception) {
             $this->error('Failed to record the contract freshness checkpoint.');
             $this->failureReporter->fail('checkpoint', $exception);

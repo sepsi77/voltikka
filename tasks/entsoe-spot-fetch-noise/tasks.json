@@ -1,0 +1,9 @@
+[
+  {"name": "Investigate the failure with production logs and network-flow logs", "status": "done"},
+  {"name": "Retry every failed ENTSO-E attempt", "status": "done"},
+  {"name": "Record the HTTP status in the safe failure reason", "status": "done"},
+  {"name": "Do not report the duplicate scheduler exception for self-reporting imports", "status": "done"},
+  {"name": "Tests, Pint and context files", "status": "done"},
+  {"name": "User approval, commit, deploy after 09:00 Helsinki and verify", "status": "pending"},
+  {"name": "After some days: check remaining failures and their status codes", "status": "pending"}
+]

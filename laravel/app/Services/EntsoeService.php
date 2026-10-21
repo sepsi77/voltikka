@@ -42,12 +42,12 @@ class EntsoeService
 
         $url = $baseUrl . '?' . http_build_query($params);
 
+        // Retry every failed attempt. ENTSO-E sometimes holds a request for 18-30 s and then answers
+        // with a non-5xx error (about 1.6 KB); the next hourly run succeeds (October 2026).
         $response = Http::connectTimeout((int) config('services.entsoe.connect_timeout', 5))
             ->timeout((int) config('services.entsoe.timeout', 30))
-            ->retry(self::MAX_RETRIES, self::RETRY_DELAY_MS, function ($exception, $request) {
-                return $exception instanceof ConnectionException
-                    || ($exception instanceof RequestException
-                        && ($exception->response?->serverError() || $exception->response === null));
+            ->retry(self::MAX_RETRIES, self::RETRY_DELAY_MS, function ($exception) {
+                return $exception instanceof ConnectionException || $exception instanceof RequestException;
             })->get($url);
 
         if ($response->failed()) {

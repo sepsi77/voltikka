@@ -3,6 +3,7 @@
 use App\Services\Caching\ContractPriceCacheConflict;
 use App\Services\Caching\ContractPriceCacheUnavailable;
 use App\Support\DatabaseConnectionLost;
+use App\Support\SelfReportedScheduledImportFailure;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -28,6 +29,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions) {
         Integration::handles($exceptions);
         $exceptions->dontReport([ContractPriceCacheConflict::class, ContractPriceCacheUnavailable::class]);
+        // The import already sent its own aggregate Issue; the scheduler log listeners still run.
+        $exceptions->dontReportWhen(SelfReportedScheduledImportFailure::matches(...));
         $exceptions->render(function (ContractPriceCacheConflict|ContractPriceCacheUnavailable $exception) {
             return response('Hintatiedot ovat tilapäisesti poissa käytöstä. Yritä hetken kuluttua uudelleen.', 503, [
                 'Content-Type' => 'text/plain; charset=UTF-8',

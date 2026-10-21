@@ -151,6 +151,7 @@ voltikka/
 │   ├── database/migrations/ # Database migrations
 │   └── data-investigation/  # API structure documentation
 ├── design/                  # Visual redesign: brand guide, design spec, art, Paper link; see design/AGENTS.md
+├── media/                   # Dated media story pitches and press material built from Voltikka data
 ├── legacy/                  # Deprecated code (not in active use)
 │   ├── python/              # Old Python services
 │   └── voltikka/            # Old SvelteKit frontend
@@ -229,7 +230,7 @@ Retail collection and forecast generation use independent five-minute background
 
 `futures:fetch-eex` retries only its failed discovery tenors and EOD requests after the main pass (at most 2 passes after a 60 s pause, and only when at most 25 units failed). Recovered failures do not alert. A full run is `ready` only when this run extracted prior-date FI Base month, quarter and year rows for its latest FI trade date; the morning gate rejects a quarter/year-only run (2026-10-07: a failed month probe lost that day's forecast and retail collection). See `laravel/app/Services/ElectricityFutures/AGENTS.md`.
 
-`spot:fetch`, `futures:fetch-eex`, and `contracts:fetch` send one explicit Sentry Issue and one safe aggregate Laravel log for a failed or incomplete invocation. Repeated failures group by import. Recovered retries and normal empty EEX maturities do not alert. Optional interpretation/logo failures do not create import Issues. Sentry Logs are separate from Issues; scheduler listeners remain unchanged. See `laravel/AGENTS.md` for the outcome, severity, and privacy rules.
+`spot:fetch`, `futures:fetch-eex`, and `contracts:fetch` send one explicit Sentry Issue and one safe aggregate Laravel log for a failed or incomplete invocation; the scheduler's duplicate exit-code exception for them is not reported. ENTSO-E requests retry every failed attempt, because ENTSO-E sometimes answers a stalled request with a non-5xx error. Repeated failures group by import. Recovered retries and normal empty EEX maturities do not alert. Optional interpretation/logo failures do not create import Issues. Sentry Logs are separate from Issues; scheduler listeners remain unchanged. See `laravel/AGENTS.md` for the outcome, severity, and privacy rules.
 
 ## Key Features
 

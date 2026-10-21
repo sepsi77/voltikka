@@ -489,6 +489,42 @@ XML;
     }
 
     /**
+     * ENTSO-E sometimes answers a stalled request with a non-5xx error; the next attempt succeeds.
+     */
+    public function test_retries_on_client_error(): void
+    {
+        Http::fake([
+            'web-api.tp.entsoe.eu/api*' => Http::sequence()
+                ->push('<Acknowledgement_MarketDocument/>', 400)
+                ->push($this->getSampleXmlResponse([50.0]), 200),
+        ]);
+
+        $result = $this->service->fetchDayAheadPrices(
+            Carbon::parse('2024-01-20'),
+            Carbon::parse('2024-01-21')
+        );
+
+        $this->assertCount(1, $result);
+        Http::assertSentCount(2);
+    }
+
+    public function test_throws_after_three_failed_attempts(): void
+    {
+        Http::fake([
+            'web-api.tp.entsoe.eu/api*' => Http::response('<Acknowledgement_MarketDocument/>', 400),
+        ]);
+
+        try {
+            $this->service->fetchDayAheadPrices(Carbon::parse('2024-01-20'), Carbon::parse('2024-01-21'));
+            $this->fail('Expected a RequestException.');
+        } catch (RequestException $exception) {
+            $this->assertSame(400, $exception->response->status());
+        }
+
+        Http::assertSentCount(3);
+    }
+
+    /**
      * Test service retries on connection timeouts.
      */
     public function test_retries_on_connection_timeout(): void

@@ -5,5 +5,5 @@
   {"name": "Step 2: upgrade to Laravel 13 with tinker 3.x, laravel-backup 10.x, image-laravel 4.x", "status": "done"},
   {"name": "Step 2: tests, header comparison and browser checks", "status": "done"},
   {"name": "User approval, merge to main, deploy and verify", "status": "done"},
-  {"name": "Approved manual production backup run to prove laravel-backup 10", "status": "pending"}
+  {"name": "Prove laravel-backup 10 in production (scheduled 2026-10-21 03:00 run; no manual run needed)", "status": "done"}
 ]

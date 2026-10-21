@@ -87,3 +87,11 @@ Production checks: all checked routes 200 (404 for a missing page), cookie and C
 unchanged per route, Livewire build `8ea5922c` served, solar page JSON-LD has `@context`.
 The first laravel-backup 10 run in production is still unproved (scheduled 03:00, or a manual run
 with separate approval).
+
+## laravel-backup 10 production proof (2026-10-21)
+
+No manual backup run was needed. The first scheduled runs on Laravel 13 were successful
+(read-only checks of the production logs):
+- `backup:run --only-db` at 03:06 Helsinki: "Created zip ... 78.53 MB", "Successfully copied zip to disk named s3", "Backup completed!".
+- `backup:clean` at 03:30: "Cleanup completed!" (2.18 GB used).
+- `backup:monitor` at 03:45: "The Voltikka backups on the s3 disk are considered healthy."

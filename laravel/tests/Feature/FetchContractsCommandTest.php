@@ -63,6 +63,19 @@ class FetchContractsCommandTest extends TestCase
         $this->assertSame('unexpected', DataFreshnessCheckpoint::sole()->metadata['stage']);
     }
 
+    public function test_refused_checkpoint_record_is_in_the_import_issue(): void
+    {
+        $this->captureSentryIssues();
+        Http::fake(function () {
+            // Another run took ownership of today's checkpoint.
+            $checkpoint = DataFreshnessCheckpoint::sole();
+            $checkpoint->update(['metadata' => ['run_uuid' => (string) Str::uuid()] + $checkpoint->metadata]);
+            throw new \RuntimeException('private upstream detail');
+        });
+        $this->artisan('contracts:fetch --skip-logos')->assertExitCode(1);
+        $this->assertImportIssue('contracts', 'error', ['unexpected' => 1, 'checkpoint' => 1]);
+    }
+
     /**
      * Test command fetches contracts from API and saves to database.
      */

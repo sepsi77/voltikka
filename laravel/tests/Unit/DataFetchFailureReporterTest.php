@@ -6,6 +6,8 @@ use App\Services\Caching\ContractPriceCacheConflict;
 use App\Services\Caching\ContractPriceCacheStorageException;
 use App\Services\ContractImport\ContractImportCompletionStopped;
 use App\Support\DataFetchFailureReporter;
+use GuzzleHttp\Psr7\Response;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Log;
 use Sentry\State\Scope;
 use Tests\Concerns\CapturesSentryIssues;
@@ -49,6 +51,21 @@ class DataFetchFailureReporterTest extends TestCase
         $this->assertSame('secret-token', $this->sentryIssues[1]->getTags()['unrelated']);
         $this->assertArrayNotHasKey('data_fetch', $this->sentryIssues[1]->getContexts());
         $this->assertSame([], $this->sentryIssues[1]->getFingerprint());
+    }
+
+    public function test_http_error_reason_is_the_status_code_only(): void
+    {
+        $this->captureSentryIssues();
+        Log::spy();
+        $reporter = new DataFetchFailureReporter('spot');
+        $reporter->fail('acquisition', new RequestException(new \Illuminate\Http\Client\Response(
+            new Response(400, [], '<Reason><text>secret-token upstream text</text></Reason>')
+        )));
+        $reporter->report(true);
+
+        $context = $this->sentryIssues[0]->getContexts()['data_fetch'];
+        $this->assertSame(['acquisition' => ['http_400' => 1]], $context['reasons']);
+        $this->assertStringNotContainsString('secret-token', json_encode($context));
     }
 
     public function test_cache_failures_use_only_closed_reasons_in_one_issue_and_log(): void
