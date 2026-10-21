@@ -1,0 +1,14 @@
+[
+  {"name": "Audit local build context for secrets and dev artifacts", "status": "completed"},
+  {"name": "Add root .dockerignore and verify it equals tracked COPY sources", "status": "completed"},
+  {"name": "Check build-time variables (VITE_*, Dockerfile ARG, Railway build injection)", "status": "completed"},
+  {"name": "Write scripts/build-and-push-image.sh (clean git archive export, immutable tags)", "status": "completed"},
+  {"name": "Write scripts/deploy-image.sh (not run)", "status": "completed"},
+  {"name": "Local linux/amd64 test build without push", "status": "completed"},
+  {"name": "Local container start smoke check", "status": "completed"},
+  {"name": "Draft root AGENTS.md deployment section in decisions.md", "status": "completed"},
+  {"name": "Write Railway cutover checklist in spec.md", "status": "completed"},
+  {"name": "User approval, commit, push, first GHCR image, Railway cutover", "status": "completed"},
+  {"name": "Apply AGENTS.md draft after cutover", "status": "completed"},
+  {"name": "Confirm the first image deployment in production (blocked by Railway incident QH8L8B3E)", "status": "pending"}
+]

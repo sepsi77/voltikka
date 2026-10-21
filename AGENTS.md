@@ -43,25 +43,29 @@ Use explicit Railway IDs instead of relying on whichever project is currently li
 
 ### Production code deployment
 
-The `voltikka` app service is connected to the GitHub repository and automatically deploys each push to `origin/main`. Use the Git-based deployment path for normal code releases:
+The `voltikka` app service runs one immutable GHCR image, `ghcr.io/sepsi77/voltikka:<tag>` (private package). A push to `origin/main` does **not** deploy. The service source is the image, not the GitHub repository (switched on 2026-10-21); Railway pulls it with a read-only `read:packages` registry credential stored in the service settings (never print it). The source of truth for the deployed version is the service `source.image` value. Tags are `deploy-NNNNNN-<sha12>`: the number orders deployments and `<sha12>` is the exact source commit. Never deploy `latest` and never overwrite a tag.
 
-1. Run the relevant tests and production asset build.
-2. Check `git diff --check` and `git status --short`.
-3. Stage only the intended files and commit them with a clear release message.
-4. Push the commit with `git push origin main`. Do **not** use `railway up`, `railway redeploy`, or a dashboard redeploy for a normal code release. These paths bypass or duplicate the configured Git release flow.
-5. Use Railway MCP to find the deployment whose commit hash matches the pushed commit.
-6. Poll that exact deployment with `scripts/railway-poll-deployment.sh` and the explicit project, environment, service, and deployment IDs. A successful `git push` does not prove a successful production deployment.
-7. After Railway reports `SUCCESS`, verify the relevant production page or asset. For a failure, read bounded build/deploy logs before taking further action.
+1. Run the relevant tests and production asset build. Check `git diff --check` and `git status --short`.
+2. Stage only the intended files and commit them. Push the commit to `origin/main` so the image source stays traceable (the push does not deploy).
+3. Build and push the image from the repository root: `scripts/build-and-push-image.sh`. It builds `linux/amd64` from a clean `git archive` export of HEAD, so uncommitted and untracked files (`laravel/.env`, the local SQLite database, storage) never enter the image, and it refuses to run with uncommitted tracked changes. It prints `IMAGE_TAG=...`. If the GHCR tag list cannot be read, pass an explicit tag `deploy-NNNNNN-$(git rev-parse --short=12 HEAD)` with the next number. `--no-push` builds a local `voltikka:local-<sha12>` image to validate Dockerfile changes.
+4. Deploy with `scripts/deploy-image.sh <IMAGE_TAG>`. It patches Railway `source.image` with the explicit project, environment and service IDs and `RAILWAY_CALLER=skill:use-railway@1.2.2`, and refuses `latest`, unknown images and the 04:00–09:00 Helsinki window. Do **not** use `railway up`, `railway redeploy`, or a dashboard redeploy for a normal release.
+5. Read the service config back and confirm `source.image` is the exact tag. Use Railway MCP to find the new deployment.
+6. Poll that exact deployment with `scripts/railway-poll-deployment.sh` and the explicit project, environment, service, and deployment IDs.
+7. After Railway reports `SUCCESS`, verify `/up` and the relevant production page or asset. For a failure, read bounded deploy logs before taking further action.
+
+Rollback: run `scripts/deploy-image.sh <earlier known-good tag>`. Find earlier tags in Railway deployment history or the GHCR package versions.
+
+The image is never rebuilt by itself. A PHP, FrankenPHP or OS security fix reaches production only through a new build and deploy: check `php -v` in the pulled `dunglas/frankenphp:1-php8.4` base first. The first tag, `deploy-000001-5ff86c292587`, was built on 2026-10-21 for the PHP 8.4.27 security release (CVE-2026-109618, CVE-2026-109619) on a locally built FrankenPHP base, because the upstream image was not yet published; see `tasks/prebuilt-image-deploy/decisions.md`.
 
 Every deploy has a short outage. The app service mounts a volume on `/app/storage`, and Railway never runs two deployments of a volume-backed service at once, so the old container stops before the new one is healthy. The service health check (`/up`, 600 s timeout, `PORT=8000` because Railway probes `PORT` and Caddy listens on 8000; set 2026-10-15) only keeps a broken start from being marked live. The outage lasts as long as `docker-entrypoint.sh` takes before FrankenPHP starts. Keep that script fast: the volume holds the file cache (about 116k files in October 2026), so never walk it at start: a recursive `chmod -R`/`chown -R` took about 2 min 20 s, and even a read-only `find` over it took about 70 s. The script skips `storage/framework/cache` contents; every process runs as root, so their ownership has no effect.
 
-Do not deploy between 04:00 and about 09:00 Europe/Helsinki. The scheduled `futures:fetch-eex` starts at 04:00 and is throttled to about 15 s per EEX call; in October 2026 a clean run finished at about 07:35, and a run that retries failed requests can last until about 09:00 (its checkpoint row shows the start and finish). Also deploy only after both morning consumers have finished, or before 04:00. A deploy stops the old container and kills the run. On 2026-10-02 a deploy at about 04:18 stopped it: its checkpoint stayed `running`, and trade dates 2026-10-01 and 2026-10-02 arrived only with the next day's run. Check the time before you push, and wait until the import has finished.
+Do not deploy between 04:00 and about 09:00 Europe/Helsinki. The scheduled `futures:fetch-eex` starts at 04:00 and is throttled to about 15 s per EEX call; in October 2026 a clean run finished at about 07:35, and a run that retries failed requests can last until about 09:00 (its checkpoint row shows the start and finish). Also deploy only after both morning consumers have finished, or before 04:00. A deploy stops the old container and kills the run. On 2026-10-02 a deploy at about 04:18 stopped it: its checkpoint stayed `running`, and trade dates 2026-10-01 and 2026-10-02 arrived only with the next day's run. Check the time before you deploy, and wait until the import has finished.
 
-A push to `origin/main` is a production mutation because it starts an automatic deployment. State the branch, command, target project/environment/service, and expected effect, and get explicit user confirmation before pushing.
+`scripts/deploy-image.sh` (and any `source.image` change) is a production mutation because it starts a deployment. State the image tag, the target project/environment/service, and the expected effect, and get explicit user confirmation before running it. Building and pushing an image, or pushing to `origin/main`, does not change production.
 
 Safe-operation rules for agents:
 
-- **Never run destructive or production-mutating Railway commands without explicit user confirmation.** This includes Git pushes that trigger deploys, direct deploys, restarts, redeploys, rollbacks, service/domain changes, variable writes/deletes, database writes, migrations, queue restarts, SSH commands that mutate state, and any command that could affect production traffic or data.
+- **Never run destructive or production-mutating Railway commands without explicit user confirmation.** This includes image deploys (`scripts/deploy-image.sh` or any `source.image` change), direct deploys, restarts, redeploys, rollbacks, service/domain changes, variable writes/deletes, database writes, migrations, queue restarts, SSH commands that mutate state, and any command that could affect production traffic or data.
 - Read-only commands are allowed for investigation: listing projects/services, checking status, reading bounded logs, viewing variables metadata, checking domains, and inspecting deployment status.
 - Do not paste or expose secrets from Railway variables or database connection strings in chat. If a secret must be changed, describe the variable name and action without revealing values.
 - Prefer bounded log reads and targeted diagnostics over streaming or broad dumps.

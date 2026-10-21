@@ -35,3 +35,18 @@ Implementation details and tests:
 - `../laravel/tests/Unit/ProductionDatabaseSyncScriptTest.php`
 
 Prerequisites are PHP with `pdo_sqlite` and `pdo_mysql`, an authenticated Railway CLI, `sqlite3`, and `lsof`.
+
+## Production image build and deploy (active since 2026-10-21)
+
+Primary scripts:
+- `build-and-push-image.sh` builds the root `Dockerfile` for `linux/amd64` from a clean `git archive` export of HEAD and pushes `ghcr.io/sepsi77/voltikka:deploy-NNNNNN-<sha12>`. `--no-push` loads `voltikka:local-<sha12>` locally and never contacts GHCR.
+- `deploy-image.sh` patches the production app service `source.image` to one pushed tag with `railway environment edit` and the explicit Railway IDs.
+
+Status: since 2026-10-21 the production service source is the GHCR image; a push to `main` does not deploy. The release flow is in the root `AGENTS.md` ("Production code deployment"). Running `deploy-image.sh` is a production mutation that needs explicit user confirmation.
+
+Safety rules:
+- Build only from the committed export. Never build the production image from the working tree: it holds `laravel/.env`, the local SQLite copy of production data, sessions, and the file cache. The root `.dockerignore` is only a second layer.
+- Never push or deploy `latest`, and never overwrite a tag. An explicit tag must end with `-<sha12>` of HEAD.
+- Keep the 04:00–09:00 Helsinki refusal in `deploy-image.sh`.
+
+Decisions and cutover record: `../tasks/prebuilt-image-deploy/decisions.md`.
