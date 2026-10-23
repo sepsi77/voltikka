@@ -41,6 +41,8 @@
         $key === 'hybrid' => 'kulutusvaikutus',
         in_array($key, ['quarterly', 'market_reset'], true) => 'paivittyva',
         is_string($key) && str_starts_with($key, 'fixed_term') => 'kiintea',
+        // A contract duration, not a pricing category: its own glyph in ink-muted.
+        $key === 'open_ended' => 'toistaiseksi',
         default => null,
     };
     $segmentColor = fn (?string $key) => match ($segmentBucket($key)) {

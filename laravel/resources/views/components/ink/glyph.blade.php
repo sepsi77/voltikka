@@ -4,6 +4,9 @@
     The shape, not the colour, names the category, so it works without colour vision.
     `bucket` is a PricingBucket value: porssisahko | paivittyva | kulutusvaikutus | kiintea.
     Exact paths from the Paper listing board (controls block, "Miten hinta käyttäytyy").
+    `toistaiseksi` is a contract-duration glyph, not a pricing category: the open-ended
+    statistics series (ink-muted, like its dashed chart line). Paper: Design system,
+    "Category glyphs", card "Duration glyph · open-ended".
 --}}
 @php
     $bucket = $bucket instanceof \App\Services\ContractCard\Enums\PricingBucket ? $bucket->value : $bucket;
@@ -30,6 +33,16 @@
             <path d="M4 14 C 16 13.6, 28 14.4, 40 14 M4 30 C 16 29.6, 28 30.4, 40 30" fill="none" style="stroke: var(--color-ink)" stroke-width="1.1" stroke-linecap="round" stroke-dasharray="2.5 2.5" />
             <path d="M4 22.2 C 15 21.6, 28 22.6, 40 22" fill="none" style="stroke: var(--color-cat-usage)" stroke-width="3.4" stroke-linecap="round" />
             <path d="M4.8 21.4 C 15.5 20.9, 28.5 21.8, 40.6 21.2" fill="none" style="stroke: var(--color-ink)" stroke-width="1.1" stroke-linecap="round" />
+            @break
+        @case('toistaiseksi')
+            <path d="M4 26.2 C 9 25.8, 15 26.5, 21 26" fill="none" style="stroke: var(--color-ink-muted)" stroke-width="3.4" stroke-linecap="round" />
+            <path d="M4.8 25.4 C 9.5 25, 15.5 25.7, 21.6 25.2" fill="none" style="stroke: var(--color-ink)" stroke-width="1.1" stroke-linecap="round" />
+            <path d="M24.5 26 L37.5 25.8" fill="none" style="stroke: var(--color-ink)" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="2.6 2.4" />
+            <path d="M37.2 23.4 L40.6 25.8 L37.2 28.2" fill="none" style="stroke: var(--color-ink)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+            <rect x="25" y="12.5" width="15" height="9.5" rx="1" style="fill: var(--color-ink-muted); opacity: .45" />
+            <path d="M24.2 11.8 L40.9 11.5 L41.1 21.8 L24 22.1 Z" fill="none" style="stroke: var(--color-ink)" stroke-width="1.3" stroke-linejoin="round" />
+            <path d="M24.6 12.2 L32.6 17.9 L40.6 11.9" fill="none" style="stroke: var(--color-ink)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M26.5 21 L28.8 18.5 M30 21.1 L32 19 M36 20.9 L38.5 18.1" fill="none" style="stroke: var(--color-ink); opacity: .4" stroke-width="0.8" stroke-linecap="round" />
             @break
         @default
             <path d="M4 26.2 C 11 25.8, 19 26.5, 27 26" fill="none" style="stroke: var(--color-cat-fixed)" stroke-width="3.4" stroke-linecap="round" />

@@ -77,6 +77,8 @@ Each pricing category (`PricingBucket`) has one colour and one inked price-shape
 
 The glyph shape, not the colour, identifies the category, so the system works for colour-blind visitors.
 
+Open-ended contracts (Toistaiseksi voimassa) are a contract duration, not a pricing category, so they have no category colour. Their glyph (2026-10-23) is a flat line in `--color-ink-muted` that goes on dashed to an open end, with an envelope: no end date, and the seller can change the price by written notice. It is the glyph of the open-ended statistics series (dashed ink-muted chart line) and of open-ended comparison headings. Paper: "Design system", "Category glyphs", card "Duration glyph · open-ended". Code: `<x-ink.glyph bucket="toistaiseksi">`.
+
 ### Price and data states
 
 | Token | Value | Meaning |

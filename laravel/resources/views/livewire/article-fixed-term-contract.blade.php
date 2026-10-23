@@ -321,7 +321,10 @@
                 </section>
 
                 <section class="vk-lr-section" aria-labelledby="open-ended-comparison-heading">
-                    <h3 id="open-ended-comparison-heading" class="vk-lr-h3 !pt-0">Määräaikainen vai toistaiseksi voimassa oleva sopimus?</h3>
+                    <div class="vk-lr-glyph-heading !pt-0">
+                        <x-ink.glyph bucket="toistaiseksi" size="40" />
+                        <h3 id="open-ended-comparison-heading" class="vk-lr-h3">Määräaikainen vai toistaiseksi voimassa oleva sopimus?</h3>
+                    </div>
                     @if (($openEndedComparison['state'] ?? null) === 'complete')
                         <p class="vk-lr-text"><strong>{{ $comparisonVerdictCopy($openEndedComparison, 'Toistaiseksi voimassa oleva sopimus', 'toistaiseksi voimassa olevan sopimuksen') }}</strong></p>
                         <p class="vk-lr-text">{{ $differenceCopy($openEndedComparison, 'toistaiseksi voimassa olevan sopimuksen') }}</p>
