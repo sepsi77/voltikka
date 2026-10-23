@@ -34,3 +34,10 @@
   257/745). Then `forecasting:run-fixed-contracts --as-of=2026-10-22` saved 9 forecasts (futures trades
   2026-10-21/2026-10-14). Remaining gaps: the seller-set index row of 22 October is the stored one; 5
   contracts without a dated interpretation (validation errors) stay out, as on other days.
+- Correction: the seller-set index CAN be rebuilt for a past date with the current writer
+  (`writeForDate`), which takes rates and segments from the date's snapshots and only eligibility/family
+  from the contract row. A read-only rebuild reproduced the stored 21 and 23 October rows exactly, with no
+  pricing-model/contract-type/metering drift between dated snapshots and contract rows on 21–23 October.
+  The historical path is not suitable: it uses v1 selection (completion by the target day) and stops at
+  2026-08-11. With explicit approval, 2026-10-22 was rewritten at about 18:50 UTC: overall 13.2087 (n=83),
+  fixed term 11.4064 (58), open ended 15.3340 (13), market reset 14.5442 (12), hybrid base 10.5832 (35).
