@@ -213,6 +213,29 @@ class SellerSetEnergyPriceIndexService
     }
 
     /**
+     * Contracts whose row no longer has the pricing model, contract type or metering of the date's
+     * canonical snapshot. writeForDate() takes eligibility and family from the contract row, so a
+     * past date can be rebuilt with it only when this list is empty.
+     *
+     * @return list<string>
+     */
+    public function contractFieldDrift(CarbonInterface|string $date): array
+    {
+        return ContractPriceSnapshot::query()
+            ->whereDate('snapshot_date', $this->dateString($date))
+            ->where('pricing_basis', ContractPriceBasis::CanonicalCalculation->value)
+            ->with('contract:id,pricing_model,contract_type,metering')
+            ->get()
+            ->filter(fn (ContractPriceSnapshot $snapshot): bool => $snapshot->contract === null
+                || $snapshot->contract->pricing_model !== $snapshot->pricing_model
+                || $snapshot->contract->contract_type !== $snapshot->contract_type
+                || $snapshot->contract->metering !== $snapshot->metering)
+            ->map(fn (ContractPriceSnapshot $snapshot): string => (string) $snapshot->contract_id)
+            ->values()
+            ->all();
+    }
+
+    /**
      * Replace one date with a fully resolved historical preview.
      */
     public function writeHistoricalForDate(CarbonInterface|string $date): SellerSetEnergyPriceIndexDateSummary

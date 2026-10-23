@@ -12,6 +12,7 @@ use App\Models\ContractSourceSnapshot;
 use App\Models\ElectricityContract;
 use App\Services\ContractInterpretation\ContractInterpretationValidator;
 use App\Services\ContractStatistics\HistoricalSnapshotRepair;
+use App\Services\ContractStatistics\SellerSetEnergyPriceIndexService;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Database\Factories\Support\CanonicalPricingFixture;
@@ -71,6 +72,9 @@ class HistoricalSnapshotRepairTest extends TestCase
 
         $applied = $repair->apply($date, $plan['added'], dryRun: false);
         $this->assertSame(1, $applied['snapshots']);
+        // One supplier is below the index family minimum, so the index writes no rows.
+        $this->assertSame([], $applied['index_drift']);
+        $this->assertSame(0, $applied['index_rows']);
         $this->assertSame(['missing'], ContractPriceSnapshot::query()->pluck('contract_id')->all());
         $annual = ContractPriceAnnualCost::query()->where('method_version', 'annual_cost_as_of_v3')->get();
         $this->assertSame(['missing'], $annual->pluck('contract_id')->unique()->values()->all());
@@ -84,6 +88,29 @@ class HistoricalSnapshotRepairTest extends TestCase
         $this->assertSame([], $compared['added']);
         $this->assertSame(1, $compared['compared']['matched']);
         $this->assertSame([], $compared['compared']['differences']);
+    }
+
+    public function test_seller_set_index_is_not_rebuilt_when_a_contract_row_has_drifted(): void
+    {
+        $missing = $this->contract('missing');
+        $this->sourceEvidence($missing, 'Household', 'published');
+        $repair = app(HistoricalSnapshotRepair::class);
+        $date = CarbonImmutable::parse(self::DATE, 'Europe/Helsinki');
+        $plan = $repair->plan($date);
+        // The index writer would read today's contract type, not the dated one.
+        $missing->update(['contract_type' => 'OpenEnded', 'fixed_time_range' => null]);
+        ContractPriceDailyStatistic::query()->create([
+            'stat_date' => self::DATE, 'segment_key' => 'seller_set_overall', 'metric_key' => SellerSetEnergyPriceIndexService::METRIC_KEY,
+            'pricing_basis' => 'canonical_calculation', 'avg_value' => 12.0, 'contract_count' => 3,
+        ]);
+
+        $applied = $repair->apply($date, $plan['added'], dryRun: false);
+
+        $this->assertSame(['missing'], $applied['index_drift']);
+        $this->assertNull($applied['index_rows']);
+        $this->assertSame(1, ContractPriceSnapshot::query()->count());
+        $this->assertEqualsWithDelta(12.0, ContractPriceDailyStatistic::query()
+            ->where('metric_key', SellerSetEnergyPriceIndexService::METRIC_KEY)->sole()->avg_value, 0.0001);
     }
 
     public function test_repair_rejects_today(): void

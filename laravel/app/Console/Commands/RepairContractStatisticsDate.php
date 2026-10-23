@@ -54,9 +54,12 @@ class RepairContractStatisticsDate extends Command
             $result['annual_rows'],
             $result['aggregates'],
         ));
+        $this->line($result['index_rows'] === null
+            ? sprintf('  Seller-set index not rebuilt: %d contract rows differ from their snapshot (%s).', count($result['index_drift']), implode(', ', array_slice($result['index_drift'], 0, 5)))
+            : sprintf('  Seller-set index: %d rows.', $result['index_rows']));
         foreach ($result['medians'] as $key => [$before, $after]) {
             if ($before !== $after) {
-                $this->line(sprintf('  %s median: %s -> %s', $key, json_encode($before), json_encode($after)));
+                $this->line(sprintf('  %s: %s -> %s', $key, json_encode($before), json_encode($after)));
             }
         }
 

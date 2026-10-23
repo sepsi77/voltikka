@@ -41,6 +41,7 @@ class HistoricalSnapshotRepair
         private readonly ContractPriceStatisticsService $statistics,
         private readonly ContractStatisticsSegmentClassifier $segmentClassifier,
         private readonly ContractInterpretationPublisher $publisher,
+        private readonly SellerSetEnergyPriceIndexService $index,
     ) {}
 
     /**
@@ -168,11 +169,13 @@ class HistoricalSnapshotRepair
     }
 
     /**
-     * Insert the planned snapshots, rebuild the unit and legacy aggregates of the date, and
-     * replace its v3 annual rows from the complete date. A dry run rolls everything back.
+     * Insert the planned snapshots, rebuild the unit and legacy aggregates of the date, replace
+     * its v3 annual rows from the complete date, and rebuild its seller-set index rows. The index
+     * writer reads eligibility and family from contract rows, so it is skipped when any of them
+     * has drifted from the date's snapshot. A dry run rolls everything back.
      *
      * @param  array<string, array<string, mixed>>  $added
-     * @return array{snapshots: int, daily_statistics: int, annual_rows: int, aggregates: int, medians: array<string, array{0: float|null, 1: float|null}>}
+     * @return array{snapshots: int, daily_statistics: int, annual_rows: int, aggregates: int, index_rows: int|null, index_drift: list<string>, medians: array<string, array{0: float|null, 1: float|null}>}
      */
     public function apply(CarbonImmutable $date, array $added, bool $dryRun): array
     {
@@ -192,6 +195,8 @@ class HistoricalSnapshotRepair
             }
             $daily = $this->statistics->recalculateDailyStatistics($dateString, ContractPriceBasis::CanonicalCalculation);
             $summary = $this->writer->write($date, $this->calculator->calculate($date, self::METHOD), self::METHOD);
+            $drift = $this->index->contractFieldDrift($dateString);
+            $indexRows = $drift === [] ? $this->index->writeForDate($dateString) : null;
             $after = $this->medians($dateString);
             $dryRun ? DB::rollBack() : DB::commit();
         } catch (\Throwable $exception) {
@@ -206,7 +211,15 @@ class HistoricalSnapshotRepair
         }
         ksort($medians);
 
-        return ['snapshots' => count($added), 'daily_statistics' => $daily, 'annual_rows' => $summary->persistedCount, 'aggregates' => $summary->aggregateCount, 'medians' => $medians];
+        return [
+            'snapshots' => count($added),
+            'daily_statistics' => $daily,
+            'annual_rows' => $summary->persistedCount,
+            'aggregates' => $summary->aggregateCount,
+            'index_rows' => $indexRows,
+            'index_drift' => $drift,
+            'medians' => $medians,
+        ];
     }
 
     /** The snapshot row shape that the v3 resolver reads, for a contract without a snapshot. */
@@ -260,13 +273,16 @@ class HistoricalSnapshotRepair
     {
         return ContractPriceDailyStatistic::query()
             ->whereDate('stat_date', $dateString)
-            ->whereIn('metric_key', ['energy_price', 'annual_cost'])
+            ->whereIn('metric_key', ['energy_price', 'annual_cost', SellerSetEnergyPriceIndexService::METRIC_KEY])
             ->whereIn('method_version', [ContractPriceDailyStatistic::UNIT_STATISTICS_METHOD_VERSION, self::METHOD->value])
             ->where(fn ($query) => $query->whereNull('consumption_kwh')->orWhere('consumption_kwh', 5000))
             ->get()
-            ->mapWithKeys(fn (ContractPriceDailyStatistic $row): array => [
-                $row->method_version.'|'.$row->metric_key.'|'.$row->segment_key => $row->median_value === null ? null : round((float) $row->median_value, 4),
-            ])
+            ->mapWithKeys(function (ContractPriceDailyStatistic $row): array {
+                // The index stores its value as the average of supplier medians.
+                $value = $row->metric_key === SellerSetEnergyPriceIndexService::METRIC_KEY ? $row->avg_value : $row->median_value;
+
+                return [$row->method_version.'|'.$row->metric_key.'|'.$row->segment_key => $value === null ? null : round((float) $value, 4)];
+            })
             ->all();
     }
 }

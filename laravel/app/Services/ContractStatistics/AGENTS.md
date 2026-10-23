@@ -246,10 +246,12 @@ left out about 39 contracts, and the v3 rebuild cannot add a contract without a 
   dated identity rows (`identityRows`, v3 only) for contracts without a snapshot.
 - Apply adds the snapshots, rebuilds the unit and legacy aggregates of D, and replaces the v3 annual rows
   of D from the complete date, in one transaction. Existing snapshots and other dates are not changed.
-  The command does not rebuild the seller-set index row of D. `SellerSetEnergyPriceIndexService::writeForDate(D)`
-  can do it: it reads rates and segments from D's snapshots and only eligibility and family from the
-  contract row. First check that the snapshot pricing model, contract type and metering equal the contract
-  row (they did on 2026-10-21..23). `writeHistoricalForDate()` is not suitable: v1 selection, dates to 2026-08-11.
+  Apply then rebuilds the seller-set index rows of D with `SellerSetEnergyPriceIndexService::writeForDate()`,
+  which reads rates and segments from D's snapshots and only eligibility and family from the contract row.
+  `contractFieldDrift()` guards this: when any snapshot's pricing model, contract type or metering differs
+  from its contract row, the index step is skipped and the stored rows stay. National availability and
+  audience are not in a snapshot, so they come from the contract row (the same assumption as the historical
+  index path). `writeHistoricalForDate()` is not used: v1 selection and dates only to 2026-08-11.
 - Default is a dry run that rolls back and prints median changes. `--compare-existing` rebuilds existing
   snapshots of D from dated evidence and reports differences; use it on a complete date first.
 - Only dates before today and only active method v3. A production apply needs a verified full backup and
