@@ -17,9 +17,9 @@
     Options:
       $isBusinessPage          business labels and presets (no home art)
       $showCalculatorTab       calculator toggle (default true)
-      $showCurrentConsumption  "Vertailu kulutuksella" line (default true). The listing
-                               page passes false and shows it at the right of its
-                               disclosure row instead.
+      $showCurrentConsumption  "Vertailu kulutuksella" line on a laptop (default true). The
+                               listing pages pass false: the selected preset already shows
+                               the value, and a second readout only added noise.
 --}}
 @php
     use App\Support\Season;

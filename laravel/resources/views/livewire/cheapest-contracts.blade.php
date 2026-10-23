@@ -16,6 +16,7 @@
         :tone="\App\Support\Season::heroTone('cheapest-hero')"
         data-comparison-hero
     >
+        @include('partials.listing-hero-crumbs', ['hasSeoFilter' => true])
         <p class="cheapest-hero-kicker">
             <x-ink.sparkle size="13" color="var(--tone-accent)" />
             Edullisimmat sopimukset
@@ -32,26 +33,9 @@
 
     <div data-contract-comparison-content class="vk-wrap vk-listing">
 
-    {{-- Breadcrumbs (Paper "Breadcrumbs": one line, " / " separators). --}}
-    <nav class="vk-crumbs" aria-label="Breadcrumb">
-        <ol>
-            <li>
-                <a href="/" class="vk-focus">Etusivu</a>
-            </li>
-            <li aria-hidden="true">/</li>
-            <li>
-                <a href="/sahkosopimus" class="vk-focus">Sähkösopimukset</a>
-            </li>
-            <li aria-hidden="true">/</li>
-            <li aria-current="page">
-                {{ $pageHeading }}
-            </li>
-        </ol>
-    </nav>
-
-    {{-- Controls block (Paper "Controls · compact"): consumption, price behaviour, then the
-         availability disclosure with the current consumption at the right. This page has no
-         filter accordion; the pricing-type choices narrow the cheapest ranking. --}}
+    {{-- Controls block (Paper "R4 · calm top"): the consumption row, then the disclosure row
+         (price type, availability). This page has no filter accordion; the pricing-type
+         choices narrow the cheapest ranking. --}}
     <div class="vk-controls" data-listing-controls>
         @include('partials.contract-consumption-selector', [
             'isBusinessPage' => false,
@@ -59,16 +43,12 @@
             'showCurrentConsumption' => false,
         ])
 
-        @include('partials.pricing-bucket-pills')
-
         <div class="vk-disclosures">
             <span class="vk-disclosures-spacer hidden lg:block" aria-hidden="true"></span>
 
-            @include('partials.contract-postcode-selector')
+            @include('partials.pricing-bucket-pills')
 
-            <p class="vk-current-consumption">
-                Vertailu kulutuksella: <span class="tabular-nums">{{ number_format($consumption, 0, ',', ' ') }} kWh/v</span>
-            </p>
+            @include('partials.contract-postcode-selector')
         </div>
     </div>
 

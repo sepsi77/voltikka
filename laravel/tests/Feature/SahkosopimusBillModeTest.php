@@ -130,7 +130,7 @@ class SahkosopimusBillModeTest extends TestCase
 
         $this->get('/sahkosopimus')
             ->assertStatus(200)
-            ->assertSee('Vertaa nykyistä sähkölaskuasi');
+            ->assertSee('Vertaa nykyiseen sähkölaskuusi');
     }
 
     public function test_entering_a_bill_activates_period_mode_and_ranks_the_user(): void
@@ -263,11 +263,11 @@ class SahkosopimusBillModeTest extends TestCase
 
         $this->get('/sahkosopimus/porssisahko')
             ->assertStatus(200)
-            ->assertSee('Vertaa nykyistä sähkölaskuasi');
+            ->assertSee('Vertaa nykyiseen sähkölaskuusi');
 
         $this->get('/sahkosopimus/yritykselle')
             ->assertStatus(200)
-            ->assertDontSee('Vertaa nykyistä sähkölaskuasi');
+            ->assertDontSee('Vertaa nykyiseen sähkölaskuusi');
     }
 
     private function refreshPriceFixtures(): void

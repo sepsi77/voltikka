@@ -43,40 +43,37 @@
 @endphp
 
 @if ($trend || $forecast)
+    {{-- Quiet version (Paper "R4 · calm top", 2026-10-23): the index is context, not the page's
+         headline, so it has no kicker, a 15px title, a 32px number in the strong tone (not the
+         accent) and one caption line. On a phone it is one line under the lead. --}}
     <div {{ $attributes->class(['vk-index']) }} data-price-index>
-        <p class="vk-index-kicker">Voltikan markkinadata</p>
-
         @if ($trend)
             @php
                 $trendTitle = $trend['eyebrow'] ?? '30 päivän trendi';
                 $trendSupporting = $trend['supporting'] ?? $trend['headline'] ?? '';
                 $trendDate = $formatDate($trend['as_of'] ?? null);
                 $trendLink = $trend['link_label'] ?? 'Lue lisää';
+                $trendBasis = collect([
+                    $contractCount
+                        ? number_format($contractCount, 0, ',', ' ').($supplierCount ? ' tarjousta, '.number_format($supplierCount, 0, ',', ' ').' yhtiötä' : ' sopimusta')
+                        : null,
+                    $trendDate ? 'päivitetty '.$trendDate : null,
+                ])->filter()->implode(', ');
             @endphp
             <p class="vk-index-title">{{ $trendTitle }}</p>
             <p class="vk-index-figure">
                 <span class="vk-index-number">{{ $trendChange }}</span>
                 <span class="vk-index-period">30 pv</span>
             </p>
-            @if ($trendSupporting || $trendDate)
+            @if ($trendSupporting || $trendBasis)
                 <p class="vk-index-text">
-                    {{ $trendSupporting }}@if ($trendSupporting && $trendDate) <span aria-hidden="true">·</span> @endif
-                    @if ($trendDate)<span class="whitespace-nowrap">Päivitetty {{ $trendDate }}</span>@endif
-                </p>
-            @endif
-            @if ($contractCount)
-                <p class="vk-index-text">
-                    @if ($supplierCount)
-                        Indeksi perustuu <strong class="vk-index-strong">{{ number_format($contractCount, 0, ',', ' ') }}</strong> tarjoukseen <strong class="vk-index-strong">{{ number_format($supplierCount, 0, ',', ' ') }}</strong> sähköyhtiöltä.
-                    @else
-                        Hintakehitys perustuu <strong class="vk-index-strong">{{ number_format($contractCount, 0, ',', ' ') }}</strong> sopimukseen.
-                    @endif
+                    {{ $trendSupporting }}@if ($trendSupporting && $trendBasis). @endif{{ $trendBasis ? ucfirst($trendBasis).'.' : '' }}
                 </p>
             @endif
             <a href="{{ $trend['url'] }}" class="vk-index-action vk-focus"
                aria-label="{{ $trendTitle }}: {{ $trendChange }}. {{ $trendSupporting }}. {{ $trendDate ? 'Päivitetty '.$trendDate.'.' : '' }} {{ $trendLink }}.">
                 <span>{{ $trendLink }} →</span>
-                <x-ink.wave width="170" stroke="2.6" color="var(--tone-underline)" />
+                <x-ink.wave width="150" stroke="2" color="var(--tone-underline)" />
             </a>
         @endif
 

@@ -29,7 +29,7 @@
     --tone-lead: #E4EAF5;
     --tone-accent: #FFC2A1;
     --tone-underline: #E8743B;
-    --tone-shade: linear-gradient(180deg, oklab(31.2% -0.006 -0.071 / 62%) 0%, oklab(31.2% -0.006 -0.071 / 45%) 60%, oklab(31.2% -0.006 -0.071 / 0%) 100%);
+    --tone-shade: linear-gradient(180deg, oklab(31.2% -0.006 -0.071 / 72%) 0%, oklab(31.2% -0.006 -0.071 / 58%) 60%, oklab(31.2% -0.006 -0.071 / 0%) 100%);
 }
 
 .vk-tone-light {
@@ -88,7 +88,11 @@
     }
 
     .vk-tone-dark .vk-hero-shade {
-        background-image: linear-gradient(180deg, oklab(31.2% -0.006 -0.071 / 62%) 0%, oklab(31.2% -0.006 -0.071 / 50%) 75%, oklab(31.2% -0.006 -0.071 / 0%) 100%);
+        /* A second, local shade behind the right-hand key figure: that column sits on the
+           brightest part of most plates (sunset, low sun). */
+        background-image:
+            radial-gradient(ellipse 560px 300px at 82% 30%, oklab(31.2% -0.006 -0.071 / 40%) 0%, oklab(31.2% -0.006 -0.071 / 0%) 100%),
+            linear-gradient(180deg, oklab(31.2% -0.006 -0.071 / 72%) 0%, oklab(31.2% -0.006 -0.071 / 62%) 75%, oklab(31.2% -0.006 -0.071 / 0%) 100%);
     }
 
     .vk-tone-light .vk-hero-shade {

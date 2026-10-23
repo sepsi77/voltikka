@@ -130,40 +130,28 @@
     }
 }
 
-/* Price index inline under the lead (Paper 5SY-0): the number with its kicker at the left,
-   title, text and action in a 460 column at the right. Stacked on a phone. */
+/* Price index inline under the lead (Paper 5SY-0, quiet version "R4 · calm top"): the same
+   one wrapped line as on a phone; from 1024 the caption follows on its own line. */
 .vk-seo-hero-index {
-    margin-top: 24px;
+    margin-top: 20px;
 }
 
-@media (min-width: 640px) {
+@media (min-width: 1024px) {
     .vk-seo-hero-index {
-        display: grid;
-        grid-template-columns: auto minmax(0, 460px);
-        column-gap: 18px;
-        row-gap: 3px;
-        align-items: start;
-    }
-
-    .vk-seo-hero-index > * {
-        grid-column: 2;
-    }
-
-    .vk-seo-hero-index > .vk-index-kicker {
-        grid-column: 1 / -1;
-        grid-row: 1;
-    }
-
-    .vk-seo-hero-index > .vk-index-figure {
-        grid-column: 1;
-        grid-row: 2 / span 6;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: baseline;
+        column-gap: 10px;
+        max-width: 640px;
         padding-top: 0;
     }
 
-    .vk-seo-hero-index > .vk-index-title {
-        font-size: 18px;
-        line-height: 22px;
-        padding-top: 14px;
+    .vk-seo-hero-index > .vk-index-text {
+        flex-basis: 100%;
+    }
+
+    .vk-seo-hero-index > .vk-index-action {
+        padding-top: 0;
     }
 }
 

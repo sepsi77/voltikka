@@ -60,7 +60,7 @@
         'showCalculatorTab' => true,
     ])
 
-    {{-- Pricing-type pills: always visible, above the list and outside the accordion. --}}
+    {{-- Pricing-type filter: its own disclosure, outside the filters accordion. --}}
     @include('partials.pricing-bucket-pills')
 
     @include('partials.contract-postcode-selector')
@@ -72,7 +72,7 @@
          Bricolage, the note line and the category legend with sparkle marks. --}}
     <div class="vk-results-head mb-5 mt-4">
         <div class="min-w-0">
-            <p class="vk-results-count">{{ $contracts->total() }} sopimusta.</p>
+            <h2 class="vk-results-count">{{ $contracts->total() }} sopimusta.</h2>
             <p class="vk-results-note">
                 12 kk arvio sisältää tarjoukset ja ALV 25,5 %. Siirtomaksu ei sisälly.
                 <a href="/tietoa#menetelma" class="vk-text-link whitespace-nowrap">Näin laskemme &rarr;</a>

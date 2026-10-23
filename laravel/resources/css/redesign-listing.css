@@ -49,6 +49,29 @@
     color: var(--color-ink-muted);
 }
 
+/* In the hero, above the H1: hero tone colours (works on the dark and the light tone). */
+.vk-crumbs--hero {
+    margin-bottom: 10px;
+}
+
+.vk-crumbs--hero ol,
+.vk-crumbs--hero [aria-current="page"] {
+    font-size: var(--text-caption);
+    line-height: var(--leading-caption);
+    color: var(--tone-lead);
+}
+
+.vk-crumbs--hero a:hover {
+    color: var(--tone-strong);
+}
+
+/* On a phone the H1 directly below already names the page. */
+@media (max-width: 639px) {
+    .vk-crumbs--hero li:nth-last-child(-n + 2) {
+        display: none;
+    }
+}
+
 /* ---------- Section heading with the wavy fox underline ---------- */
 
 .vk-section-heading {
@@ -152,12 +175,17 @@
     color: var(--color-ink);
 }
 
-/* ---------- Price index on the sky (hero aside, Paper 2K1-0) ---------- */
+/* ---------- Price index on the sky (hero aside, Paper "R4 · calm top") ---------- */
 
+/* Quiet context, not a second headline (critique 2026-10-23): no accent colour, one caption.
+   Phone: one wrapped line (title, number, period, link) without the caption. From 1024 a
+   short column at the right of the hero. */
 .vk-index {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 8px;
+    row-gap: 2px;
 }
 
 .vk-index-kicker,
@@ -171,9 +199,8 @@
 }
 
 .vk-index-title {
-    font-family: var(--font-display);
-    font-size: 20px;
-    line-height: 24px;
+    font-size: var(--text-label);
+    line-height: 20px;
     font-weight: 700;
     color: var(--tone-strong);
 }
@@ -181,17 +208,16 @@
 .vk-index-figure {
     display: flex;
     align-items: baseline;
-    gap: 10px;
-    padding-top: 4px;
+    gap: 6px;
 }
 
 .vk-index-number {
     font-family: var(--font-display);
     font-weight: 800;
-    font-size: 44px;
-    line-height: 48px;
-    letter-spacing: -0.03em;
-    color: var(--tone-accent);
+    font-size: 20px;
+    line-height: 24px;
+    letter-spacing: -0.02em;
+    color: var(--tone-strong);
     font-variant-numeric: tabular-nums;
 }
 
@@ -202,10 +228,13 @@
     color: var(--tone-lead);
 }
 
+/* Strong tone, not lead: the caption sits on the brightest part of the sky (4.5:1). */
 .vk-index-text {
+    display: none;
     font-size: var(--text-label);
     line-height: 20px;
-    color: var(--tone-lead);
+    font-weight: 500;
+    color: var(--tone-strong);
 }
 
 .vk-index-strong {
@@ -218,12 +247,19 @@
     display: inline-flex;
     flex-direction: column;
     width: fit-content;
-    padding-top: 6px;
-    font-family: var(--font-display);
-    font-size: 17px;
-    line-height: 22px;
+    font-size: var(--text-label);
+    line-height: 20px;
     font-weight: 800;
     color: var(--tone-strong);
+}
+
+.vk-index-action svg {
+    display: none;
+}
+
+.vk-index-action:hover > span {
+    text-decoration: underline;
+    text-underline-offset: 3px;
 }
 
 .vk-index-action--small {
@@ -235,32 +271,94 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
+    flex-basis: 100%;
 }
 
 .vk-index-forecast--after {
-    margin-top: 14px;
+    margin-top: 10px;
 }
 
 .vk-index-direction {
     font-family: var(--font-display);
     font-weight: 800;
-    font-size: 26px;
-    line-height: 30px;
+    font-size: 22px;
+    line-height: 26px;
     letter-spacing: -0.02em;
-    color: var(--tone-accent);
+    color: var(--tone-strong);
 }
 
 @media (min-width: 1024px) {
+    .vk-index {
+        flex-direction: column;
+        flex-wrap: nowrap;
+        align-items: flex-start;
+        gap: 4px;
+        max-width: 300px;
+        padding-top: 6px;
+    }
+
+    .vk-index-title {
+        font-size: var(--text-ui);
+    }
+
+    .vk-index-figure {
+        gap: 8px;
+    }
+
     .vk-index-number {
-        font-size: var(--text-price);
-        line-height: var(--leading-page);
+        font-size: var(--text-number);
+        line-height: var(--leading-number);
+    }
+
+    .vk-index-text {
+        display: block;
+    }
+
+    .vk-index-action {
+        padding-top: 6px;
+        font-size: var(--text-ui);
+    }
+
+    .vk-index-action svg {
+        display: block;
+    }
+}
+
+/* ---------- Listing hero on a phone (Paper "R4 · /sahkosopimus · mobile 390") ---------- */
+
+/* Below 1024 the fox stands beside the index instead of in its own band of landscape: a
+   shorter bottom padding, a narrower index column and a shade that reaches the index line.
+   The hero is about 400px instead of 500px, so the first price moves up. */
+@media (max-width: 1023px) {
+    .vk-listing-hero > .vk-wrap {
+        gap: 14px;
+        padding-bottom: 36px;
+    }
+
+    .vk-listing-hero > img:not(.vk-hero-plate) {
+        width: 92px;
+        height: 92px;
+        right: 8px;
+        bottom: 4px;
+    }
+
+    .vk-listing-hero .vk-index {
+        max-width: calc(100% - 96px);
+    }
+
+    .vk-listing-hero.vk-tone-dark .vk-hero-shade {
+        background-image: linear-gradient(180deg, oklab(31.2% -0.006 -0.071 / 72%) 0%, oklab(31.2% -0.006 -0.071 / 62%) 80%, oklab(31.2% -0.006 -0.071 / 0%) 100%);
+    }
+
+    .vk-listing-hero.vk-tone-light .vk-hero-shade {
+        background-image: linear-gradient(180deg, oklab(97.1% -0.003 0.006 / 82%) 0%, oklab(97.1% -0.003 0.006 / 70%) 80%, oklab(97.1% -0.003 0.006 / 0%) 100%);
     }
 }
 
 /* ---------- Controls block (Paper 30B-0 "Controls · compact") ---------- */
 
+/* No top rule: the Preferred Sources strip line above already closes that edge. */
 .vk-controls {
-    border-top: 1.5px solid var(--color-edge);
     border-bottom: 1.5px solid var(--color-edge);
 }
 
@@ -524,12 +622,31 @@
 /* Disclosure row: triggers in one line, panels open below the row on a laptop. On a phone
    each panel opens directly under its own trigger. A disclosure partial used outside this
    row (homepage, cheapest page) is a plain block with its trigger and panel. */
+/* Below 1024 the triggers sit in a 2 × 2 grid (Paper "R4 · mobile 390"): Hinnoittelu |
+   Rajaa hakua, then Saatavuus | Vertaa laskuasi. `order` sets that sequence without moving
+   the markup; a panel spans both columns and follows its own trigger. */
 .vk-disclosures {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+    column-gap: 12px;
+    align-items: center;
     padding-block: 4px;
+}
+
+.vk-disclosures .vk-disclosure-panel {
+    grid-column: 1 / -1;
+}
+
+.vk-disclosures > .vk-disclosure > * {
+    order: 2;
+}
+
+.vk-disclosures > .vk-disclosure--pricing > * {
+    order: 0;
+}
+
+.vk-disclosures > .vk-disclosure--filters > * {
+    order: 1;
 }
 
 .vk-disclosures > .vk-disclosure {
@@ -540,7 +657,7 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    min-height: 36px;
+    min-height: 44px;
     padding-block: 4px;
     font-size: var(--text-label);
     line-height: var(--leading-label);
@@ -588,6 +705,30 @@
     padding: 6px 0 18px;
 }
 
+/* The price-type trigger shows the four category glyphs (or the selected ones), so the filter
+   is easy to find while it is closed (Paper "R4 · calm top"). */
+.vk-type-glyphs {
+    display: none;
+    align-items: center;
+    gap: 2px;
+    padding-right: 2px;
+}
+
+.vk-type-glyph {
+    width: 18px;
+    height: 18px;
+}
+
+/* The bucket panel carries its own label column ("Näytä vain"). */
+.vk-disclosure-panel--buckets .vk-ctl-row {
+    padding-block: 4px 0;
+}
+
+/* The controls block has rules only at its top and bottom; spacing groups the rows. */
+.vk-controls .vk-ctl-row {
+    border-bottom: 0;
+}
+
 .vk-current-consumption {
     font-size: var(--text-label);
     line-height: var(--leading-label);
@@ -597,11 +738,29 @@
 
 @media (min-width: 1024px) {
     .vk-disclosures {
-        flex-direction: row;
+        display: flex;
         flex-wrap: wrap;
-        align-items: center;
         column-gap: 32px;
-        padding-block: 2px;
+        padding-block: 2px 8px;
+    }
+
+    .vk-disclosures > .vk-disclosure > *,
+    .vk-disclosures > .vk-disclosure--pricing > *,
+    .vk-disclosures > .vk-disclosure--filters > * {
+        order: 0;
+    }
+
+    .vk-disclosure-trigger {
+        min-height: 36px;
+    }
+
+    .vk-type-glyphs {
+        display: inline-flex;
+    }
+
+    .vk-type-glyph {
+        width: 22px;
+        height: 22px;
     }
 
     .vk-disclosures-spacer {
@@ -611,8 +770,11 @@
 
     .vk-disclosures .vk-disclosure-panel {
         order: 10;
-        flex-basis: 100%;
         padding-left: 128px;
+    }
+
+    .vk-disclosures .vk-disclosure-panel--buckets {
+        padding-left: 0;
     }
 
     .vk-current-consumption {
@@ -798,11 +960,125 @@
     }
 }
 
+/* The ranking promise: the one trust line before the ranking (critique 2026-10-23). */
+.vk-results-promise {
+    margin-top: 6px;
+    font-size: var(--text-ui);
+    line-height: 21px;
+    font-weight: 700;
+    color: var(--color-ink);
+}
+
 .vk-results-note {
     margin-top: 4px;
     font-size: var(--text-ui);
     line-height: 20px;
     color: var(--color-ink-body);
+}
+
+/* Results area: the results heading (or the bill-mode anchor) plus the bill comparison
+   (Paper "R4 · Bill comparison beside results", user decision 2026-10-23). */
+.vk-results-area {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+/* The bill action: an inked fox-deep action with a small torn-bill mark, beside the count on
+   a laptop and under the note on a phone. Not a filter, so not in the disclosure row. */
+.vk-bill-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    align-self: flex-start;
+    min-height: 44px;
+    padding: 0;
+    background: none;
+    border: 0;
+    color: var(--color-fox-deep);
+    cursor: pointer;
+    text-align: left;
+    border-radius: var(--radius-control);
+}
+
+.vk-bill-trigger-mark {
+    width: 28px;
+    height: 35px;
+    flex-shrink: 0;
+}
+
+.vk-bill-trigger-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.vk-bill-trigger-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-display);
+    font-size: 16px;
+    line-height: 20px;
+    font-weight: 800;
+}
+
+.vk-bill-trigger-wave {
+    height: 9px;
+}
+
+.vk-bill-trigger-sub {
+    display: none;
+    font-size: var(--text-label);
+    line-height: 20px;
+    color: var(--color-ink-body);
+}
+
+.vk-bill-trigger:hover .vk-bill-trigger-title {
+    color: var(--color-ink);
+}
+
+.vk-bill-trigger[aria-expanded="true"] .vk-chevron {
+    transform: rotate(180deg);
+}
+
+.vk-bill-mode-head {
+    display: flex;
+}
+
+.vk-bill-panel {
+    padding-bottom: 8px;
+}
+
+@media (min-width: 1024px) {
+    .vk-results-head .vk-bill-trigger {
+        align-self: flex-end;
+        flex-shrink: 0;
+        padding-bottom: 4px;
+    }
+
+    .vk-bill-trigger-mark {
+        width: 34px;
+        height: 42px;
+    }
+
+    .vk-bill-trigger-title {
+        font-size: 18px;
+        line-height: 22px;
+    }
+
+    .vk-bill-trigger-sub {
+        display: block;
+    }
+
+    .vk-bill-mode-head {
+        justify-content: flex-end;
+    }
+
+    .vk-bill-panel {
+        padding-top: 8px;
+    }
 }
 
 /* Bill-mode anchor: big numbers on the page, inked marks, no dark card. */

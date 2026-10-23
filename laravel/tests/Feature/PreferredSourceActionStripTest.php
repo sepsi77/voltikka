@@ -48,23 +48,26 @@ class PreferredSourceActionStripTest extends TestCase
         $this->assertMatchesRegularExpression('/\bvk-tone-(dark|light)\b/', $previous->getAttribute('class'));
     }
 
-    public function test_the_strip_shows_the_desktop_only_notice_board_art_and_the_paper_note_action(): void
+    public function test_the_strip_has_desktop_only_art_and_an_inked_text_action(): void
     {
         $content = $this->get('/tietoa')->assertOk()->getContent();
+        $strip = substr($content, (int) strpos($content, 'data-page-action-strip'), 7000);
 
-        // The art comes only from a desktop media source; the img itself keeps a 1×1 data URI,
-        // so phones and tablets never download it.
+        // Option A (user decision 2026-10-23): a small notice board from a desktop-only media
+        // source; the img keeps a 1×1 data URI, so phones never download the art.
         $this->assertMatchesRegularExpression(
             '#<source\s+media="\(min-width: 1024px\)"\s+srcset="[^"]*images/art/noticeboard-(talvi|kevat|kesa|syksy)-560\.webp 560w#',
-            $content,
+            $strip,
         );
-        $this->assertStringContainsString('src="data:image/gif;base64,', $content);
-        $this->assertStringContainsString('width="384"', $content);
-        $this->assertStringNotContainsString('loading="lazy"', substr($content, (int) strpos($content, 'data-page-action-strip'), 4000));
-        $this->assertStringContainsString('class="vk-strip-note vk-focus"', $content);
-        $this->assertStringContainsString('Kiinnitä Voltikka Google-hakuusi', $content);
-        $this->assertStringContainsString('Google avaa valinnan. Valinta on maksuton.', $content);
-        $this->assertStringNotContainsString('Kylän ilmoitustaulu', $content);
+        $this->assertStringContainsString('src="data:image/gif;base64,', $strip);
+        $this->assertStringNotContainsString('loading="lazy"', $strip);
+
+        // The action is inked text, not a boxed paper note, and the title is not a heading.
+        $this->assertStringContainsString('class="vk-strip-action vk-focus"', $strip);
+        $this->assertStringNotContainsString('vk-strip-note', $strip);
+        $this->assertStringNotContainsString('<h2', $strip);
+        $this->assertStringContainsString('Kiinnitä Voltikka Google-hakuusi', $strip);
+        $this->assertStringContainsString('Valitse suosikkilähteeksi', $strip);
     }
 
     public static function representativePublicRoutes(): array

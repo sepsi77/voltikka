@@ -26,6 +26,7 @@
     @endphp
     @if ($seoHero)
         <x-site.hero :art="$heroArt" :tone="$heroTone" class="vk-seo-hero vk-seo-hero--{{ $seoHero }} vk-seo-hero--{{ $heroArt }} vk-seo-title-fit" data-comparison-hero>
+            @include('partials.listing-hero-crumbs')
             <h1 class="vk-hero-h1">{{ $pageHeading }}</h1>
             <p class="vk-hero-lead">{{ $seoIntroText }}</p>
             <x-site.price-index :insight="$marketInsight ?? null" class="vk-seo-hero-index" />
@@ -33,7 +34,8 @@
     @else
         {{-- Picture-book listing hero (Paper board "Sähkösopimukset — /sahkosopimus v4", "Village hero").
              The aside is the energy price index on the sky. --}}
-        <x-site.hero art="listing-hero" fox="fox-walk-lantern" :tone="$heroTone" class="vk-seo-title-fit" data-comparison-hero>
+        <x-site.hero art="listing-hero" fox="fox-walk-lantern" :tone="$heroTone" class="vk-listing-hero vk-seo-title-fit" data-comparison-hero>
+            @include('partials.listing-hero-crumbs')
             @if ($isBusinessPage)
                 <p class="vk-index-kicker mb-2">Yrityksille</p>
             @endif
@@ -49,25 +51,6 @@
     <x-page-action-strip />
 
     <div data-contract-comparison-content class="vk-wrap vk-listing">
-
-    {{-- Breadcrumbs (Paper "Breadcrumbs": one line, " / " separators). --}}
-    @if($hasSeoFilter)
-    <nav class="vk-crumbs" aria-label="Breadcrumb">
-        <ol>
-            <li>
-                <a href="/" class="vk-focus">Etusivu</a>
-            </li>
-            <li aria-hidden="true">/</li>
-            <li>
-                <a href="/sahkosopimus" class="vk-focus">Sähkösopimukset</a>
-            </li>
-            <li aria-hidden="true">/</li>
-            <li aria-current="page">
-                {{ $pageHeading }}
-            </li>
-        </ol>
-    </nav>
-    @endif
 
     {{-- Energy source statistics: key numbers on the page, no boxes. --}}
     @if($isEnergySourcePage && !empty($energySourceStats))
@@ -119,9 +102,9 @@
     </section>
     @endif
 
-    {{-- Controls block (Paper "Controls · compact"): consumption, price behaviour, then the
-         disclosure row (availability, bill comparison, filters) with the current
-         consumption at the right. Disclosure panels open below the row, without frames. --}}
+    {{-- Controls block (Paper "R4 · calm top"): the consumption row, then one disclosure row
+         (price type, availability, filters). Disclosure panels open below the row, without
+         frames. The bill comparison is not a filter; it sits beside the results count. --}}
     <div class="vk-controls" data-listing-controls>
         @include('partials.contract-consumption-selector', [
             'isBusinessPage' => $isBusinessPage,
@@ -129,52 +112,16 @@
             'showCurrentConsumption' => false,
         ])
 
-        {{-- Pricing-type choices: always visible, above the list and outside the filters disclosure. --}}
-        @include('partials.pricing-bucket-pills')
-
         <div class="vk-disclosures">
             <span class="vk-disclosures-spacer hidden lg:block" aria-hidden="true"></span>
 
+            {{-- Pricing-type choices: the first disclosure, its trigger states the selection. --}}
+            @include('partials.pricing-bucket-pills')
+
             @include('partials.contract-postcode-selector')
-
-            {{-- Bill comparison ("Maksatko liikaa") entry. A collapsed disclosure so it does
-                 not push the contract list down for everyone; it opens automatically once a
-                 bill is entered (bill mode active). It stays in the tools row, after the
-                 primary choices (consumption, price behaviour). --}}
-            @if ($showBillComparison)
-                <section class="vk-disclosure" x-data="{ billOpen: @js($this->isBillModeActive()) }">
-                    <button
-                        type="button"
-                        @click="billOpen = !billOpen"
-                        :aria-expanded="billOpen ? 'true' : 'false'"
-                        aria-expanded="{{ $this->isBillModeActive() ? 'true' : 'false' }}"
-                        class="vk-disclosure-trigger"
-                    >
-                        <span class="vk-disclosure-title">Vertaa nykyistä sähkölaskuasi</span>
-                        <svg class="vk-chevron" viewBox="0 0 18 18" aria-hidden="true" focusable="false"><path d="M4 7l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
-                    </button>
-
-                    <div x-show="billOpen" x-collapse x-cloak class="vk-disclosure-panel">
-                        <p class="vk-panel-lead mb-3">Katso hintaero samalla ajalla ja kulutuksella.</p>
-                        {{-- Shared bill entry fields; the contract detail module includes
-                             the same partial so the two surfaces cannot drift. --}}
-                        @include('partials.bill-comparison-form', ['idPrefix' => 'bill'])
-
-                        @if ($this->isBillModeActive())
-                            <button type="button" wire:click="clearBill" class="vk-inked-link vk-focus mt-4">
-                                Tyhjennä ja palaa normaaliin vertailuun
-                            </button>
-                        @endif
-                    </div>
-                </section>
-            @endif
 
             {{-- Filters disclosure (shared partial) --}}
             @include('partials.contract-filters')
-
-            <p class="vk-current-consumption">
-                Vertailu kulutuksella: <span class="tabular-nums">{{ number_format($consumption, 0, ',', ' ') }} kWh/v</span>
-            </p>
         </div>
     </div>
 
@@ -205,55 +152,71 @@
         <x-site.section-heading size="compact">{{ $rankedResultsHeading }}</x-site.section-heading>
     @endif
 
-    @if ($this->isBillModeActive() && $this->billSummary)
-        {{-- Current-contract anchor while the visitor decides: big numbers on the page and
-             inked marks, no dark card. The saving is the one coloured number. --}}
-        @php $bs = $this->billSummary; @endphp
-        <section class="vk-bill-anchor" aria-label="Sinun sopimuksesi">
-            <p class="vk-kicker"><x-ink.sparkle size="13" color="var(--color-fox)" />Sinun sopimuksesi</p>
-            <div class="vk-bill-figures">
-                <div>
-                    <p class="vk-bill-label">Maksoit laskutusjaksollasi noin</p>
-                    <p class="vk-bill-number">{{ number_format($bs['user_monthly_cost'], 1, ',', ' ') }}<span class="vk-big-unit">€/kk</span></p>
-                    <p class="vk-bill-label mt-1">Sijalla <strong class="font-extrabold text-ink">{{ $bs['user_rank'] }} / {{ $bs['total_ranked'] }}</strong> vertailluista sopimuksista</p>
+    {{-- Results area (Paper "R4 · Bill comparison beside results"): the results heading with the
+         bill comparison action at its right. The action opens the torn-paper bill below the
+         heading. In bill mode the "Sinun sopimuksesi" anchor replaces the heading, and the bill
+         stays open above it so the visitor can edit or clear it. --}}
+    <div class="vk-results-area" x-data="{ billOpen: @js($showBillComparison && $this->isBillModeActive()) }">
+        @if ($this->isBillModeActive() && $this->billSummary)
+            {{-- Current-contract anchor while the visitor decides: big numbers on the page and
+                 inked marks, no dark card. The saving is the one coloured number. --}}
+            @php $bs = $this->billSummary; @endphp
+            <div class="vk-bill-mode-head">
+                @include('partials.listing-bill-trigger')
+            </div>
+            @include('partials.listing-bill-panel')
+            <section class="vk-bill-anchor" aria-label="Sinun sopimuksesi">
+                <p class="vk-kicker"><x-ink.sparkle size="13" color="var(--color-fox)" />Sinun sopimuksesi</p>
+                <div class="vk-bill-figures">
+                    <div>
+                        <p class="vk-bill-label">Maksoit laskutusjaksollasi noin</p>
+                        <p class="vk-bill-number">{{ number_format($bs['user_monthly_cost'], 1, ',', ' ') }}<span class="vk-big-unit">€/kk</span></p>
+                        <p class="vk-bill-label mt-1">Sijalla <strong class="font-extrabold text-ink">{{ $bs['user_rank'] }} / {{ $bs['total_ranked'] }}</strong> vertailluista sopimuksista</p>
+                    </div>
+                    @if ($bs['cheapest_monthly_saving'] > 0.5)
+                        <div class="sm:text-right">
+                            <p class="vk-bill-label">Halvimmalla sopimuksella säästäisit</p>
+                            <p class="vk-bill-number vk-bill-number--saving">{{ number_format($bs['cheapest_monthly_saving'], 0, ',', ' ') }}<span class="vk-big-unit">€/kk</span></p>
+                        </div>
+                    @else
+                        <div class="sm:text-right">
+                            <p class="font-display text-[22px] font-extrabold leading-[26px] text-ink">Sopimuksesi on jo kilpailukykyinen.</p>
+                            <p class="vk-bill-label mt-1">Halvempaa ei juuri löydy tällä jaksolla.</p>
+                        </div>
+                    @endif
                 </div>
-                @if ($bs['cheapest_monthly_saving'] > 0.5)
-                    <div class="sm:text-right">
-                        <p class="vk-bill-label">Halvimmalla sopimuksella säästäisit</p>
-                        <p class="vk-bill-number vk-bill-number--saving">{{ number_format($bs['cheapest_monthly_saving'], 0, ',', ' ') }}<span class="vk-big-unit">€/kk</span></p>
+                <p class="vk-fine-print">
+                    Vertailu perustuu laskutusjaksosi ({{ $billStartDate }} – {{ $billEndDate }}) toteutuneisiin hintoihin samalla kulutuksella. Pörssisopimuksilla käytetään jakson todellisia tuntihintoja. {{ $targetGroup === 'Company' ? 'Yrityssopimusten hinnat ilman ALV:tä. Molemmille asiakasryhmille tarkoitetut hinnat sisältävät ALV:n.' : 'Hinnat sisältävät ALV:n.' }} Siirtomaksu ei sisälly.
+                </p>
+            </section>
+        @else
+            {{-- Results heading (Paper "R4 · calm top"): the count in Bricolage, the ranking
+                 promise, then the method note. No category legend: every entry names its category. --}}
+            <div class="vk-results-head">
+                {{-- A pricing-type page shows its category glyph large beside the count
+                     (Paper 3PD-0 "Heading + big glyph"; SeoContractsList::resultsGlyph()). --}}
+                <div @class(['min-w-0', 'vk-seo-results-lead' => $resultsGlyph ?? null])>
+                    @if ($resultsGlyph ?? null)
+                        <x-ink.glyph :bucket="$resultsGlyph" size="76" class="vk-seo-results-glyph" />
+                    @endif
+                    <div class="min-w-0">
+                        <h2 class="vk-results-count">{{ $contracts->total() }} sopimusta.</h2>
+                        <p class="vk-results-promise">Järjestys perustuu 12 kk hintaan. Yhtiöt eivät voi maksaa paremmasta sijoituksesta.</p>
+                        <p class="vk-results-note">
+                            12 kk arvio sisältää tarjoukset. {{ $targetGroup === 'Company' ? 'Yrityssopimusten hinnat ilman ALV:tä. Molemmille asiakasryhmille tarkoitetut hinnat sisältävät ALV:n.' : 'Hinnat sisältävät ALV:n.' }} Siirtomaksu ei sisälly.
+                            <a href="/tietoa#menetelma" class="vk-text-link whitespace-nowrap">Näin laskemme &rarr;</a>
+                        </p>
                     </div>
-                @else
-                    <div class="sm:text-right">
-                        <p class="font-display text-[22px] font-extrabold leading-[26px] text-ink">Sopimuksesi on jo kilpailukykyinen.</p>
-                        <p class="vk-bill-label mt-1">Halvempaa ei juuri löydy tällä jaksolla.</p>
-                    </div>
+                </div>
+                @if ($showBillComparison)
+                    @include('partials.listing-bill-trigger')
                 @endif
             </div>
-            <p class="vk-fine-print">
-                Vertailu perustuu laskutusjaksosi ({{ $billStartDate }} – {{ $billEndDate }}) toteutuneisiin hintoihin samalla kulutuksella. Pörssisopimuksilla käytetään jakson todellisia tuntihintoja. {{ $targetGroup === 'Company' ? 'Yrityssopimusten hinnat ilman ALV:tä. Molemmille asiakasryhmille tarkoitetut hinnat sisältävät ALV:n.' : 'Hinnat sisältävät ALV:n.' }} Siirtomaksu ei sisälly.
-            </p>
-        </section>
-    @else
-        {{-- Results heading (Paper "Results heading"): the count in Bricolage, the note line
-             and the category legend with sparkle marks. --}}
-        <div class="vk-results-head">
-            {{-- A pricing-type page shows its category glyph large beside the count
-                 (Paper 3PD-0 "Heading + big glyph"; SeoContractsList::resultsGlyph()). --}}
-            <div @class(['min-w-0', 'vk-seo-results-lead' => $resultsGlyph ?? null])>
-                @if ($resultsGlyph ?? null)
-                    <x-ink.glyph :bucket="$resultsGlyph" size="76" class="vk-seo-results-glyph" />
-                @endif
-                <div class="min-w-0">
-                    <p class="vk-results-count">{{ $contracts->total() }} sopimusta.</p>
-                    <p class="vk-results-note">
-                        12 kk arvio sisältää tarjoukset. {{ $targetGroup === 'Company' ? 'Yrityssopimusten hinnat ilman ALV:tä. Molemmille asiakasryhmille tarkoitetut hinnat sisältävät ALV:n.' : 'Hinnat sisältävät ALV:n.' }} Siirtomaksu ei sisälly.
-                        <a href="/tietoa#menetelma" class="vk-text-link whitespace-nowrap">Näin laskemme &rarr;</a>
-                    </p>
-                </div>
-            </div>
-            <x-card.legend class="shrink-0 lg:pb-1.5" />
-        </div>
-    @endif
+            @if ($showBillComparison)
+                @include('partials.listing-bill-panel')
+            @endif
+        @endif
+    </div>
 
     {{-- Non-blocking recompute feedback (filters, consumption, bill entry). --}}
     <div wire:loading.delay class="vk-toast">

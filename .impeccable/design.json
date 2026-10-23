@@ -1,0 +1,753 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-23T16:02:27Z",
+  "title": "Design System: Voltikka",
+  "extensions": {
+    "colorMeta": {
+      "ground": {
+        "role": "neutral",
+        "displayName": "Snow Ground",
+        "canonical": "oklch(97.1% 0.007 115.7)",
+        "tonalRamp": [
+          "oklch(15% 0.007 115.7)",
+          "oklch(25% 0.007 115.7)",
+          "oklch(35% 0.007 115.7)",
+          "oklch(45% 0.007 115.7)",
+          "oklch(55% 0.007 115.7)",
+          "oklch(65% 0.007 115.7)",
+          "oklch(80% 0.007 115.7)",
+          "oklch(95% 0.007 115.7)"
+        ]
+      },
+      "snow-white": {
+        "role": "neutral",
+        "displayName": "Snow White",
+        "canonical": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "oklch(15% 0.000 89.9)",
+          "oklch(25% 0.000 89.9)",
+          "oklch(35% 0.000 89.9)",
+          "oklch(45% 0.000 89.9)",
+          "oklch(55% 0.000 89.9)",
+          "oklch(65% 0.000 89.9)",
+          "oklch(80% 0.000 89.9)",
+          "oklch(95% 0.000 89.9)"
+        ]
+      },
+      "edge": {
+        "role": "neutral",
+        "displayName": "Edge",
+        "canonical": "oklch(89.8% 0.008 164.9)",
+        "tonalRamp": [
+          "oklch(15% 0.008 164.9)",
+          "oklch(25% 0.008 164.9)",
+          "oklch(35% 0.008 164.9)",
+          "oklch(45% 0.008 164.9)",
+          "oklch(55% 0.008 164.9)",
+          "oklch(65% 0.008 164.9)",
+          "oklch(80% 0.008 164.9)",
+          "oklch(95% 0.008 164.9)"
+        ]
+      },
+      "edge-strong": {
+        "role": "neutral",
+        "displayName": "Strong Edge",
+        "canonical": "oklch(80.6% 0.010 181.3)",
+        "tonalRamp": [
+          "oklch(15% 0.010 181.3)",
+          "oklch(25% 0.010 181.3)",
+          "oklch(35% 0.010 181.3)",
+          "oklch(45% 0.010 181.3)",
+          "oklch(55% 0.010 181.3)",
+          "oklch(65% 0.010 181.3)",
+          "oklch(80% 0.010 181.3)",
+          "oklch(95% 0.010 181.3)"
+        ]
+      },
+      "field-edge": {
+        "role": "neutral",
+        "displayName": "Field Edge",
+        "canonical": "oklch(63.6% 0.015 166.9)",
+        "tonalRamp": [
+          "oklch(15% 0.015 166.9)",
+          "oklch(25% 0.015 166.9)",
+          "oklch(35% 0.015 166.9)",
+          "oklch(45% 0.015 166.9)",
+          "oklch(55% 0.015 166.9)",
+          "oklch(65% 0.015 166.9)",
+          "oklch(80% 0.015 166.9)",
+          "oklch(95% 0.015 166.9)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "oklch(24.1% 0.031 256.9)",
+        "tonalRamp": [
+          "oklch(15% 0.031 256.9)",
+          "oklch(25% 0.031 256.9)",
+          "oklch(35% 0.031 256.9)",
+          "oklch(45% 0.031 256.9)",
+          "oklch(55% 0.031 256.9)",
+          "oklch(65% 0.031 256.9)",
+          "oklch(80% 0.031 256.9)",
+          "oklch(95% 0.031 256.9)"
+        ]
+      },
+      "ink-body": {
+        "role": "neutral",
+        "displayName": "Body Ink",
+        "canonical": "oklch(39.0% 0.031 255.7)",
+        "tonalRamp": [
+          "oklch(15% 0.031 255.7)",
+          "oklch(25% 0.031 255.7)",
+          "oklch(35% 0.031 255.7)",
+          "oklch(45% 0.031 255.7)",
+          "oklch(55% 0.031 255.7)",
+          "oklch(65% 0.031 255.7)",
+          "oklch(80% 0.031 255.7)",
+          "oklch(95% 0.031 255.7)"
+        ]
+      },
+      "ink-muted": {
+        "role": "neutral",
+        "displayName": "Muted Ink",
+        "canonical": "oklch(51.4% 0.025 256.8)",
+        "tonalRamp": [
+          "oklch(15% 0.025 256.8)",
+          "oklch(25% 0.025 256.8)",
+          "oklch(35% 0.025 256.8)",
+          "oklch(45% 0.025 256.8)",
+          "oklch(55% 0.025 256.8)",
+          "oklch(65% 0.025 256.8)",
+          "oklch(80% 0.025 256.8)",
+          "oklch(95% 0.025 256.8)"
+        ]
+      },
+      "night": {
+        "role": "neutral",
+        "displayName": "Night",
+        "canonical": "oklch(25.0% 0.051 262.5)",
+        "tonalRamp": [
+          "oklch(15% 0.051 262.5)",
+          "oklch(25% 0.051 262.5)",
+          "oklch(35% 0.051 262.5)",
+          "oklch(45% 0.051 262.5)",
+          "oklch(55% 0.051 262.5)",
+          "oklch(65% 0.051 262.5)",
+          "oklch(80% 0.051 262.5)",
+          "oklch(95% 0.051 262.5)"
+        ]
+      },
+      "night-lead": {
+        "role": "neutral",
+        "displayName": "Night Lead",
+        "canonical": "oklch(86.4% 0.025 259.8)",
+        "tonalRamp": [
+          "oklch(15% 0.025 259.8)",
+          "oklch(25% 0.025 259.8)",
+          "oklch(35% 0.025 259.8)",
+          "oklch(45% 0.025 259.8)",
+          "oklch(55% 0.025 259.8)",
+          "oklch(65% 0.025 259.8)",
+          "oklch(80% 0.025 259.8)",
+          "oklch(95% 0.025 259.8)"
+        ]
+      },
+      "fox": {
+        "role": "primary",
+        "displayName": "Fox Orange",
+        "canonical": "oklch(57.7% 0.161 41.4)",
+        "tonalRamp": [
+          "oklch(15% 0.160 41.4)",
+          "oklch(25% 0.161 41.4)",
+          "oklch(35% 0.161 41.4)",
+          "oklch(45% 0.161 41.4)",
+          "oklch(55% 0.161 41.4)",
+          "oklch(65% 0.161 41.4)",
+          "oklch(80% 0.161 41.4)",
+          "oklch(95% 0.160 41.4)"
+        ]
+      },
+      "fox-deep": {
+        "role": "primary",
+        "displayName": "Deep Fox",
+        "canonical": "oklch(48.7% 0.141 40.8)",
+        "tonalRamp": [
+          "oklch(15% 0.141 40.8)",
+          "oklch(25% 0.141 40.8)",
+          "oklch(35% 0.141 40.8)",
+          "oklch(45% 0.141 40.8)",
+          "oklch(55% 0.141 40.8)",
+          "oklch(65% 0.141 40.8)",
+          "oklch(80% 0.141 40.8)",
+          "oklch(95% 0.141 40.8)"
+        ]
+      },
+      "aurora": {
+        "role": "secondary",
+        "displayName": "Aurora Green",
+        "canonical": "oklch(51.9% 0.096 168.0)",
+        "tonalRamp": [
+          "oklch(15% 0.096 168.0)",
+          "oklch(25% 0.096 168.0)",
+          "oklch(35% 0.096 168.0)",
+          "oklch(45% 0.096 168.0)",
+          "oklch(55% 0.096 168.0)",
+          "oklch(65% 0.096 168.0)",
+          "oklch(80% 0.096 168.0)",
+          "oklch(95% 0.096 168.0)"
+        ]
+      },
+      "lake": {
+        "role": "secondary",
+        "displayName": "Lake Blue",
+        "canonical": "oklch(47.2% 0.092 247.4)",
+        "tonalRamp": [
+          "oklch(15% 0.092 247.4)",
+          "oklch(25% 0.092 247.4)",
+          "oklch(35% 0.092 247.4)",
+          "oklch(45% 0.092 247.4)",
+          "oklch(55% 0.092 247.4)",
+          "oklch(65% 0.092 247.4)",
+          "oklch(80% 0.092 247.4)",
+          "oklch(95% 0.092 247.4)"
+        ]
+      },
+      "violet": {
+        "role": "secondary",
+        "displayName": "Twilight Violet",
+        "canonical": "oklch(48.6% 0.126 298.9)",
+        "tonalRamp": [
+          "oklch(15% 0.126 298.9)",
+          "oklch(25% 0.126 298.9)",
+          "oklch(35% 0.126 298.9)",
+          "oklch(45% 0.126 298.9)",
+          "oklch(55% 0.126 298.9)",
+          "oklch(65% 0.126 298.9)",
+          "oklch(80% 0.126 298.9)",
+          "oklch(95% 0.126 298.9)"
+        ]
+      },
+      "granite": {
+        "role": "secondary",
+        "displayName": "Granite",
+        "canonical": "oklch(47.4% 0.022 250.8)",
+        "tonalRamp": [
+          "oklch(15% 0.022 250.8)",
+          "oklch(25% 0.022 250.8)",
+          "oklch(35% 0.022 250.8)",
+          "oklch(45% 0.022 250.8)",
+          "oklch(55% 0.022 250.8)",
+          "oklch(65% 0.022 250.8)",
+          "oklch(80% 0.022 250.8)",
+          "oklch(95% 0.022 250.8)"
+        ]
+      },
+      "price-high": {
+        "role": "tertiary",
+        "displayName": "Warning Red",
+        "canonical": "oklch(50.1% 0.178 28.7)",
+        "tonalRamp": [
+          "oklch(15% 0.160 28.7)",
+          "oklch(25% 0.178 28.7)",
+          "oklch(35% 0.178 28.7)",
+          "oklch(45% 0.178 28.7)",
+          "oklch(55% 0.178 28.7)",
+          "oklch(65% 0.178 28.7)",
+          "oklch(80% 0.178 28.7)",
+          "oklch(95% 0.160 28.7)"
+        ]
+      },
+      "warning-ink": {
+        "role": "tertiary",
+        "displayName": "Caution Ochre",
+        "canonical": "oklch(43.4% 0.090 79.3)",
+        "tonalRamp": [
+          "oklch(15% 0.090 79.3)",
+          "oklch(25% 0.090 79.3)",
+          "oklch(35% 0.090 79.3)",
+          "oklch(45% 0.090 79.3)",
+          "oklch(55% 0.090 79.3)",
+          "oklch(65% 0.090 79.3)",
+          "oklch(80% 0.090 79.3)",
+          "oklch(95% 0.090 79.3)"
+        ]
+      },
+      "forecast": {
+        "role": "tertiary",
+        "displayName": "Forecast Mist",
+        "canonical": "oklch(82.1% 0.031 254.3)",
+        "tonalRamp": [
+          "oklch(15% 0.031 254.3)",
+          "oklch(25% 0.031 254.3)",
+          "oklch(35% 0.031 254.3)",
+          "oklch(45% 0.031 254.3)",
+          "oklch(55% 0.031 254.3)",
+          "oklch(65% 0.031 254.3)",
+          "oklch(80% 0.031 254.3)",
+          "oklch(95% 0.031 254.3)"
+        ]
+      },
+      "star": {
+        "role": "tertiary",
+        "displayName": "Star Gold",
+        "canonical": "oklch(75.2% 0.150 79.8)",
+        "tonalRamp": [
+          "oklch(15% 0.150 79.8)",
+          "oklch(25% 0.150 79.8)",
+          "oklch(35% 0.150 79.8)",
+          "oklch(45% 0.150 79.8)",
+          "oklch(55% 0.150 79.8)",
+          "oklch(65% 0.150 79.8)",
+          "oklch(80% 0.150 79.8)",
+          "oklch(95% 0.150 79.8)"
+        ]
+      },
+      "season-ground-talvi": {
+        "role": "tertiary",
+        "displayName": "Talvi Snow Line",
+        "canonical": "oklch(93.4% 0.010 247.9)",
+        "tonalRamp": [
+          "oklch(15% 0.010 247.9)",
+          "oklch(25% 0.010 247.9)",
+          "oklch(35% 0.010 247.9)",
+          "oklch(45% 0.010 247.9)",
+          "oklch(55% 0.010 247.9)",
+          "oklch(65% 0.010 247.9)",
+          "oklch(80% 0.010 247.9)",
+          "oklch(95% 0.010 247.9)"
+        ]
+      },
+      "season-ground-kevat": {
+        "role": "tertiary",
+        "displayName": "Kevät Thaw Line",
+        "canonical": "oklch(91.4% 0.030 121.4)",
+        "tonalRamp": [
+          "oklch(15% 0.030 121.4)",
+          "oklch(25% 0.030 121.4)",
+          "oklch(35% 0.030 121.4)",
+          "oklch(45% 0.030 121.4)",
+          "oklch(55% 0.030 121.4)",
+          "oklch(65% 0.030 121.4)",
+          "oklch(80% 0.030 121.4)",
+          "oklch(95% 0.030 121.4)"
+        ]
+      },
+      "season-ground-kesa": {
+        "role": "tertiary",
+        "displayName": "Kesä Meadow Line",
+        "canonical": "oklch(90.1% 0.047 128.5)",
+        "tonalRamp": [
+          "oklch(15% 0.047 128.5)",
+          "oklch(25% 0.047 128.5)",
+          "oklch(35% 0.047 128.5)",
+          "oklch(45% 0.047 128.5)",
+          "oklch(55% 0.047 128.5)",
+          "oklch(65% 0.047 128.5)",
+          "oklch(80% 0.047 128.5)",
+          "oklch(95% 0.047 128.5)"
+        ]
+      },
+      "season-ground-syksy": {
+        "role": "tertiary",
+        "displayName": "Syksy Leaf Line",
+        "canonical": "oklch(90.2% 0.040 77.2)",
+        "tonalRamp": [
+          "oklch(15% 0.040 77.2)",
+          "oklch(25% 0.040 77.2)",
+          "oklch(35% 0.040 77.2)",
+          "oklch(45% 0.040 77.2)",
+          "oklch(55% 0.040 77.2)",
+          "oklch(65% 0.040 77.2)",
+          "oklch(80% 0.040 77.2)",
+          "oklch(95% 0.040 77.2)"
+        ]
+      },
+      "cat-spot": {
+        "role": "secondary",
+        "displayName": "Aurora Green (alias of aurora)",
+        "canonical": "oklch(51.9% 0.096 168.0)",
+        "tonalRamp": [
+          "oklch(15% 0.096 168.0)",
+          "oklch(25% 0.096 168.0)",
+          "oklch(35% 0.096 168.0)",
+          "oklch(45% 0.096 168.0)",
+          "oklch(55% 0.096 168.0)",
+          "oklch(65% 0.096 168.0)",
+          "oklch(80% 0.096 168.0)",
+          "oklch(95% 0.096 168.0)"
+        ]
+      },
+      "price-low": {
+        "role": "secondary",
+        "displayName": "Aurora Green (alias of aurora)",
+        "canonical": "oklch(51.9% 0.096 168.0)",
+        "tonalRamp": [
+          "oklch(15% 0.096 168.0)",
+          "oklch(25% 0.096 168.0)",
+          "oklch(35% 0.096 168.0)",
+          "oklch(45% 0.096 168.0)",
+          "oklch(55% 0.096 168.0)",
+          "oklch(65% 0.096 168.0)",
+          "oklch(80% 0.096 168.0)",
+          "oklch(95% 0.096 168.0)"
+        ]
+      },
+      "saving": {
+        "role": "secondary",
+        "displayName": "Aurora Green (alias of aurora)",
+        "canonical": "oklch(51.9% 0.096 168.0)",
+        "tonalRamp": [
+          "oklch(15% 0.096 168.0)",
+          "oklch(25% 0.096 168.0)",
+          "oklch(35% 0.096 168.0)",
+          "oklch(45% 0.096 168.0)",
+          "oklch(55% 0.096 168.0)",
+          "oklch(65% 0.096 168.0)",
+          "oklch(80% 0.096 168.0)",
+          "oklch(95% 0.096 168.0)"
+        ]
+      },
+      "cat-periodic": {
+        "role": "secondary",
+        "displayName": "Lake Blue (alias of lake)",
+        "canonical": "oklch(47.2% 0.092 247.4)",
+        "tonalRamp": [
+          "oklch(15% 0.092 247.4)",
+          "oklch(25% 0.092 247.4)",
+          "oklch(35% 0.092 247.4)",
+          "oklch(45% 0.092 247.4)",
+          "oklch(55% 0.092 247.4)",
+          "oklch(65% 0.092 247.4)",
+          "oklch(80% 0.092 247.4)",
+          "oklch(95% 0.092 247.4)"
+        ]
+      },
+      "cat-usage": {
+        "role": "secondary",
+        "displayName": "Twilight Violet (alias of violet)",
+        "canonical": "oklch(48.6% 0.126 298.9)",
+        "tonalRamp": [
+          "oklch(15% 0.126 298.9)",
+          "oklch(25% 0.126 298.9)",
+          "oklch(35% 0.126 298.9)",
+          "oklch(45% 0.126 298.9)",
+          "oklch(55% 0.126 298.9)",
+          "oklch(65% 0.126 298.9)",
+          "oklch(80% 0.126 298.9)",
+          "oklch(95% 0.126 298.9)"
+        ]
+      },
+      "cat-fixed": {
+        "role": "secondary",
+        "displayName": "Granite (alias of granite)",
+        "canonical": "oklch(47.4% 0.022 250.8)",
+        "tonalRamp": [
+          "oklch(15% 0.022 250.8)",
+          "oklch(25% 0.022 250.8)",
+          "oklch(35% 0.022 250.8)",
+          "oklch(45% 0.022 250.8)",
+          "oklch(55% 0.022 250.8)",
+          "oklch(65% 0.022 250.8)",
+          "oklch(80% 0.022 250.8)",
+          "oklch(95% 0.022 250.8)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "hero-number": {
+        "displayName": "Hero Number",
+        "purpose": "Poster number on the hero sky."
+      },
+      "display": {
+        "displayName": "Display",
+        "purpose": "H1 on the hero."
+      },
+      "price": {
+        "displayName": "Price",
+        "purpose": "€/kk price on a ledger entry."
+      },
+      "rank": {
+        "displayName": "Rank",
+        "purpose": "Rank number on a ledger entry."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Section heading with the wavy fox underline."
+      },
+      "number": {
+        "displayName": "Number",
+        "purpose": "Key figure in a row."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Contract or item name."
+      },
+      "action": {
+        "displayName": "Action",
+        "purpose": "Inked actions and page numbers."
+      },
+      "lead": {
+        "displayName": "Lead",
+        "purpose": "Hero and page lead, max 720px."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Running text, max 680px."
+      },
+      "ui": {
+        "displayName": "Ui",
+        "purpose": "Controls, navigation, links."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Label and value rows, price parts."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Breadcrumbs, notes, small print."
+      },
+      "caption-caps": {
+        "displayName": "Caption Caps",
+        "purpose": "Status mark in the status colour."
+      }
+    },
+    "shadows": [],
+    "lines": [
+      {
+        "name": "wave-heading",
+        "value": "3.5px fox wavy SVG stroke, 200px",
+        "purpose": "Under a section heading."
+      },
+      {
+        "name": "wave-action",
+        "value": "2.6px wavy SVG stroke, 86px",
+        "purpose": "Under an inked action."
+      },
+      {
+        "name": "wave-current",
+        "value": "3px fox wavy SVG stroke",
+        "purpose": "Under a sub-heading or the current page."
+      },
+      {
+        "name": "hairline",
+        "value": "1.5px uneven SVG stroke",
+        "purpose": "Between ledger entries and FAQ rows."
+      },
+      {
+        "name": "leader",
+        "value": "2px dotted var(--color-edge-strong)",
+        "purpose": "Between a label and its value."
+      },
+      {
+        "name": "baseline",
+        "value": "1.6px ink",
+        "purpose": "Under charts and glyphs."
+      }
+    ],
+    "heroShades": [
+      {
+        "name": "tone-dark",
+        "value": "linear-gradient(180deg, oklab(31.2% -0.006 -0.071 / 62%) 0%, oklab(31.2% -0.006 -0.071 / 45%) 60%, oklab(31.2% -0.006 -0.071 / 0%) 100%)",
+        "purpose": "Navy shade behind white hero text on dark art. The only gradient; art only."
+      },
+      {
+        "name": "tone-light",
+        "value": "linear-gradient(180deg, oklab(97.1% -0.003 0.006 / 82%) 0%, oklab(97.1% -0.003 0.006 / 60%) 60%, oklab(97.1% -0.003 0.006 / 0%) 100%)",
+        "purpose": "Ground-colour shade behind ink hero text on bright art."
+      }
+    ],
+    "focus": [
+      {
+        "name": "focus-ring",
+        "value": "outline: 2px solid var(--color-fox); outline-offset: 2px to 3px",
+        "purpose": "Every interactive element."
+      },
+      {
+        "name": "field-focus",
+        "value": "border-bottom-color: var(--color-fox); box-shadow: 0 1px 0 0 var(--color-fox)",
+        "purpose": "Underlined field focus."
+      }
+    ],
+    "motion": [
+      {
+        "name": "color-quick",
+        "value": "color 120ms ease",
+        "purpose": "Nav item hover."
+      },
+      {
+        "name": "chevron",
+        "value": "transform 150ms ease",
+        "purpose": "Disclosure chevron turn; none under prefers-reduced-motion."
+      },
+      {
+        "name": "ruler",
+        "value": "transform 300ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Contract detail price ruler; none under prefers-reduced-motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "mobile",
+        "value": "390px"
+      },
+      {
+        "name": "ledger-two-row",
+        "value": "640px"
+      },
+      {
+        "name": "tablet",
+        "value": "768px"
+      },
+      {
+        "name": "laptop",
+        "value": "1024px"
+      },
+      {
+        "name": "ledger-five-lane",
+        "value": "1200px"
+      },
+      {
+        "name": "desktop",
+        "value": "1440px"
+      }
+    ],
+    "seasons": {
+      "talvi": "Dec-Feb",
+      "kevat": "Mar-May",
+      "kesa": "Jun-Aug",
+      "syksy": "Sep-Nov",
+      "selector": "App\\Support\\Season::current() (Europe/Helsinki month)"
+    }
+  },
+  "components": [
+    {
+      "name": "Inked Action",
+      "kind": "button",
+      "refersTo": "inked-action",
+      "description": "Text action such as 'Katso →': Bricolage 18/22 800 fox-deep with a 2.6px wavy underline. No box.",
+      "html": "<a href=\"#\" class=\"ds-action\"><span>Katso →</span><svg width=\"86\" height=\"12\" viewBox=\"0 0 100 12\" preserveAspectRatio=\"none\" aria-hidden=\"true\"><path d=\"M3 8 C 18 3, 35 11, 54 6 S 87 3, 97 7\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.6\" stroke-linecap=\"round\" vector-effect=\"non-scaling-stroke\"/></svg></a>",
+      "css": ".ds-action { display: inline-flex; flex-direction: column; width: fit-content; font-family: var(--font-display); font-weight: 800; font-size: 18px; line-height: 22px; color: var(--color-fox-deep); text-decoration: none; transition: color 120ms ease; } .ds-action svg { color: var(--color-fox); } .ds-action:hover { color: var(--color-ink); } .ds-action:focus-visible { outline: 2px solid var(--color-fox); outline-offset: 3px; border-radius: 2px; } @media (prefers-reduced-motion: reduce) { .ds-action { transition: none; } }"
+    },
+    {
+      "name": "Preferred Sources Action",
+      "kind": "button",
+      "refersTo": "strip-action",
+      "description": "The inked action of the Preferred Sources strip under every hero (option A: small notice board, display title, this action).",
+      "html": "<button class=\"ds-strip-action\"><span>+ Valitse suosikkilähteeksi</span><svg width=\"100%\" height=\"7\" viewBox=\"0 0 100 12\" preserveAspectRatio=\"none\" aria-hidden=\"true\"><path d=\"M3 8 C 18 3, 35 11, 54 6 S 87 3, 97 7\" fill=\"none\" stroke=\"var(--color-fox)\" stroke-width=\"2.6\" stroke-linecap=\"round\" vector-effect=\"non-scaling-stroke\"/></svg></button>",
+      "css": ".ds-strip-action { display: inline-flex; flex-direction: column; justify-content: center; min-height: 44px; padding: 0; background: none; border: 0; color: var(--color-fox-deep); font-family: var(--font-display); font-size: 18px; line-height: 22px; font-weight: 800; cursor: pointer; } .ds-strip-action:hover { color: var(--color-ink); } .ds-strip-action:focus-visible { outline: 2px solid var(--color-fox); outline-offset: 2px; border-radius: 5px; }"
+    },
+    {
+      "name": "Underlined Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "No box: a 2px field-edge underline, value in ink 700, unit in ink-muted caps. Focus turns the underline fox and adds a 1px fox line.",
+      "html": "<label class=\"ds-field-wrap\"><span class=\"ds-field-label\">Oma kulutus</span><span class=\"ds-field\"><input type=\"number\" min=\"0\" placeholder=\"esim. 5000\"><span class=\"ds-field-unit\">KWH/V</span></span></label>",
+      "css": ".ds-field-wrap { display: flex; flex-direction: column; gap: 6px; width: 200px; font-family: var(--font-sans); } .ds-field-label { font-size: 14px; line-height: 18px; font-weight: 800; color: var(--color-ink); } .ds-field { display: flex; align-items: flex-end; gap: 6px; padding: 4px 2px; border-bottom: 2px solid var(--color-field-edge); } .ds-field:focus-within { border-bottom-color: var(--color-fox); box-shadow: 0 1px 0 0 var(--color-fox); } .ds-field input { width: 100%; min-width: 0; border: 0; padding: 0; background: transparent; font: inherit; font-size: 16px; line-height: 22px; font-weight: 700; color: var(--color-ink); outline: none; } .ds-field input::placeholder { font-weight: 400; color: var(--color-ink-muted); } .ds-field-unit { font-size: 13px; line-height: 16px; font-weight: 800; color: var(--color-ink-muted); }"
+    },
+    {
+      "name": "Category Checkbox Choice",
+      "kind": "chip",
+      "refersTo": "checkbox",
+      "description": "Pricing-category choice: real 20px checkbox, 34-44px glyph, name in the category colour. A control, never a pill.",
+      "html": "<label class=\"ds-choice\"><input type=\"checkbox\" class=\"ds-checkbox\" checked><svg width=\"34\" height=\"34\" viewBox=\"0 0 44 44\" aria-hidden=\"true\"><path d=\"M4 26.2 C 11 25.8, 19 26.5, 27 26\" fill=\"none\" stroke=\"var(--color-cat-fixed)\" stroke-width=\"3.4\" stroke-linecap=\"round\"/><path d=\"M4.8 25.4 C 11.5 25, 19.5 25.7, 27.6 25.2\" fill=\"none\" stroke=\"var(--color-ink)\" stroke-width=\"1.1\" stroke-linecap=\"round\"/><rect x=\"31.5\" y=\"22\" width=\"11\" height=\"9.5\" rx=\"1.5\" fill=\"var(--color-cat-fixed)\" opacity=\".55\"/><path d=\"M32.5 21 V17.5 C 32.5 13.2, 39.5 13.2, 39.5 17.5 V21\" fill=\"none\" stroke=\"var(--color-ink)\" stroke-width=\"1.6\" stroke-linecap=\"round\"/><path d=\"M30.6 21.2 L41.3 20.9 L41.5 30.4 L30.4 30.6 Z\" fill=\"none\" stroke=\"var(--color-ink)\" stroke-width=\"1.3\" stroke-linejoin=\"round\"/></svg><span class=\"ds-choice-name\">Kiinteä hinta</span></label>",
+      "css": ".ds-choice { display: inline-flex; align-items: center; gap: 8px; padding: 4px 0; font-family: var(--font-sans); font-size: 15px; line-height: 20px; font-weight: 800; color: var(--color-cat-fixed); cursor: pointer; } .ds-checkbox { appearance: none; width: 20px; height: 20px; margin: 0; flex-shrink: 0; border: 2px solid var(--color-field-edge); border-radius: var(--radius-control); background: var(--color-snow-white) center / 14px 14px no-repeat; cursor: pointer; } .ds-checkbox:checked { border-color: var(--color-fox); background-color: var(--color-fox); background-image: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M2.5 7.4 L5.6 10.2 L11.6 3.6' fill='none' stroke='%23FFFFFF' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\"); } .ds-checkbox:focus-visible { outline: 2px solid var(--color-fox); outline-offset: 2px; } .ds-choice:hover .ds-choice-name { text-decoration: underline; text-underline-offset: 3px; }"
+    },
+    {
+      "name": "Section Heading",
+      "kind": "custom",
+      "refersTo": "",
+      "description": "Bricolage 34/38 800 heading with the 3.5px hand-inked wavy fox underline; optional action at the right.",
+      "html": "<div class=\"ds-heading\"><div><h2>Sähkösopimukset</h2><svg width=\"200\" height=\"12\" viewBox=\"0 0 100 12\" preserveAspectRatio=\"none\" aria-hidden=\"true\"><path d=\"M3 8 C 18 3, 35 11, 54 6 S 87 3, 97 7\" fill=\"none\" stroke=\"var(--color-fox)\" stroke-width=\"3.5\" stroke-linecap=\"round\" vector-effect=\"non-scaling-stroke\"/></svg></div><a href=\"#\" class=\"ds-heading-act\">Lataa CSV</a></div>",
+      "css": ".ds-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; } .ds-heading h2 { margin: 0 0 2px; font-family: var(--font-display); font-weight: 800; font-size: 34px; line-height: 38px; letter-spacing: -0.02em; color: var(--color-ink); } .ds-heading-act { font-family: var(--font-sans); font-size: 14px; line-height: 18px; font-weight: 800; color: var(--color-fox-deep); text-decoration: underline; text-underline-offset: 3px; } .ds-heading-act:hover { color: var(--color-ink); } .ds-heading-act:focus-visible { outline: 2px solid var(--color-fox); outline-offset: 3px; }"
+    },
+    {
+      "name": "Ledger Contract Entry",
+      "kind": "card",
+      "refersTo": "",
+      "description": "Signature row: no card. Category line, rank and name, price parts with dotted leaders, €/kk price, inked action, tag line, inked hairline.",
+      "html": "<article class=\"ds-entry\"><div class=\"ds-cat\"><svg width=\"34\" height=\"34\" viewBox=\"0 0 44 44\" aria-hidden=\"true\"><path d=\"M4 26.2 C 11 25.8, 19 26.5, 27 26\" fill=\"none\" stroke=\"var(--color-cat-fixed)\" stroke-width=\"3.4\" stroke-linecap=\"round\"/><path d=\"M4.8 25.4 C 11.5 25, 19.5 25.7, 27.6 25.2\" fill=\"none\" stroke=\"var(--color-ink)\" stroke-width=\"1.1\" stroke-linecap=\"round\"/><rect x=\"31.5\" y=\"22\" width=\"11\" height=\"9.5\" rx=\"1.5\" fill=\"var(--color-cat-fixed)\" opacity=\".55\"/><path d=\"M32.5 21 V17.5 C 32.5 13.2, 39.5 13.2, 39.5 17.5 V21\" fill=\"none\" stroke=\"var(--color-ink)\" stroke-width=\"1.6\" stroke-linecap=\"round\"/><path d=\"M30.6 21.2 L41.3 20.9 L41.5 30.4 L30.4 30.6 Z\" fill=\"none\" stroke=\"var(--color-ink)\" stroke-width=\"1.3\" stroke-linejoin=\"round\"/></svg><span><b>Kiinteä hinta</b> · hinta pysyy samana</span><span class=\"ds-arvio\">Arvio ⓘ</span></div><div class=\"ds-main\"><div class=\"ds-rank\">1</div><div class=\"ds-name\"><div class=\"ds-title\">Vakaa 12 kk</div><div class=\"ds-meta\">Esimerkkiyhtiö</div></div><div class=\"ds-parts\"><div class=\"ds-part\"><span>Energia</span><i></i><b>8,49 snt/kWh</b></div><div class=\"ds-part\"><span>Perusmaksu</span><i></i><b>3,95 €/kk</b></div></div><div class=\"ds-price\"><span class=\"ds-int\">39</span><span class=\"ds-dec\">,40</span><span class=\"ds-unit\">€/kk</span></div><a href=\"#\" class=\"ds-action-sm\">Katso →<svg width=\"86\" height=\"12\" viewBox=\"0 0 100 12\" preserveAspectRatio=\"none\" aria-hidden=\"true\"><path d=\"M3 8 C 18 3, 35 11, 54 6 S 87 3, 97 7\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.6\" stroke-linecap=\"round\" vector-effect=\"non-scaling-stroke\"/></svg></a></div><div class=\"ds-tags\"><span class=\"ds-tag\"><svg width=\"13\" height=\"13\" viewBox=\"0 0 18 18\" aria-hidden=\"true\"><path d=\"M9 2 C 9.6 6, 12 8.4, 16 9 C 12 9.6, 9.6 12, 9 16 C 8.4 12, 6 9.6, 2 9 C 6 8.4, 8.4 6, 9 2 Z\" fill=\"currentColor\"/></svg>Päästötön</span><span class=\"ds-tag ds-tag--warn\">! Hinta nousee 1.8.</span></div><svg width=\"100%\" height=\"8\" viewBox=\"0 0 1232 8\" preserveAspectRatio=\"none\" aria-hidden=\"true\" style=\"display:block\"><path d=\"M0 4 C 200 2, 400 6, 616 4 S 1030 2, 1232 4\" fill=\"none\" stroke=\"var(--color-edge)\" stroke-width=\"1.5\" stroke-linecap=\"round\" vector-effect=\"non-scaling-stroke\"/></svg></article>",
+      "css": ".ds-entry { font-family: var(--font-sans); display: flex; flex-direction: column; gap: 10px; padding: 6px 0 0; max-width: 1000px; color: var(--color-ink-body); } .ds-cat { display: flex; align-items: center; gap: 8px; font-size: 14px; line-height: 18px; color: var(--color-cat-fixed); } .ds-cat b { font-weight: 800; } .ds-arvio { margin-left: auto; font-weight: 800; color: var(--color-ink-muted); text-decoration: underline 1px dotted; cursor: help; } .ds-main { display: grid; grid-template-columns: 70px 1.1fr 1fr auto 110px; align-items: center; gap: 0 16px; } .ds-rank { font-family: var(--font-display); font-size: 36px; line-height: 34px; font-weight: 800; letter-spacing: -0.03em; color: var(--color-fox-deep); } .ds-title { font-family: var(--font-display); font-size: 22px; line-height: 26px; font-weight: 800; letter-spacing: -0.01em; color: var(--color-ink); } .ds-meta { font-size: 14px; line-height: 18px; } .ds-parts { display: flex; flex-direction: column; gap: 7px; font-size: 14px; line-height: 18px; font-variant-numeric: tabular-nums; } .ds-part { display: flex; align-items: baseline; gap: 6px; } .ds-part i { flex: 1; min-width: 12px; border-bottom: 2px dotted var(--color-edge-strong); } .ds-part b { font-weight: 800; color: var(--color-ink); white-space: nowrap; } .ds-price { display: flex; align-items: baseline; gap: 2px; font-family: var(--font-display); font-weight: 800; color: var(--color-fox-deep); font-variant-numeric: tabular-nums; } .ds-int { font-size: 52px; line-height: 54px; letter-spacing: -0.04em; } .ds-dec { font-size: 30px; line-height: 36px; } .ds-unit { padding-left: 4px; font-family: var(--font-sans); font-size: 16px; color: var(--color-ink-body); } .ds-action-sm { justify-self: end; display: inline-flex; flex-direction: column; font-family: var(--font-display); font-size: 18px; line-height: 22px; font-weight: 800; color: var(--color-fox-deep); text-decoration: none; } .ds-action-sm svg { color: var(--color-fox); } .ds-action-sm:hover { color: var(--color-ink); } .ds-action-sm:focus-visible { outline: 2px solid var(--color-fox); outline-offset: 3px; } .ds-tags { display: flex; flex-wrap: wrap; gap: 6px 16px; padding-left: 86px; font-size: 13px; line-height: 16px; font-weight: 800; } .ds-tag { display: inline-flex; align-items: center; gap: 5px; color: var(--color-aurora); } .ds-tag--warn { color: var(--color-price-high); }"
+    },
+    {
+      "name": "Top Bar Navigation",
+      "kind": "nav",
+      "refersTo": "nav-item",
+      "description": "Transparent bar on the hero in the hero tone; active item 800 with a 2px fox underline; spot price as plain text with a sparkle.",
+      "html": "<nav class=\"ds-nav\"><span class=\"ds-wordmark\">Voltikka</span><a href=\"#\" class=\"ds-nav-item is-active\">Sähkösopimukset</a><a href=\"#\" class=\"ds-nav-item\">Pörssisähkö</a><a href=\"#\" class=\"ds-nav-item\">Laskuri</a><span class=\"ds-spot\"><svg width=\"13\" height=\"13\" viewBox=\"0 0 18 18\" aria-hidden=\"true\"><path d=\"M9 2 C 9.6 6, 12 8.4, 16 9 C 12 9.6, 9.6 12, 9 16 C 8.4 12, 6 9.6, 2 9 C 6 8.4, 8.4 6, 9 2 Z\" fill=\"currentColor\"/></svg><span class=\"ds-spot-label\">Spot-hinta</span><b>4,12 snt</b></span></nav>",
+      "css": ".ds-nav { display: flex; align-items: center; gap: 28px; padding: 18px 24px; background: var(--color-ground); font-family: var(--font-sans); } .ds-wordmark { font-family: var(--font-display); font-weight: 800; font-size: 28px; line-height: 34px; letter-spacing: -0.02em; color: var(--color-ink); margin-right: 12px; } .ds-nav-item { padding: 6px 0; border-bottom: 2px solid transparent; font-size: 15px; line-height: 18px; font-weight: 700; color: var(--color-ink-body); text-decoration: none; transition: color 120ms ease; } .ds-nav-item:hover { color: var(--color-ink); } .ds-nav-item.is-active { font-weight: 800; color: var(--color-ink); border-bottom-color: var(--color-fox); } .ds-nav-item:focus-visible { outline: 2px solid var(--color-fox); outline-offset: 3px; } .ds-spot { margin-left: auto; display: flex; align-items: center; gap: 8px; color: var(--color-aurora); } .ds-spot-label { font-size: 15px; font-weight: 700; color: var(--color-ink-body); } .ds-spot b { font-family: var(--font-display); font-size: 18px; font-weight: 800; color: var(--color-ink); font-variant-numeric: tabular-nums; } @media (prefers-reduced-motion: reduce) { .ds-nav-item { transition: none; } }"
+    },
+    {
+      "name": "Pagination",
+      "kind": "nav",
+      "refersTo": "pager-current",
+      "description": "Page numbers in Bricolage 18 800 ink; current page fox-deep with a 3px wavy underline; edge links in Figtree 16 800.",
+      "html": "<nav class=\"ds-pager\"><span class=\"ds-pager-edge is-off\">‹ Edellinen</span><span class=\"ds-pager-current\">1<svg width=\"22\" height=\"12\" viewBox=\"0 0 100 12\" preserveAspectRatio=\"none\" aria-hidden=\"true\"><path d=\"M3 8 C 18 3, 35 11, 54 6 S 87 3, 97 7\" fill=\"none\" stroke=\"var(--color-fox)\" stroke-width=\"3\" stroke-linecap=\"round\" vector-effect=\"non-scaling-stroke\"/></svg></span><a href=\"#\" class=\"ds-pager-page\">2</a><a href=\"#\" class=\"ds-pager-page\">3</a><a href=\"#\" class=\"ds-pager-edge\">Seuraava ›</a></nav>",
+      "css": ".ds-pager { display: flex; align-items: flex-start; justify-content: center; gap: 22px; padding: 10px 0; font-family: var(--font-sans); } .ds-pager-edge { font-size: 16px; line-height: 20px; font-weight: 800; color: var(--color-ink); text-decoration: none; } .ds-pager-edge.is-off { font-weight: 700; color: var(--color-ink-muted); } .ds-pager-page, .ds-pager-current { font-family: var(--font-display); font-size: 18px; line-height: 22px; font-weight: 800; color: var(--color-ink); text-decoration: none; font-variant-numeric: tabular-nums; } .ds-pager-current { display: inline-flex; flex-direction: column; align-items: center; color: var(--color-fox-deep); } a.ds-pager-page:hover, a.ds-pager-edge:hover { color: var(--color-fox-deep); } .ds-pager a:focus-visible { outline: 2px solid var(--color-fox); outline-offset: 2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Seasonal Picture Book",
+    "overview": "Voltikka is a picture book about Finnish evenings and electricity. A painted scene opens every page: a village, a lake, a sky. The fox stands in that scene once. The art follows the current Europe/Helsinki season: talvi (December to February), kevät (March to May), kesä (June to August) and syksy (September to November). The composition, the fox and its green scarf stay the same in every season. Only the weather, the light and the villagers' activities change.\n\nThe pages are bold, not timid. Prices are exact and plain, and big numbers carry each page. The design stays at the side: the art frames the content but never carries data or controls. Content sits directly on the snow-coloured ground. Structure comes from display headings with a hand-inked fox underline, inked hairlines, dotted leaders, paw-print dividers and small inked marks. Nothing sits in a card.\n\nThe user rejected these directions, and they stay rejected: standard SaaS cards and white rounded panels, pills and badges, shadows, gradients and glass behind content, watercolour washes behind text or data, data-as-landscape charts, per-contract mini charts, and painted category emblems.",
+    "keyCharacteristics": [
+      "One painted hero per page type, four seasonal variants of each, with a light or dark text tone that follows the brightness of the art.",
+      "Snow-coloured ground (#F5F6F1) under all content; no containers.",
+      "Bricolage Grotesque 800 for headings and numbers; Figtree for everything else.",
+      "Hand-drawn lines: wavy fox underline, 1.5px hairline, 2px dotted leader, inked chart baseline.",
+      "One brand accent (fox) and four category colours that always come with a glyph.",
+      "Real controls: underlined fields, 20px checkboxes and radios, a pinned paper note as the one strong button."
+    ],
+    "rules": [
+      {
+        "name": "The Glyph Before Colour Rule",
+        "body": "A category colour appears only on that category's glyph, name, checked state or chart series. The glyph shape names the category, so the colour never works alone.",
+        "section": "colors"
+      },
+      {
+        "name": "The Fox Is Not Small Text Rule",
+        "body": "Fox orange is a mark colour. Text in fox colour under 24px uses fox-deep.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tone Follows The Art Rule",
+        "body": "Bright art (most spring and summer heroes) gets the light tone: ink text on a ground-colour shade. Dark art (winter, rainy autumn) gets the dark tone: white text on a navy shade. `App\\Support\\Season::heroTone()` decides per hero, not per season name.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Big Number Rule",
+        "body": "Each page has one number that reads from across the room. Numbers use tabular figures.",
+        "section": "typography"
+      },
+      {
+        "name": "The Two Families Rule",
+        "body": "Bricolage for names and numbers, Figtree for words and controls. No third family, and no system display face.",
+        "section": "typography"
+      },
+      {
+        "name": "The Ink Not Chrome Rule",
+        "body": "Marks are drawn, not boxed. A field focus thickens its underline with a 1px fox line; that is a line, not an elevation.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** put content directly on the ground (#F5F6F1) and build structure with headings, wavy underlines, hairlines and space.",
+      "**Do** keep the fox once per page, in the hero, in the current season, far from any contract name, price, logo or seller.",
+      "**Do** give every painted hero a light or dark text tone and a shade so hero text has 4.5:1 or more.",
+      "**Do** show a category only with its glyph and name together; the colour is the third signal.",
+      "**Do** use real controls: underlined fields, 20px checkboxes and radios, 2px fox focus outlines.",
+      "**Do** use fox-deep for fox-coloured text under 24px and keep fox orange for marks.",
+      "**Do** mark a status with a sparkle and caption caps in the status colour, or with an inked underline.",
+      "**Do** take exact values from the Paper file and the tokens; map every new colour to a token."
+    ],
+    "donts": [
+      "**Don't** use cards, white rounded panels, hard boxy frames, or any radius other than 3px, 5px and 12px.",
+      "**Don't** use pills or badges, not even for short labels or the top-bar price.",
+      "**Don't** use shadows, gradients behind content, blur or glass.",
+      "**Don't** put watercolour washes behind text or data.",
+      "**Don't** draw data as a landscape or add mini charts to ledger entries.",
+      "**Don't** place villagers next to a contract, a seller or a seller price, or let a vignette float in open space.",
+      "**Don't** draw a snow activity without snow, or a flame tail on the fox."
+    ]
+  }
+}

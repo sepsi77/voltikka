@@ -88,16 +88,16 @@ class ContractsFilterTest extends TestCase
     /**
      * Test filter controls are displayed on the page.
      *
-     * The accordion's old "Hinnoittelumalli" section is gone on purpose: pricing type is
-     * now the always-visible pill row above the list. Duration and energy source stay in
-     * the accordion.
+     * The accordion's old "Hinnoittelumalli" section is gone on purpose: pricing type has
+     * its own "Hinnoittelu" disclosure before the accordion. Duration and energy source
+     * stay in the accordion.
      */
     public function test_filter_controls_are_displayed(): void
     {
         $this->refreshPriceFixtures();
 
         Livewire::test('contracts-list')
-            ->assertSee('Miten hinta käyttäytyy?') // Pricing-type pill row label
+            ->assertSee('Hinnoittelu: kaikki') // Pricing-type disclosure trigger
             ->assertSee('Pörssisähkö')
             ->assertSee('Jaksoittain vaihtuva hinta')
             ->assertSee('Sopimuksen kesto') // Contract duration filter label

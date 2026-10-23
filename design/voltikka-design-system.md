@@ -13,9 +13,9 @@ The name stays **Voltikka** and the domain stays **voltikka.fi** (user, 2026-10-
 
 ---
 
-## 1. The idea: a Finnish winter picture book
+## 1. The idea: the seasonal picture book
 
-Voltikka is a picture book about Finnish evenings and electricity. The fox, the snow, the homes, the villagers and the aurora are the world. The prices are exact and plain. Electricity prices are a boring subject, so the design makes them a bit more fun (user, 2026-10-16: "Do not be too timid because this app deals in prices").
+Voltikka is a picture book about Finnish evenings and electricity, drawn in the current season (talvi, kevät, kesä or syksy; see "Seasons" in §7). The fox, the season's landscape, the homes, the villagers and (in winter) the aurora are the world. The prices are exact and plain. Electricity prices are a boring subject, so the design makes them a bit more fun (user, 2026-10-16: "Do not be too timid because this app deals in prices").
 
 1. **The design stays at the side.** The scene, the fox and the art frame the page. They never carry data or controls in a way that costs readability (user: "We are sacrificing readability and usability for the sake of design. We never did that in the Fetchalot redesign.").
 2. **Content sits on the page, not in cards.** No containers. Structure comes from display headings with a hand-inked fox-orange underline, hand-inked hairlines, paw-print dividers and inked text marks.
@@ -142,11 +142,13 @@ Sits on the hero art. Logo (fox mark + "Voltikka" wordmark), navigation, and the
 ### Hero
 Painted scene for the page type (§6), the fox once, H1, lead and the page's poster number on calm sky. Listing heroes are about 460px high; data and hub heroes can be taller. Text sits on calm sky, never on busy art.
 
+On listing pages (round 4) the energy price index is quiet context, not a second headline: no kicker, a 15px title, the change at 32px in the strong tone (not the accent), one caption line and the link. On a phone it sits under the lead without the caption, in a column beside the fox (round 4 phone board: the hero is about 420px and has no separate fox band; the shade reaches the index line). The dark tone adds a local shade behind the right-hand column on a laptop so the caption keeps 4.5:1.
+
 ### Preferred Sources strip
-The first element after every painted hero or band, before the breadcrumb (root `AGENTS.md`). Round 3 (user approved, 2026-10-16; Paper page "Round 3 · revisions", boards "R3 · Strip"; compact version after user feedback that it took too much height): the strip is not contract or price data, so it carries the brand, but it must stay low. Desktop (≥ 1024): one vertically centred row, about 155px high: the villagers at the notice board (`interlude-villagers-noticeboard`, four seasons, 384 × 150 box, contain, left bottom; it gives way first on a narrow laptop) · 48 gap (32 below 1280) · title "Kiinnitä Voltikka Google-hakuusi" (26/30 display 800, one line) over the text (16/25, max 440) · the paper note with the small text "Google avaa valinnan. Valinta on maksuton." under it. Below 1024: no art at all (it does not download), title 22/26, text 15/22, the note, no small text; 20 top, 10 gap, about 195px high. No kicker. A 1px edge line closes the strip; the next block starts 48px (32px phone) below it. The action is a pinned paper note, the real button: 276 wide, snow-white, 2px ink edge on three sides, torn bottom edge (the bill-form zigzag), a fox pin on the top edge, "+ Valitse suosikkilähteeksi". It replaces the earlier inked text action. Loading and fallback states use the same note size.
+The first element after every painted hero or band (root `AGENTS.md`). **Round 4, option A (user decision 2026-10-23; Paper page "Round 4 · Listing, calm top", board "R4 · Strip options"):** the strip stays, keeps some brand impact, but must not compete with the page's own content. Desktop (≥ 1024), about 84px: the villagers at the notice board small (`noticeboard` season art, 190 × 74, contain, left bottom) · 28 gap · title "Kiinnitä Voltikka Google-hakuusi" (display 20/24 800) over the reason (15/22 ink-body) · the inked action "+ Valitse suosikkilähteeksi" at the right (display 18/22 800 fox-deep, 2.6 fox wave; hover ink). Below 1024: no art (it does not download), title display 16/20, the action display 15/20; the reason shows from 768px. No boxed button, no small print, no heading element. A 1px edge line closes the strip; the next block starts 12px (32px from 1024) below it. Loading and fallback states keep the same box. The round 3 pinned paper note is retired.
 
 ### Breadcrumbs
-One line of 13px caption text with "/" separators.
+One line of 13px caption text with "/" separators. On listing pages (round 4) it sits in the hero above the H1 in the hero tone; on a phone it leaves out the current page, because the H1 directly below names it.
 
 ### Section heading
 Bricolage 34 with a wavy fox underline. An optional 96px vignette (villager or object) sits at its left. Optional actions (for example "Lataa CSV") sit at the right on the same baseline.
@@ -158,16 +160,19 @@ Key numbers in one row with labels above and small inked ornaments between them.
 Radio, 44px home illustration, name and kWh. The selected radio is fox with a white check; the kWh value turns fox-deep. Ends with the own-consumption field and "Arvioi laskurilla →".
 
 ### Pricing-category choice row
-Checkbox, 44px category glyph, name in the category colour and a one-line meaning in ink-body.
+Checkbox, 44px category glyph, name in the category colour and a one-line meaning in ink-body. Since round 4 the row is the panel of the "Hinnoittelu" disclosure (label "Näytä vain"), not an always-visible row. The trigger is the first one in the disclosure row and shows the four category glyphs at 22px, or only the selected ones (from 1024px; a phone has no room for them).
 
 ### Field
 No box: an inked `--color-field-edge` underline, the value in ink, the unit in ink-muted. Focus: the underline turns fox and 2px.
 
 ### Disclosure trigger
-Text in ink 800 plus a chevron. The current state is in the label ("Saatavuus: koko Suomi").
+Text in ink 800 plus a chevron. The current state is in the label ("Saatavuus: koko Suomi", "Hinnoittelu: kaikki"). At least 44px high on a phone. On listings the triggers share one row under the consumption row on a laptop, and a two-column grid below 1024 (Hinnoittelu | Rajaa hakua, then Saatavuus). The controls block has only a bottom rule.
+
+### Bill comparison on listings
+Not a filter: it reranks the list by the visitor's own bill, so it sits beside the results count (round 4c, user decision 2026-10-23, Paper "R4 · Bill comparison beside results"). Closed: a small torn-bill mark (34 × 42; 28 × 35 phone) and the inked action "Vertaa nykyiseen sähkölaskuusi" (display 18/22 800 fox-deep, chevron, 2.6 fox wave; 16/20 on a phone), with "Katso hintaero samalla ajalla ja kulutuksella." under it from 1024. Open: under the results heading, the same torn-paper bill and "Mikä hinta syötetään?" help column as /maksatko-liikaa (period-basis fields only). In bill mode the "Sinun sopimuksesi" figures replace the count and the bill stays open above them.
 
 ### Results heading
-Count in Bricolage 52 ("224 sopimusta."), the note line and the category legend with sparkle marks.
+Count in Bricolage ("224 sopimusta.", 40 desktop, 32 phone, an `h2`), the ranking promise in ink 15/700 ("Järjestys perustuu 12 kk hintaan. Yhtiöt eivät voi maksaa paremmasta sijoituksesta."), then the note line. No category legend since round 4: every entry names its category.
 
 ### Ledger contract entry
 No card. One row per contract, separated by hand-inked hairlines:

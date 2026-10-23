@@ -243,22 +243,19 @@ a.vk-mobile-menu-item.is-active,
     opacity: 0.7;
 }
 
-/* ---------- Preferred Sources strip (Paper "R3 · Strip" boards) ---------- */
+/* ---------- Preferred Sources strip (Paper "R4 · Strip options", option A) ---------- */
 
-/* Directly under every painted hero. Below 1024 there is no art (it does not download either):
-   title, text and the note, about 195px high. From 1024 one centred row: art box 384 × 150 ·
-   title + text · note with its small text, about 155px high. A 1px edge line closes the strip;
-   the next block starts 32px (48px desktop) below it. */
-.vk-strip-wrap {
-    padding-top: 20px;
-    padding-bottom: 32px;
-}
-
+/* Directly under every painted hero (user decision 2026-10-23: keep it, give it some brand
+   impact, keep it low). Desktop (>= 1024): small notice-board picture 190 x 74 · display title
+   with the reason under it · inked fox-deep action, about 84px. Below 1024: no picture (it does
+   not download), title and action side by side; the reason shows from 768px. A 1px edge line
+   closes the strip; the next block starts 24px (32px from 1024) below it. */
 .vk-strip-row {
     display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding-bottom: 10px;
+    align-items: center;
+    gap: 12px 20px;
+    padding-block: 12px;
+    margin-bottom: 12px;
     border-bottom: 1px solid var(--color-edge);
 }
 
@@ -267,62 +264,95 @@ a.vk-mobile-menu-item.is-active,
 }
 
 .vk-strip-body {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+    flex: 1 1 auto;
     min-width: 0;
 }
 
 .vk-strip-title {
     font-family: var(--font-display);
-    font-size: 22px;
-    line-height: 26px;
+    font-size: 16px;
+    line-height: 20px;
     font-weight: 800;
-    letter-spacing: var(--tracking-display);
+    letter-spacing: -0.01em;
     color: var(--color-ink);
 }
 
 .vk-strip-text {
+    display: none;
+    margin-top: 3px;
     font-size: var(--text-ui);
     line-height: 22px;
     color: var(--color-ink-body);
 }
 
 .vk-strip-actions {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-    padding-top: 6px;
+    flex-shrink: 0;
 }
 
-.vk-strip-small {
-    display: none;
-    max-width: 276px;
+/* The action: an inked fox-deep text action with a wavy fox underline (spec "Inked action"),
+   never a box. Same box in every state. */
+.vk-strip-action {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0;
+    background: none;
+    border: 0;
+    color: var(--color-fox-deep);
+    cursor: pointer;
+    text-align: left;
+    border-radius: var(--radius-control);
+}
+
+.vk-strip-action-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    font-family: var(--font-display);
+    font-size: 15px;
+    line-height: 20px;
+    font-weight: 800;
+}
+
+.vk-strip-wave {
+    height: 9px;
+}
+
+.vk-strip-action:hover:not(:disabled) {
+    color: var(--color-ink);
+}
+
+.vk-strip-action:disabled {
+    cursor: wait;
+}
+
+.vk-strip-action-loading {
+    font-family: var(--font-sans);
     font-size: var(--text-label);
-    line-height: var(--leading-label);
+    font-weight: 700;
     color: var(--color-ink-muted);
 }
 
+@media (min-width: 768px) {
+    .vk-strip-text {
+        display: block;
+    }
+}
+
 @media (min-width: 1024px) {
-    .vk-strip-wrap {
-        padding-top: 4px;
-        padding-bottom: 48px;
-    }
-
     .vk-strip-row {
-        flex-direction: row;
-        align-items: center;
-        gap: 32px;
-        padding-bottom: 0;
+        gap: 28px;
+        padding-block: 8px 10px;
+        margin-bottom: 32px;
     }
 
-    /* The art gives way first on a narrow laptop (1024–1279), so the text and note never overflow. */
     .vk-strip-art {
         display: block;
-        flex: 0 1 384px;
-        min-width: 0;
-        height: 150px;
+        flex: 0 0 190px;
+        height: 74px;
     }
 
     .vk-strip-art img {
@@ -333,129 +363,15 @@ a.vk-mobile-menu-item.is-active,
         object-position: left bottom;
     }
 
-    /* min-width auto: the one-line title sets the narrowest text column, the art shrinks instead. */
-    .vk-strip-body {
-        flex: 1 1 auto;
-        min-width: auto;
-        gap: 8px;
-    }
-
     .vk-strip-title {
-        font-size: 26px;
-        line-height: 30px;
-        white-space: nowrap;
+        font-size: 20px;
+        line-height: 24px;
     }
 
-    .vk-strip-text {
-        max-width: 440px;
-        font-size: var(--text-body);
-        line-height: var(--leading-body);
+    .vk-strip-action-label {
+        font-size: 18px;
+        line-height: 22px;
     }
-
-    .vk-strip-actions {
-        flex: 0 0 auto;
-        padding-top: 0;
-    }
-
-    .vk-strip-small {
-        display: block;
-    }
-}
-
-@media (min-width: 1280px) {
-    .vk-strip-row {
-        gap: 48px;
-    }
-}
-
-/* The action: a pinned paper note, the real button. Snow-white paper with a 2px ink edge on three
-   sides, a torn bottom edge (the bill form zigzag) and a fox pin on the top edge. Not a pill and
-   no shadow. The loading text uses the same box, so nothing jumps when Google is ready. */
-.vk-strip-note {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    flex-shrink: 0;
-    width: 276px;
-    max-width: 100%;
-    padding: 8px 0 9px;
-    background: none;
-    border: 0;
-    color: var(--color-ink);
-    cursor: pointer;
-    text-align: left;
-}
-
-.vk-strip-note::after {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 9px;
-    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='276' height='9' viewBox='0 0 276 9'%3E%3Cpath d='M1 0V5L7 8L13 4L20 8L26 3L33 7L40 4L46 8L53 3L60 7L66 4L73 8L80 3L86 7L93 4L100 8L106 3L113 7L120 4L126 8L133 3L140 7L146 4L153 8L160 3L166 7L173 4L180 8L186 3L193 7L200 4L206 8L213 3L220 7L226 4L233 8L240 3L246 7L253 4L260 8L266 3L271 7L275 4V0Z' fill='%23FFFFFF'/%3E%3Cpath d='M1 0V5L7 8L13 4L20 8L26 3L33 7L40 4L46 8L53 3L60 7L66 4L73 8L80 3L86 7L93 4L100 8L106 3L113 7L120 4L126 8L133 3L140 7L146 4L153 8L160 3L166 7L173 4L180 8L186 3L193 7L200 4L206 8L213 3L220 7L226 4L233 8L240 3L246 7L253 4L260 8L266 3L271 7L275 4V0' fill='none' stroke='%2316202E' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E") left top / 100% 9px no-repeat;
-}
-
-.vk-strip-note-paper {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 47px;
-    padding: 13px 20px 12px;
-    background-color: var(--color-snow-white);
-    border: 2px solid var(--color-ink);
-    border-bottom: 0;
-    border-radius: 3px 3px 0 0;
-}
-
-.vk-strip-note-pin {
-    position: absolute;
-    top: -8px;
-    left: calc(50% - 7px);
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background-color: var(--color-fox);
-    border: 2px solid var(--color-fox-deep);
-}
-
-.vk-strip-note-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    white-space: nowrap;
-    font-size: 17px;
-    line-height: 22px;
-    font-weight: 800;
-}
-
-.vk-strip-note:hover:not(:disabled) {
-    color: var(--color-fox-deep);
-}
-
-.vk-strip-note:hover:not(:disabled) .vk-strip-note-paper {
-    background-color: #FFF8F1;
-    border-color: var(--color-fox-deep);
-}
-
-.vk-strip-note:hover:not(:disabled) .vk-strip-note-label {
-    text-decoration: underline;
-    text-underline-offset: 3px;
-}
-
-.vk-strip-note:hover:not(:disabled)::after {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='276' height='9' viewBox='0 0 276 9'%3E%3Cpath d='M1 0V5L7 8L13 4L20 8L26 3L33 7L40 4L46 8L53 3L60 7L66 4L73 8L80 3L86 7L93 4L100 8L106 3L113 7L120 4L126 8L133 3L140 7L146 4L153 8L160 3L166 7L173 4L180 8L186 3L193 7L200 4L206 8L213 3L220 7L226 4L233 8L240 3L246 7L253 4L260 8L266 3L271 7L275 4V0Z' fill='%23FFF8F1'/%3E%3Cpath d='M1 0V5L7 8L13 4L20 8L26 3L33 7L40 4L46 8L53 3L60 7L66 4L73 8L80 3L86 7L93 4L100 8L106 3L113 7L120 4L126 8L133 3L140 7L146 4L153 8L160 3L166 7L173 4L180 8L186 3L193 7L200 4L206 8L213 3L220 7L226 4L233 8L240 3L246 7L253 4L260 8L266 3L271 7L275 4V0' fill='none' stroke='%239E3C10' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E");
-}
-
-.vk-strip-note:disabled {
-    cursor: wait;
-}
-
-.vk-strip-action-loading {
-    font-size: var(--text-ui);
-    font-weight: 700;
-    color: var(--color-ink-muted);
 }
 
 /* ---------- Footer (Paper "Footer · night village") ---------- */

@@ -4,7 +4,7 @@ import { defineConfig } from 'vite';
 import laravel from 'laravel-vite-plugin';
 
 // Explicit names keep documentation and other source files out of public assets.
-const retainedAssets = ['app-BE-AUgaZ.css'];
+const retainedAssets = ['app-BE-AUgaZ.css', 'app-DjVQ2Ja9.css'];
 let buildConfig;
 
 export default defineConfig({

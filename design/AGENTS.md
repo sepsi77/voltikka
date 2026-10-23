@@ -9,6 +9,12 @@ This folder owns the visual redesign of Voltikka: the brand guide, the design sy
 
 If the two disagree, the design system spec wins. Report the conflict to the user and fix the other file.
 
+## Impeccable files (root)
+
+- `PRODUCT.md`: product truth for the Impeccable design skill (users, positioning, brand commitments, evidence). Not visual.
+- `DESIGN.md` and its sidecar `.impeccable/design.json`: the Impeccable-format record of the shipped redesign. The spec in this folder wins over them. When you change the spec or the tokens, refresh them with `/impeccable document`.
+- New surfaces are designed as Paper boards first, then built (user, 2026-10-23). Do not start a new surface from a generated comp image.
+
 ## Fixed constraints (user)
 
 - The site name stays **Voltikka** and the domain stays **voltikka.fi** (2026-10-16). Themed words never replace SEO titles, H1 text, URLs or the `| Voltikka` suffix.
@@ -39,7 +45,7 @@ If the two disagree, the design system spec wins. Report the conflict to the use
 | `scenes/footer-night-village-v1.png` | Footer scene, the fox asleep in the snow |
 | `scenes/hero-paikkakunta-{yleinen,helsinki,tampere,turku,oulu}-<season>-v1.png` | City listing heroes (round 3): the fox on a rock looks over the water at the town. Helsinki (cathedral, Uspenski, Suomenlinna), Tampere (Näsinneula, Tammerkoski, factory chimneys), Turku (castle, cathedral, tall ship on the Aura), Oulu (yellow cathedral tower, red storehouses, market hall); `yleinen` = general lakeside town for every other city. The syksy file is the original. `hero-paikkakunta-helsinki-v1.png` is the old generic coastal plate (not used) |
 | `illustrations/{sauna,laundry,ev-charging}-v1.png` | "Kannattaako nyt?" illustrations |
-| `scenes/interlude-villagers-*.png` | Transparent villager interlude strips for pauses between page blocks (walk = on the listing board). `interlude-villagers-noticeboard-{,kevat-,kesa-,syksy-}v1.png` = the Preferred Sources strip art (round 3; season files cropped to the painted area) |
+| `scenes/interlude-villagers-*.png` | Transparent villager interlude strips for pauses between page blocks (walk = on the listing board). `interlude-villagers-noticeboard-{,kevat-,kesa-,syksy-}v1.png` = the Preferred Sources strip art (round 4 option A shows it small, 190 × 74, desktop only) |
 | `emblems/emblem-*.png` | Rejected as pricing category signs (meaning unclear); use the inked price-shape glyphs in the spec instead |
 | `*-{talvi,kevat,kesa,syksy}-v1.png` | Season variants of an art file (spec "Seasons"); the old file without a season name is the talvi (or original-season) version |
 | `.claude/skills/image-gen/` | Image generation skill (ported from Fetchalot; Codex by default, OpenRouter fallback reads `laravel/.env`) |

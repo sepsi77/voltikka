@@ -11,7 +11,7 @@
      the listing's `.vk-disclosures` row the wrapper is `display: contents`: the trigger sits
      in the row and the panel opens below the row, without a frame. Used alone (homepage) it
      is a plain block. The active-filter count is an inked mark, not a badge. --}}
-<div class="vk-disclosure" x-data="{ filtersOpen: @js($this->hasActiveAccordionFilters()) }">
+<div class="vk-disclosure vk-disclosure--filters" x-data="{ filtersOpen: @js($this->hasActiveAccordionFilters()) }">
     <button
         type="button"
         @click="filtersOpen = !filtersOpen"

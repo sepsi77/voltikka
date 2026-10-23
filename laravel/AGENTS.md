@@ -79,8 +79,12 @@ explicit retention, prior assets disappear and stale HTML can lose its styling (
 regular files are copied to `public/build/assets`; documentation is not copied. Existing names
 with different bytes, or symlinks, fail the build. The current manifest is not changed.
 
-The one retained file is the actual deployed `app-BE-AUgaZ.css` (110597 bytes; SHA-256
-`e27279f29da59bdfc18093c71ee05e6d08d237bd673e9b618a58f4f9e5335528`). The manager fetched
+Retained files: the earlier deployed `app-BE-AUgaZ.css` (110597 bytes; SHA-256
+`e27279f29da59bdfc18093c71ee05e6d08d237bd673e9b618a58f4f9e5335528`), and `app-DjVQ2Ja9.css`
+(308432 bytes; SHA-256 `762e60df9e096b2428b6c6608bdfd940aa7ff11c35c9c6f00510635f362b1f08`), the CSS
+of image `deploy-000001-5ff86c292587`, added with the round 4 listing release (2026-10-23). Its
+bytes were fetched from production and matched byte for byte against a clean rebuild of commit
+5ff86c2 (with `vendor/` present, because Tailwind scans the vendor pagination views). The manager fetched
 its public URL and verified its bytes against the deployed filesystem with read-only SSH for
 release `917de212fdc4ef4862903268c3d33ba5cd886e73`. Both deployed JS files are unchanged
 in this candidate. This is bounded compatibility, not automatic coverage for future releases:
@@ -328,7 +332,7 @@ Desktop dropdown menus live in `resources/views/components/site/topbar.blade.php
 
 ### Site shell (redesign)
 
-The layout renders `<x-site.topbar :tone="$heroTone ?? null" />` and `<x-site.footer />`. A page with a painted hero passes `heroTone` ('dark' | 'light', from `App\Support\Season::heroTone()`) in its layout data, never inside a prepared-data cache; the top bar is then transparent and absolute over the hero (z-40). Without `heroTone` the same bar sits in the flow on a night band with the dark tone. The phone bar is 64px high because redesigned hero content starts at 96px. Keep the ids `site-desktop-nav` / `site-mobile-nav` (nav-pending script) and both `<x-header-spot-price-shell />` instances (the loader fills every `[data-header-spot-price]`; spot price colours come from the tone variables). `<main>` uses `overflow-x: clip` so one wide page block cannot scroll the page sideways while `position: sticky` still works. The footer scene follows the season (`Season::art('footer')`) and loads lazily. The Preferred Sources strip keeps its Alpine/analytics/fallback contract; only its look changed (round 3: notice-board season art `noticeboard`, desktop only and never downloaded below 1024, and a pinned paper-note button with the same size in the loading, ready and fallback states; `PreferredSourceActionStripTest` checks that it directly follows the hero `<section>`).
+The layout renders `<x-site.topbar :tone="$heroTone ?? null" />` and `<x-site.footer />`. A page with a painted hero passes `heroTone` ('dark' | 'light', from `App\Support\Season::heroTone()`) in its layout data, never inside a prepared-data cache; the top bar is then transparent and absolute over the hero (z-40). Without `heroTone` the same bar sits in the flow on a night band with the dark tone. The phone bar is 64px high because redesigned hero content starts at 96px. Keep the ids `site-desktop-nav` / `site-mobile-nav` (nav-pending script) and both `<x-header-spot-price-shell />` instances (the loader fills every `[data-header-spot-price]`; spot price colours come from the tone variables). `<main>` uses `overflow-x: clip` so one wide page block cannot scroll the page sideways while `position: sticky` still works. The footer scene follows the season (`Season::art('footer')`) and loads lazily. The Preferred Sources strip keeps its Alpine/analytics/fallback contract; only its look changed (round 4, 2026-10-23, option A: a small notice-board picture 190 × 74, desktop only and never downloaded below 1024; a display title with the reason; an inked fox-deep text action with the same box in the loading, ready and fallback states; no heading element and no boxed button. `PreferredSourceActionStripTest` checks that it directly follows the hero `<section>` and keeps that shape). The listing hero shade is darker in the dark tone and adds a local shade behind the right-hand key figure, so its caption keeps 4.5:1 on bright sunset plates.
 
 ### Open Graph share images
 

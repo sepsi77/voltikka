@@ -153,20 +153,30 @@ Important semantics:
   nykyistä sähkölaskuasi" and the **filters** (`partials/contract-filters.blade.php`)
   are collapsed Alpine disclosures (`x-collapse` + `x-cloak`). Filters collapse on
   **all** sizes; the "Rajaa hakua" trigger shows an active-filter count and opens
-  by default only for filters inside that disclosure. Pricing behavior stays
-  visible as the primary path.
+  by default only for filters inside that disclosure. The pricing-behaviour row
+  is currently visible; since 2026-10-23 it may also collapse (see "Pricing-type filter").
   **The control stack has one fixed order** (2026-08 cleanup, kept by the 2026-10 redesign):
-  the primary choices first (consumption row, pricing-behaviour row), then the collapsed
-  tools (availability, bill, filters). Do not put the bill disclosure back between the
-  consumption selector and the pricing row; it split the primary sequence.
+  the consumption row first, then the collapsed filters (pricing type, availability,
+  filters). The bill comparison is not a filter and is not in this row any more: since
+  2026-10-23 (user decision, Paper "R4 · Bill comparison beside results") it is an inked
+  action beside the results count (`partials/listing-bill-trigger.blade.php`), and it opens
+  the torn-paper bill of /maksatko-liikaa under the results heading
+  (`partials/listing-bill-panel.blade.php`: `x-site.bill-paper`, the shared paper layout of
+  `partials/bill-comparison-form`, and `partials/bill-price-help`, which /maksatko-liikaa also
+  uses). In bill mode the "Sinun sopimuksesi" anchor replaces the heading and the bill stays
+  open above it. The tool page's heating and annual-consumption choices are not in the listing
+  bill, because the listing compares the period only.
   **Redesign (2026-10-16, Paper board 2J3-0 "Controls · compact").** On `SeoContractsList`
-  pages the three rows sit in one `.vk-controls` block (1.5px edge hairlines top/bottom,
-  1px season-ground rule between rows; CSS in `resources/css/redesign-listing.css`). Row 1:
+  pages the rows sit in one `.vk-controls` block (round 4, 2026-10-23: only a 1.5px edge
+  rule at the bottom, because the Preferred Sources strip line closes the top; no rule between
+  rows; CSS in `resources/css/redesign-listing.css`). Row 1:
   a drawn radio + 44px seasonal home art (`home-studio|apartment|rowhouse|house`, mapped by
   preset key; business presets have no art) + name, description and kWh, then the underlined
-  own-consumption field and "Arvioi laskurilla →". Row 2: pricing categories (below). Row 3
-  (`.vk-disclosures`): "Saatavuus: …", "Vertaa nykyistä sähkölaskuasi", "Rajaa hakua" as text
-  triggers with a chevron, and "Vertailu kulutuksella" at the right. Each disclosure partial
+  own-consumption field and "Arvioi laskurilla →". Row 2 (`.vk-disclosures`): "Hinnoittelu:
+  …" (pricing categories, below), "Saatavuus: …", "Rajaa hakua" as text triggers with a
+  chevron (a two-column grid below 1024, reordered with CSS `order` to Hinnoittelu | Rajaa
+  hakua, then Saatavuus). The old "Vertailu kulutuksella" readout was
+  removed in round 4: the selected preset already shows the value. Each disclosure partial
   has a `.vk-disclosure` root that is `display: contents` inside `.vk-disclosures`, so its
   panel opens below the whole row on a laptop (`order: 10`) and directly under its trigger
   on a phone; used alone (cheapest page) it is a plain block. Panels have no frames. The
@@ -181,8 +191,12 @@ Important semantics:
   states the current availability ("Saatavuus: koko Suomi" or the selected postcode), the
   input, suggestions and "Poista postinumero" live inside the panel, and the "Postinumero
   (5 numeroa)" label is `sr-only`. "Tyhjennä suodattimet" lives **inside** the filters panel.
-  The results heading is the count in Bricolage plus the note line and the sparkle legend, not
-  a card. On a phone the consumption choices collapse behind "Vaihda".
+  The results heading is the count in Bricolage (an `<h2>`), the ranking promise ("Järjestys
+  perustuu 12 kk hintaan. Yhtiöt eivät voi maksaa paremmasta sijoituksesta.") and the note
+  line, not a card. Round 4 removed the category legend there: every entry names its own
+  category, and the legend's three names did not match the four filter names. The breadcrumb
+  sits in the hero above the H1 (`partials/listing-hero-crumbs.blade.php`; on a phone without
+  the current page). On a phone the consumption choices collapse behind "Vaihda".
 - **Direct consumption input.** `directConsumption` (int|string|null, tolerant of
   mobile blank states) is the free-text kWh field. `updatedDirectConsumption()`
   applies only a positive value to `$consumption` and clears `$selectedPreset`
@@ -725,15 +739,19 @@ Legacy `?pricingModelFilter=`:
   and that contract's card band says Markkinahinta.
 
 UI (`partials/pricing-bucket-pills.blade.php`):
-- The row is **always visible, above the list and outside the "Rajaa hakua" accordion**. That
-  placement is the whole feature: ranking makes page 1 spot-heavy, and every filter used to
-  sit inside a collapsed accordion, so a visitor who wanted price certainty had no visible
-  way out. Do not move it back inside the accordion.
+- The filter is its own disclosure, the FIRST trigger of the disclosure row and outside the
+  "Rajaa hakua" accordion. The "always visible" rule was removed (user, 2026-10-23) because
+  the controls above the list were too crowded. Keep the reason in mind: ranking makes page 1
+  spot-heavy, and when every filter sat inside a collapsed accordion a visitor who wanted
+  price certainty had no visible way out. So the trigger states the selection ("Hinnoittelu:
+  kaikki" / the one name / "N valittu") and shows the four category glyphs (or the
+  selected ones), and the accordion's own count (`hasActiveAccordionFilters()`) stays separate.
 - Included by `contracts-list.blade.php`, `seo-contracts-list.blade.php` **and**
   `cheapest-contracts.blade.php`. The cheapest page has its own template, so it needs its own
   include; `CompanyDetail` deliberately has none.
-- **Shape (redesign 2026-10-16, Paper board 2J3-0 "Controls · compact"): one control row,
-  not cards, tiles or tinted cells.** Each choice is a drawn checkbox (`--radius-control`,
+- **Panel shape (redesign 2026-10-16, Paper board 2J3-0; round 4 open state "R4 · Controls ·
+  Hinnoittelu open"): one control row under the label "Näytä vain", not cards, tiles or
+  tinted cells.** Each choice is a drawn checkbox (`--radius-control`,
   `--color-field-edge`), the 44px inked price-shape glyph `<x-ink.glyph>` (34px on a phone),
   the name in the category colour token and a one-line meaning. Selected = the checkbox
   filled with the category colour and a white check. The glyph shape plus the name carry the
@@ -743,7 +761,9 @@ UI (`partials/pricing-bucket-pills.blade.php`):
 - Every Finnish string lives in the partial's `$pricingBucketPills` array. **"Päivittyvä
   hinta" + "kvartaali- ja kuukausisähkö" is a locked user decision**; the other sub-lines are
   short restatements of `ContractCardCopy::band()`. Labels are 14px 800 in the category
-  colour, sub-lines 13px ink-body (Paper board values).
+  colour, sub-lines 13px ink-body (Paper board values). "Kiinteä hinta" says "hinta tiedossa
+  etukäteen" (round 4, 2026-10-23): the old "energian hinta ei muutu" was not true for
+  open-ended fixed-price contracts.
 - **No per-bucket counts.** The listing applies its energy-source and consumption-range
   filters in PHP after the query, so an honest count would need the whole filtered set
   re-resolved per bucket, not one grouped query. Too expensive for a cached default page.
@@ -787,7 +807,7 @@ Important semantics:
 - contract card Blade partials (`resources/views/components/contract-card.blade.php`, `featured-contract-card.blade.php`) must not lazy-load `company`, `electricitySource`, or `priceComponents`; listing components should batch-load what cards need, and cards should fall back to scalar fields if relations are missing. Both templates now derive everything through `../Services/ContractCard/ContractCardPresenter`, which enforces the no-lazy-load rule in one place. **Do not put price logic, category logic or Finnish copy back into a card template** — the two templates previously held duplicate derivation and drifted, leaving the featured card (the #1 slot everywhere) with no price-increase warning, no market-reset figures and no estimate marker. In canonical mode, `loadVisibleContracts()` does not load latest components and `getLatestPrices()` returns before `loadMissing()`; feature-off keeps the bulk component load. See `../Services/ContractCard/AGENTS.md`.
 - the card's type band is single-purpose: it states one of three pricing categories (Kiinteä hinta / Markkinahinta / Kulutusvaikutus) and never a warning. Warnings are coral footer pills, priority ordered and capped at two. Consumption caps only warn at ≤ 30 000 kWh/v unless the selected consumption actually exceeds the cap.
 - the percentile callouts were removed from cards (they rendered only on SEO listing pages, half the switch was unreachable, and they could contradict the sort order). `ContractsList::getPercentiles()` and `contracts:calculate-percentiles` are unchanged; the `percentiles` card prop is a retained no-op.
-- listing pages carry `<x-card.legend />` explaining the type-band tints; it replaced the emissions colour legend when the card's emissions left stripe was removed.
+- `<x-card.legend />` is no longer rendered on `SeoContractsList` pages (round 4, 2026-10-23): every entry names its category, and the legend used three names where the filter uses four. Only the dormant base `contracts-list` template still includes it.
 - **Canonical pricing (behind `CANONICAL_PRICING_ENABLED`):** when on, `ContractListCacheService`/the listing fallback paths attach `comparability` + `pricing_integrity` to each contract (batch, like percentiles), drop non-listed contracts from `sorted_ids`, and rank by the canonical true 12-month total. Cards consume those fields through `ContractCardPresenter`: `Hinta nousee …` and `Ei sisällä kulutusvaikutusta` are coral warning pills; a real short-term annualization basis is a quiet fact and does not consume the two-warning limit. Short-term metadata does not prove unknown continuation or constant energy pricing, and the estimate marker is the band's `Arvio` popover rather than a footer tag. `ContractDetail` exposes `pricingIntegrity`/`pricingComparability`/`isPricingExcluded`: excluded contracts show a "Vuosihintaa ei voi laskea luotettavasti" hero and omit JSON-LD `offers`; detected contracts render the integrity notice at the top of `Hintatiedot`, in coral (it was amber until Phase 4; amber is an emissions tier). The SEO offer page filters after canonical metrics are attached, so canonical-only offers enter while relational-only, package, zero-benefit, and excluded rows do not. Its Product descriptions use `CanonicalOfferFacts`, not relational labels. Feature-off keeps the old relational candidate query and JSON-LD text. All flag-driven caches carry a `c1`/`c0` marker (incl. `ContractPageCacheVersion`) so a toggle busts them. See `../Services/CanonicalPricing/AGENTS.md`.
 - city-page solar potential must stay in the lazy `CitySolarEstimate` child component; `SeoContractsList` must not call `CitySolarService`/PVGIS while building initial page HTML because a cache miss can add blocking time
 - `CitySolarEstimate` must not make uncached PVGIS requests for crawler user agents (Googlebot, generic bots/spiders); bot-triggered Livewire lazy updates should render cached data only or nothing, because PVGIS can hang long enough to hit PHP's request timeout
