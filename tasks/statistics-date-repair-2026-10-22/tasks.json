@@ -17,10 +17,10 @@
   },
   {
     "name": "Production: compare 2026-10-21, run B, preview and apply 2026-10-22",
-    "status": "pending"
+    "status": "done"
   },
   {
     "name": "C: forecast for 2026-10-22",
-    "status": "pending"
+    "status": "done"
   }
 ]
