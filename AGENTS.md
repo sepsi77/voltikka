@@ -88,7 +88,7 @@ Voltikka uses `spatie/laravel-backup` for database-only scheduled backups to a R
 - Bucket display name: `voltikka-backups`; bucket ID: `460e1b25-73fc-45e3-a43a-0473d2d2b86d`; region: `ams`.
 - App service variables include `BACKUP_DISK=s3`, Railway object-storage S3 credentials, and `BACKUP_ARCHIVE_PASSWORD`; never print these values.
 - Scheduled commands in `laravel/routes/console.php`: `backup:run --only-db` daily at 03:00, `backup:run --only-files` weekly on Sunday at 02:30 for `storage/app/public`, `backup:clean` daily at 03:30, and `backup:monitor` daily at 03:45 Europe/Helsinki.
-- Backup archives are encrypted; a restore requires both the object-storage credentials and `BACKUP_ARCHIVE_PASSWORD` from Railway variables.
+- Backup archives are encrypted; a restore requires both the object-storage credentials and the archive password from Railway variables. Each archive keeps the password that was in effect when it was made. Archives made before 2026-10-22 08:10 UTC open with `BACKUP_ARCHIVE_PASSWORD_UNTIL_2026_10_22`; later archives use `BACKUP_ARCHIVE_PASSWORD`. When you rotate the password, keep the old value in a new dated variable (it is not read by the app) until `backup:clean` has deleted the last archive made with it (yearly archives are kept for 2 years). Since 2026-10-22, `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` are references to the `voltikka-backups` bucket credentials.
 - Any restore, backup deletion, credential reset, or manual production backup run is production-mutating and requires explicit user confirmation.
 - Future improvement: replicate backup archives to an off-Railway provider such as Cloudflare R2, AWS S3, or Backblaze B2 and schedule periodic restore drills.
 

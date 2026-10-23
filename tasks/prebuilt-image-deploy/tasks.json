@@ -10,5 +10,5 @@
   {"name": "Write Railway cutover checklist in spec.md", "status": "completed"},
   {"name": "User approval, commit, push, first GHCR image, Railway cutover", "status": "completed"},
   {"name": "Apply AGENTS.md draft after cutover", "status": "completed"},
-  {"name": "Confirm the first image deployment in production (blocked by Railway incident QH8L8B3E)", "status": "pending"}
+  {"name": "Confirm the first image deployment in production (deployment 897a3e71, SUCCESS 2026-10-22 07:47 UTC, PHP 8.4.27)", "status": "completed"}
 ]
