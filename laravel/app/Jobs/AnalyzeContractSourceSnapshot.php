@@ -24,7 +24,11 @@ class AnalyzeContractSourceSnapshot implements ShouldBeUnique, ShouldQueue
 
     public int $uniqueFor = 3600;
 
-    public function __construct(public int $interpretationId)
+    /**
+     * A history-only run analyzes an immutable source that is no longer current, for dated
+     * statistics. It never publishes: valid output is stored as superseded.
+     */
+    public function __construct(public int $interpretationId, public bool $historyOnly = false)
     {
         $this->onQueue((string) config('contract_interpretation.queue'));
     }
@@ -56,9 +60,22 @@ class AnalyzeContractSourceSnapshot implements ShouldBeUnique, ShouldQueue
         }
 
         $contract = ElectricityContract::query()->find($interpretation->contract_id);
-        $observation = $contract?->current_source_observation_id === null
-            ? null
-            : ContractSourceObservation::query()->find($contract->current_source_observation_id);
+        if ($this->historyOnly) {
+            $observation = $this->historicalObservation($interpretation, $contract);
+            if ($observation === null) {
+                $interpretation->update([
+                    'status' => ContractInterpretation::STATUS_FAILED,
+                    'completed_at' => now(),
+                    'error' => 'A history-only analysis needs exactly one non-current source observation.',
+                ]);
+
+                return;
+            }
+        } else {
+            $observation = $contract?->current_source_observation_id === null
+                ? null
+                : ContractSourceObservation::query()->find($contract->current_source_observation_id);
+        }
         $matchesPointedObservation = $contract !== null
             && $observation !== null
             && $observation->contract_id === $contract->id
@@ -130,6 +147,16 @@ class AnalyzeContractSourceSnapshot implements ShouldBeUnique, ShouldQueue
                 },
             );
 
+            if ($result['validated'] && $this->historyOnly) {
+                $interpretation->update([
+                    'status' => ContractInterpretation::STATUS_SUPERSEDED,
+                    'completed_at' => now(),
+                    'error' => 'Validated for history only; the source is no longer current.',
+                ]);
+
+                return;
+            }
+
             if ($result['validated']) {
                 $publisher->publish($interpretation->fresh());
 
@@ -150,6 +177,25 @@ class AnalyzeContractSourceSnapshot implements ShouldBeUnique, ShouldQueue
 
             throw $exception;
         }
+    }
+
+    /** The one observation of this exact source, when it is not the contract's current one. */
+    private function historicalObservation(ContractInterpretation $interpretation, ?ElectricityContract $contract): ?ContractSourceObservation
+    {
+        if ($contract === null) {
+            return null;
+        }
+        $observations = ContractSourceObservation::query()
+            ->where('contract_id', $contract->id)
+            ->where('source_snapshot_id', $interpretation->source_snapshot_id)
+            ->when($interpretation->analysis_source_observation_id !== null,
+                fn ($query) => $query->whereKey($interpretation->analysis_source_observation_id))
+            ->get();
+        $observation = $observations->count() === 1 ? $observations->first() : null;
+
+        return $observation !== null && (int) $observation->id !== (int) $contract->current_source_observation_id
+            ? $observation
+            : null;
     }
 
     public function failed(Throwable $exception): void

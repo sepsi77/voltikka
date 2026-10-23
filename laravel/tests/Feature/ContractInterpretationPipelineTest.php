@@ -131,6 +131,52 @@ class ContractInterpretationPipelineTest extends TestCase
         Queue::assertPushed(AnalyzeContractSourceSnapshot::class, 2);
     }
 
+    public function test_history_only_analysis_of_a_non_current_source_never_publishes(): void
+    {
+        Queue::fake();
+        config()->set('services.openrouter.api_key', 'test-key');
+        $snapshotA = $this->createSnapshot();
+        $interpretation = $this->createInterpretation($snapshotA);
+        $interpretation->update(['status' => ContractInterpretation::STATUS_FAILED, 'error' => 'HTTP request returned status code 401']);
+        $snapshotB = ContractSourceSnapshot::create([
+            'contract_id' => $snapshotA->contract_id,
+            'source_fingerprint' => str_repeat('b', 64),
+            'source_payload' => $snapshotA->source_payload + ['version' => 'b'],
+            'first_observed_at' => '2026-07-24 10:00:00',
+            'last_observed_at' => '2026-07-24 10:00:00',
+        ]);
+        $observationB = ContractSourceObservation::create([
+            'contract_id' => $snapshotA->contract_id,
+            'source_snapshot_id' => $snapshotB->id,
+            'first_observed_at' => '2026-07-24 10:00:00',
+            'last_observed_at' => '2026-07-24 10:00:00',
+        ]);
+        ElectricityContract::whereKey($snapshotA->contract_id)->update(['current_source_observation_id' => $observationB->id]);
+
+        $this->artisan('contracts:interpret', ['--history-only' => [$interpretation->id]])->assertSuccessful();
+        Queue::assertPushed(AnalyzeContractSourceSnapshot::class, fn ($job) => $job->interpretationId === $interpretation->id && $job->historyOnly);
+        $this->assertSame(ContractInterpretation::STATUS_PENDING, $interpretation->fresh()->status);
+
+        $this->mock(OpenRouterContractInterpretationClient::class)->shouldReceive('interpret')->once()
+            ->andReturn($this->llmResult($this->validOutput($snapshotA->contract_id), 10));
+        app()->call([new AnalyzeContractSourceSnapshot($interpretation->id, historyOnly: true), 'handle']);
+
+        $interpretation->refresh();
+        $this->assertSame(ContractInterpretation::STATUS_SUPERSEDED, $interpretation->status);
+        $this->assertNotEmpty($interpretation->output);
+        $this->assertEmpty($interpretation->validation_errors);
+        $this->assertNull($interpretation->published_at);
+        $this->assertNull(ElectricityContract::findOrFail($snapshotA->contract_id)->published_interpretation_id);
+
+        // The current source is never analyzed in history-only mode.
+        $current = $this->createInterpretation($snapshotB);
+        $current->update(['status' => ContractInterpretation::STATUS_FAILED]);
+        $this->artisan('contracts:interpret', ['--history-only' => [$current->id]])->assertSuccessful();
+        $this->assertSame(ContractInterpretation::STATUS_FAILED, $current->fresh()->status);
+        app()->call([new AnalyzeContractSourceSnapshot($current->id, historyOnly: true), 'handle']);
+        $this->assertSame(ContractInterpretation::STATUS_FAILED, $current->fresh()->status);
+    }
+
     public function test_validator_version_changes_the_analysis_fingerprint(): void
     {
         Queue::fake();

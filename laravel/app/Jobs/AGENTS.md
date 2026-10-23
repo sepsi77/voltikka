@@ -20,6 +20,7 @@ Important semantics:
 - the job timeout stays 400 seconds; the shared Supervisor worker timeout is 1,020 seconds, and code enforces a database queue `retry_after` minimum of 1,050 seconds
 - output becomes a permanent failed interpretation only after the allowed correction calls still fail; deterministic validation failure does not use a queue retry
 - transport/provider failures throw so the queue can retry them
+- `historyOnly: true` (from `contracts:interpret --history-only=ID`) replaces the pointer check with the one non-current observation of the exact source. Valid output becomes `superseded`, never published; a current source fails closed
 
 ## `AnalyzeHistoricalContractEpisode`
 
