@@ -182,7 +182,25 @@ class ContractInterpretationDispatcher
             return $interpretation->fresh();
         }
 
-        if (! $retryFailed || $interpretation->status !== ContractInterpretation::STATUS_FAILED) {
+        if ($interpretation->status !== ContractInterpretation::STATUS_FAILED) {
+            return $interpretation;
+        }
+
+        // A failure without validation errors is a transport/provider failure. Import completion
+        // waits for it, so each later dispatch queues it again; attempt history is kept.
+        if (! $retryFailed) {
+            if (! empty($interpretation->validation_errors) || ! config('services.openrouter.api_key')) {
+                return $interpretation;
+            }
+
+            $interpretation->update([
+                'status' => ContractInterpretation::STATUS_PENDING,
+                'error' => null,
+                'started_at' => null,
+                'completed_at' => null,
+            ]);
+            AnalyzeContractSourceSnapshot::dispatch($interpretation->id)->afterCommit();
+
             return $interpretation;
         }
 

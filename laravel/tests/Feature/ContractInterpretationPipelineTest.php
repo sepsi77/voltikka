@@ -17,6 +17,7 @@ use App\Services\ContractInterpretation\ContractInterpretationProfile;
 use App\Services\ContractInterpretation\ContractInterpretationPublisher;
 use App\Services\ContractInterpretation\ContractInterpretationValidator;
 use App\Services\ContractInterpretation\OpenRouterContractInterpretationClient;
+use Illuminate\Bus\UniqueLock;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
@@ -93,6 +94,41 @@ class ContractInterpretationPipelineTest extends TestCase
         $this->assertNull($first->analysis_source_observation_id);
         $this->assertSame(1, ContractInterpretation::count());
         Queue::assertPushed(AnalyzeContractSourceSnapshot::class, 1);
+    }
+
+    public function test_dispatch_requeues_a_transport_failure_but_not_a_validation_failure(): void
+    {
+        Queue::fake();
+        config()->set('contract_interpretation.enabled', true);
+        config()->set('services.openrouter.api_key', 'test-key');
+        $snapshot = $this->createSnapshot();
+        $dispatcher = app(ContractInterpretationDispatcher::class);
+        $observation = $snapshot->observations()->sole();
+        $interpretation = $dispatcher->dispatch($observation);
+        $attempts = [['attempt' => 1, 'validation_errors' => []]];
+        // The finished job released its unique lock.
+        (new UniqueLock(app('cache.store')))->release(new AnalyzeContractSourceSnapshot($interpretation->id));
+
+        $interpretation->update([
+            'status' => ContractInterpretation::STATUS_FAILED,
+            'error' => 'HTTP request returned status code 401',
+            'llm_attempts' => $attempts,
+            'completed_at' => now(),
+        ]);
+        $this->assertSame($interpretation->id, $dispatcher->dispatch($observation)->id);
+        $interpretation->refresh();
+        $this->assertSame(ContractInterpretation::STATUS_PENDING, $interpretation->status);
+        $this->assertNull($interpretation->error);
+        $this->assertSame($attempts, $interpretation->llm_attempts);
+        Queue::assertPushed(AnalyzeContractSourceSnapshot::class, 2);
+
+        $interpretation->update([
+            'status' => ContractInterpretation::STATUS_FAILED,
+            'validation_errors' => ['pricing.phases: missing'],
+        ]);
+        $dispatcher->dispatch($observation);
+        $this->assertSame(ContractInterpretation::STATUS_FAILED, $interpretation->fresh()->status);
+        Queue::assertPushed(AnalyzeContractSourceSnapshot::class, 2);
     }
 
     public function test_validator_version_changes_the_analysis_fingerprint(): void
