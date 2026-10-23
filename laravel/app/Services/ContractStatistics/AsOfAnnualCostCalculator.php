@@ -4,6 +4,7 @@ namespace App\Services\ContractStatistics;
 
 use App\Enums\PricingModel;
 use App\Services\CanonicalPricing\CanonicalContractPriceCalculator;
+use App\Services\CanonicalPricing\DTO\CanonicalPricingOutcome;
 use App\Services\CanonicalPricing\DTO\ContractContext;
 use App\Services\CanonicalPricing\DTO\SpotAssumptions;
 use App\Services\CanonicalPricing\Enums\ComparisonPolicy;
@@ -45,9 +46,10 @@ class AsOfAnnualCostCalculator
     /**
      * Calculate all three consumption results for every contract on one historical date.
      *
+     * @param  list<object>  $identityRows  v3 only: dated identity rows, in the snapshot row shape, for contracts without a snapshot on the date
      * @return list<AsOfAnnualCostResult>
      */
-    public function calculate(CarbonInterface|string $date, AnnualCostMethodVersion $methodVersion = AnnualCostMethodVersion::AsOf): array
+    public function calculate(CarbonInterface|string $date, AnnualCostMethodVersion $methodVersion = AnnualCostMethodVersion::AsOf, array $identityRows = []): array
     {
         if (! $methodVersion->isAsOf()) {
             throw new \InvalidArgumentException('The historical annual calculator requires an AsOf method.');
@@ -57,7 +59,7 @@ class AsOfAnnualCostCalculator
             $date instanceof CarbonInterface ? $date->toDateString() : $date,
             'Europe/Helsinki',
         )->startOfDay();
-        $evidence = $this->evidenceResolver->resolveDate($target, $methodVersion);
+        $evidence = $this->evidenceResolver->resolveDate($target, $methodVersion, $identityRows);
         $policy = $methodVersion === AnnualCostMethodVersion::AsOfV3 ? ComparisonPolicy::Current : ComparisonPolicy::Historical;
 
         // These are date-level shared inputs. Resolve each only once before costing contracts.
@@ -326,6 +328,7 @@ class AsOfAnnualCostCalculator
                 $anchor,
                 $outcomeFlags,
                 $outcome->isListed() ? null : 'canonical_outcome_not_listed',
+                $outcome,
             );
         }
 
@@ -521,6 +524,7 @@ class AsOfAnnualCostCalculator
         ?PriceEpisodeAnchor $anchor,
         array $flags,
         ?string $unavailableReason = null,
+        ?CanonicalPricingOutcome $outcome = null,
     ): AsOfAnnualCostResult {
         if ($total === null) {
             $unavailableReason ??= 'annual_cost_unavailable';
@@ -542,6 +546,7 @@ class AsOfAnnualCostCalculator
             $anchor,
             $flags,
             $unavailableReason,
+            $outcome,
         );
     }
 
@@ -556,6 +561,7 @@ class AsOfAnnualCostCalculator
         ?PriceEpisodeAnchor $anchor,
         array $flags,
         ?string $unavailableReason,
+        ?CanonicalPricingOutcome $outcome = null,
     ): AsOfAnnualCostResult {
         return new AsOfAnnualCostResult(
             contractId: $evidence->contractId,
@@ -579,6 +585,7 @@ class AsOfAnnualCostCalculator
             priceEpisodeStartedAt: $anchor?->startedAt,
             provenanceFlags: array_values(array_unique($flags)),
             unavailableReason: $unavailableReason,
+            outcome: $outcome,
         );
     }
 }

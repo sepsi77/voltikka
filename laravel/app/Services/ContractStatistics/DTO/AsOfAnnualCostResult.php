@@ -2,6 +2,7 @@
 
 namespace App\Services\ContractStatistics\DTO;
 
+use App\Services\CanonicalPricing\DTO\CanonicalPricingOutcome;
 use App\Services\ContractStatistics\ContractPriceBasis;
 use App\Services\ContractStatistics\Enums\AnnualCostCalculationBasis;
 use App\Services\ContractStatistics\Enums\AnnualCostMethodVersion;
@@ -30,6 +31,8 @@ readonly class AsOfAnnualCostResult
         public array $provenanceFlags,
         public ?string $unavailableReason = null,
         public ?SourceInterpretationProvenance $sourceInterpretationProvenance = null,
+        // The canonical outcome behind a canonical total; dated snapshot repair reuses it.
+        public ?CanonicalPricingOutcome $outcome = null,
     ) {}
 
     public function isAvailable(): bool

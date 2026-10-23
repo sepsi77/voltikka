@@ -1,0 +1,26 @@
+[
+  {
+    "name": "B: history-only analysis for a failed non-current source",
+    "status": "done"
+  },
+  {
+    "name": "A: v3 result outcome and dated identity input",
+    "status": "done"
+  },
+  {
+    "name": "A: repair command with preview, compare and apply",
+    "status": "done"
+  },
+  {
+    "name": "Tests and documentation",
+    "status": "done"
+  },
+  {
+    "name": "Production: compare 2026-10-21, run B, preview and apply 2026-10-22",
+    "status": "pending"
+  },
+  {
+    "name": "C: forecast for 2026-10-22",
+    "status": "pending"
+  }
+]

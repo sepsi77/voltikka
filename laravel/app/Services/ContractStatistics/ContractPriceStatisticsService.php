@@ -203,6 +203,29 @@ class ContractPriceStatisticsService
     }
 
     /**
+     * The canonical snapshot attributes of one contract, or null when no numeric price exists.
+     * Dated statistics repair reuses the current writer's rule with dated outcomes.
+     *
+     * @param  array<int, CanonicalPricingOutcome>  $outcomes
+     * @return array<string, mixed>|null
+     */
+    public function canonicalSnapshot(ElectricityContract $contract, array $outcomes): ?array
+    {
+        $snapshot = $this->buildCanonicalSnapshot($contract, $outcomes);
+
+        return $this->hasAnyNumericPrice($snapshot) ? $snapshot : null;
+    }
+
+    /**
+     * Rebuild the unit and legacy annual aggregates of one date from its stored snapshots.
+     * The caller owns the transaction.
+     */
+    public function recalculateDailyStatistics(string $dateString, ContractPriceBasis $basis): int
+    {
+        return $this->calculateDailyStatistics($dateString, $basis->value);
+    }
+
+    /**
      * Build the forward snapshot only from typed canonical outcomes. The 5,000 kWh
      * outcome supplies current unit facts; each reference outcome supplies its own total.
      * A package has a meaningful package fee, but its excess-use rate is not an all-in

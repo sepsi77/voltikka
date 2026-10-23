@@ -46,8 +46,16 @@ class AsOfAnnualCostEvidenceResolver
      * @param  list<string>|null  $contractIds
      * @return array<string, array<string, AsOfAnnualCostEvidence>>
      */
-    public function resolveForDates(iterable $dates, AnnualCostMethodVersion $methodVersion = AnnualCostMethodVersion::AsOf, ?array $contractIds = null, bool $preferObservedSnapshots = false): array
+    /**
+     * @param  list<object>  $identityRows  v3 only: dated identity rows in the snapshot row shape (`id` null).
+     *                                      A row is used only for a contract that has no snapshot on its date.
+     */
+    public function resolveForDates(iterable $dates, AnnualCostMethodVersion $methodVersion = AnnualCostMethodVersion::AsOf, ?array $contractIds = null, bool $preferObservedSnapshots = false, array $identityRows = []): array
     {
+        if ($identityRows !== [] && $methodVersion !== AnnualCostMethodVersion::AsOfV3) {
+            throw new \InvalidArgumentException('Dated identity rows are supported only for annual_cost_as_of_v3.');
+        }
+
         $targets = collect($dates)
             ->map(fn (CarbonInterface|string $date): CarbonImmutable => $this->date($date))
             ->unique(fn (CarbonImmutable $date): string => $date->toDateString())
@@ -82,6 +90,11 @@ class AsOfAnnualCostEvidenceResolver
                 'annual_cost_5000_kwh',
                 'annual_cost_18000_kwh',
             ]);
+        $stored = $snapshots->map(fn (object $row): string => $this->dateString($row->snapshot_date).'|'.$row->contract_id)->flip();
+        $snapshots = $snapshots->concat(collect($identityRows)->filter(
+            fn (object $row): bool => in_array($this->dateString($row->snapshot_date), $dateStrings, true)
+                && ! $stored->has($this->dateString($row->snapshot_date).'|'.$row->contract_id),
+        ))->values();
         $snapshotsByDateContract = $snapshots->groupBy(
             fn (object $row): string => $this->dateString($row->snapshot_date).'|'.$row->contract_id,
         );
@@ -274,7 +287,7 @@ class AsOfAnnualCostEvidenceResolver
                 [$canonical, $sourceIds, $flags] = $selection;
 
                 $sourceIds = [
-                    'price_snapshot_id' => (int) $snapshot->id,
+                    'price_snapshot_id' => $snapshot->id === null ? null : (int) $snapshot->id,
                     'price_component_ids' => $rawComponents->pluck('id')->map(fn ($id): string => (string) $id)->values()->all(),
                     ...$sourceIds,
                 ];
@@ -341,11 +354,12 @@ class AsOfAnnualCostEvidenceResolver
     }
 
     /** @return array<string, AsOfAnnualCostEvidence> */
-    public function resolveDate(CarbonInterface|string $date, AnnualCostMethodVersion $methodVersion = AnnualCostMethodVersion::AsOf): array
+    /** @param list<object> $identityRows see resolveForDates() */
+    public function resolveDate(CarbonInterface|string $date, AnnualCostMethodVersion $methodVersion = AnnualCostMethodVersion::AsOf, array $identityRows = []): array
     {
         $target = $this->date($date);
 
-        return $this->resolveForDates([$target], $methodVersion)[$target->toDateString()] ?? [];
+        return $this->resolveForDates([$target], $methodVersion, identityRows: $identityRows)[$target->toDateString()] ?? [];
     }
 
     /**

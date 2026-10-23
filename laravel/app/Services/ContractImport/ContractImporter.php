@@ -122,53 +122,71 @@ class ContractImporter
      *
      * @param  array<string, ElectricityContract>  $existingContracts
      */
+    /**
+     * Contract attributes that one trimmed upstream payload supplies. Dated statistics repair
+     * reuses this mapping to build a contract's identity from an immutable source payload.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    public static function sourceAttributes(array $data): array
+    {
+        $data = self::trimDictValues($data);
+        $details = $data['Details'] ?? [];
+        $pricing = $details['Pricing'] ?? [];
+        $consumptionLimitation = $details['ConsumptionLimitation'] ?? [];
+        $extraInformation = $details['ExtraInformation'] ?? [];
+        $microProduction = $details['MicroProduction'] ?? [];
+
+        $companyName = $data['Company']['Name'] ?? '';
+        $contractName = $data['Name'];
+
+        $contractData = [
+            'api_id' => $data['Id'],
+            'name' => $contractName,
+            'company_name' => $companyName,
+            'contract_type' => ContractType::fromSource($details['ContractType'] ?? null)->value,
+            'spot_price_selection' => $details['SpotPriceSelection'] ?? null,
+            'fixed_time_range' => $details['FixedTimeRange'] ?? null,
+            'metering' => $details['Metering'] ?? null,
+            'pricing_model' => PricingModel::fromSource($details['PricingModel'] ?? null)->value,
+            'target_group' => TargetGroup::fromSource($details['TargetGroup'] ?? null)->value,
+            'pricing_name' => $pricing['Name'] ?? null,
+            'pricing_has_discounts' => $pricing['HasDiscount'] ?? false,
+            'consumption_control' => $details['ConsumptionControl'] ?? false,
+            'consumption_limitation_min_x_kwh_per_y' => $consumptionLimitation['MinXKWhPerY'] ?? null,
+            'consumption_limitation_max_x_kwh_per_y' => $consumptionLimitation['MaxXKWhPerY'] ?? null,
+            'pre_billing' => $details['PreBilling'] ?? false,
+            'available_for_existing_users' => $details['AvailableForExistingUsers'] ?? true,
+            'delivery_responsibility_product' => $details['DeliveryResponsibilityProduct'] ?? false,
+            'order_link' => $details['OrderLink'] ?? null,
+            'product_link' => $details['ProductLink'] ?? null,
+            'billing_frequency' => $details['BillingFrequency'] ?? null,
+            'time_period_definitions' => $details['TimePeriodDefinitions'] ?? null,
+            'transparency_index' => $details['TransparencyIndex'] ?? null,
+            'extra_information_default' => $extraInformation['Default'] ?? null,
+            'extra_information_fi' => $extraInformation['FI'] ?? null,
+            'extra_information_en' => $extraInformation['EN'] ?? null,
+            'extra_information_sv' => $extraInformation['SV'] ?? null,
+            'availability_is_national' => $details['AvailabilityArea']['IsNational'] ?? false,
+            'microproduction_buys' => $microProduction['Buys'] ?? false,
+            'microproduction_default' => $microProduction['Details']['Default'] ?? null,
+            'microproduction_fi' => $microProduction['Details']['FI'] ?? null,
+            'microproduction_sv' => $microProduction['Details']['SV'] ?? null,
+            'microproduction_en' => $microProduction['Details']['EN'] ?? null,
+        ];
+
+        return $contractData;
+    }
+
     private function processContracts(array $contracts, array $existingContracts): void
     {
         foreach ($contracts as $data) {
             $data = $this->trimDictValues($data);
             $details = $data['Details'] ?? [];
-            $pricing = $details['Pricing'] ?? [];
-            $consumptionLimitation = $details['ConsumptionLimitation'] ?? [];
-            $extraInformation = $details['ExtraInformation'] ?? [];
-            $microProduction = $details['MicroProduction'] ?? [];
-
             $companyName = $data['Company']['Name'] ?? '';
             $contractName = $data['Name'];
-
-            $contractData = [
-                'api_id' => $data['Id'],
-                'name' => $contractName,
-                'company_name' => $companyName,
-                'contract_type' => ContractType::fromSource($details['ContractType'] ?? null)->value,
-                'spot_price_selection' => $details['SpotPriceSelection'] ?? null,
-                'fixed_time_range' => $details['FixedTimeRange'] ?? null,
-                'metering' => $details['Metering'] ?? null,
-                'pricing_model' => PricingModel::fromSource($details['PricingModel'] ?? null)->value,
-                'target_group' => TargetGroup::fromSource($details['TargetGroup'] ?? null)->value,
-                'pricing_name' => $pricing['Name'] ?? null,
-                'pricing_has_discounts' => $pricing['HasDiscount'] ?? false,
-                'consumption_control' => $details['ConsumptionControl'] ?? false,
-                'consumption_limitation_min_x_kwh_per_y' => $consumptionLimitation['MinXKWhPerY'] ?? null,
-                'consumption_limitation_max_x_kwh_per_y' => $consumptionLimitation['MaxXKWhPerY'] ?? null,
-                'pre_billing' => $details['PreBilling'] ?? false,
-                'available_for_existing_users' => $details['AvailableForExistingUsers'] ?? true,
-                'delivery_responsibility_product' => $details['DeliveryResponsibilityProduct'] ?? false,
-                'order_link' => $details['OrderLink'] ?? null,
-                'product_link' => $details['ProductLink'] ?? null,
-                'billing_frequency' => $details['BillingFrequency'] ?? null,
-                'time_period_definitions' => $details['TimePeriodDefinitions'] ?? null,
-                'transparency_index' => $details['TransparencyIndex'] ?? null,
-                'extra_information_default' => $extraInformation['Default'] ?? null,
-                'extra_information_fi' => $extraInformation['FI'] ?? null,
-                'extra_information_en' => $extraInformation['EN'] ?? null,
-                'extra_information_sv' => $extraInformation['SV'] ?? null,
-                'availability_is_national' => $details['AvailabilityArea']['IsNational'] ?? false,
-                'microproduction_buys' => $microProduction['Buys'] ?? false,
-                'microproduction_default' => $microProduction['Details']['Default'] ?? null,
-                'microproduction_fi' => $microProduction['Details']['FI'] ?? null,
-                'microproduction_sv' => $microProduction['Details']['SV'] ?? null,
-                'microproduction_en' => $microProduction['Details']['EN'] ?? null,
-            ];
+            $contractData = self::sourceAttributes($data);
 
             // Preserve legacy descriptions when the current API omits these optional fields.
             if (array_key_exists('ShortDescription', $details)) {
@@ -522,14 +540,14 @@ class ContractImporter
     /**
      * Trim whitespace from string values in an array.
      */
-    private function trimDictValues(array $data): array
+    private static function trimDictValues(array $data): array
     {
         $result = [];
         foreach ($data as $key => $value) {
             if (is_string($value)) {
                 $result[$key] = trim($value);
             } elseif (is_array($value)) {
-                $result[$key] = $this->trimDictValues($value);
+                $result[$key] = self::trimDictValues($value);
             } else {
                 $result[$key] = $value;
             }

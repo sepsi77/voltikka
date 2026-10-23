@@ -226,6 +226,32 @@ missing full Time/Season proof, missing exact-source output, and genuine pre-Apr
 stay unresolved or use the shared fallback ladder. The bounded local continuity acceptance above
 does not remove these limits or authorize production release.
 
+## Dated snapshot repair (2026-10-23, local)
+
+`contracts:repair-statistics-date --date=D` (`HistoricalSnapshotRepair`) adds the canonical snapshots
+that the current writer missed on one past date. Reason: on 2026-10-22 failed interpretations (HTTP 401)
+left out about 39 contracts, and the v3 rebuild cannot add a contract without a snapshot
+(`missing_historical_snapshot_identity`). See `../../../../tasks/statistics-date-repair-2026-10-22/`.
+
+- Candidates: one exact covering source observation on D, no snapshot on D, dated audience not Company.
+  A contract is added only when v3 selects a target-validated interpretation of that exact source.
+  A contract without a snapshot on D-1 also needs `canPublishSourcePricing()`, because a new contract
+  activates only then.
+- Identity comes from dated evidence only: `ContractImporter::sourceAttributes()` of the immutable payload,
+  then `ContractInterpretationPublisher::publicationAttributes()` of the selected output, the same rules as
+  a real import and publication. Known limit: a classification field that an earlier interpretation
+  published, and the selected output does not, takes the source value instead of the retained one.
+- Numbers come from the v3 calculator outcomes of D (`AsOfAnnualCostResult::$outcome`) through the
+  current writer's own `ContractPriceStatisticsService::canonicalSnapshot()`. The calculator receives the
+  dated identity rows (`identityRows`, v3 only) for contracts without a snapshot.
+- Apply adds the snapshots, rebuilds the unit and legacy aggregates of D, and replaces the v3 annual rows
+  of D from the complete date, in one transaction. Existing snapshots and other dates are not changed.
+  The seller-set index row of D is not rebuilt (its writer reads current contract facts).
+- Default is a dry run that rolls back and prints median changes. `--compare-existing` rebuilds existing
+  snapshots of D from dated evidence and reports differences; use it on a complete date first.
+- Only dates before today and only active method v3. A production apply needs a verified full backup and
+  explicit approval.
+
 ## Optional import transaction fence
 
 `calculateForDate()` accepts an optional `transactionFence` callable. It runs inside the existing date transaction before any statistics read/delete/rebuild. General and historical callers default to null and retain their behavior. Full and deferred post-import callers use it to lock the same-date contract freshness row through commit. Scoped callers lock that row if it exists but never create global readiness. An absent-key locking read remains inside the existing statistics transaction; InnoDB's default REPEATABLE READ gap lock serializes a concurrent full-start insertion. No guarantee for another isolation level is inferred from SQLite tests. Deferred callers validate current UUID, claim token/lease, date, exact manifest and active IDs from fresh database rows. This prevents an expired old execution from deleting statistics written by a newer ready import. The finite outer cache lock is only an execution optimization, not the ordering proof. No new transaction wraps a cache build or publisher. See `../ContractImport/AGENTS.md`.

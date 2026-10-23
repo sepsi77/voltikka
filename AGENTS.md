@@ -184,6 +184,7 @@ php artisan contracts:detect-replacements  # Report likely replacements for inac
 php artisan contracts:link-replacements    # Persist high-confidence replacement links
 php artisan contracts:republish-gated-pricing  # Re-run the relational price publication gate over already-published interpretations and refill the days they lost (dry run without --apply)
 php artisan contracts:backfill-historical-interpretations  # Plan isolated historical interpretation episodes; read-only unless an exact plan hash is applied
+php artisan contracts:repair-statistics-date --date=YYYY-MM-DD  # Add snapshots the current writer missed on a past date, from dated evidence; dry run unless --apply
 
 # Spot prices
 php artisan spot:fetch               # Fetch current spot prices from ENTSO-E; retries transient server/connection timeouts

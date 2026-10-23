@@ -85,11 +85,7 @@ class ContractInterpretationPublisher
                 return false;
             }
 
-            $updates = array_merge($this->canonicalClassification($output), [
-                'canonical_pricing' => $output['pricing'] ?? null,
-                'canonical_source_consistency' => $output['source_consistency'] ?? null,
-                'canonical_calculation' => $output['calculation'] ?? null,
-            ]);
+            $updates = $this->publicationAttributes($output);
             $publishedFields = array_keys($updates);
             $updates['published_interpretation_id'] = $lockedInterpretation->id;
             $contract->fill($updates);
@@ -129,6 +125,22 @@ class ContractInterpretationPublisher
         }
 
         return $published;
+    }
+
+    /**
+     * The contract attributes that publication of this output writes. Public so dated
+     * statistics repair can build a contract's historical identity with the same rule.
+     *
+     * @param  array<string, mixed>  $output
+     * @return array<string, mixed>
+     */
+    public function publicationAttributes(array $output): array
+    {
+        return array_merge($this->canonicalClassification($output), [
+            'canonical_pricing' => $output['pricing'] ?? null,
+            'canonical_source_consistency' => $output['source_consistency'] ?? null,
+            'canonical_calculation' => $output['calculation'] ?? null,
+        ]);
     }
 
     /** Preserve already-published V5 facts, never opt a changed source into V5. */
