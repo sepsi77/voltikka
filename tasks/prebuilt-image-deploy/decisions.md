@@ -148,3 +148,16 @@ about 13:37 UTC. Railway builds were paused by incident QH8L8B3E, and `dunglas/f
 - The deploy waited for the Railway incident to end. It also releases cd7f3aa (ENTSO-E retries),
   which was on `origin/main` but not deployed (production ran e0e2237).
 - Before the next build, check that the pulled upstream base has PHP >= 8.4.27.
+
+## 2026-10-25 — Stale cached base in deploy-000002..000004
+
+Found while investigating the 2026-10-25 backup failure: Sentry reported `runtime: php 8.4.26` on
+production events. `docker run ... php -v` gives 8.4.27 for `deploy-000001-5ff86c292587` and
+8.4.26 for `deploy-000004-0786b23e8f1a`. The local Docker cache held `dunglas/frankenphp:1-php8.4`
+from 2026-10-10 (PHP 8.4.26), and `docker buildx build` without `--pull` used it for
+`deploy-000002` (2026-10-23 16:31 UTC), `deploy-000003` and `deploy-000004`. Upstream
+`1-php8.4` was already 8.4.27 (digest `sha256:b5e21479...`). Production therefore ran without the
+CVE-2026-109618/109619 fixes from 2026-10-23 16:31 UTC.
+
+Decision: `build-and-push-image.sh` always passes `--pull`. The local tag was refreshed on
+2026-10-25 and gives 8.4.27. The next image must be checked with `php -v` before deploy.

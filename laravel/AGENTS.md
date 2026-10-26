@@ -395,6 +395,8 @@ Current semantics:
 - scheduled production public-storage backup: `backup:run --only-files` weekly on Sunday at 02:30 Europe/Helsinki; this backs up `storage/app/public` only
 - cleanup runs daily at 03:30 and monitor runs daily at 03:45
 - backups are written to `BACKUP_DISK` (production: `s3`) and encrypted with `BACKUP_ARCHIVE_PASSWORD`
+- the `s3` disk in `config/filesystems.php` uses SDK `standard` retries (10 attempts, backoff up to 20 s) and multipart uploads with 16 MB parts and concurrency 2. The Railway bucket answers request bursts with `SlowDown`; with the SDK default (legacy, 4 attempts, about 1 s of backoff) all three tries of the 2026-10-25 database backup (79 MB, 16 parts at concurrency 5) failed. Do not remove these settings
+- the schedule uses Helsinki times inside the 03:00–03:59 hour, which repeats on the last Sunday of October and does not exist on the last Sunday of March. On 2026-10-25 the backup, cleanup and monitor ran twice (the second backup succeeded); in March they are skipped for one day
 - MySQL dumps use `useSingleTransaction` in `config/database.php` to avoid table locking for InnoDB tables and explicitly use `skip-ssl` so `mysqldump` does not fail on Railway's self-signed internal MySQL certificate
 - the Docker image must include `default-mysql-client` because Spatie shells out to `mysqldump`
 - backup success notifications are disabled; failure/unhealthy/cleanup-failure notifications go to `BACKUP_NOTIFICATION_EMAIL` or mail defaults

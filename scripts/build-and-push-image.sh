@@ -214,7 +214,10 @@ echo "IMAGE=${IMAGE}"
 echo "SOURCE_COMMIT=${COMMIT}"
 echo "Building ${IMAGE} for linux/amd64 from a clean export of ${SHA12}"
 
+# --pull: without it, buildx reuses a locally cached base tag. deploy-000002..000004 were built
+# from a cached dunglas/frankenphp:1-php8.4 with PHP 8.4.26 after upstream had moved to 8.4.27.
 docker buildx build \
+  --pull \
   --platform linux/amd64 \
   --file "${EXPORT_DIR}/Dockerfile" \
   --label "org.opencontainers.image.source=https://github.com/sepsi77/voltikka" \

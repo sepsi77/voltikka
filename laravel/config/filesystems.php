@@ -56,6 +56,15 @@ return [
             'url' => env('AWS_URL'),
             'endpoint' => env('AWS_ENDPOINT'),
             'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
+            // The Railway bucket answers bursts of multipart requests with SlowDown.
+            // The SDK legacy mode gives up after about one second of backoff, which
+            // failed every attempt of the 2026-10-25 backup. Standard mode backs off
+            // for up to 20 seconds per retry, and fewer, larger parts send fewer requests.
+            'retries' => ['mode' => 'standard', 'max_attempts' => 10],
+            'options' => [
+                'concurrency' => 2,
+                'part_size' => 16 * 1024 * 1024,
+            ],
             'throw' => false,
             'report' => false,
         ],
