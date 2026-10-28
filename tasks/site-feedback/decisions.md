@@ -27,3 +27,10 @@
 - The spot page shows the widget only when hourly prices exist (it sits in that branch); bill comparison, solar, heat pump and consumption calculator only after a result.
 - A `<fieldset>`/`<legend>` broke the flex layout (the legend ignores the gap); the steps use `role="group"` with `aria-labelledby` on an `h2` instead.
 - Release note: CSS and JS bundles changed. Retain the currently deployed asset files before the next release (laravel/AGENTS.md "Edge HTML caching vs hashed assets").
+
+## 2026-10-28 — production release
+
+- User approved the deployment. Commit `4a48943`, image `deploy-000006-4a489437a2ff` (PHP 8.4.27), Railway deployment `bc1a94c3-11ba-4a99-bc6c-389f5a2a3233` SUCCESS at about 13:48 Helsinki.
+- Retained the previous production `app-CSDxisPt.css` and `app-Pr_ebGQi.js` (fetched from production; hashes in `laravel/AGENTS.md`). Both still answer 200 after the release.
+- Checks after the release: `/up` 200; widget on `/sahkosopimus` (listing), `/tietoa`, `/sahkosopimus/sahkoyhtiot` and the 404 page; privacy page has the new text; the endpoint rejects an invalid feedback context with 422; the deploy log shows the `page_feedback` migration DONE. No test answer was written to production.
+- Open: add the Plausible goals `Feedback Vote` / `Feedback Reason` / `Feedback Goal` and the custom properties (user, Plausible dashboard).

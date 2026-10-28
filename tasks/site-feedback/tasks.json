@@ -7,6 +7,6 @@
   {"name": "Filament resource and CSV download", "status": "done"},
   {"name": "Privacy page update and 12-month free-text cleanup", "status": "done"},
   {"name": "Update AGENTS.md files", "status": "done"},
-  {"name": "Commit, retain prior build assets, build image and deploy (needs user approval)", "status": "pending"},
+  {"name": "Commit, retain prior build assets, build image and deploy (approved 2026-10-28)", "status": "done"},
   {"name": "Add Plausible goals Feedback Vote / Reason / Goal with custom properties (user, Plausible dashboard)", "status": "pending"}
 ]
