@@ -547,6 +547,9 @@
                 </div>
             </section>
 
+            {{-- "Löysitkö etsimäsi?" after the lead chart and its key figures. --}}
+            <x-page-feedback page-type="statistics" />
+
             {{-- Segment table --}}
             <section class="data-section" aria-labelledby="segment-table-heading">
                 <x-site.section-heading id="segment-table-heading" :wave="280" class="data-heading">

@@ -355,6 +355,9 @@
         @endif
     </section>
 
+    {{-- "Löysitkö etsimäsi?" after the offers (Paper "FB · Notes": companies). --}}
+    <x-page-feedback page-type="company_detail" :subject="$company->name_slug" />
+
     {{-- Market comparison --}}
     @if ($marketComparison)
         @include('partials.company-market-comparison', [

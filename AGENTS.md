@@ -262,6 +262,11 @@ Retail collection and forecast generation use independent five-minute background
 - Filament requires PHP `ext-intl`; the production Docker image installs `libicu-dev` and compiles `intl`. Keep this extension when changing the base image
 - See `laravel/app/Services/Analytics/AGENTS.md` and `laravel/app/Filament/AGENTS.md`
 
+### 1a2. Page feedback ("Löysitkö etsimäsi?")
+- **Location**: `laravel/app/Services/Analytics/PageFeedback*`, `laravel/resources/views/components/page-feedback.blade.php`, `laravel/resources/js/page-feedback.js`
+- Every public page except the legal pages asks "Löysitkö etsimäsi?" (👍/👎) in a page-tailored place (listings: ledger slot 5; calculators: after a result; 404: goal question only). After "En" a page-specific reason; then a goal question, which also follows "Kyllä". Options are shuffled ("Jokin muu" last) and none is pre-selected
+- `page_feedback` rows go through the existing first-party endpoint as `page_feedback`; Plausible gets `Feedback Vote` / `Feedback Reason` / `Feedback Goal` with codes only. Free text is deleted after 12 months (`feedback:purge-text`). Read-only Filament resource with CSV download. See `laravel/app/Services/Analytics/AGENTS.md` and `tasks/site-feedback/`
+
 ### 1b. Company pages (`/sahkosopimus/sahkoyhtiot/{slug}`)
 - **Location**: `app/Livewire/CompanyDetail.php`, `app/Services/CompanyStatistics/`
 - The page is household-first. Household facts and the main cards use active `Household`, `Both`, and legacy null targets. A separate section at the bottom shows active `Company` and `Both` contracts. Thus, a `Both` contract appears in both audience sections.

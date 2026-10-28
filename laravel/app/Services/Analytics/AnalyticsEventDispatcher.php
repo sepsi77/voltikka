@@ -6,6 +6,7 @@ final class AnalyticsEventDispatcher
 {
     public function __construct(
         private readonly ContractOrderClickHandler $contractOrderClickHandler,
+        private readonly PageFeedbackHandler $pageFeedbackHandler,
     ) {}
 
     /** @param array<string, mixed> $envelope */
@@ -13,6 +14,7 @@ final class AnalyticsEventDispatcher
     {
         match ($eventName) {
             AnalyticsEventName::ContractOrderClick => $this->contractOrderClickHandler->handle($envelope),
+            AnalyticsEventName::PageFeedback => $this->pageFeedbackHandler->handle($envelope),
         };
     }
 }

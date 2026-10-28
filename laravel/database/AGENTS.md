@@ -18,6 +18,10 @@ Important semantics:
 
 The short-lived browser attribution period is separate. Its logical inactivity limit is 30 minutes. See `../app/Services/Analytics/AGENTS.md`.
 
+## `page_feedback`
+
+One row per "Löysitkö etsimäsi?" answer (browser UUID, unique). `vote` is null only on the 404 page. Reason and goal columns are filled once by follow-up steps. Listing fact columns are null on other page types. `occurred_at` is UTC wall time with the same explicit accessor as `contract_order_clicks`. Free text (`reason_text`, `goal_text`) is nulled after 12 months by `feedback:purge-text`; other columns have no cleanup. No IP address, user agent, visitor ID, session ID or postcode. See `../app/Services/Analytics/AGENTS.md`.
+
 ## `users.is_admin`
 
 The boolean defaults to false. Filament panel access requires it to be true. Valid credentials alone do not grant access. Admin-user creation and role changes are explicit operational data mutations; they do not run in migrations, seeders, or deployment code.

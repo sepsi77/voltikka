@@ -213,8 +213,15 @@ class AnalyticsEventTest extends TestCase
         $this->postJson(route('analytics.events.store'), [
             'event_name' => 'contract_order_click',
         ])->assertUnprocessable()->assertJsonValidationErrors([
-            'event_uuid', 'context', 'attribution', 'page_path', 'placement',
+            'event_uuid', 'context', 'attribution', 'page_path',
         ]);
+
+        // Placement is event-specific: the contract click handler requires it.
+        $envelope = $this->validEnvelope();
+        unset($envelope['placement']);
+        $this->postJson(route('analytics.events.store'), $envelope)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('placement');
 
         $this->assertDatabaseCount('contract_order_clicks', 0);
     }

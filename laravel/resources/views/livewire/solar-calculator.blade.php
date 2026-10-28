@@ -341,6 +341,9 @@
                 'live' => true,
                 'isExample' => false,
             ])
+
+            {{-- "Löysitkö etsimäsi?" only under the visitor's own result, not the example. --}}
+            <x-page-feedback page-type="solar_calculator" />
         @elseif ($isCalculating)
             <section class="energy-calculating" aria-live="polite">
                 {!! $spinner !!}

@@ -1,11 +1,11 @@
 # First-party analytics
 
-This directory owns the closed first-party event endpoint and the contract-order-click event.
+This directory owns the closed first-party event endpoint, the contract-order-click event and the page-feedback event ("Löysitkö etsimäsi?").
 Read `../../../AGENTS.md`, `../../Http/AGENTS.md`, and `../../Livewire/AGENTS.md` first.
 
 ## Scope
 
-The only accepted event name is `contract_order_click`.
+The accepted event names are `contract_order_click` and `page_feedback`.
 
 Primary files:
 
@@ -13,7 +13,10 @@ Primary files:
 - `AnalyticsEventDispatcher.php` maps each enum case to one typed handler.
 - `ContractOrderClickContextSigner.php` signs and verifies server facts.
 - `ContractOrderClickHandler.php` validates, normalizes, and inserts one typed row.
-- `../../Http/Controllers/Api/AnalyticsEventController.php` validates the generic envelope.
+- `AnalyticsContextToken.php` is the shared HMAC token format; each signer passes its own purpose string.
+- `NormalizesAnalyticsInput.php` is the shared attribution/path normalization of both handlers.
+- `PageFeedbackCatalog.php`, `PageFeedbackContextSigner.php` and `PageFeedbackHandler.php` own the feedback event (see "Page feedback").
+- `../../Http/Controllers/Api/AnalyticsEventController.php` validates the generic envelope (event name, UUID, context, attribution, page path) and passes the request to the typed handler. Each handler validates its own fields; `placement` is a contract-click field.
 - `../../../resources/js/attribution.js` owns browser attribution.
 - `../../../resources/js/first-party-analytics.js` owns Beacon and fetch delivery.
 
@@ -56,3 +59,15 @@ Both seller CTAs call `window.voltikkaAnalytics.trackContractOrderClick()` for p
 `contract_order_clicks` has typed columns and reporting indexes. It has no generic properties JSON. Durable rows have indefinite retention at the initial release. There is no cleanup command, job, or schedule. A later finite-retention decision must include an explicit migration or cleanup design and updated privacy text.
 
 Do not log event request payloads. Do not add raw IP addresses, user agents, full referrers, query strings, visitor IDs, or session IDs to this table.
+
+## Page feedback ("Löysitkö etsimäsi?")
+
+User decisions (2026-10-28, `../../../../tasks/site-feedback/`): every public page except the legal pages asks the question; reasons and goals are tailored to the page type; a goal question follows "Kyllä" and is the last step after "En"; free text is deleted after 12 months; the design is the Paper page "Feedback · Löysitkö etsimäsi?".
+
+- `PageFeedbackCatalog` is the one source for page types, reason sets and goal codes. The Blade component shows its labels and the handler accepts only the codes of the signed page type, so a solar page can never store a contract reason. Codes are stored, labels are not. "Jokin muu" (`other`) is always last.
+- `PageFeedbackContextSigner` signs only the page type and an optional subject (contract ID or company slug), 96-hour lifetime like the click context. Listing facts (consumption, pricing filter, result count, postcode used, bill mode, page) are unsigned display state read from the list element at vote time; the handler accepts them only on `listing` and only in closed shapes. The postcode itself is never stored.
+- One browser UUID is one row. Step `vote` creates it (`createOrFirst`). Steps `reason` (only after "down") and `goal` fill their columns once within 120 minutes on the same page type; a late, repeated or out-of-order follow-up is a quiet no-op, never an overwrite. The 404 page (`not_found`) has no vote; its `goal` step creates the row with a null vote.
+- Each answer stores the shown position of the chosen option. The browser shuffles the options (except "Jokin muu") so the first-option bias can be measured, and no option is pre-selected.
+- Free text is limited to 500 characters and can hold personal data. `feedback:purge-text` (daily 02:15 Helsinki) nulls `reason_text`/`goal_text` after 12 months; the codes stay. The privacy page states this. Never log the text.
+- `../../../resources/js/page-feedback.js` sends each step once through the shared Beacon/fetch sender and also sends the Plausible events `Feedback Vote`, `Feedback Reason` and `Feedback Goal` with codes only (never text). After a vote the widget is hidden site-wide for 30 days, after "Ei nyt" for 7 days (`voltikka_feedback_v1` holds only the `until` time).
+- `../../../resources/views/components/page-feedback.blade.php` renders all steps hidden, with `wire:ignore` so a Livewire re-render keeps the visitor's step. Placement is per page type and explicit in each template; `tests/Feature/PageFeedbackWidgetTest.php` lists the templates. Listings put it at ledger slot 5 (after entry 4); calculators only after a result.

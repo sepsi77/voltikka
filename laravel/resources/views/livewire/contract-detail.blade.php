@@ -550,6 +550,9 @@
             </section>
         @endif
 
+        {{-- "Löysitkö etsimäsi?" after the bill module (Paper "FB · Notes": contract detail). --}}
+        <x-page-feedback page-type="contract_detail" :subject="(string) $contract->id" class="vk-detail-section" />
+
         {{-- ============================ Hintatiedot (Paper 48Z-0) ============================ --}}
         <section id="hintatiedot" class="vk-detail-section">
             <div class="vk-detail-columns">

@@ -57,6 +57,14 @@
                         käyttäjätunnistetta, koko viittaavaa osoitetta, sivun kyselyä, kävijätunnistetta tai istuntotunnistetta.
                     </p>
                     <p class="vk-lr-text">
+                        Sivuilla voi vastata kysymykseen ”Löysitkö etsimäsi?”. Vastauksesta tallennamme sivun, vastauksen,
+                        valitun syyn ja tavoitteen, vapaaehtoisen tekstin, laitetyypin (puhelin tai tietokone) ja liikenteen
+                        lähteen tiedot. Vertailusivulla tallennamme lisäksi valitun kulutuksen, hinnoittelurajauksen, tulosten
+                        määrän sekä tiedon siitä, oliko postinumero tai laskuvertailu käytössä. Itse postinumeroa emme tallenna.
+                        Emme tallenna vastaukseen IP-osoitetta, kävijätunnistetta tai istuntotunnistetta. Älä kirjoita
+                        vapaaseen tekstiin nimeäsi, puhelinnumeroasi, sähköpostiosoitettasi tai muita henkilötietoja.
+                    </p>
+                    <p class="vk-lr-text">
                         Sivuston teknisestä toiminnasta voi lisäksi syntyä tavanomaisia palvelin- ja lokitietoja. Näitä voivat
                         olla esimerkiksi IP-osoite, ajankohta, pyydetty sivu, selaimen teknisiä tietoja ja virhetilanteisiin
                         liittyviä tietoja. Näitä tietoja käytetään sivuston toiminnan, tietoturvan, virheiden selvittämisen ja
@@ -83,6 +91,7 @@
                         <li>mitkä sivut ovat suosituimpia</li>
                         <li>mistä lähteistä kävijöitä tulee</li>
                         <li>miltä sopimussivuilta kävijät siirtyvät sähköyhtiöiden tilaussivuille</li>
+                        <li>kuinka hyvin sivut vastaavat sitä, mitä kävijät etsivät (”Löysitkö etsimäsi?” -kysymys)</li>
                         <li>millaisilla laitteilla ja selaimilla sivustoa käytetään yleisellä tasolla</li>
                     </ul>
                     <p class="vk-lr-text">
@@ -99,6 +108,10 @@
                         kumppanuusmarkkinoinnin seurantatunnisteita. Ensimmäisen liikenteen lähteen tiedot tallennetaan selaimen
                         paikalliseen tallennustilaan avaimella <code>voltikka_attribution_v1</code>. Tieto vanhenee 30 minuutin
                         käyttämättömyyden jälkeen, vaikka vanha tieto voi säilyä selaimessa seuraavaan Voltikka-sivun avaukseen.
+                    </p>
+                    <p class="vk-lr-text">
+                        Kun vastaat kysymykseen ”Löysitkö etsimäsi?” tai suljet sen, selain tallentaa avaimella
+                        <code>voltikka_feedback_v1</code> vain päivän, johon asti kysymystä ei näytetä uudelleen.
                     </p>
                     <p class="vk-lr-text">
                         Paikallinen tieto ei sisällä kävijä- tai istuntotunnistetta. Sivustolla ei näytetä erillistä
@@ -140,6 +153,10 @@
                         Sähköyhtiön tilaussivulle siirtymisen tapahtumariveillä on aluksi toistaiseksi voimassa oleva säilytys.
                         Automaattista poistopäivää ei ole. Säilytystarve arvioidaan uudelleen, jos analytiikan käyttötarkoitus tai
                         kerättävät tiedot muuttuvat.
+                    </p>
+                    <p class="vk-lr-text">
+                        ”Löysitkö etsimäsi?” -vastausten vapaaehtoiset tekstit poistetaan automaattisesti 12 kuukauden
+                        kuluttua. Vastausvalinnat säilytetään palvelun kehittämistä varten.
                     </p>
                     <p class="vk-lr-text">
                         Teknisiä palvelin- ja lokitietoja säilytetään vain niin kauan kuin se on tarpeen sivuston toiminnan,

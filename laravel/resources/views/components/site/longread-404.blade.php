@@ -57,4 +57,7 @@
             </g>
         </svg>
     </nav>
+
+    {{-- "Mitä olit etsimässä?": the 404 page opens at the goal step (no vote). --}}
+    <x-page-feedback page-type="not_found" class="vk-wrap" />
 </div>

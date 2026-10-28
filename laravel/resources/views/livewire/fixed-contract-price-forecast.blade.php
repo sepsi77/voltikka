@@ -270,6 +270,9 @@
                 </div>
             </section>
 
+            {{-- "Löysitkö etsimäsi?" after the outlook comparison. --}}
+            <x-page-feedback page-type="forecast" />
+
             {{-- Per-duration deep dive (round 3, Paper "R3 · Data · Hintaennuste"): one full-width
                  row per term. The conclusion (the saved median outlook) comes first, then the
                  typical price, then the evidence: slope chart and the p20 / median / p80 lanes. --}}

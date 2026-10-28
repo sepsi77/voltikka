@@ -17,6 +17,16 @@ test('retained build asset keeps exact bytes and rejects collisions and symlinks
     // The CSS of deploy-000001-5ff86c292587, kept for edge-cached HTML of that release.
     const later = 'app-DjVQ2Ja9.css';
     const laterBytes = readFileSync(new URL(`../../resources/retained-build-assets/${later}`, import.meta.url));
+    // The CSS and JS served by production before the page-feedback release (fetched 2026-10-28).
+    const feedbackRelease = [
+        ['app-CSDxisPt.css', 308870, '73f1e4adcc62fa0e0acae0d69d0d0ee5819f0eca49ebf2ecc171d59b41e2a3ba'],
+        ['app-Pr_ebGQi.js', 42427, '80ff016ecbb8e826212bf9885b0d3626fef63bd9f66873a64e0e1bba71d926e0'],
+    ].map(([file, size, hash]) => ({
+        file,
+        size,
+        hash,
+        bytes: readFileSync(new URL(`../../resources/retained-build-assets/${file}`, import.meta.url)),
+    }));
 
     try {
         assert.equal(bytes.length, 110597);
@@ -25,10 +35,17 @@ test('retained build asset keeps exact bytes and rejects collisions and symlinks
         assert.equal(laterBytes.length, 308432);
         assert.equal(createHash('sha256').update(laterBytes).digest('hex'),
             '762e60df9e096b2428b6c6608bdfd940aa7ff11c35c9c6f00510635f362b1f08');
+        for (const asset of feedbackRelease) {
+            assert.equal(asset.bytes.length, asset.size, asset.file);
+            assert.equal(createHash('sha256').update(asset.bytes).digest('hex'), asset.hash, asset.file);
+        }
         mkdirSync(source, { recursive: true });
         mkdirSync(output, { recursive: true });
         writeFileSync(join(source, name), bytes);
         writeFileSync(join(source, later), laterBytes);
+        for (const asset of feedbackRelease) {
+            writeFileSync(join(source, asset.file), asset.bytes);
+        }
         writeFileSync(join(source, 'README.md'), 'Do not publish this file.');
         const manifest = '{"current":{"file":"assets/current.css"}}';
         writeFileSync(join(output, 'manifest.json'), manifest);
@@ -37,6 +54,9 @@ test('retained build asset keeps exact bytes and rejects collisions and symlinks
         plugin.closeBundle();
         assert.deepEqual(readFileSync(target), bytes);
         assert.deepEqual(readFileSync(join(output, 'assets', later)), laterBytes);
+        for (const asset of feedbackRelease) {
+            assert.deepEqual(readFileSync(join(output, 'assets', asset.file)), asset.bytes);
+        }
         assert.equal(existsSync(join(output, 'assets/README.md')), false);
         assert.equal(readFileSync(join(output, 'manifest.json'), 'utf8'), manifest);
 

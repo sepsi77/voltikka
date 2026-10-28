@@ -19,11 +19,11 @@ class AnalyticsEventController extends Controller
             'context' => ['required'],
             'attribution' => ['required'],
             'page_path' => ['required'],
-            'placement' => ['required'],
         ])->validate();
 
+        // Each typed handler validates its own fields and keeps only the keys it validated.
         $eventName = AnalyticsEventName::from($envelope['event_name']);
-        $dispatcher->dispatch($eventName, $envelope);
+        $dispatcher->dispatch($eventName, $request->all());
 
         return response()->noContent();
     }

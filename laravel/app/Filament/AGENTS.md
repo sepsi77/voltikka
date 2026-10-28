@@ -28,6 +28,10 @@ The list page has one non-mutating header action, `Vie kaikki CSV-tiedostoon`. I
 
 Do not add create, edit, view-with-mutation, delete, bulk delete, restore, relation-manager mutation, import, or inline editable actions to this analytics resource. Analytics rows are evidence and are read-only in the panel.
 
+## Page-feedback resource
+
+`Resources/PageFeedback/PageFeedbackResource.php` follows the same read-only rules as the click resource: only an index page, every mutation authorization returns false. `Tables/PageFeedbackTable.php` shows reason and goal labels from `PageFeedbackCatalog` with the free text as the description, and filters by date, page type, vote, reason, goal and "has text". The header action `Vie kaikki CSV-tiedostoon` uses `filament.admin.page-feedback.export` (`Exports/PageFeedbackCsvExport.php`). Both exports share `Exports/AnalyticsTableCsvExport.php`.
+
 ## Assets and dependencies
 
 The application uses Filament 5 with Livewire 4. Composer runs `php artisan filament:upgrade` after autoload generation. The production Docker build runs Composer inside the image, so it publishes the required Filament files to `public/css/filament`, `public/js/filament`, and `public/fonts/filament` during the build. These generated package assets are not source files and are not tracked in this repository. Do not hand-edit them or copy files from `vendor` into source control.

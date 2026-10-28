@@ -366,6 +366,9 @@
             </section>
         @endif
 
+        {{-- "Löysitkö etsimäsi?" after the price now, the appliance tips and the hourly prices. --}}
+        <x-page-feedback page-type="spot_price" />
+
         {{-- Historical data: 30-day trend, this month vs last month, this calendar month across years. --}}
         @php
             $multiYear = collect($multiYearMonthly ?? [])->filter(fn ($row) => $row['has_data']);

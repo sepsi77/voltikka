@@ -272,6 +272,9 @@
             @endif
         </section>
 
+        {{-- "Löysitkö etsimäsi?" after the company ledger, before the FAQ. --}}
+        <x-page-feedback page-type="company_list" />
+
         <!-- FAQ Section -->
         <section class="vk-co-section vk-co-faq-section" aria-labelledby="faq-title">
             <div class="vk-co-title-wrap">

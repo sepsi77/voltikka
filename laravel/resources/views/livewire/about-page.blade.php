@@ -367,6 +367,9 @@
                     </p>
                 </section>
 
+                {{-- "Löysitkö etsimäsi?" at the end of the page text. --}}
+                <x-page-feedback page-type="about" />
+
             </div>
         </div>
     </div>

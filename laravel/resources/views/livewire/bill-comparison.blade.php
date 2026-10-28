@@ -451,6 +451,9 @@
                 </p>
             </section>
         </div>
+
+        {{-- "Löysitkö etsimäsi?" only after a comparison result. --}}
+        <x-page-feedback page-type="bill_comparison" />
         @endif
 
         <x-site.interlude art="maksatko-interlude" />

@@ -232,6 +232,9 @@
                     </ol>
                 </section>
 
+                {{-- "Löysitkö etsimäsi?" after the summary, before the further reading. --}}
+                <x-page-feedback page-type="article" />
+
                 {{-- Lue lisää + ylläpito --}}
                 <section class="vk-lr-more">
                     <h2 class="vk-lr-more-title">Lue lisää</h2>

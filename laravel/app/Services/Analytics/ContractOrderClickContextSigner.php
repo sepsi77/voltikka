@@ -4,14 +4,14 @@ namespace App\Services\Analytics;
 
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
-use JsonException;
-use LogicException;
 
 final class ContractOrderClickContextSigner
 {
     public const VERSION = 1;
 
     public const LIFETIME_HOURS = 96;
+
+    private const PURPOSE = 'voltikka-contract-order-click-context-v1';
 
     private const EXPECTED_KEYS = [
         'version',
@@ -28,6 +28,10 @@ final class ContractOrderClickContextSigner
         'issued_at',
         'expires_at',
     ];
+
+    public function __construct(
+        private readonly AnalyticsContextToken $token,
+    ) {}
 
     public function sign(
         string $contractId,
@@ -61,36 +65,14 @@ final class ContractOrderClickContextSigner
             'expires_at' => $expires->timestamp,
         ];
 
-        $json = $this->encodePayload($payload);
-        $signature = hash_hmac('sha256', $json, $this->signingKey(), true);
-
-        return $this->base64UrlEncode($json).'.'.$this->base64UrlEncode($signature);
+        return $this->token->encode($payload, self::PURPOSE);
     }
 
     public function verify(string $token): VerifiedContractOrderClickContext
     {
-        $parts = explode('.', $token);
+        $payload = $this->token->decode($token, self::PURPOSE);
 
-        if (count($parts) !== 2) {
-            throw new InvalidSignedContext('The signed context format is invalid.');
-        }
-
-        [$encodedPayload, $encodedSignature] = $parts;
-        $json = $this->base64UrlDecode($encodedPayload);
-        $signature = $this->base64UrlDecode($encodedSignature);
-        $expectedSignature = hash_hmac('sha256', $json, $this->signingKey(), true);
-
-        if (! hash_equals($expectedSignature, $signature)) {
-            throw new InvalidSignedContext('The signed context signature is invalid.');
-        }
-
-        try {
-            $payload = json_decode($json, true, 32, JSON_THROW_ON_ERROR);
-        } catch (JsonException) {
-            throw new InvalidSignedContext('The signed context payload is invalid.');
-        }
-
-        if (! is_array($payload) || array_keys($payload) !== self::EXPECTED_KEYS) {
+        if (array_keys($payload) !== self::EXPECTED_KEYS) {
             throw new InvalidSignedContext('The signed context schema is invalid.');
         }
 
@@ -143,61 +125,6 @@ final class ContractOrderClickContextSigner
             || ($payload['expires_at'] - $payload['issued_at']) > (self::LIFETIME_HOURS * 3600)) {
             throw new InvalidSignedContext('The signed context time range is invalid.');
         }
-    }
-
-    /** @param array<string, mixed> $payload */
-    private function encodePayload(array $payload): string
-    {
-        try {
-            return json_encode(
-                $payload,
-                JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION | JSON_THROW_ON_ERROR,
-            );
-        } catch (JsonException $exception) {
-            throw new LogicException('The contract order click context cannot be encoded.', previous: $exception);
-        }
-    }
-
-    private function signingKey(): string
-    {
-        $applicationKey = (string) config('app.key');
-
-        if ($applicationKey === '') {
-            throw new LogicException('APP_KEY is required to sign analytics context.');
-        }
-
-        if (str_starts_with($applicationKey, 'base64:')) {
-            $decoded = base64_decode(substr($applicationKey, 7), true);
-
-            if ($decoded === false || $decoded === '') {
-                throw new LogicException('APP_KEY is not valid base64.');
-            }
-
-            $applicationKey = $decoded;
-        }
-
-        return hash_hmac('sha256', 'voltikka-contract-order-click-context-v1', $applicationKey, true);
-    }
-
-    private function base64UrlEncode(string $value): string
-    {
-        return rtrim(strtr(base64_encode($value), '+/', '-_'), '=');
-    }
-
-    private function base64UrlDecode(string $value): string
-    {
-        if ($value === '' || preg_match('/^[A-Za-z0-9_-]+$/', $value) !== 1) {
-            throw new InvalidSignedContext('The signed context encoding is invalid.');
-        }
-
-        $padding = (4 - strlen($value) % 4) % 4;
-        $decoded = base64_decode(strtr($value, '-_', '+/').str_repeat('=', $padding), true);
-
-        if ($decoded === false) {
-            throw new InvalidSignedContext('The signed context encoding is invalid.');
-        }
-
-        return $decoded;
     }
 
     private function validString(mixed $value, int $maximumLength): bool

@@ -37,11 +37,11 @@ export function eventUuid(cryptoObject) {
     return fallbackUuid(cryptoObject);
 }
 
-export function createContractOrderClickTracker({
-    windowObject,
-    attributionManager,
-    endpoint = ANALYTICS_ENDPOINT,
-}) {
+/**
+ * Beacon first, keepalive fetch as the fallback. A failure never throws to the caller,
+ * so analytics cannot affect a seller link or a page control.
+ */
+export function createEventSender({ windowObject, endpoint = ANALYTICS_ENDPOINT }) {
     function fetchFallback(body) {
         try {
             const request = windowObject.fetch(endpoint, {
@@ -59,11 +59,11 @@ export function createContractOrderClickTracker({
                 request.catch(() => {});
             }
         } catch {
-            // Analytics failure must not affect the seller link.
+            // Analytics failure must not affect the page.
         }
     }
 
-    function send(payload) {
+    return function send(payload) {
         let body;
 
         try {
@@ -85,7 +85,15 @@ export function createContractOrderClickTracker({
         }
 
         fetchFallback(body);
-    }
+    };
+}
+
+export function createContractOrderClickTracker({
+    windowObject,
+    attributionManager,
+    endpoint = ANALYTICS_ENDPOINT,
+}) {
+    const send = createEventSender({ windowObject, endpoint });
 
     function trackContractOrderClick({ context, placement }) {
         try {

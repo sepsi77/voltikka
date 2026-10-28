@@ -225,7 +225,16 @@
     </div>
 
     {{-- Contracts list (ledger list contract: entries end with a vk-ledger-sep hairline). --}}
-    <div class="vk-ledger transition-opacity duration-200 motion-reduce:transition-none" wire:loading.delay.class="opacity-50">
+    {{-- data-feedback-facts: the listing state the feedback entry sends with its vote. --}}
+    <div class="vk-ledger transition-opacity duration-200 motion-reduce:transition-none" wire:loading.delay.class="opacity-50"
+        data-feedback-facts="{{ json_encode([
+            'consumption_kwh' => $this->isBillModeActive() ? ($this->billSummary['annual_kwh'] ?? null) : $consumption,
+            'pricing_filter' => $pricingBucketFilter !== '' ? $pricingBucketFilter : null,
+            'result_count' => $contracts->total(),
+            'postcode_selected' => $postcodeFilter !== '',
+            'bill_mode' => $this->isBillModeActive(),
+            'listing_page' => $contracts->currentPage(),
+        ]) }}">
         @forelse ($contracts as $index => $contract)
             @php
                 // Calculate the overall rank based on current page
@@ -268,9 +277,16 @@
                     :showSpotBadge="true"
                 />
             @endif
+            {{-- "Löysitkö etsimäsi?" takes ledger slot 5 (after entry 4) on every page. --}}
+            @if ($loop->iteration === 4)
+                <x-page-feedback page-type="listing" :ledger="true" />
+            @endif
         @empty
             <p class="py-10 text-center font-display text-[22px] font-extrabold leading-[26px] text-ink-muted">Ei sopimuksia saatavilla.</p>
         @endforelse
+        @if ($contracts->count() < 4)
+            <x-page-feedback page-type="listing" :ledger="true" />
+        @endif
     </div>
 
     {{-- Pagination Links --}}

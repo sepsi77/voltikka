@@ -74,7 +74,15 @@
         <section class="cheapest-rest" aria-labelledby="cheapest-rest-title">
             <x-site.section-heading id="cheapest-rest-title" class="cheapest-rest-heading">Seuraavaksi edullisimmat</x-site.section-heading>
             {{-- Ledger list contract: entries end with a vk-ledger-sep hairline. --}}
-            <div class="vk-ledger">
+            {{-- data-feedback-facts: the listing state the feedback entry sends with its vote. --}}
+            <div class="vk-ledger" data-feedback-facts="{{ json_encode([
+                'consumption_kwh' => $consumption,
+                'pricing_filter' => $pricingBucketFilter !== '' ? $pricingBucketFilter : null,
+                'result_count' => $contracts->count() + ($featuredContract ? 1 : 0),
+                'postcode_selected' => $postcodeFilter !== '',
+                'bill_mode' => false,
+                'listing_page' => 1,
+            ]) }}">
                 @forelse ($contracts as $index => $contract)
                     <x-contract-card
                         :contract="$contract"
@@ -87,9 +95,16 @@
                         :showEnergyBadges="true"
                         :showSpotBadge="true"
                     />
+                    {{-- "Löysitkö etsimäsi?" takes slot 5: the podium entry is #1, so after #4. --}}
+                    @if ($loop->iteration === 3)
+                        <x-page-feedback page-type="listing" :ledger="true" />
+                    @endif
                 @empty
                     <p class="py-10 text-center font-display text-[22px] font-extrabold leading-[26px] text-ink-muted">Ei sopimuksia saatavilla.</p>
                 @endforelse
+                @if ($contracts->count() < 3)
+                    <x-page-feedback page-type="listing" :ledger="true" />
+                @endif
             </div>
         </section>
     </div>

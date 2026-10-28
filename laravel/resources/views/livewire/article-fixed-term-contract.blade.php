@@ -552,6 +552,9 @@
                     </div>
                 </section>
 
+                {{-- "Löysitkö etsimäsi?" after the last section, before the byline. --}}
+                <x-page-feedback page-type="article" />
+
                 <x-methodology-byline updated="31.8.2026" :inked="true" class="border-t-[1.5px] border-edge pt-6" />
             </article>
         </div>

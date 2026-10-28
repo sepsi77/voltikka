@@ -1,0 +1,439 @@
+/*
+ * "Löysitkö etsimäsi?" widget (resources/views/components/page-feedback.blade.php).
+ * Paper page "Feedback · Löysitkö etsimäsi?": an inked entry with no card. The 90px lane
+ * matches the ledger rank lane, so in a listing it lines up with the contracts around it.
+ */
+.vk-fb {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 14px;
+    padding-bottom: 26px;
+    font-family: var(--font-sans);
+    color: var(--color-ink);
+}
+
+.vk-fb[hidden],
+.vk-fb [hidden] {
+    display: none !important;
+}
+
+/* On the contract detail page the widget is one of the ruled sections (.vk-detail-section). */
+.vk-fb.vk-detail-section {
+    gap: 12px;
+    padding-top: 32px;
+    padding-bottom: 0;
+}
+
+/* In a listing the entry ends with the shared hairline; the ledger gap does the rest. */
+.vk-fb--ledger {
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+/* The 404 page asks only the goal question; it stands alone above the footer. */
+.vk-fb[data-feedback-start="goal"] {
+    padding-bottom: 64px;
+}
+
+.vk-fb-kicker {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.vk-fb-kicker-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    line-height: 16px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-fox-deep);
+}
+
+.vk-fb-kicker-end {
+    display: inline-flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.vk-fb-counter,
+.vk-fb-dismiss {
+    font-size: 14px;
+    line-height: 18px;
+    font-weight: 700;
+    color: var(--color-ink-muted);
+}
+
+.vk-fb-counter:empty {
+    display: none;
+}
+
+.vk-fb-dismiss {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    padding: 0 0 0 8px;
+    background: none;
+    border: 0;
+    cursor: pointer;
+}
+
+.vk-fb-dismiss:hover {
+    color: var(--color-ink);
+}
+
+.vk-fb-step {
+    display: flex;
+    align-items: flex-start;
+}
+
+.vk-fb-step[data-feedback-step="vote"] {
+    align-items: center;
+}
+
+.vk-fb-lane {
+    display: flex;
+    flex-shrink: 0;
+    width: 90px;
+}
+
+.vk-fb-lane:empty {
+    display: none;
+}
+
+.vk-fb-mark {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 76px;
+    font-size: 13px;
+    line-height: 16px;
+    font-weight: 800;
+    color: var(--color-fox-deep);
+}
+
+.vk-fb-question,
+.vk-fb-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0%;
+    min-width: 0;
+}
+
+.vk-fb-body {
+    gap: 18px;
+}
+
+.vk-fb-question {
+    gap: 6px;
+}
+
+.vk-fb-heading {
+    margin: 0;
+    padding: 0;
+    font-family: var(--font-display);
+    font-size: 30px;
+    line-height: 34px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--color-ink);
+}
+
+.vk-fb-heading:focus {
+    outline: none;
+}
+
+.vk-fb-lead {
+    margin: 0;
+    font-size: 15px;
+    line-height: 20px;
+    color: var(--color-ink-body);
+}
+
+.vk-fb-votes {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 28px;
+}
+
+.vk-fb-vote {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0;
+    background: none;
+    border: 0;
+    cursor: pointer;
+    font-family: var(--font-display);
+    font-size: 20px;
+    line-height: 24px;
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+.vk-fb-vote svg circle {
+    transition: fill 150ms ease;
+}
+
+.vk-fb-vote:hover svg circle {
+    fill: var(--color-season-ground-syksy) !important;
+}
+
+.vk-fb-vote:focus-visible,
+.vk-fb-dismiss:focus-visible,
+.vk-fb-submit:focus-visible,
+.vk-fb-skip:focus-visible {
+    outline: 2px solid var(--color-fox);
+    outline-offset: 3px;
+    border-radius: 4px;
+}
+
+.vk-fb-options {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: 24px;
+}
+
+.vk-fb-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    font-size: 16px;
+    line-height: 22px;
+    font-weight: 600;
+    color: var(--color-ink);
+    cursor: pointer;
+}
+
+.vk-fb-option:has(.vk-fb-radio:checked) {
+    font-weight: 800;
+}
+
+/* Real radio drawn as the design radio: field-edge ring, fox with a white check when chosen. */
+.vk-fb-radio {
+    appearance: none;
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    margin: 0;
+    border: 2px solid var(--color-field-edge);
+    border-radius: 50%;
+    background-color: var(--color-snow-white);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 14px 14px;
+    cursor: pointer;
+}
+
+.vk-fb-radio:checked {
+    border-color: var(--color-fox);
+    background-color: var(--color-fox);
+    /* A data URI cannot read a CSS variable: #FFFFFF = --color-snow-white. */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M2.5 7.4 L5.6 10.2 L11.6 3.6' fill='none' stroke='%23FFFFFF' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.vk-fb-radio:focus-visible {
+    outline: 2px solid var(--color-fox);
+    outline-offset: 2px;
+}
+
+.vk-fb-end {
+    display: flex;
+    align-items: flex-end;
+    gap: 48px;
+    padding-top: 6px;
+}
+
+.vk-fb-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 680px;
+    max-width: 100%;
+}
+
+.vk-fb-field-label {
+    font-size: 14px;
+    line-height: 18px;
+    font-weight: 800;
+    color: var(--color-ink);
+}
+
+.vk-fb-field-label span {
+    font-weight: 400;
+    color: var(--color-ink-muted);
+}
+
+/* Field without a box: an inked underline that turns fox and 2px on focus (spec §5 "Field"). */
+.vk-fb-field-line {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    border-bottom: 2px solid var(--color-field-edge);
+    padding: 6px 2px;
+}
+
+.vk-fb-field-line:focus-within {
+    border-bottom-color: var(--color-fox);
+}
+
+.vk-fb-field-line textarea {
+    flex: 1 1 0%;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    resize: vertical;
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 22px;
+    color: var(--color-ink);
+}
+
+.vk-fb-field-line textarea:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+.vk-fb-count,
+.vk-fb-note {
+    font-size: 13px;
+    line-height: 16px;
+    color: var(--color-ink-muted);
+}
+
+.vk-fb-note {
+    margin: 0;
+}
+
+.vk-fb-actions {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    padding-bottom: 20px;
+}
+
+.vk-fb-submit {
+    display: inline-flex;
+    flex-direction: column;
+    padding: 0;
+    background: none;
+    border: 0;
+    cursor: pointer;
+    font-family: var(--font-display);
+    font-size: 18px;
+    line-height: 22px;
+    font-weight: 800;
+    color: var(--color-fox-deep);
+}
+
+.vk-fb-submit:hover {
+    color: var(--color-ink);
+}
+
+.vk-fb-skip {
+    min-height: 44px;
+    padding: 0;
+    background: none;
+    border: 0;
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 20px;
+    font-weight: 700;
+    color: var(--color-ink-muted);
+    text-decoration: underline;
+}
+
+.vk-fb-thanks {
+    align-items: center;
+}
+
+.vk-fb-thanks-text {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 16px;
+    row-gap: 4px;
+    margin: 0;
+}
+
+.vk-fb-thanks-text strong {
+    font-family: var(--font-display);
+    font-size: 22px;
+    line-height: 26px;
+    font-weight: 800;
+}
+
+.vk-fb-thanks-text strong:focus {
+    outline: none;
+}
+
+.vk-fb-thanks-text span {
+    font-size: 15px;
+    line-height: 20px;
+    color: var(--color-ink-body);
+}
+
+@media (max-width: 1023px) {
+    .vk-fb-options {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .vk-fb-end {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 20px;
+    }
+
+    .vk-fb-field {
+        width: 100%;
+    }
+
+    .vk-fb-actions {
+        padding-bottom: 0;
+    }
+}
+
+@media (max-width: 767px) {
+    .vk-fb-step,
+    .vk-fb-step[data-feedback-step="vote"] {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .vk-fb-step:not(.vk-fb-thanks) .vk-fb-lane {
+        display: none;
+    }
+
+    .vk-fb-heading {
+        font-size: 24px;
+        line-height: 28px;
+    }
+
+    .vk-fb-votes {
+        gap: 12px;
+    }
+
+    .vk-fb-vote {
+        flex: 1 1 0%;
+    }
+
+    .vk-fb-options {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .vk-fb-vote svg circle {
+        transition: none;
+    }
+}

@@ -12,6 +12,7 @@
 @import './redesign-data.css';
 @import './redesign-seo-pages.css';
 @import './redesign-longread.css';
+@import './redesign-feedback.css';
 
 @tailwind base;
 @tailwind components;

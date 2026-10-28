@@ -3,6 +3,7 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Exports\ContractOrderClickCsvExport;
+use App\Filament\Exports\PageFeedbackCsvExport;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -60,6 +61,8 @@ class AdminPanelProvider extends PanelProvider
             ->authenticatedRoutes(function (Panel $panel): void {
                 Route::get('/contract-order-clicks/export', ContractOrderClickCsvExport::class)
                     ->name('contract-order-clicks.export');
+                Route::get('/page-feedback/export', PageFeedbackCsvExport::class)
+                    ->name('page-feedback.export');
             });
     }
 }

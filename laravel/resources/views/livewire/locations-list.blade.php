@@ -139,6 +139,9 @@
             <p class="vk-seo-places-empty">Ei paikkakuntia löytynyt hakusanalla "{{ $search }}"</p>
         @endif
 
+        {{-- "Löysitkö etsimäsi?" after the A–Ö index. --}}
+        <x-page-feedback page-type="locations" />
+
         {{-- Villager interlude (ski trip) between the index and the footer. --}}
         <x-site.interlude art="interlude-skitrip" class="pt-5" />
     </div>

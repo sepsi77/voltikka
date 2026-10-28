@@ -1,0 +1,12 @@
+[
+  {"name": "Paper boards: listing slot 5, flow states, phone, solar variant, page map", "status": "done"},
+  {"name": "User review of the boards, reasons and goal lists", "status": "done"},
+  {"name": "Approve the technical direction (endpoint, table, retention, privacy text)", "status": "done"},
+  {"name": "Implement endpoint, table, handler and tests", "status": "done"},
+  {"name": "Implement the JS widget, Plausible events and per-page placement", "status": "done"},
+  {"name": "Filament resource and CSV download", "status": "done"},
+  {"name": "Privacy page update and 12-month free-text cleanup", "status": "done"},
+  {"name": "Update AGENTS.md files", "status": "done"},
+  {"name": "Commit, retain prior build assets, build image and deploy (needs user approval)", "status": "pending"},
+  {"name": "Add Plausible goals Feedback Vote / Reason / Goal with custom properties (user, Plausible dashboard)", "status": "pending"}
+]

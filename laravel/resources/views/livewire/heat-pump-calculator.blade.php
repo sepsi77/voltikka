@@ -363,6 +363,9 @@
                     <p class="energy-footnote">* Kokonaiskustannus sisältää energiakustannukset (sähkö tai pelletti) ja investoinnin annuiteetin {{ $calculationPeriod }} vuodelle {{ number_format($interestRate, 1, ',', ' ') }}% korolla.</p>
                 </section>
             </div>
+
+            {{-- "Löysitkö etsimäsi?" only after a result. --}}
+            <x-page-feedback page-type="heat_pump_calculator" />
         @endif
 
         <!-- Info Section -->

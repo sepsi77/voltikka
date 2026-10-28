@@ -184,6 +184,9 @@ No card. One row per contract, separated by hand-inked hairlines:
 4. Tag line: sparkle-mark tags ("Tarjous", "Päästötön") or a warning mark ("! Ei sisällä kulutusvaikutusta") in price-high.
 The cheapest entry gets the fox-deep price and a hand-drawn fox loop around it. Logos are cropped to their content and use multiply blend; a company without a logo shows its name in Bricolage.
 
+### Feedback entry ("Löysitkö etsimäsi?")
+Paper page "Feedback · Löysitkö etsimäsi?" (2026-10-28). No card: the ledger anatomy (sparkle kicker "VOLTIKKA KYSYY", 90 lane, hairlines) with a 30/34 display question and two inked thumb controls (56 circle, edge fill offset, label display 20). A chosen vote is a fox-filled circle with a white thumb. Follow-up steps: real radios drawn as the design radio (fox + white check when chosen), three columns (two below 1024, one on a phone), an underlined textarea with a 0/500 counter and a personal-data note, the inked fox-deep action ("Jatka →" / "Lähetä →") and a muted "Ohita". Thanks is one line with three sparkles. In a listing it takes ledger slot 5 and never carries art (villagers stay away from contracts); a calculator may head it with a villager vignette.
+
 ### Inked marks
 - **Sparkle**: four-point star before a tag or kicker.
 - **Star**: `--color-star` fill on the cheapest hour.

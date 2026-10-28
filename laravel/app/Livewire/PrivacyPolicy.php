@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Support\Season;
+use Illuminate\Support\Carbon;
 use Livewire\Component;
 
 /**
@@ -22,18 +23,18 @@ class PrivacyPolicy extends Component
      * "Päivitetty viimeksi" stamp and the sitemap <lastmod>. Bump only when the policy
      * text actually changes — not on every deploy.
      */
-    public const LAST_UPDATED = '2026-08-05';
+    public const LAST_UPDATED = '2026-10-28';
 
     public function render()
     {
         return view('livewire.privacy-policy', [
-            'lastUpdated' => \Illuminate\Support\Carbon::parse(self::LAST_UPDATED)->format('j.n.Y'),
+            'lastUpdated' => Carbon::parse(self::LAST_UPDATED)->format('j.n.Y'),
         ])->layout('layouts.app', [
             // Painted hero: the top bar sits over it in the same tone (outside any cache).
             'heroTone' => Season::heroTone('legal-hero'),
             'title' => 'Tietosuoja ja evästeet | Voltikka',
             'metaDescription' => 'Miten Voltikka käsittelee kävijätietoja. Käytämme evästeetöntä Plausible-analytiikkaa ja mittaamme sähköyhtiön tilaussivulle siirtymisiä ilman kävijätunnistetta.',
-            'canonical' => config('app.url') . '/tietosuoja',
+            'canonical' => config('app.url').'/tietosuoja',
         ]);
     }
 }

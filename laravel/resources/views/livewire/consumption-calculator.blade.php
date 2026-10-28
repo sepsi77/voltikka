@@ -374,6 +374,11 @@
         </div>
     </section>
 
+    {{-- "Löysitkö etsimäsi?" under the calculator result. --}}
+    @if (! empty($calculationResult))
+        <x-page-feedback page-type="consumption_calculator" />
+    @endif
+
     <x-site.spot-paw-divider />
 
     @php

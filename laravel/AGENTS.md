@@ -87,7 +87,10 @@ bytes were fetched from production and matched byte for byte against a clean reb
 5ff86c2 (with `vendor/` present, because Tailwind scans the vendor pagination views). The manager fetched
 its public URL and verified its bytes against the deployed filesystem with read-only SSH for
 release `917de212fdc4ef4862903268c3d33ba5cd886e73`. Both deployed JS files are unchanged
-in this candidate. This is bounded compatibility, not automatic coverage for future releases:
+in this candidate. The page-feedback release (2026-10-28) adds `app-CSDxisPt.css` (308870 bytes;
+SHA-256 `73f1e4adcc62fa0e0acae0d69d0d0ee5819f0eca49ebf2ecc171d59b41e2a3ba`) and `app-Pr_ebGQi.js`
+(42427 bytes; SHA-256 `80ff016ecbb8e826212bf9885b0d3626fef63bd9f66873a64e0e1bba71d926e0`), fetched
+from the production URLs the live HTML referenced before that release; the JS has no imports. This is bounded compatibility, not automatic coverage for future releases:
 retain any other changed prior assets and their needed files before a later release, including JS
 imports when applicable. Keep the retained CSS indefinitely; no timed cleanup or cache purge is
 part of this change. Never put new bytes behind an old immutable filename. Tests live in

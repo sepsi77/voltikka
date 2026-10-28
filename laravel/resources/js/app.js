@@ -1,7 +1,8 @@
 import './bootstrap';
 import './plausible-tracking';
 import { createAttributionManager } from './attribution';
-import { createContractOrderClickTracker } from './first-party-analytics';
+import { createContractOrderClickTracker, createEventSender } from './first-party-analytics';
+import { createPageFeedback } from './page-feedback';
 
 const attributionManager = createAttributionManager(window);
 const contractOrderClickTracker = createContractOrderClickTracker({
@@ -14,6 +15,13 @@ attributionManager.refresh();
 window.voltikkaAnalytics = {
     trackContractOrderClick: contractOrderClickTracker.trackContractOrderClick,
 };
+
+createPageFeedback({
+    windowObject: window,
+    attributionManager,
+    send: createEventSender({ windowObject: window }),
+    track: (eventName, options) => window.voltikkaTrack?.(eventName, options),
+}).start();
 
 document.addEventListener('livewire:navigated', () => {
     attributionManager.refresh();

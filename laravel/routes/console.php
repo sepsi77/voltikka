@@ -100,6 +100,13 @@ Schedule::command('backup:monitor')
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/backup-monitor.log'));
 
+// Delete page feedback free text after 12 months (the privacy page states this period).
+Schedule::command('feedback:purge-text')
+    ->dailyAt('02:15')
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping()
+    ->onOneServer();
+
 // Schedule EEX electricity futures settlement price collection overnight, after EEX FI data is reliably available.
 Schedule::command('futures:fetch-eex')
     ->dailyAt('04:00')

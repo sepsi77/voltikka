@@ -187,6 +187,9 @@
             </div>
         </section>
 
+        {{-- "Löysitkö etsimäsi?" after the first section (Paper "FB · Notes"). --}}
+        <x-page-feedback page-type="home" />
+
         {{-- Villager interlude: a pause between the services and the analyses. --}}
         <x-site.interlude art="home-interlude" class="home-interlude" />
 
