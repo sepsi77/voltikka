@@ -217,7 +217,7 @@ Important semantics:
 
 ### Sitewide public page action strip
 
-- Every real public HTML page template renders `x-page-action-strip` directly after its hero or primary editorial header. Placement is explicit in each Blade template. Do not move it with JavaScript or a layout-wide injection. The internal `contract-type-comparison` widget does not render it.
+- Every real public HTML page template renders `x-page-action-strip` directly after its hero or primary editorial header. Placement is explicit in each Blade template. Do not move it with JavaScript or a layout-wide injection.
 - `resources/views/components/page-action-strip.blade.php` owns the quiet full-width strip, its default Finnish copy, the built-in Google action and fallback behavior, its optional action slot, and the one-time Preferred Sources library load. Heroes that directly precede it do not keep an empty bottom margin.
 - The Google action uses the documented advanced manual API: `publisher.js` loads with `preferred-sources-control="manual"`, `PREFERRED_SOURCE` initializes with the light theme, and Voltikka keeps the ready client. Do not replace this with Google's declarative button. That renderer uses a cross-origin iframe, so Voltikka cannot reliably observe its activation for Plausible.
 - The native action stays disabled while the client loads. After 8 seconds without a client, it changes to Google's documented `https://www.google.com/preferences/source?q=voltikka.fi` deeplink; a `noscript` deeplink keeps the action usable without JavaScript. A later client-ready event clears the failure state and restores the native action.
@@ -351,7 +351,7 @@ Redesign presentation (2026-10-16, Paper boards 11H-0 and EBO-0; presentation on
 
 ## `ArticleFixedTermContract`
 
-- `/sahkosopimus/kannattaako-maaraaikainen` is an aggregate editorial page. It never embeds `ContractTypeComparison`, loads individual contracts, or calculates contract prices.
+- `/sahkosopimus/kannattaako-maaraaikainen` is an aggregate editorial page. It never embeds an individual-contract calculator, loads individual contracts, or calculates contract prices.
 - The component receives one cached `ContractMarketInsightService::fixedTermArticle()` payload. Current, annual-cost, history, and forecast evidence comes only from precomputed statistics and forecast tables. See `../Services/ContractMarketInsights/AGENTS.md` for eligibility and cache rules.
 - The broad answer uses a fully fixed 12-month contract as the benchmark. Visible Finnish calls it `täysin kiinteähintainen 12 kuukauden sopimus` on first mention and `kiinteä 12 kuukauden sopimus` later. It gives separate plain-Finnish answers against `pörssisähkö`, an open-ended fixed-price contract, `jaksoittain vaihtuva hinta`, `kvartaalisähkö`, and `kulutusvaikutus`. The conclusion can name different lower mediaanikustannus outcomes in different complete comparisons and must keep the price-certainty trade-off visible.
 - Annual estimates use 5,000 kWh for the next 12 months, include energy and monthly contract fees, and exclude transfer with the exact disclosure `Sähkönsiirto ei kuulu vertailuun.` Spot is a forward estimate; an open-ended seller can change its price; later reset periods are estimates. Annual group copy uses `vuosikustannus` and `mediaanikustannus`. The 6-month value is a 12-month comparison equivalent, and the 24-month row covers only its next 12 months.
@@ -372,7 +372,7 @@ Redesign presentation (2026-10-16, Paper boards 11H-0 and EBO-0; presentation on
 - The short answer compares the current market median annual costs of Spot and fixed 12-month contracts at 5,000 kWh. Its conclusion follows the current snapshot. It names Spot or fixed 12-month contracts only when that median is lower. It gives a neutral result when the medians are equal or unavailable.
 - Public method copy uses plain Finnish and does not expose internal canonical terms. The snapshot date is the market-data date. The bottom byline labels 29.5.2026 as the editorial review date.
 - An individual contract can differ from the median for its contract type. The median result does not decide each contract pair.
-- The article does not embed `ContractTypeComparison`. An individual-contract calculator can give a different result from the market median and make the editorial answer unclear. The summary links to the normal contract comparison instead.
+- The article does not embed an individual-contract calculator. Such a calculator can give a different result from the market median and make the editorial answer unclear. The summary links to the normal contract comparison instead.
 - Its six-hour cache key includes canonical state, expected basis, latest relevant date, and maximum `updated_at`, so flag changes and same-day rewrites create a new payload.
 - The two contract-statistics article series end on the latest date for `PricingMode::expectedContractPriceBasis()`, keep older observed rows as historical evidence, and read only the trailing year. Their cold-cache reads select only date, segment, and the plotted value through the base query builder; they cache small prepared arrays, not unbounded Eloquent collections. The volatility widget streams its already date-bounded hourly rows with the same selective base-query pattern. These limits keep the eager article route below the 128 MB production PHP limit.
 - Each of the four evidence charts has a visible data-based takeaway and a native `details` disclosure with a semantic table of all plotted values. The chart refers to the takeaway with `aria-describedby`. Null values stay as a dash. Build these views only from the existing prepared payloads.
@@ -666,25 +666,7 @@ Redesign presentation (2026-10-16, Paper boards 6HY-0 / FHW-0 and 5VI-0 / FHX-0;
 - `CheapestContracts` uses `<x-site.hero art="cheapest-hero" fox="cheapest-fox-sled" fox-class="cheapest-hero-fox">` (the optional `foxClass` prop keeps the default listing fox output unchanged) and passes `heroTone => Season::heroTone('cheapest-hero')`. Its view reuses the listing controls block, ledger entries and link columns; the #1 entry is the podium entry, sized only by `.cheapest-podium` CSS in `resources/css/redesign-home.css` (no second card template). The toboggan interlude (`cheapest-interlude`) sits between the list and "Katso myös", as on the board.
 - Art: `scripts/design-art/home.sh`; styles: `resources/css/redesign-home.css`. Test: `tests/Feature/HomeAndCheapestHeroTest.php`.
 
-## `ContractTypeComparison`
-
-Primary files:
-- `ContractTypeComparison.php`
-- `../../resources/views/livewire/contract-type-comparison.blade.php`
-
-Purpose:
-- interactive editorial comparison widget for pörssisähkö vs fixed price and fixed-term vs open-ended contracts
-
-Important semantics:
-- widget actions can be slow because contract candidates are recalculated; keep visible `wire:loading` feedback on mode, consumption, and contract-selector updates
-- do not server-render every available contract as `<option>` elements; the editorial article embed must avoid dumping all contract names into the initial DOM for crawler quality and UX
-- contract selection is interaction-gated: the default view shows only auto-selected/explicit contracts, and searchable async results render after the user opens a selector and types at least 2 characters; the marked search input uses live debounce so results appear without leaving the field and without one request per keystroke
-- default `contract_term` mode compares määräaikainen vs toistaiseksi voimassa oleva for the määräaikainen article
-- `comparisonContext="spot_article"` keeps pörssisähkö as the left-side anchor in both tabs: pörssisähkö vs kiinteähintainen and pörssisähkö vs määräaikainen
-- in canonical mode, candidate selection, the monthly chart, annual and average-monthly totals, winner/savings, current rates/fees, package facts, offer fact, and estimate labels all read one memoized `CanonicalPricingOutcome` per contract and consumption basis. The chart renders `monthlyCosts` directly; it must not reconstruct monthly prices from unit rates.
-- a canonical-only contract is valid. An excluded or incomplete selected contract gets an unavailable state with no zero series and stops the winner/savings result. Do not fill any missing current fact from `priceComponents`.
-- package facts are ordinary pricing, not a promotion. `term_price_only` totals must state that the real term was annualized, and `base_only_hybrid` must retain the unknown consumption-effect disclosure.
-- canonical candidate queries load `company` only. The explicit feature-off branch still eager-loads `priceComponents` and keeps the legacy monthly calculator and last-year monthly Spot basis without N+1 queries.
+The former `ContractTypeComparison` widget (pörssisähkö vs fixed, fixed-term vs open-ended) was removed on 2026-10-29. No page embedded it after the articles dropped it, and only the temporary `/test-comparison` route reached it. Do not restore it without a page that needs it.
 
 ## Pricing-type filter (`?hintatyyppi=`)
 

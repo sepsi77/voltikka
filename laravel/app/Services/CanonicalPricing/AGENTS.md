@@ -602,7 +602,7 @@ Typed `vat_basis` output controls public tax wording; it is not an LLM summary.
 
 Listings (`ContractsList`/`SeoContractsList`/`CheapestContracts`/`SahkosopimusIndex`),
 `ContractListCacheService`, `CompanyListCacheService`, `ContractRankingService`, `ContractDetail` (hero/notice/meta/JSON-LD),
-`CompanyDetail`, `LocalContractsService`, `ContractTypeComparison`, `BillComparisonService`
+`CompanyDetail`, `LocalContractsService`, `BillComparisonService`
 (annual + exact-period canonical outcomes for all three bill surfaces), `WeeklyOffersVideoService`,
 `CalculateContractPercentiles` (listed, non-detected only), the API controllers, and
 `ContractPriceStatisticsService` (all forward numeric metrics and measured offer state; **backfills
@@ -641,14 +641,6 @@ Historical annual policy, and broader energy-changing period rules are unchanged
 projection enters factual periods. The period promotion flag is the measured normal-minus-actual
 period saving. Canonical mode loads no relational components;
 feature-off keeps the old period calculator.
-
-`ContractTypeComparison` also uses one request-memoized typed annual outcome per candidate and
-consumption basis in canonical mode. Auto-selection, the monthly chart, current unit/package facts,
-average-monthly and annual totals, comparability, winner, and savings all use that same outcome. The
-chart renders canonical `monthlyCosts` directly. Excluded or incomplete selections have no series
-and stop the comparison instead of becoming zero; canonical queries do not load components.
-Feature-off keeps the legacy calculator and historical monthly Spot basis. This widget has no
-prepared result cache, so its migration required no cache payload version.
 
 Company offer sections and the SEO offer listing use `CanonicalOfferFacts` in canonical mode.
 It accepts `ContractPricingViewData` and only a listed canonical outcome with a positive measured benefit, no

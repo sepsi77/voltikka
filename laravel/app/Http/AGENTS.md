@@ -131,11 +131,3 @@ each read prevents mixed-generation prices. Promotion retries are limited to two
 exhaustion or a missing preset returns 503 with Retry-After and no-store. Missing contract profiles
 are ineligible. Canonical ranking, one-company selection, benefit/term facts, and public fields stay
 unchanged. Legacy costs and savings use retained metric values, not annual calculation.
-
-The internal `ContractTypeComparison` widget also reads retained typed pricing during public GET,
-HEAD, and automatic Livewire POST initialization. Candidate selection, annual/monthly charts,
-current rates/packages and benefit/estimate copy use the same view data. No monthly series is
-reconstructed. Typed exclusion comparability remains in unavailable chart/display data, without
-exposing a priced excluded side. Actual consumption/mode/selection action hooks grant the shared request-local
-permission; explicit legacy actions retain their previous monthly math. Unavailable sides stop
-comparison, not a zero or sentinel winner. Tests: `OtherPublicGetPriceCacheTest`.

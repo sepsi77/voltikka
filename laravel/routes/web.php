@@ -287,9 +287,3 @@ Route::get('/paikkakunnat/{location?}', function ($location = null) {
 
     return redirect()->route('locations', [], 301);
 });
-
-// =============================================================================
-// Temporary test route for Contract Type Comparison widget (remove after testing)
-// =============================================================================
-Route::get('/test-comparison', \App\Livewire\ContractTypeComparison::class)
-    ->name('test.comparison');

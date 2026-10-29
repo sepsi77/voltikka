@@ -41,13 +41,6 @@ class PageActionStripSourcePolicyTest extends TestCase
         }
     }
 
-    public function test_internal_contract_comparison_widget_has_no_action_strip(): void
-    {
-        $contents = file_get_contents($this->viewPath('contract-type-comparison'));
-
-        $this->assertSame(0, substr_count($contents, '<x-page-action-strip'));
-    }
-
     private function viewPath(string $template): string
     {
         return dirname(__DIR__, 2)."/resources/views/livewire/{$template}.blade.php";

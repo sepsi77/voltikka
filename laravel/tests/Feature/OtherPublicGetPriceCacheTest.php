@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Livewire\ContractTypeComparison;
 use App\Models\ActiveContract;
 use App\Models\Company;
 use App\Models\ElectricityContract;
@@ -24,7 +23,6 @@ use Database\Factories\Support\CanonicalPricingFixture as Fixture;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
-use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
@@ -142,21 +140,6 @@ class OtherPublicGetPriceCacheTest extends TestCase
     }
 
     #[DataProvider('modes')]
-    public function test_initial_widget_uses_cached_selection_chart_and_display(bool $canonical): void
-    {
-        $this->seedPrices($canonical);
-        $expected = app(ContractListCacheService::class)->getCachedMetrics(5000)->metric('cached-offer')->pricing();
-        $this->forbidCalculation($canonical);
-        $this->get('/test-comparison')->assertOk()->assertSee('Cached offer');
-        app()->instance('request', Request::create('/test-comparison', 'GET'));
-        $widget = new ContractTypeComparison;
-        $this->assertSame('cached-offer', $widget->contractB->id);
-        $this->assertSame(array_map(fn ($value) => round($value, 2), $expected->monthlyCosts()), $widget->projectedCostsB['monthly']);
-        $this->assertSame($expected->total(), $widget->getDisplayPrice($widget->contractB)['annualCost']);
-        $this->assertFalse($widget->comparisonResult['hasResult']);
-    }
-
-    #[DataProvider('modes')]
     public function test_api_reads_a_custom_profile_prepared_by_an_explicit_action(bool $canonical): void
     {
         $this->seedPrices($canonical);
@@ -231,26 +214,11 @@ class OtherPublicGetPriceCacheTest extends TestCase
         $this->getJson('/api/video/weekly-offers')->assertOk()->assertJsonPath('data.offers_count', 0);
     }
 
-    public function test_widget_automatic_post_initialization_has_no_calculation_permission(): void
-    {
-        $this->seedPrices(true);
-        $this->forbidCalculation(true);
-        app()->instance('request', Request::create('/livewire/update', 'POST'));
-        $widget = new ContractTypeComparison;
-        $this->assertSame('cached-offer', $widget->contractB->id);
-        $this->assertSame(300.0, $widget->projectedCostsB['total']);
-        $this->assertFalse($widget->comparisonResult['hasResult']);
-    }
-
     #[DataProvider('modes')]
-    public function test_explicit_post_and_widget_custom_action_keep_exact_prices(bool $canonical): void
+    public function test_explicit_post_keeps_exact_price(bool $canonical): void
     {
         $this->seedPrices($canonical);
         $this->postJson('/api/calculate-price', ['contract_id' => 'cached-offer', 'consumption' => 5432])
             ->assertOk()->assertJsonPath('data.total_cost', fn ($total) => abs($total - 325.92) < 0.001);
-        // Legacy explicit actions keep seasonal monthly distribution and integer-kWh truncation.
-        $expectedChartTotal = $canonical ? 325.92 : 325.62;
-        Livewire::test(ContractTypeComparison::class)->call('setConsumption', 5432)
-            ->assertViewHas('projectedCostsB', fn ($costs) => $costs['available'] && $costs['total'] === $expectedChartTotal);
     }
 }
