@@ -34,3 +34,8 @@
 - Retained the previous production `app-CSDxisPt.css` and `app-Pr_ebGQi.js` (fetched from production; hashes in `laravel/AGENTS.md`). Both still answer 200 after the release.
 - Checks after the release: `/up` 200; widget on `/sahkosopimus` (listing), `/tietoa`, `/sahkosopimus/sahkoyhtiot` and the 404 page; privacy page has the new text; the endpoint rejects an invalid feedback context with 422; the deploy log shows the `page_feedback` migration DONE. No test answer was written to production.
 - Open: add the Plausible goals `Feedback Vote` / `Feedback Reason` / `Feedback Goal` and the custom properties (user, Plausible dashboard).
+
+## 2026-10-29 — admin attribution columns
+
+- Plausible check (user report: one admin row, no Plausible event): production sends `Feedback Vote` with its props (checked with both requests mocked). Plausible shows custom events only after the goals exist; ad blockers can also block Plausible but not the first-party endpoint.
+- The admin table now shows source, medium and landing page (campaign hidden), on user request. The data was already stored. Commit `35b2360`, image `deploy-000007-35b2360eb80a` (PHP 8.4.27), Railway deployment `e3b7195c-ee49-427d-90d5-bbaec8657ae4` SUCCESS at about 12:16 Helsinki; `/up` 200.
