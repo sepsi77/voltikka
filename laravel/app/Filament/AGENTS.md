@@ -30,7 +30,7 @@ Do not add create, edit, view-with-mutation, delete, bulk delete, restore, relat
 
 ## Page-feedback resource
 
-`Resources/PageFeedback/PageFeedbackResource.php` follows the same read-only rules as the click resource: only an index page, every mutation authorization returns false. `Tables/PageFeedbackTable.php` shows reason and goal labels from `PageFeedbackCatalog` with the free text as the description, and filters by date, page type, vote, reason, goal and "has text". The header action `Vie kaikki CSV-tiedostoon` uses `filament.admin.page-feedback.export` (`Exports/PageFeedbackCsvExport.php`). Both exports share `Exports/AnalyticsTableCsvExport.php`.
+`Resources/PageFeedback/PageFeedbackResource.php` follows the same read-only rules as the click resource: only an index page, every mutation authorization returns false. `Tables/PageFeedbackTable.php` shows reason and goal labels from `PageFeedbackCatalog` with the free text as the description, shows the session source, medium and landing page (campaign is a hidden column), and filters by date, page type, vote, reason, goal and "has text". The header action `Vie kaikki CSV-tiedostoon` uses `filament.admin.page-feedback.export` (`Exports/PageFeedbackCsvExport.php`). Both exports share `Exports/AnalyticsTableCsvExport.php`.
 
 ## Assets and dependencies
 

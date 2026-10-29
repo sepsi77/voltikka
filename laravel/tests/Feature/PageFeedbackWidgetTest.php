@@ -127,9 +127,9 @@ class PageFeedbackWidgetTest extends TestCase
             'reason_position' => 2,
             'reason_text' => 'Halusin vihreää sähköä',
             'device' => 'desktop',
-            'session_source' => 'direct',
-            'session_medium' => '(none)',
-            'landing_path' => '/sahkosopimus',
+            'session_source' => 'google',
+            'session_medium' => 'organic',
+            'landing_path' => '/sahkosopimus/porssisahko',
         ]);
 
         $this->actingAs(User::factory()->create(['is_admin' => false]))
@@ -141,7 +141,10 @@ class PageFeedbackWidgetTest extends TestCase
             ->get(PageFeedbackResource::getUrl('index'))
             ->assertOk()
             ->assertSee('Tarvitsemani rajaus puuttui')
-            ->assertSee('Halusin vihreää sähköä');
+            ->assertSee('Halusin vihreää sähköä')
+            ->assertSee('google')
+            ->assertSee('organic')
+            ->assertSee('/sahkosopimus/porssisahko');
 
         $this->assertSame(['index'], array_keys(PageFeedbackResource::getPages()));
         $this->assertFalse(PageFeedbackResource::canCreate());

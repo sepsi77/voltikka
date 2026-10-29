@@ -71,10 +71,21 @@ class PageFeedbackTable
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('session_source')
                     ->label('Lähde')
+                    ->sortable()
                     ->toggleable(),
                 TextColumn::make('session_medium')
                     ->label('Media')
+                    ->sortable()
+                    ->toggleable(),
+                TextColumn::make('session_campaign')
+                    ->label('Kampanja')
+                    ->placeholder('–')
                     ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('landing_path')
+                    ->label('Laskeutumissivu')
+                    ->copyable()
+                    ->wrap()
+                    ->toggleable(),
             ])
             ->filters([
                 Filter::make('occurred_at')
