@@ -311,9 +311,10 @@ class ContractTypeComparison extends Component
      */
     public function getMonthlySpotPricesLastYear(): array
     {
-        return Cache::remember('contract-type-comparison:monthly-spot-prices:'.now()->format('Y-m'), now()->addDay(), function () {
+        return Cache::remember('contract-type-comparison:monthly-spot-prices:v2:'.now()->format('Y-m'), now()->addDay(), function () {
             $prices = [];
-            $now = Carbon::now();
+            // Start of month: from the 29th–31st, addMonths() overflows past a short February.
+            $now = Carbon::now()->startOfMonth();
 
             for ($i = 0; $i < 12; $i++) {
                 $futureMonth = $now->copy()->addMonths($i);
@@ -686,7 +687,7 @@ class ContractTypeComparison extends Component
         $calculatedAt = ! app(PublicPriceCalculationPolicy::class)->allowsCalculation()
             ? app(ContractListCacheService::class)->calculatedAt($this->consumption)
             : null;
-        $month = $calculatedAt === null ? Carbon::now() : Carbon::parse($calculatedAt);
+        $month = ($calculatedAt === null ? Carbon::now() : Carbon::parse($calculatedAt))->startOfMonth();
 
         for ($index = 0; $index < 12; $index++) {
             $labels[] = $this->finnishMonths[$month->copy()->addMonths($index)->month];

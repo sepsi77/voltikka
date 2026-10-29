@@ -15,6 +15,7 @@ use App\Services\CanonicalPricing\ContractPricingIntegrityService;
 use App\Services\CanonicalPricing\PricingMode;
 use App\Services\CompanyListCacheService;
 use App\Services\ContractListCacheService;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
@@ -41,6 +42,22 @@ class ContractTypeComparisonTest extends TestCase
         // Run the private producer before HTTP initialization and pricing spies.
         app()->forgetScopedInstances();
         app(ContractListCacheService::class)->refresh(app(CompanyListCacheService::class));
+    }
+
+    public function test_month_sequence_keeps_february_when_today_is_the_29th(): void
+    {
+        // 29.10.2026 + 3 months is 29.1.2027; Carbon used to overflow its next month to March.
+        $this->travelTo(Carbon::parse('2026-10-29 12:00', 'Europe/Helsinki'));
+        $this->warmPrices();
+        $expected = ['Loka', 'Marras', 'Joulu', 'Tammi', 'Helmi', 'Maalis', 'Huhti', 'Touko', 'Kesä', 'Heinä', 'Elo', 'Syys'];
+        $component = app(ContractTypeComparison::class);
+
+        $spotMonths = $component->getMonthlySpotPricesLastYear();
+        $this->assertSame($expected, array_column($spotMonths, 'month_name'));
+        $this->assertSame('2027-02', array_keys($spotMonths)[4]);
+
+        $labels = (new \ReflectionMethod($component, 'comparisonMonthLabels'))->invoke($component);
+        $this->assertSame($expected, $labels);
     }
 
     public function test_initial_render_does_not_dump_all_contract_names(): void
