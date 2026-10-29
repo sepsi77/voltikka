@@ -1296,6 +1296,26 @@ class SpotPriceComponentTest extends TestCase
         $this->assertEquals(10, $monthlyComparison['last_month_days']);
     }
 
+    public function test_monthly_comparison_uses_previous_month_on_the_31st(): void
+    {
+        // 31.10. minus one month used to overflow to 1.10., so October was compared with itself.
+        Carbon::setTestNow(Carbon::parse('2026-10-31 14:30:00', self::TIMEZONE));
+        for ($day = 1; $day <= 30; $day++) {
+            $this->createFullDayPrices(2026, 9, $day, array_fill(0, 24, 5.0));
+        }
+        for ($day = 1; $day <= 31; $day++) {
+            $this->createFullDayPrices(2026, 10, $day, array_fill(0, 24, 10.0));
+        }
+
+        $monthlyComparison = Livewire::test(SpotPrice::class)->instance()->getMonthlyComparison();
+
+        $this->assertEquals('Lokakuu', $monthlyComparison['current_month_name']);
+        $this->assertEquals('Syyskuu', $monthlyComparison['last_month_name']);
+        $this->assertEquals(5.0, $monthlyComparison['last_month_average']);
+        $this->assertEquals(30, $monthlyComparison['last_month_days']);
+        $this->assertEquals(100.0, $monthlyComparison['change_percent']);
+    }
+
     public function test_monthly_comparison_handles_no_last_month_data(): void
     {
         // Only create current month data

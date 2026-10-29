@@ -2191,8 +2191,8 @@ class SpotPrice extends Component
         $currentMonth = $helsinkiNow->month;
         $currentYear = $helsinkiNow->year;
 
-        // Calculate last month
-        $lastMonthDate = $helsinkiNow->copy()->subMonth();
+        // Calculate last month. Start of month: on the 31st, subMonth() overflows into this month.
+        $lastMonthDate = $helsinkiNow->copy()->startOfMonth()->subMonth();
         $lastMonth = $lastMonthDate->month;
         $lastMonthYear = $lastMonthDate->year;
 
