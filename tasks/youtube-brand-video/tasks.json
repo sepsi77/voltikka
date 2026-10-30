@@ -1,0 +1,9 @@
+[
+  {"name": "Brief", "status": "done"},
+  {"name": "Message", "status": "done"},
+  {"name": "Technical spike (3 s test render)", "status": "done"},
+  {"name": "Concepts in Paper", "status": "done"},
+  {"name": "Storyboard and script in Paper", "status": "in_progress"},
+  {"name": "Animatic", "status": "done"},
+  {"name": "Final motion and render", "status": "in_progress"}
+]

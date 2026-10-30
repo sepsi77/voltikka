@@ -5,7 +5,7 @@
 # This file is the second layer. It keeps an ad-hoc `docker build .` from the working tree
 # away from local secrets and data (laravel/.env, the 2 GB local SQLite copy of production
 # data, sessions, file cache, imports, logs, vendor, node_modules) and keeps the large
-# design/, tasks/, media/ and legacy/ trees out of the upload.
+# design/, tasks/, media/, videos/ and legacy/ trees out of the upload.
 #
 # Allowlist: only the COPY sources of the Dockerfile. Add a path here when the Dockerfile
 # copies a new one.

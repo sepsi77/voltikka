@@ -156,6 +156,7 @@ voltikka/
 │   └── data-investigation/  # API structure documentation
 ├── design/                  # Visual redesign: brand guide, design spec, art, Paper link; see design/AGENTS.md
 ├── media/                   # Dated media story pitches and press material built from Voltikka data
+├── videos/                  # Code-rendered marketing video (HTML scenes → Playwright → ffmpeg); see videos/AGENTS.md
 ├── legacy/                  # Deprecated code (not in active use)
 │   ├── python/              # Old Python services
 │   └── voltikka/            # Old SvelteKit frontend

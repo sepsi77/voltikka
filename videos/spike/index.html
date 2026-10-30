@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<title>Spike: art layers, text and ink</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:wght@400;700&display=block" rel="stylesheet">
+<style>
+  :root {
+    --color-night: #14213A;
+    --color-fox: #C4501C;
+    --color-night-lead: #C9D3E3;
+    --font-display: "Bricolage Grotesque", system-ui, sans-serif;
+    --font-sans: "Figtree", system-ui, sans-serif;
+  }
+  * { margin: 0; box-sizing: border-box; }
+  body { width: 1920px; height: 1080px; overflow: hidden; background: var(--color-night); }
+
+  .plate {
+    position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+    animation: drift 3s linear both;
+  }
+  @keyframes drift { from { transform: scale(1.12) translateX(1.5%); } to { transform: scale(1.04) translateX(0); } }
+
+  .shade {
+    position: absolute; inset: 0;
+    background: linear-gradient(90deg, rgb(20 33 58 / 0.78) 0%, rgb(20 33 58 / 0.45) 45%, rgb(20 33 58 / 0) 70%);
+  }
+
+  .fox {
+    position: absolute; right: 140px; bottom: 40px; height: 560px;
+    animation: fox-in 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) 0.2s both, bob 0.6s ease-in-out 0.2s 2 alternate;
+  }
+  @keyframes fox-in { from { translate: 360px 0; opacity: 0; } to { translate: 0 0; opacity: 1; } }
+  @keyframes bob { from { transform: translateY(0); } to { transform: translateY(-10px); } }
+
+  h1 {
+    position: absolute; left: 140px; top: 330px; width: 980px;
+    font: 800 112px/1.0 var(--font-display); letter-spacing: -0.03em; color: #fff;
+  }
+  h1 .word { display: inline-block; animation: word-in 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+  h1 .word:nth-child(1) { animation-delay: 0.40s; }
+  h1 .word:nth-child(2) { animation-delay: 0.55s; position: relative; }
+  h1 .word:nth-child(3) { animation-delay: 0.70s; }
+  h1 .word:nth-child(4) { animation-delay: 0.85s; }
+  @keyframes word-in { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: none; } }
+
+  .ink { position: absolute; left: -6px; bottom: -26px; width: calc(100% + 12px); height: 40px; overflow: visible; }
+  .ink path {
+    fill: none; stroke: var(--color-fox); stroke-width: 9; stroke-linecap: round;
+    stroke-dasharray: 1000; animation: draw 0.6s cubic-bezier(0.6, 0, 0.3, 1) 1.6s both;
+  }
+  @keyframes draw { from { stroke-dashoffset: 1000; } to { stroke-dashoffset: 0; } }
+
+  .site {
+    position: absolute; left: 140px; bottom: 120px;
+    font: 700 40px var(--font-sans); color: var(--color-night-lead);
+    animation: fade 0.5s ease-out 2.2s both;
+  }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+</style>
+</head>
+<body>
+  <img class="plate" src="../../design/scenes/home-hero-plate-v1.png" alt="">
+  <div class="shade"></div>
+  <img class="fox" src="../../design/mascot/fox-walk-lantern-v1.png" alt="">
+  <h1><span class="word">Löydä</span> <span class="word">oikeasti<svg class="ink" viewBox="0 0 400 40" preserveAspectRatio="none"><path pathLength="1000" d="M4 26 C 90 12, 200 30, 396 14"/></svg></span> <span class="word">halvin</span> <span class="word">sähkösopimus.</span></h1>
+  <div class="site">voltikka.fi</div>
+</body>
+</html>

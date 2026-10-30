@@ -1,0 +1,23 @@
+node_modules/
+
+# Renders, stills and generated voice/music. Media files are made again from the
+# scene HTML and generate-audio.mjs, so they never go to git (or the image, which is
+# built from git). Keep them in out/ and audio/; the extension rules also catch
+# media files saved in any other folder here.
+out/
+audio/
+*.mp4
+*.mov
+*.webm
+*.mkv
+*.gif
+*.mp3
+*.wav
+*.m4a
+*.aac
+*.ogg
+*.flac
+*.png
+*.jpg
+*.jpeg
+*.webp

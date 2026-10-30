@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<title>Hintalappu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:wght@400;600;700&display=block" rel="stylesheet">
+<style>
+  :root {
+    --color-ink: #16202E;
+    --color-ink-muted: #5E6876;
+    --color-night: #14213A;
+    --color-night-lead: #C9D3E3;
+    --color-fox: #C4501C;
+    --color-fox-deep: #9E3C10;
+    --color-aurora: #1C7A5E;
+    --color-violet: #6A4C9C;
+    --color-price-high: #B3261E;
+    --paper: #FBF6EA;
+    --font-display: "Bricolage Grotesque", system-ui, sans-serif;
+    --font-sans: "Figtree", system-ui, sans-serif;
+    /* Shared timing (seconds). The whole film is 15 s. */
+    --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --ease-io: cubic-bezier(0.7, 0, 0.2, 1);
+  }
+  * { margin: 0; box-sizing: border-box; }
+  body { width: 1920px; height: 1080px; overflow: hidden; background: var(--color-night); font-family: var(--font-sans); }
+
+  /* ---------- Background: the painted village, out of focus ---------- */
+  .backdrop {
+    position: absolute; inset: -60px; width: calc(100% + 120px); height: calc(100% + 120px); object-fit: cover;
+    filter: blur(9px) brightness(0.62) saturate(1.1);
+    animation: backdrop-drift 15s linear both;
+  }
+  @keyframes backdrop-drift { from { transform: scale(1.12) translateX(-1%); } to { transform: scale(1.02) translateX(1%); } }
+  .vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at 60% 45%, rgb(20 33 58 / 0) 30%, rgb(10 16 30 / 0.65) 100%); }
+
+  /* ---------- The world: garlands of tags. The camera scales it. ---------- */
+  .world {
+    position: absolute; left: 0; top: 0; width: 1920px; height: 1080px;
+    transform-origin: 1460px 290px;
+    animation: pull-back 2.2s var(--ease-io) 7.0s both, world-dim 0.8s ease-in-out 10.6s both;
+  }
+  @keyframes pull-back { from { transform: scale(1); } to { transform: scale(0.11); } }
+  @keyframes world-dim { from { filter: none; opacity: 1; } to { filter: blur(10px); opacity: 0.35; } }
+
+  .garlands { position: absolute; left: 0; top: 0; overflow: visible; }
+  .garlands path { fill: none; stroke: #0B1220; stroke-width: 6; }
+
+  .crowd { animation: crowd-in 0.4s ease-out 6.95s both; }
+  @keyframes crowd-in { from { opacity: 0; } to { opacity: 1; } }
+
+  /* A hanging tag: cord + card. The pivot is the cord top. */
+  .hang { position: absolute; width: 560px; transform-origin: 280px 0; }
+  .hang .cord { position: absolute; left: 278px; top: 0; width: 4px; background: #0B1220; }
+  .sway { animation: sway 3.2s ease-in-out infinite alternate; }
+  @keyframes sway { from { rotate: -2.2deg; } to { rotate: 2.2deg; } }
+
+  .card {
+    position: absolute; left: 0; width: 560px; height: 740px;
+    clip-path: polygon(15% 0, 85% 0, 100% 10%, 100% 100%, 0 100%, 0 10%);
+    background-color: var(--paper);
+    background-image:
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.35  0 0 0 0 0.28  0 0 0 0 0.18  0 0 0 0.10 0'/></filter><rect width='300' height='300' filter='url(%23n)'/></svg>"),
+      linear-gradient(170deg, rgb(255 255 255 / 0.5) 0%, rgb(255 255 255 / 0) 40%, rgb(120 90 50 / 0.10) 100%);
+    display: flex; flex-direction: column; align-items: center; padding: 40px 48px 44px;
+  }
+  .grommet {
+    width: 64px; height: 64px; border-radius: 50%; flex-shrink: 0;
+    background: radial-gradient(circle, #0B1220 0 15px, #B9A27A 16px 24px, #8C7652 25px 27px, transparent 28px);
+  }
+  .shadow { position: absolute; left: 0; width: 560px; height: 740px; filter: drop-shadow(0 40px 50px rgb(0 0 0 / 0.45)); }
+
+  .kicker { font: 700 30px/1 var(--font-sans); letter-spacing: 0.14em; text-transform: uppercase; margin-top: 38px; }
+  .price { font: 800 300px/0.9 var(--font-display); letter-spacing: -0.05em; color: var(--color-ink); margin-top: 26px; }
+  .unit { font: 700 54px/1 var(--font-sans); color: var(--color-ink); margin-top: 6px; }
+  .fine { font: 600 24px/1.2 var(--font-sans); color: var(--color-ink-muted); margin-top: auto; }
+
+  /* Small crowd tags reuse the same card with smaller type. */
+  .crowd .price { font-size: 280px; }
+
+  /* ---------- Our tag: drop in, swing, flip ---------- */
+  .hero-hang { left: 1180px; top: -200px; animation: drop 1.0s linear 0.15s both; }
+  @keyframes drop {
+    0% { translate: 0 -1500px; animation-timing-function: cubic-bezier(0.4, 0, 0.9, 0.6); }
+    62% { translate: 0 38px; animation-timing-function: ease-in-out; }
+    80% { translate: 0 -14px; animation-timing-function: ease-in-out; }
+    100% { translate: 0 0; }
+  }
+  .hero-hang .cord { height: 492px; }
+  .flip-stage { position: absolute; left: 0; top: 490px; width: 560px; height: 740px; perspective: 2400px; }
+  .flip { position: absolute; inset: 0; transform-style: preserve-3d; animation: flip 0.9s cubic-bezier(0.5, 0, 0.2, 1.25) 3.9s both, lift 0.9s ease-in-out 3.9s both; }
+  @keyframes flip { from { transform: rotateY(0deg); } to { transform: rotateY(180deg); } }
+  @keyframes lift { 0% { scale: 1; } 50% { scale: 1.06; } 100% { scale: 1; } }
+  .face { position: absolute; inset: 0; backface-visibility: hidden; }
+  .face.back { transform: rotateY(180deg); }
+  .face.back .price { color: var(--color-price-high); }
+
+  .stamp {
+    font: 800 34px/1 var(--font-display); letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--color-fox); border: 5px solid var(--color-fox); padding: 10px 18px 8px; rotate: -6deg; margin-top: 34px;
+    -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence baseFrequency='1.4' numOctaves='2'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.2 1.7'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>");
+  }
+
+  .ink-ring { position: absolute; left: 30px; top: 175px; width: 500px; height: 330px; overflow: visible; }
+  .ink-ring path {
+    fill: none; stroke: var(--color-fox); stroke-width: 11; stroke-linecap: round; stroke-linejoin: round;
+    stroke-dasharray: 1000; animation: draw 0.7s cubic-bezier(0.6, 0, 0.3, 1) 4.9s both;
+  }
+  @keyframes draw { from { stroke-dashoffset: 1000; } to { stroke-dashoffset: 0; } }
+
+  .hero-glow {
+    position: absolute; left: 660px; top: 0; width: 1600px; height: 1600px; border-radius: 50%;
+    background: radial-gradient(circle, rgb(255 200 120 / 0.55) 0%, rgb(255 170 90 / 0.18) 35%, rgb(255 170 90 / 0) 65%);
+    animation: fade-in 0.8s ease-out 7.6s both;
+  }
+  .wordmark-corner { position: absolute; left: 140px; top: 72px; display: flex; align-items: center; gap: 12px; animation: fade-out 0.4s ease-in 10.6s forwards; }
+  .wordmark-corner span { font: 800 48px/1 var(--font-display); letter-spacing: -0.02em; color: #fff; }
+
+  /* ---------- Headlines ---------- */
+  .headline {
+    position: absolute; left: 140px; top: 300px; width: 900px;
+    font: 800 120px/1.0 var(--font-display); letter-spacing: -0.035em; color: #fff;
+    text-shadow: 0 4px 40px rgb(10 16 30 / 0.55);
+  }
+  .headline .w { display: inline-block; }
+  .h3 { top: 150px; width: 1500px; font-size: 104px; }
+  @keyframes word-in { from { opacity: 0; translate: 0 50px; } to { opacity: 1; translate: 0 0; } }
+  @keyframes word-out { from { opacity: 1; translate: 0 0; } to { opacity: 0; translate: 0 -30px; } }
+  .underline { position: relative; }
+  .underline svg { position: absolute; left: -8px; bottom: -30px; width: calc(100% + 16px); height: 44px; overflow: visible; }
+  .underline path { fill: none; stroke: var(--color-fox); stroke-width: 10; stroke-linecap: round; stroke-dasharray: 1000; animation: draw 0.6s cubic-bezier(0.6, 0, 0.3, 1) 1.9s both; }
+  .h3-shade { position: absolute; left: 0; top: 0; width: 1920px; height: 460px; background: linear-gradient(180deg, rgb(10 16 30 / 0.85) 0%, rgb(10 16 30 / 0) 100%); animation: fade-in 0.5s ease-out 7.4s both, fade-out 0.4s ease-in 10.5s both; }
+  @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
+
+  /* ---------- Snow in front of the lens ---------- */
+  .flake { position: absolute; top: -40px; border-radius: 50%; background: #fff; animation: fall linear infinite; }
+  @keyframes fall { from { translate: 0 0; } to { translate: 120px 1200px; } }
+
+  /* ---------- End card: the last tag carries the brand ---------- */
+  .end-hang { left: 420px; top: -150px; width: 760px; transform-origin: 380px 0; animation: drop 1.0s linear 10.9s both; }
+  .end-hang .cord { left: 378px; height: 302px; }
+  .end-card { top: 300px; width: 760px; height: 700px; }
+  .end-card .card { width: 760px; height: 700px; padding: 40px 48px 48px; }
+  .end-card .shadow { width: 760px; height: 700px; }
+  .wordmark { display: flex; align-items: center; gap: 14px; margin-top: 42px; }
+  .wordmark span { font: 800 76px/1 var(--font-display); letter-spacing: -0.02em; color: var(--color-ink); }
+  .hae { font: 800 64px/1 var(--font-display); letter-spacing: -0.03em; color: var(--color-ink); margin-top: 70px; align-self: flex-start; }
+  .search {
+    align-self: stretch; margin-top: 22px; height: 100px; border: 5px solid var(--color-ink); border-radius: 52px;
+    display: flex; align-items: center; gap: 22px; padding: 0 34px; background: #fff;
+  }
+  .search .typed { font: 800 44px/1 var(--font-display); letter-spacing: -0.02em; color: var(--color-ink); }
+  .search .caret { width: 5px; height: 50px; background: var(--color-fox); }
+  .trust { font: 700 30px/1.3 var(--font-sans); color: var(--color-ink-muted); margin-top: auto; align-self: flex-start; }
+
+  .fox { position: absolute; left: 1250px; top: 560px; width: 560px; animation: fox-in 0.9s var(--ease-out) 12.0s both; }
+  @keyframes fox-in { from { opacity: 0; translate: 80px 30px; } to { opacity: 1; translate: 0 0; } }
+  .sparks { position: absolute; left: 1290px; top: 420px; width: 260px; height: 220px; overflow: visible; }
+  .sparks path { animation: spark 2.4s ease-out both; }
+  .sparks path:nth-child(1) { animation-delay: 12.6s; } .sparks path:nth-child(2) { animation-delay: 12.9s; } .sparks path:nth-child(3) { animation-delay: 13.2s; }
+  @keyframes spark { from { opacity: 0; translate: 0 60px; } 30% { opacity: 1; } to { opacity: 0.9; translate: 0 -80px; } }
+</style>
+</head>
+<body>
+  <img class="backdrop" src="../../design/scenes/home-hero-plate-v1.png" alt="">
+  <div class="vignette"></div>
+
+  <div class="world">
+    <svg class="garlands crowd" id="garlands" width="1920" height="1080"></svg>
+    <div class="crowd" id="crowd"></div>
+
+    <div class="hero-glow"></div>
+    <div class="hang hero-hang">
+      <div class="cord"></div>
+      <div class="flip-stage">
+        <div class="flip">
+          <div class="face front">
+            <div class="shadow"><div class="card">
+              <div class="grommet"></div>
+              <div class="stamp">Tarjous</div>
+              <div class="price">4,9</div>
+              <div class="unit">snt/kWh*</div>
+              <div class="fine">*ensimmäiset 3 kk</div>
+            </div></div>
+          </div>
+          <div class="face back">
+            <div class="shadow"><div class="card">
+              <div class="grommet"></div>
+              <div class="kicker" style="color: var(--color-ink-muted);">3 kk jälkeen</div>
+              <div class="price">8,9</div>
+              <div class="unit">snt/kWh</div>
+              <div class="fine">Tarjouksen jälkeinen hinta</div>
+            </div></div>
+            <svg class="ink-ring" viewBox="0 0 500 330"><path pathLength="1000" d="M70 70 C 170 10, 420 20, 470 130 C 515 240, 360 318, 210 312 C 70 305, 10 230, 30 150 C 45 95, 100 60, 160 48"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="h3-shade"></div>
+  <div class="wordmark-corner">
+    <svg width="46" height="46" viewBox="0 0 34 34"><path d="M5 29 C 6 16, 14 7, 27 5 C 24 12, 22 20, 13 26 C 10 28, 7 29, 5 29 Z" fill="#C4501C"/><path d="M29.5 11.5 l1 2.2 2.2 1 -2.2 1 -1 2.2 -1 -2.2 -2.2 -1 2.2 -1 z" fill="#1C7A5E"/><circle cx="31" cy="4" r="1.6" fill="#6A4C9C"/></svg>
+    <span>Voltikka</span>
+  </div>
+  <div class="headline h1"><span class="w">Löydä</span> <span class="w underline">oikeasti<svg viewBox="0 0 400 44" preserveAspectRatio="none"><path pathLength="1000" d="M4 28 C 90 12, 200 34, 396 14"/></svg></span> <span class="w">halvin</span> <span class="w">sähkösopimus.</span></div>
+  <div class="headline h2"><span class="w">Näet</span> <span class="w">myös</span> <span class="w">hinnan,</span> <span class="w">kun</span> <span class="w">tarjous</span> <span class="w">loppuu.</span></div>
+  <div class="headline h3"><span class="w">Kaikki</span> <span class="w">Suomen</span> <span class="w">sähkösopimukset.</span></div>
+
+  <svg class="sparks" viewBox="0 0 260 220">
+    <path d="M40 180 l7 15 15 7 -15 7 -7 15 -7 -15 -15 -7 15 -7 z" fill="#1C7A5E"/>
+    <path d="M140 110 l9 18 18 9 -18 9 -9 18 -9 -18 -18 -9 18 -9 z" fill="#6A4C9C"/>
+    <path d="M220 40 l6 12 12 6 -12 6 -6 12 -6 -12 -12 -6 12 -6 z" fill="#1C7A5E"/>
+  </svg>
+  <img class="fox" src="../../design/mascot/fox-sit-skyward-v1.png" alt="">
+
+  <div class="hang end-hang">
+    <div class="cord"></div>
+    <div class="end-card shadow" style="position:absolute;"><div class="card">
+      <div class="grommet"></div>
+      <div class="wordmark">
+        <svg width="72" height="72" viewBox="0 0 34 34"><path d="M5 29 C 6 16, 14 7, 27 5 C 24 12, 22 20, 13 26 C 10 28, 7 29, 5 29 Z" fill="#C4501C"/><path d="M27 5 C 25.5 9, 24.5 12, 22.5 15 C 21 12.5, 22.5 8, 27 5 Z" fill="#FBF6EA"/><path d="M29.5 11.5 l1 2.2 2.2 1 -2.2 1 -1 2.2 -1 -2.2 -2.2 -1 2.2 -1 z" fill="#1C7A5E"/><circle cx="31" cy="4" r="1.6" fill="#6A4C9C"/></svg>
+        <span>Voltikka</span>
+      </div>
+      <div class="hae">Hae:</div>
+      <div class="search">
+        <svg width="44" height="44" viewBox="0 0 18 18"><circle cx="7.5" cy="7.5" r="5.5" fill="none" stroke="#5E6876" stroke-width="2"/><path d="M11.5 11.5 L16 16" stroke="#5E6876" stroke-width="2" stroke-linecap="round"/></svg>
+        <span class="typed" id="typed"></span><span class="caret" id="caret"></span>
+      </div>
+      <div class="trust">Ei provisioita.<br>Kaikki sopimukset.</div>
+    </div></div>
+  </div>
+
+  <div id="snow"></div>
+
+<script>
+  // Deterministic pseudo-random numbers, so every render is the same.
+  let seed = 11;
+  const rand = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+
+  // Garlands: rows of tags in world coordinates around our tag (cord top at 1460, -200).
+  const crowd = document.getElementById('crowd');
+  const garlands = document.getElementById('garlands');
+  const prices = ['5,2', '7,4', '6,1', '9,8', '4,4', '8,3', '6,9', '11,2', '5,7', '7,9', '3,9', '10,4', '6,5', '8,8'];
+  const rowGap = 1050, colGap = 640;
+  let paths = '';
+  for (let row = -3; row <= 6; row++) {
+    const y = -200 + row * rowGap;
+    const shift = (row % 2) * colGap / 2;
+    const points = [];
+    for (let col = -19; col <= 8; col++) {
+      const x = 1460 + col * colGap + shift + (row === 0 && col === 0 ? 0 : (rand() - 0.5) * 160);
+      points.push(x);
+      if (row === 0 && col === 0) continue; // our own tag
+      const hang = document.createElement('div');
+      hang.className = 'hang sway';
+      const drop = 160 + rand() * 300;
+      // Depth: near, middle or far. Far tags are smaller, darker and out of focus.
+      const depth = rand();
+      const look = depth < 0.35 ? 'scale:0.68; filter:blur(5px) brightness(0.7);'
+        : depth < 0.7 ? 'scale:0.84; filter:blur(2px) brightness(0.85);' : '';
+      hang.style.cssText = `left:${x - 280}px; top:${y + (rand() - 0.5) * 120}px; ${look} animation-delay:${-rand() * 3.2}s; animation-duration:${2.6 + rand() * 1.4}s;`;
+      const kicker = rand() < 0.3 ? '<div class="stamp" style="font-size:40px">Tarjous</div>' : '<div class="kicker" style="color:#5E6876">snt/kWh</div>';
+      hang.innerHTML = `<div class="cord" style="height:${drop}px"></div>
+        <div class="shadow" style="top:${drop - 2}px"><div class="card"><div class="grommet"></div>${kicker}
+        <div class="price">${prices[Math.floor(rand() * prices.length)]}</div></div></div>`;
+      crowd.appendChild(hang);
+    }
+    // The garland string sags between cord tops.
+    let d = `M ${points[0] - colGap} ${y - 40}`;
+    for (const x of points) d += ` Q ${x - colGap / 2} ${y + 60} ${x} ${y}`;
+    paths += `<path d="${d}"/>`;
+  }
+  garlands.innerHTML = paths;
+
+  // Headlines: words stagger in, then leave together.
+  const timing = { h1: [0.45, 3.6], h2: [4.4, 6.75], h3: [7.6, 10.45] };
+  for (const [name, [start, out]] of Object.entries(timing)) {
+    document.querySelectorAll(`.${name} .w`).forEach((w, i) => {
+      w.style.animation = `word-in 0.6s var(--ease-out) ${start + i * 0.12}s both, word-out 0.35s ease-in ${out}s forwards`;
+    });
+  }
+
+  // Snow in front of the lens: three depths.
+  const snow = document.getElementById('snow');
+  for (let i = 0; i < 70; i++) {
+    const near = rand();
+    const size = 3 + near * near * 16;
+    const f = document.createElement('div');
+    f.className = 'flake';
+    f.style.cssText = `left:${rand() * 2000 - 80}px; width:${size}px; height:${size}px; opacity:${0.35 + near * 0.5};
+      filter:blur(${near > 0.8 ? 4 : near > 0.5 ? 1.5 : 0}px); animation-duration:${14 - near * 8}s; animation-delay:${-rand() * 14}s;`;
+    snow.appendChild(f);
+  }
+
+  // Typing on the end card is driven by virtual time.
+  const word = 'voltikka sähkösopimus';
+  // A damped pendulum plus a slow residual sway, so a tag never stops dead.
+  const pendulum = (t, start, amp, period, decay, sway) => {
+    const u = t - start;
+    if (u < 0) return amp;
+    return amp * Math.exp(-u / decay) * Math.cos(2 * Math.PI * u / period) + sway * Math.sin(2 * Math.PI * u / 3.3);
+  };
+  const heroHang = document.querySelector('.hero-hang');
+  const endHang = document.querySelector('.end-hang');
+  const endCard = document.querySelector('.end-card');
+
+  window.renderFrame = (t) => {
+    heroHang.style.rotate = `${pendulum(t, 0.55, -11, 1.45, 1.3, 0.7)}deg`;
+    endHang.style.rotate = `${pendulum(t, 11.35, -18, 1.55, 1.9, 1.4)}deg`;
+    const u = t - 11.35;
+    const twist = u < 0 ? 14 : 14 * Math.exp(-u / 2.1) * Math.sin(2 * Math.PI * u / 2.0 + 1.2) + 2.5 * Math.sin(2 * Math.PI * u / 4.1);
+    endCard.style.transform = `perspective(2400px) rotateY(${twist}deg)`;
+    const n = Math.max(0, Math.min(word.length, Math.floor((t - 12.0) / 0.075)));
+    document.getElementById('typed').textContent = word.slice(0, n);
+    document.getElementById('caret').style.opacity = (n < word.length || Math.floor(t * 2) % 2 === 0) ? 1 : 0;
+  };
+</script>
+</body>
+</html>
