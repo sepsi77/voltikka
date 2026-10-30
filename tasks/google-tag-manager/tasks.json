@@ -21,14 +21,26 @@
   },
   {
     "name": "GTM container: import gtm-container-import.json, preview, publish",
-    "status": "pending (user)"
-  },
-  {
-    "name": "Set GTM_CONTAINER_ID in Railway and deploy",
-    "status": "pending (user approval)"
+    "status": "done"
   },
   {
     "name": "Privacy policy copy names Google Tag Manager",
+    "status": "done"
+  },
+  {
+    "name": "GTM container imported (user)",
+    "status": "done"
+  },
+  {
+    "name": "Set GTM_CONTAINER_ID on Railway voltikka (--skip-deploys)",
+    "status": "done"
+  },
+  {
+    "name": "Commit 37c5f70, push, image deploy-000011-37c5f707103f",
+    "status": "done"
+  },
+  {
+    "name": "Deploy deploy-000011-37c5f707103f (2026-10-30 09:05 Helsinki, deployment 328cf321, SUCCESS; /up, GTM snippet, privacy note, old and new assets verified)",
     "status": "done"
   }
 ]

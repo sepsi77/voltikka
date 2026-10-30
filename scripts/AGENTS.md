@@ -47,7 +47,7 @@ Status: since 2026-10-21 the production service source is the GHCR image; a push
 Safety rules:
 - Build only from the committed export. Never build the production image from the working tree: it holds `laravel/.env`, the local SQLite copy of production data, sessions, and the file cache. The root `.dockerignore` is only a second layer.
 - Never push or deploy `latest`, and never overwrite a tag. An explicit tag must end with `-<sha12>` of HEAD.
-- Keep the 04:00–09:00 Helsinki refusal in `deploy-image.sh`.
+- Keep the 04:00–09:00 Helsinki refusal in `deploy-image.sh`. `--morning-checks-passed` skips only that refusal; use it only after today's EEX import and both morning consumers have finished.
 - Keep `--pull` on the `docker buildx build` call. Without it buildx reuses a locally cached `dunglas/frankenphp:1-php8.4`; `deploy-000002` to `deploy-000004` (2026-10-23) were built from a cached 8.4.26 base and put a PHP release with two critical RCE fixes missing back into production. After a build, check the PHP version in the image (`docker run --rm --platform linux/amd64 --entrypoint php <image> -v`).
 
 Decisions and cutover record: `../tasks/prebuilt-image-deploy/decisions.md`.

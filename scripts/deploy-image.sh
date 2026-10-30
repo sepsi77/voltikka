@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
   cat <<'USAGE'
-Usage: scripts/deploy-image.sh [--yes] TAG
+Usage: scripts/deploy-image.sh [--yes] [--morning-checks-passed] TAG
 
 Point the Voltikka production app service at one immutable GHCR image tag that
 scripts/build-and-push-image.sh has already pushed. Railway then starts a deployment of
@@ -11,7 +11,9 @@ that image. This is a PRODUCTION MUTATION: get explicit user confirmation first.
 
 The script:
 - refuses `latest` and any tag that is not deploy-NNNNNN-<sha12>
-- refuses to run between 04:00 and 09:00 Europe/Helsinki (EEX futures import window)
+- refuses to run between 04:00 and 09:00 Europe/Helsinki (EEX futures import window),
+  unless --morning-checks-passed is given: use it only after today's eex_futures,
+  morning_retail and morning_forecast checkpoints have finished (none is running)
 - checks that the image exists in GHCR
 - asks for the word "deploy" unless --yes is given
 - patches source.image with `railway environment edit` and explicit Railway IDs
@@ -33,10 +35,12 @@ IMAGE_REPO="ghcr.io/sepsi77/voltikka"
 
 TAG=""
 ASSUME_YES=0
+MORNING_CHECKS_PASSED=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --yes|-y) ASSUME_YES=1; shift ;;
+    --morning-checks-passed) MORNING_CHECKS_PASSED=1; shift ;;
     --help|-h) usage; exit 0 ;;
     -*) echo "Unknown argument: $1" >&2; usage >&2; exit 2 ;;
     *)
@@ -67,9 +71,10 @@ if [[ ! "$TAG" =~ ^deploy-[0-9]{6}-[0-9a-f]{12}$ ]]; then
 fi
 
 helsinki_hour=$((10#$(TZ=Europe/Helsinki date +%H)))
-if (( helsinki_hour >= 4 && helsinki_hour < 9 )); then
+if (( helsinki_hour >= 4 && helsinki_hour < 9 && ! MORNING_CHECKS_PASSED )); then
   echo "Refusing to deploy at $(TZ=Europe/Helsinki date +%H:%M) Europe/Helsinki." >&2
   echo "futures:fetch-eex runs from 04:00 until about 09:00, and a deploy stops it. See AGENTS.md 'Production code deployment'." >&2
+  echo "If today's EEX import and both morning consumers have finished, add --morning-checks-passed." >&2
   exit 1
 fi
 
