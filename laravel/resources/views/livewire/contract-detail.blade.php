@@ -388,8 +388,10 @@
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     @click="$track('Contract Info Clicked', {
-                                        contract_id: {{ $contract->id }},
-                                        company: '{{ addslashes($companyName) }}'
+                                        props: {
+                                            contract_id: @js($contract->id),
+                                            company: @js($companyName)
+                                        }
                                     })"
                                     class="vk-inked-link vk-focus inline-flex min-h-[44px] items-center whitespace-normal"
                                 >

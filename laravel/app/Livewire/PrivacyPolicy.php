@@ -10,7 +10,7 @@ use Livewire\Component;
  * /tietosuoja — privacy & cookie statement.
  *
  * The public site has no user registration, contact form, or purchase processing.
- * Analytics uses cookieless Plausible and first-party seller-link events without visitor
+ * Analytics uses cookieless Plausible (loaded through Google Tag Manager) and first-party seller-link events without visitor
  * or session IDs. Ordinary server and error logs can also exist.
  *
  * Contact email reuses AboutPage::CONTACT_EMAIL via the click-to-reveal <x-obfuscated-email>
@@ -23,7 +23,7 @@ class PrivacyPolicy extends Component
      * "Päivitetty viimeksi" stamp and the sitemap <lastmod>. Bump only when the policy
      * text actually changes — not on every deploy.
      */
-    public const LAST_UPDATED = '2026-10-28';
+    public const LAST_UPDATED = '2026-10-30';
 
     public function render()
     {

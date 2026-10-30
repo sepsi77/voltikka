@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 const trackingScriptPath = fileURLToPath(
-    new URL('../../resources/js/plausible-tracking.js', import.meta.url),
+    new URL('../../resources/js/analytics-tracking.js', import.meta.url),
 );
 
 function addListener(listeners, eventName, callback) {
@@ -20,10 +20,9 @@ function dispatch(listeners, eventName) {
     }
 }
 
-test('Livewire object payload forwards its event name and props to Plausible', () => {
+test('Livewire payloads become voltikka_event pushes in the GTM data layer', () => {
     const documentListeners = new Map();
     const windowListeners = new Map();
-    const plausibleCalls = [];
     let trackListener = null;
 
     const sandbox = {
@@ -39,9 +38,6 @@ test('Livewire object payload forwards its event name and props to Plausible', (
                 assert.equal(eventName, 'track');
                 trackListener = callback;
             },
-        },
-        plausible(eventName, options) {
-            plausibleCalls.push({ eventName, options });
         },
         addEventListener(eventName, callback) {
             addListener(windowListeners, eventName, callback);
@@ -70,22 +66,30 @@ test('Livewire object payload forwards its event name and props to Plausible', (
         },
     });
 
-    assert.equal(plausibleCalls.length, 1);
-    assert.equal(plausibleCalls[0].eventName, 'Bill Comparison Completed');
-    assert.deepEqual(JSON.parse(JSON.stringify(plausibleCalls[0].options)), {
-        props: {
-            source: 'contract_listing',
-            period_preset: 'custom',
+    const pushes = () => JSON.parse(JSON.stringify(sandbox.dataLayer));
+
+    assert.deepEqual(pushes(), [
+        { event_props: null },
+        {
+            event: 'voltikka_event',
+            event_name: 'Bill Comparison Completed',
+            event_props: {
+                source: 'contract_listing',
+                period_preset: 'custom',
+            },
         },
-    });
+    ]);
 
     trackListener([{
         eventName: 'Legacy Event',
         props: { source: 'legacy' },
     }]);
+    trackListener({ eventName: 'No Props' });
 
-    assert.equal(plausibleCalls[1].eventName, 'Legacy Event');
-    assert.deepEqual(JSON.parse(JSON.stringify(plausibleCalls[1].options)), {
-        props: { source: 'legacy' },
-    });
+    assert.deepEqual(pushes().slice(2), [
+        { event_props: null },
+        { event: 'voltikka_event', event_name: 'Legacy Event', event_props: { source: 'legacy' } },
+        { event_props: null },
+        { event: 'voltikka_event', event_name: 'No Props', event_props: {} },
+    ]);
 });

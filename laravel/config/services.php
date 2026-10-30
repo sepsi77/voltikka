@@ -81,6 +81,10 @@ return [
         'spot_social_publishing_enabled' => env('SPOT_SOCIAL_PUBLISHING_ENABLED', false),
     ],
 
+    'google_tag_manager' => [
+        'container_id' => env('GTM_CONTAINER_ID'),
+    ],
+
     'remotion' => [
         'path' => env('REMOTION_PATH', '/app/remotion'),
         'output_dir' => env('REMOTION_OUTPUT_DIR', '/app/storage/app/videos'),

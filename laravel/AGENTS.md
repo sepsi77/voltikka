@@ -92,7 +92,7 @@ release `917de212fdc4ef4862903268c3d33ba5cd886e73`. Both deployed JS files are u
 in this candidate. The page-feedback release (2026-10-28) adds `app-CSDxisPt.css` (308870 bytes;
 SHA-256 `73f1e4adcc62fa0e0acae0d69d0d0ee5819f0eca49ebf2ecc171d59b41e2a3ba`) and `app-Pr_ebGQi.js`
 (42427 bytes; SHA-256 `80ff016ecbb8e826212bf9885b0d3626fef63bd9f66873a64e0e1bba71d926e0`), fetched
-from the production URLs the live HTML referenced before that release; the JS has no imports. This is bounded compatibility, not automatic coverage for future releases:
+from the production URLs the live HTML referenced before that release; the JS has no imports. The Google Tag Manager release (2026-10-30) adds `app-DEFJPEAb.css` (311732 bytes; SHA-256 `bfd9f99785376a6f3ada77386f3dfc2bbcfc7de8ddbf831a033e11c5d86b6e62`) and `app-D6-KcsGq.js` (47639 bytes; SHA-256 `3f2a80b570366602042e0da2e5d3158dfe0fadaad503ced2f7046055494743fa`), fetched the same way; the JS has no imports and `contract-price-statistics` assets are unchanged. This is bounded compatibility, not automatic coverage for future releases:
 retain any other changed prior assets and their needed files before a later release, including JS
 imports when applicable. Keep the retained CSS indefinitely; no timed cleanup or cache purge is
 part of this change. Never put new bytes behind an old immutable filename. Tests live in
@@ -121,7 +121,7 @@ Primary files:
 - `database/migrations/2026_08_05_000001_create_contract_order_clicks_table.php`
 - `database/migrations/2026_08_05_000002_add_is_admin_to_users_table.php`
 
-ContractDetail has two direct seller CTAs. Both send the closed `contract_order_click` event through Beacon with a keepalive fetch fallback and keep the separate Plausible event. Browser attribution has a strict 30-minute inactivity rule and no visitor or session ID. Server-derived contract, price, and live-rank facts use a versioned signed context with a 96-hour lifetime.
+ContractDetail has two direct seller CTAs. Both send the closed `contract_order_click` event through Beacon with a keepalive fetch fallback and keep the separate GTM data-layer event (forwarded to Plausible). Browser attribution has a strict 30-minute inactivity rule and no visitor or session ID. Server-derived contract, price, and live-rank facts use a versioned signed context with a 96-hour lifetime.
 
 The typed event rows have indefinite retention at the initial release. There is no cleanup job. The private Filament panel is at `/admin`; `users.is_admin` defaults to false, and non-admin credentials cannot enter. The analytics resource is read-only and paginated. Its administrator-only CSV header action streams all stored click rows and every database column through a private, non-cacheable Filament route. Production admin provisioning is an explicit data mutation and never runs as part of deployment.
 

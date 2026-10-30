@@ -54,7 +54,7 @@ Directory:
 Purpose:
 - accept a closed set of stateless first-party events
 - verify signed server facts and persist typed contract-order-click rows
-- keep browser attribution and delivery data-minimal and independent from Plausible
+- keep browser attribution and delivery data-minimal and independent from the GTM/Plausible data-layer events
 
 Read first:
 - `Analytics/AGENTS.md`

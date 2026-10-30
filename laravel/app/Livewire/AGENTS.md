@@ -115,8 +115,8 @@ Important semantics:
   `source=contract_listing`; keep it on the inactive→active transition so valid
   follow-up edits do not spam duplicate events. The installed Livewire 3 passes
   the named dispatch detail to the browser bridge as an object, not `data[0]`;
-  `tests/JavaScript/plausible-tracking.test.js` executes the real bridge and guards
-  the event name and nested `props` forwarding.
+  `tests/JavaScript/analytics-tracking.test.js` executes the real bridge and guards
+  the event name and `props` forwarding to the GTM data layer.
 - `getContractsProperty()` (in both `ContractsList` and `SeoContractsList`)
   branches to `buildBillModePaginator()` after applying the page's filters, so
   filters still apply in bill mode (period costs are computed for the filtered set).
@@ -1069,7 +1069,7 @@ Both the hero and mobile sticky seller CTAs use the shared first-party path `win
 
 `getContractOrderClickContextProperty()` signs the exact displayed `calculatedCost.total_cost`, selected `consumption`, `liveRank`, `liveTotalContracts`, and `rankConsumption()`. Do not use the fixed 5,000 kWh SEO `priceRank`. The signed token has a 96-hour lifetime so cached and stale edge HTML stays valid. A custom consumption can differ from its rank basis, and both values must stay in the context. Missing values stay null.
 
-The existing Plausible custom event `Contract Order Clicked` remains a separate call. Keep its contract ID, company, and pricing model nested under Plausible's `props` option. Encode Blade values with `@js` so string/UUID IDs and seller names remain valid JavaScript. A failure in either analytics path must not affect the other path or seller navigation.
+The existing analytics event `Contract Order Clicked` (GTM data layer, forwarded to Plausible) remains a separate `$track` call. Keep its contract ID, company, and pricing model nested under the `props` option; values outside `props` are not sent. Encode Blade values with `@js` so string/UUID IDs and seller names remain valid JavaScript. A failure in either analytics path must not affect the other path or seller navigation.
 
 Read `../Services/Analytics/AGENTS.md` before changing attribution, delivery, signing, or event storage.
 

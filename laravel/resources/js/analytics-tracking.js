@@ -1,9 +1,16 @@
-// Safety-wrapped tracking function using Plausible's API format
-// All calls are non-blocking - Plausible uses async loading and fire-and-forget requests
+// Analytics events go to the Google Tag Manager data layer as one fixed GTM event,
+// `voltikka_event`, with `event_name` and `event_props`. GTM forwards them to Plausible.
+// The data layer queues pushes until GTM loads; without GTM nothing reads them.
 window.voltikkaTrack = function(eventName, options = {}) {
-    if (typeof window.plausible === 'function') {
-        window.plausible(eventName, options);
-    }
+    const dataLayer = (window.dataLayer = window.dataLayer || []);
+
+    // GTM merges nested objects across pushes; clear the old props so no key leaks into this event.
+    dataLayer.push({ event_props: null });
+    dataLayer.push({
+        event: 'voltikka_event',
+        event_name: eventName,
+        event_props: { ...(options.props || {}) },
+    });
 };
 
 // Alpine.js magic helper for Blade templates
@@ -58,9 +65,7 @@ function createEngagedTracker() {
         engagedTracked = true;
         clearScheduledTimeout();
 
-        voltikkaTrack('Engaged', {
-            interactive: true,
-        });
+        voltikkaTrack('Engaged');
     }
 
     function scheduleTimeout() {

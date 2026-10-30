@@ -4,6 +4,15 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
+        {{-- Google Tag Manager loads Plausible; app events reach it as dataLayer `voltikka_event` pushes. --}}
+        @if ($gtmContainerId = config('services.google_tag_manager.container_id'))
+        <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+        new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+        j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+        'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+        })(window,document,'script','dataLayer',@js($gtmContainerId));</script>
+        @endif
+
         <title>{{ $title ?? 'Voltikka - Sähkösopimusten vertailu' }}</title>
         @if (isset($metaDescription))
         <meta name="description" content="{{ $metaDescription }}">
@@ -138,14 +147,6 @@
                 }
             </script>
         @endif
-
-        <!-- Privacy-friendly analytics by Plausible -->
-        <script async src="https://plausible.io/js/pa-pDXhgmi5eZqoIa4scLqJt.js"></script>
-        <script>
-          window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
-          plausible.init()
-        </script>
-
 
         @livewireStyles
     </head>

@@ -176,7 +176,7 @@
                         @php $isSize = $systemKwp == $preset; @endphp
                         <button
                             wire:click="$set('systemKwp', {{ $preset }})"
-                            @click="$track('Solar System Size Changed', { size_kwp: {{ $preset }}, method: 'preset' })"
+                            @click="$track('Solar System Size Changed', { props: { size_kwp: {{ $preset }}, method: 'preset' } })"
                             wire:loading.attr="disabled"
                             wire:loading.class="opacity-50"
                             wire:target="systemKwp"

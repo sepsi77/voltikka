@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Config and layout GTM snippet",
+    "status": "done"
+  },
+  {
+    "name": "Data-layer tracking bridge and tests",
+    "status": "done"
+  },
+  {
+    "name": "Fix call sites that lost props",
+    "status": "done"
+  },
+  {
+    "name": "Context docs",
+    "status": "done"
+  },
+  {
+    "name": "Build GTM import JSON from the workspace export",
+    "status": "done"
+  },
+  {
+    "name": "GTM container: import gtm-container-import.json, preview, publish",
+    "status": "pending (user)"
+  },
+  {
+    "name": "Set GTM_CONTAINER_ID in Railway and deploy",
+    "status": "pending (user approval)"
+  },
+  {
+    "name": "Privacy policy copy names Google Tag Manager",
+    "status": "done"
+  }
+]

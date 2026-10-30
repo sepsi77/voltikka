@@ -80,6 +80,11 @@
                         luo yksittäisistä kävijöistä profiileja.
                     </p>
                     <p class="vk-lr-text">
+                        Plausible ladataan sivulle Googlen Tag Manager -työkalun avulla. Tag Manager ei aseta evästeitä eikä
+                        kerää kävijöistä käyttötilastoja. Selain hakee Tag Managerin skriptin kuitenkin Googlen palvelimelta,
+                        joten Google saa latauspyynnön tavanomaiset tekniset tiedot, kuten IP-osoitteen ja selaimen tyypin.
+                    </p>
+                    <p class="vk-lr-text">
                         Voltikkan oma analytiikka mittaa sopimussivujen tilaussivulinkkien käyttöä. Selain säilyttää liikenteen
                         ensimmäisen lähteen paikallisesti 30 minuutin aktiivisuusjakson ajan. Uusi ulkoinen UTM-kampanja aloittaa
                         uuden jakson. Tieto ei sisällä kävijä- tai istuntotunnistetta. Kun kävijä käyttää tilaussivulinkkiä,

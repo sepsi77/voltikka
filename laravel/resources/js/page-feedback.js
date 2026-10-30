@@ -161,7 +161,7 @@ export function createPageFeedback({ windowObject, attributionManager, send, tra
         try {
             track(name, { props });
         } catch {
-            // Plausible is independent of the first-party row.
+            // Analytics is independent of the first-party row.
         }
     }
 

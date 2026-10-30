@@ -255,7 +255,7 @@ Retail collection and forecast generation use independent five-minute background
 
 ### 1a. First-party seller-click analytics
 - **Location**: `laravel/app/Services/Analytics/`, `laravel/resources/js/attribution.js`, `laravel/resources/js/first-party-analytics.js`
-- Both seller CTAs on ContractDetail send one signed `contract_order_click` event to the stateless `POST /api/analytics/events` endpoint without delaying or replacing the direct seller link. The independent Plausible event remains
+- Both seller CTAs on ContractDetail send one signed `contract_order_click` event to the stateless `POST /api/analytics/events` endpoint without delaying or replacing the direct seller link. The independent analytics event (GTM data layer, forwarded to Plausible) remains
 - Attribution uses `voltikka_attribution_v1` in `localStorage`, a strict 30-minute inactivity rule, first touch, and no visitor or session ID. Only source, medium, campaign, and landing pathname reach durable storage
 - Server-signed facts use the displayed annual total and selected consumption plus the live rank, live universe size, and separate rank-consumption basis. Missing price and rank facts stay null
 - Typed `contract_order_clicks` rows have indefinite retention at the initial release. There is no cleanup job. Rows do not contain IP addresses, user agents, full referrers, query strings, full URLs, visitor IDs, or session IDs
@@ -266,7 +266,7 @@ Retail collection and forecast generation use independent five-minute background
 ### 1a2. Page feedback ("Löysitkö etsimäsi?")
 - **Location**: `laravel/app/Services/Analytics/PageFeedback*`, `laravel/resources/views/components/page-feedback.blade.php`, `laravel/resources/js/page-feedback.js`
 - Every public page except the legal pages asks "Löysitkö etsimäsi?" (👍/👎) in a page-tailored place (listings: ledger slot 5; calculators: after a result; 404: goal question only). After "En" a page-specific reason; then a goal question, which also follows "Kyllä". Options are shuffled ("Jokin muu" last) and none is pre-selected
-- `page_feedback` rows go through the existing first-party endpoint as `page_feedback`; Plausible gets `Feedback Vote` / `Feedback Reason` / `Feedback Goal` with codes only. Free text is deleted after 12 months (`feedback:purge-text`). Read-only Filament resource with CSV download. See `laravel/app/Services/Analytics/AGENTS.md` and `tasks/site-feedback/`
+- `page_feedback` rows go through the existing first-party endpoint as `page_feedback`; the GTM data layer (forwarded to Plausible) gets `Feedback Vote` / `Feedback Reason` / `Feedback Goal` with codes only. Free text is deleted after 12 months (`feedback:purge-text`). Read-only Filament resource with CSV download. See `laravel/app/Services/Analytics/AGENTS.md` and `tasks/site-feedback/`
 
 ### 1b. Company pages (`/sahkosopimus/sahkoyhtiot/{slug}`)
 - **Location**: `app/Livewire/CompanyDetail.php`, `app/Services/CompanyStatistics/`
@@ -796,7 +796,7 @@ For pricing type pages, the `getContractsProperty()` method determines which con
 ## Analytics and Observability
 
 - **First-party seller-click analytics**: Signed, typed, rate-limited `contract_order_click` events with data-minimal browser attribution; see `laravel/app/Services/Analytics/AGENTS.md`
-- **Plausible Analytics**: Privacy-friendly analytics script in `layouts/app.blade.php`; it stays independent from first-party event delivery
+- **Google Tag Manager + Plausible**: `layouts/app.blade.php` loads the GTM container from `GTM_CONTAINER_ID` (no ID, no script). Plausible is a tag in that container; the app never calls `window.plausible`. `window.voltikkaTrack()` (`resources/js/analytics-tracking.js`) pushes `{ event: 'voltikka_event', event_name, event_props }` to `dataLayer`, which GTM uses as the trigger. It stays independent from first-party event delivery. See `laravel/app/Services/Analytics/AGENTS.md` ("Google Tag Manager data layer") and `tasks/google-tag-manager/gtm-setup.md`
 - **Sentry**: Laravel exception capture, optional Sentry log forwarding, and tracing/profiling configuration are configured in `laravel/bootstrap/app.php`, `laravel/config/sentry.php`, and `laravel/config/logging.php`. Performance spans/profiles are disabled by default to preserve span quota; see `laravel/AGENTS.md` for env variables and verification commands.
 - **Scheduled workflow failures**: Central Laravel scheduler lifecycle listeners log non-zero exits, thrown exceptions, and `withoutOverlapping()` skips through `Log::error`, so the production `single,sentry_logs` stack forwards them to Sentry. The safe context contains the task display summary, cron expression, timezone, and relevant exit/runtime or exception-class facts only.
 

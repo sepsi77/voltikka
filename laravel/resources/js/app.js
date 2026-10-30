@@ -1,5 +1,5 @@
 import './bootstrap';
-import './plausible-tracking';
+import './analytics-tracking';
 import { createAttributionManager } from './attribution';
 import { createContractOrderClickTracker, createEventSender } from './first-party-analytics';
 import { createPageFeedback } from './page-feedback';

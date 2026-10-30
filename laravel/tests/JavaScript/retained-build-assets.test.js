@@ -21,6 +21,9 @@ test('retained build asset keeps exact bytes and rejects collisions and symlinks
     const feedbackRelease = [
         ['app-CSDxisPt.css', 308870, '73f1e4adcc62fa0e0acae0d69d0d0ee5819f0eca49ebf2ecc171d59b41e2a3ba'],
         ['app-Pr_ebGQi.js', 42427, '80ff016ecbb8e826212bf9885b0d3626fef63bd9f66873a64e0e1bba71d926e0'],
+        // The CSS and JS served by production before the Google Tag Manager release (fetched 2026-10-30).
+        ['app-DEFJPEAb.css', 311732, 'bfd9f99785376a6f3ada77386f3dfc2bbcfc7de8ddbf831a033e11c5d86b6e62'],
+        ['app-D6-KcsGq.js', 47639, '3f2a80b570366602042e0da2e5d3158dfe0fadaad503ced2f7046055494743fa'],
     ].map(([file, size, hash]) => ({
         file,
         size,

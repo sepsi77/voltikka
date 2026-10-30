@@ -125,7 +125,7 @@ class ContractDetailPageTest extends TestCase
         $response->assertSeeLivewire('contract-detail');
     }
 
-    public function test_both_seller_ctas_use_the_shared_first_party_path_and_keep_plausible(): void
+    public function test_both_seller_ctas_use_the_shared_first_party_path_and_keep_the_analytics_event(): void
     {
         $component = $this->mountWithPrices('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSeeHtml("\$track('Contract Order Clicked', {")

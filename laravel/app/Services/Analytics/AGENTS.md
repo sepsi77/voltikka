@@ -46,7 +46,7 @@ The inactivity rule is strict: more than 30 minutes starts a new period. A chang
 
 Storage reads, parsing, removal, and writes use safe failure boundaries. If `localStorage` is blocked, one in-memory object supports the current document. Store only a pathname. Do not store a query, fragment, full referrer, full URL, IP address, user agent, visitor ID, or session ID.
 
-Both seller CTAs call `window.voltikkaAnalytics.trackContractOrderClick()` for primary/keyboard activation and guarded middle-button activation, and keep their direct seller `href`. The function uses `navigator.sendBeacon()` first and a `fetch()` request with `keepalive: true` only as a fallback. It does not prevent normal anchor activation. The existing Plausible event is separate and must not depend on this request.
+Both seller CTAs call `window.voltikkaAnalytics.trackContractOrderClick()` for primary/keyboard activation and guarded middle-button activation, and keep their direct seller `href`. The function uses `navigator.sendBeacon()` first and a `fetch()` request with `keepalive: true` only as a fallback. It does not prevent normal anchor activation. The existing data-layer event `Contract Order Clicked` is separate and must not depend on this request.
 
 ## Endpoint and persistence
 
@@ -69,5 +69,14 @@ User decisions (2026-10-28, `../../../../tasks/site-feedback/`): every public pa
 - One browser UUID is one row. Step `vote` creates it (`createOrFirst`). Steps `reason` (only after "down") and `goal` fill their columns once within 120 minutes on the same page type; a late, repeated or out-of-order follow-up is a quiet no-op, never an overwrite. The 404 page (`not_found`) has no vote; its `goal` step creates the row with a null vote.
 - Each answer stores the shown position of the chosen option. The browser shuffles the options (except "Jokin muu") so the first-option bias can be measured, and no option is pre-selected.
 - Free text is limited to 500 characters and can hold personal data. `feedback:purge-text` (daily 02:15 Helsinki) nulls `reason_text`/`goal_text` after 12 months; the codes stay. The privacy page states this. Never log the text.
-- `../../../resources/js/page-feedback.js` sends each step once through the shared Beacon/fetch sender and also sends the Plausible events `Feedback Vote`, `Feedback Reason` and `Feedback Goal` with codes only (never text). After a vote the widget is hidden site-wide for 30 days, after "Ei nyt" for 7 days (`voltikka_feedback_v1` holds only the `until` time).
+- `../../../resources/js/page-feedback.js` sends each step once through the shared Beacon/fetch sender and also sends the data-layer events `Feedback Vote`, `Feedback Reason` and `Feedback Goal` with codes only (never text). After a vote the widget is hidden site-wide for 30 days, after "Ei nyt" for 7 days (`voltikka_feedback_v1` holds only the `until` time).
 - `../../../resources/views/components/page-feedback.blade.php` renders all steps hidden, with `wire:ignore` so a Livewire re-render keeps the visitor's step. Placement is per page type and explicit in each template; `tests/Feature/PageFeedbackWidgetTest.php` lists the templates. Listings put it at ledger slot 5 (after entry 4); calculators only after a result.
+
+## Google Tag Manager data layer
+
+Plausible is not in the app code. `resources/views/layouts/app.blade.php` loads the GTM container from `services.google_tag_manager.container_id` (`GTM_CONTAINER_ID`); without an ID no GTM script renders. Plausible is a tag in that container (setup: `../../../../tasks/google-tag-manager/gtm-setup.md`).
+
+- `../../../resources/js/analytics-tracking.js` owns `window.voltikkaTrack(eventName, { props })`, the Alpine `$track` magic, the Livewire `dispatch('track', eventName:, props:)` bridge and the 30-second `Engaged` event. Every call site goes through it; do not call `window.plausible` or push to `dataLayer` elsewhere.
+- Each call pushes `{ event_props: null }` and then `{ event: 'voltikka_event', event_name, event_props }`. The fixed GTM event name lets one trigger forward all events; the reset is needed because GTM merges nested objects across pushes, so an old key would otherwise leak into a later event.
+- Only values inside `props` are sent. Props carry codes and ids only, never visitor text.
+- `tests/JavaScript/analytics-tracking.test.js` checks the push shape; `tests/Feature/GoogleTagManagerLayoutTest.php` checks the container snippet.
