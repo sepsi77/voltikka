@@ -1,0 +1,13 @@
+A very wide picture-book landscape illustration for a YouTube channel banner. Style: fine ink outlines with soft watercolour, warm Nordic picture-book feel, rich but calm, like the attached scene reference (keep the same scene, palette and detail as the attached wide winter scene with the fox on the hill, but follow the new composition below exactly). The attached fox image is the reference for the only main character, "Voltikan kettu": a slim red fox with a white tail tip and a hand-knitted spruce-green Nordic scarf. Keep the fox identical to the fox reference (face, proportions, scarf, style). The tail is an ordinary fox tail; a few tiny green and violet aurora sparkles float from its white tip. No flame tail.
+
+Scene: a Finnish winter evening under the northern lights.
+Strict composition (the banner is cropped to a thin horizontal strip through the middle, so the middle band matters most):
+- Top 35% of the height: deep night-blue sky (#14213A to #1E3358) with stars and broad green and violet aurora ribbons sweeping from the upper right across the top.
+- Middle band, from 35% to 65% of the height:
+  * Left half and centre of the band (from 20% to 60% of the width): calm, dark, almost empty night sky with only a few small stars and a faint low aurora glow. Keep this area very calm: it holds a title later. No trees, no buildings, no bright aurora there.
+  * Right of centre (between 66% and 76% of the width): the fox sits on a small snowy rounded hilltop, seen from the side, looking up and to the left at the aurora. The fox is SMALL: its whole height from ear tips to paws is only about 22% of the image height, and its tail stays within 80% of the width. The tips of the ears are at about 39% of the height and the paws at about 61% of the height. The hilltop under the fox is at 61% of the height.
+  * Far left (0–15% of width) and far right (85–100% of width): snowy spruces and birches and the edges of red wooden cottages with warm lit windows rise into the band.
+- Bottom 35%: soft snowy slopes, a frozen lake with a small red sauna and a jetty, a distant village with warm lights and a white church, wooden power line poles, sauna smoke. At the far right bottom, two tiny villagers (a hare shovelling snow, a badger carrying firewood), very small.
+The horizon and the distant village lights sit at about 62% of the height.
+Palette: night blue, snow white with blue shadows, warm window yellow, red cottages, aurora green #1C7A5E-ish and violet #6A4C9C-ish accents, the fox orange.
+No text, no letters, no logo, no signs, no other foxes, no people, no tents, no cultural costumes or symbols.
