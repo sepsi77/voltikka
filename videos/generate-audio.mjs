@@ -1,7 +1,9 @@
-// Generates voice and music through OpenRouter.
+// Generates voice and music through OpenRouter. Run it from the project folder, so that
+// relative --out paths land in that project's audio/ folder:
 //
-//   node generate-audio.mjs speech --model elevenlabs/eleven-v3 --voice george --text "..." --out audio/voice.mp3
-//   node generate-audio.mjs music  --model google/lyria-3-clip-preview --prompt "..." --out audio/music.mp3
+//   cd youtube-brand-video
+//   node ../generate-audio.mjs speech --model elevenlabs/eleven-v3 --voice george --text "..." --out audio/voice.mp3
+//   node ../generate-audio.mjs music  --model google/lyria-3-clip-preview --prompt "..." --out audio/music.mp3
 //
 // The API key is OPENROUTER_API_KEY from ../laravel/.env (the project key), else from the
 // environment. The project file wins because the shell can hold an unrelated key. It is never printed.

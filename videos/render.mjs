@@ -1,7 +1,9 @@
 // Renders an HTML scene to MP4, one frame at a time.
 //
 //   node render.mjs <scene.html> [--duration 3] [--fps 30] [--size 1920x1080]
-//                   [--out out/scene.mp4] [--stills 0,1.5,3]
+//                   [--out file.mp4] [--stills 0,1.5,3]
+//
+// Output goes to out/ next to the scene (the project folder), unless --out is given.
 //
 // Time is virtual, so every render is the same. For each frame the renderer
 // pauses all CSS animations and transitions and seeks them to time t, then
@@ -25,7 +27,7 @@ const duration = Number(option('duration', 3));
 const fps = Number(option('fps', 30));
 const [width, height] = option('size', '1920x1080').split('x').map(Number);
 const name = basename(scene, extname(scene)) === 'index' ? basename(dirname(resolve(scene))) : basename(scene, extname(scene));
-const out = resolve(option('out', `out/${name}.mp4`));
+const out = resolve(option('out', resolve(dirname(scene), 'out', `${name}.mp4`)));
 const stills = option('stills', null)?.split(',').map(Number);
 
 const browser = await chromium.launch();

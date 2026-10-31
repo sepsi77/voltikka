@@ -1,17 +1,19 @@
 #!/usr/bin/env bash
 # Adds voice and music to the rendered Hintalappu video.
 #
-#   hintalappu/mix.sh <voice> [video] [music]
-#   hintalappu/mix.sh harper out/hintalappu-v3.mp4 audio/music-a.mp3
+#   youtube-brand-video/mix.sh <voice> [video] [music]
+#   youtube-brand-video/mix.sh harper out/hintalappu-v4.mp4 audio/music-a.mp3
+#
+# Paths are relative to this project folder.
 #
 # Voice lines are audio/vo-trim/<voice>-{1..4}.wav (silence trimmed). Each line starts at a
-# fixed time that matches the headline timing in index.html. The music is ducked under the
+# fixed time that matches the headline timing in hintalappu.html. The music is ducked under the
 # voice, and the mix is normalised to -14 LUFS, the YouTube playback level.
 set -euo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")"
 
 voice="${1:?voice name, for example harper}"
-video="${2:-out/hintalappu-v3.mp4}"
+video="${2:-out/hintalappu-v4.mp4}"
 music="${3:-audio/music-a.mp3}"
 out="${video%.mp4}-${voice}.mp4"
 

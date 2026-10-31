@@ -24,7 +24,7 @@
     --ease-io: cubic-bezier(0.7, 0, 0.2, 1);
   }
   * { margin: 0; box-sizing: border-box; }
-  body { width: 1920px; height: 1080px; overflow: hidden; background: var(--color-night); font-family: var(--font-sans); }
+  body { width: 100vw; height: 100vh; overflow: hidden; background: var(--color-night); font-family: var(--font-sans); }
 
   /* ---------- Background: the painted village, out of focus ---------- */
   .backdrop {
@@ -130,13 +130,13 @@
   .underline { position: relative; }
   .underline svg { position: absolute; left: -8px; bottom: -30px; width: calc(100% + 16px); height: 44px; overflow: visible; }
   .underline path { fill: none; stroke: var(--color-fox); stroke-width: 10; stroke-linecap: round; stroke-dasharray: 1000; animation: draw 0.6s cubic-bezier(0.6, 0, 0.3, 1) 1.9s both; }
-  .h3-shade { position: absolute; left: 0; top: 0; width: 1920px; height: 460px; background: linear-gradient(180deg, rgb(10 16 30 / 0.85) 0%, rgb(10 16 30 / 0) 100%); animation: fade-in 0.5s ease-out 7.4s both, fade-out 0.4s ease-in 10.5s both; }
+  .h3-shade { position: absolute; left: 0; top: 0; width: 100%; height: 460px; background: linear-gradient(180deg, rgb(10 16 30 / 0.85) 0%, rgb(10 16 30 / 0) 100%); animation: fade-in 0.5s ease-out 7.4s both, fade-out 0.4s ease-in 10.5s both; }
   @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
   @keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
 
   /* ---------- Snow in front of the lens ---------- */
   .flake { position: absolute; top: -40px; border-radius: 50%; background: #fff; animation: fall linear infinite; }
-  @keyframes fall { from { translate: 0 0; } to { translate: 120px 1200px; } }
+  @keyframes fall { from { translate: 0 0; } to { translate: 120px var(--fall, 1200px); } }
 
   /* ---------- End card: the last tag carries the brand ---------- */
   .end-hang { left: 420px; top: -150px; width: 760px; transform-origin: 380px 0; animation: drop 1.0s linear 10.9s both; }
@@ -161,6 +161,29 @@
   .sparks path { animation: spark 2.4s ease-out both; }
   .sparks path:nth-child(1) { animation-delay: 12.6s; } .sparks path:nth-child(2) { animation-delay: 12.9s; } .sparks path:nth-child(3) { animation-delay: 13.2s; }
   @keyframes spark { from { opacity: 0; translate: 0 60px; } 30% { opacity: 1; } to { opacity: 0.9; translate: 0 -80px; } }
+
+  /* ---------- Other formats ----------
+     The scene reads its viewport (render --size) and sets body.square or body.vertical.
+     Wide (1920×1080) uses the rules above unchanged. The world moves and scales so that our
+     tag (world point 1460, 290: card top centre) lands at the format's own place; the
+     pull-back zooms out around that same point. */
+  .square .world { translate: -920px 180px; scale: 0.72; }        /* tag card top centre at 540, 470 */
+  .square .wordmark-corner { left: 60px; top: 50px; }
+  .square .headline { left: 60px; top: 150px; width: 960px; font-size: 88px; }
+  .square .h3 { top: 150px; font-size: 84px; }
+  .square .h3-shade { height: 520px; }
+  .square .end-hang { left: -36px; top: -70px; scale: 0.8; }       /* card at 40..648, 170..730 */
+  .square .fox { left: 640px; top: 690px; width: 420px; }
+  .square .sparks { left: 670px; top: 585px; scale: 0.75; transform-origin: 0 0; }
+
+  .vertical .world { translate: -920px 490px; scale: 0.95; }      /* tag card top centre at 540, 780 */
+  .vertical .wordmark-corner { left: 70px; top: 200px; }
+  .vertical .headline { left: 70px; top: 320px; width: 940px; font-size: 118px; }
+  .vertical .h3 { top: 320px; font-size: 110px; }
+  .vertical .h3-shade { height: 900px; }
+  .vertical .end-hang { left: 160px; top: 60px; }                  /* card at 160..920, 360..1060 */
+  .vertical .fox { left: 500px; top: 1090px; width: 520px; }
+  .vertical .sparks { left: 537px; top: 960px; scale: 0.93; transform-origin: 0 0; }
 </style>
 </head>
 <body>
@@ -236,6 +259,17 @@
   <div id="snow"></div>
 
 <script>
+  // Format from the viewport: wide 16:9, square 1:1 or vertical 9:16.
+  const W = innerWidth, H = innerHeight;
+  const format = W > H ? 'wide' : W === H ? 'square' : 'vertical';
+  document.body.classList.add(format);
+  // Garland rows and columns that fill the frame after the pull-back, and snow per format.
+  const layout = {
+    wide: { rows: [-3, 6], cols: [-19, 8], flakes: 70 },
+    square: { rows: [-5, 8], cols: [-11, 11], flakes: 55 },
+    vertical: { rows: [-7, 12], cols: [-9, 9], flakes: 100 },
+  }[format];
+
   // Deterministic pseudo-random numbers, so every render is the same.
   let seed = 11;
   const rand = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
@@ -246,11 +280,11 @@
   const prices = ['5,2', '7,4', '6,1', '9,8', '4,4', '8,3', '6,9', '11,2', '5,7', '7,9', '3,9', '10,4', '6,5', '8,8'];
   const rowGap = 1050, colGap = 640;
   let paths = '';
-  for (let row = -3; row <= 6; row++) {
+  for (let row = layout.rows[0]; row <= layout.rows[1]; row++) {
     const y = -200 + row * rowGap;
     const shift = (row % 2) * colGap / 2;
     const points = [];
-    for (let col = -19; col <= 8; col++) {
+    for (let col = layout.cols[0]; col <= layout.cols[1]; col++) {
       const x = 1460 + col * colGap + shift + (row === 0 && col === 0 ? 0 : (rand() - 0.5) * 160);
       points.push(x);
       if (row === 0 && col === 0) continue; // our own tag
@@ -285,12 +319,13 @@
 
   // Snow in front of the lens: three depths.
   const snow = document.getElementById('snow');
-  for (let i = 0; i < 70; i++) {
+  snow.style.setProperty('--fall', `${H + 120}px`);
+  for (let i = 0; i < layout.flakes; i++) {
     const near = rand();
     const size = 3 + near * near * 16;
     const f = document.createElement('div');
     f.className = 'flake';
-    f.style.cssText = `left:${rand() * 2000 - 80}px; width:${size}px; height:${size}px; opacity:${0.35 + near * 0.5};
+    f.style.cssText = `left:${rand() * (W + 80) - 80}px; width:${size}px; height:${size}px; opacity:${0.35 + near * 0.5};
       filter:blur(${near > 0.8 ? 4 : near > 0.5 ? 1.5 : 0}px); animation-duration:${14 - near * 8}s; animation-delay:${-rand() * 14}s;`;
     snow.appendChild(f);
   }

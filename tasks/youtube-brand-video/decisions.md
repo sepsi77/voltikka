@@ -46,3 +46,12 @@
 - v3 with sound: `videos/out/hintalappu-v3-harper.mp4` and `-grant.mp4`; both transcripts match the script word for word; both −14.1 LUFS.
 - User: search phrase should be "voltikka sähkö" or "voltikka sähkösopimus"; Harper voice preferred over Grant.
 - Tested with Harper and transcribed: "Hae: Voltikka sähkösopimus." is clear and shortest (2.2 s; a second take also clear). "Voltikka sähkö" came out as "voltikkakka"; "netistä" variants were longer and one said "Woltikka". Chosen: "Hae: Voltikka sähkösopimus." The end tag is 760 px wide and types "voltikka sähkösopimus" from 12.0 s. v4: `videos/out/hintalappu-v4-harper.mp4`, transcript matches, −14.1 LUFS.
+
+## 2026-10-30 — Folder layout
+
+- User: each video project gets its own folder. Shared tools (`render.mjs`, `generate-audio.mjs`, `package.json`) stay in `videos/`. This project is now `videos/youtube-brand-video/`: scene `hintalappu.html` (was `videos/hintalappu/index.html`), `mix.sh`, `storyboard/` (was `videos/storyboard-assets/`), and its own ignored `audio/` and `out/`. Earlier paths in this file (`videos/out/...`, `videos/hintalappu/`) now point into that folder. The renderer writes to `out/` in the scene's folder. The approved video goes to `final/` with a clear name: v4 Harper is `videos/youtube-brand-video/final/voltikka-hintalappu-15s.mp4` (was `out/hintalappu-v4-harper.mp4`).
+
+## 2026-10-31 — Square and vertical versions
+
+- User: also render square and vertical versions of the final video. One scene file makes all three formats: it reads the viewport size (render `--size`) and moves the headlines, the camera (world translate and scale; the pull-back zooms around our tag), the end tag and the fox. 1:1 is 1080×1080, 9:16 is 1080×1920 with larger headlines; text and tags stay above the bottom caption zone (about 1500 px). More garland rows/columns fill the taller frames after the pull-back. The wide version is unchanged (stills at 9.6 s and 13.6 s are byte-identical to the earlier scene; 2.6 s differs only by rounding, PSNR 83 dB).
+- Same audio mix for all three; −14.1 LUFS each. Final files: `videos/youtube-brand-video/final/voltikka-hintalappu-15s-16x9.mp4`, `-1x1.mp4`, `-9x16.mp4` (the 16:9 file was renamed from `voltikka-hintalappu-15s.mp4`).
