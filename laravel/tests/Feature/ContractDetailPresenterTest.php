@@ -797,7 +797,8 @@ class ContractDetailPresenterTest extends TestCase
             ),
         ], ['General' => 6.99, 'Monthly' => 0.0]);
 
-        $switchDay = now('Europe/Helsinki')->startOfDay()->addMonth();
+        // Relative contract dates use no-overflow anniversaries (31.10. + 1 kk = 30.11.).
+        $switchDay = now('Europe/Helsinki')->startOfDay()->addMonthNoOverflow();
         $lastPromoDay = $switchDay->copy()->subDay();
 
         $this->mountWithPrices('contract-detail', ['contractId' => $contract->id])

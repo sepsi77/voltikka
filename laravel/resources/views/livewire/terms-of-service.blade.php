@@ -169,6 +169,8 @@
                 {{-- Yhteystiedot --}}
                 <section id="yhteys" class="vk-lr-section">
                     <x-site.section-heading size="compact" wave="150">Yhteystiedot</x-site.section-heading>
+                    <p class="vk-lr-text">Palvelun tarjoaja:</p>
+                    <x-site.company-details />
                     <p class="vk-lr-text">
                         Käyttöehtoihin liittyvissä kysymyksissä voit ottaa yhteyttä:
                         <x-obfuscated-email

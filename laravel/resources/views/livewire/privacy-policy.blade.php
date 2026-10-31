@@ -21,6 +21,7 @@
 
         <div class="vk-lr-layout">
             <x-site.longread-toc :items="[
+                ['rekisterinpitaja', 'Rekisterinpitäjä'],
                 ['tiedot', 'Mitä tietoja keräämme'],
                 ['analytiikka', 'Analytiikka'],
                 ['evasteet', 'Evästeet'],
@@ -37,6 +38,19 @@
                     Voltikka on sähkösopimusten vertailupalvelu. Palvelua voi käyttää ilman rekisteröitymistä,
             emmekä pyydä käyttäjiltä nimeä, sähköpostiosoitetta, puhelinnumeroa tai muita yhteystietoja.
                     </p>
+
+                {{-- Rekisterinpitäjä --}}
+                <section id="rekisterinpitaja" class="vk-lr-section">
+                    <x-site.section-heading size="compact" wave="150">Rekisterinpitäjä</x-site.section-heading>
+                    <p class="vk-lr-text">
+                        Voltikkaa ylläpitää ja tässä kuvattujen tietojen rekisterinpitäjä on:
+                    </p>
+                    <x-site.company-details />
+                    <p class="vk-lr-text">
+                        Yhteyshenkilö on {{ \App\Livewire\AboutPage::MAINTAINER_NAME }}. Yhteystiedot ovat kohdassa
+                        <a href="#yhteys" class="vk-text-link vk-focus">yhteydenotot</a>.
+                    </p>
+                </section>
 
                 {{-- Mitä tietoja keräämme --}}
                 <section id="tiedot" class="vk-lr-section">

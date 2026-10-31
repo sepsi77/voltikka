@@ -42,7 +42,7 @@
             </div>
             <div class="vk-lr-fact">
                 <p class="vk-lr-fact-value"><span class="vk-lr-fact-prefix">n.</span>20 €</p>
-                <p class="vk-lr-fact-label">palvelinkulut kuukaudessa, omasta taskusta</p>
+                <p class="vk-lr-fact-label">palvelinkulut kuukaudessa, itse maksettu</p>
             </div>
             <div class="vk-lr-fact">
                 <p class="vk-lr-fact-value">2026</p>
@@ -81,14 +81,18 @@
                 <section id="yllapito" class="vk-lr-section">
                     <x-site.section-heading>Kuka Voltikkaa ylläpitää</x-site.section-heading>
                     <p class="vk-lr-text">
-                        Voltikka on yksityishenkilön ylläpitämä harrasteprojekti, joka käynnistyi vuonna 2026.
-                        Se ei ole yritys eikä sen takana ole sähköyhtiötä tai mainostajaa. Sivusto syntyi
-                        kiinnostuksesta energiamarkkinoihin ja hintadataan.
+                        Voltikan on tehnyt <strong>{{ \App\Livewire\AboutPage::MAINTAINER_NAME }}</strong>. Se on
+                        harrasteprojekti, joka käynnistyi vuonna 2026 kiinnostuksesta dataan perustuviin
+                        verkkopalveluihin, energiamarkkinoihin ja hintadataan.
                     </p>
                     <p class="vk-lr-text">
-                        Koska kyseessä on yhden ihmisen vapaa-ajan projekti, emme julkaise henkilön nimeä, mutta
-                        palvelusta vastataan kysymyksiin ja korjauspyyntöihin sähköpostitse — ks.
-                        <a href="#yhteys" class="vk-text-link vk-focus">yhteystiedot</a>.
+                        Sivuston ylläpitäjä on {{ \App\Livewire\AboutPage::COMPANY_NAME }}, Seppo Puusan oma yritys.
+                        Se ei ole sähköyhtiö eikä sähkön myyjä, eikä Voltikan takana ole sähköyhtiötä tai mainostajaa.
+                        Yrityksen tiedot ovat kohdassa <a href="#yhteys" class="vk-text-link vk-focus">yhteystiedot</a>.
+                    </p>
+                    <p class="vk-lr-text">
+                        Kysymyksiin ja korjauspyyntöihin vastataan sähköpostitse. Seppo Puusan löydät myös
+                        <a href="{{ \App\Livewire\AboutPage::MAINTAINER_LINKEDIN }}" class="vk-text-link vk-focus" rel="me noopener" target="_blank">LinkedInistä</a>.
                     </p>
                 </section>
 
@@ -105,8 +109,8 @@
                     </div>
                     <p class="vk-lr-text">
                         Suoraan sanottuna: Voltikka ei tienaa rahaa. Palvelu on itse rahoitettu harrasteprojekti,
-                        ja sen ainoat kulut — noin 20 € kuukaudessa palvelinkuluja — maksaa ylläpitäjä omasta
-                        taskustaan.
+                        ja sen ainoat kulut — noin 20 € kuukaudessa palvelinkuluja — maksaa ylläpitäjä
+                        {{ \App\Livewire\AboutPage::COMPANY_NAME }}.
                     </p>
                     <p class="vk-lr-text">
                         Voltikka <strong>ei ota provisiota sähköyhtiöiltä</strong>,
@@ -365,6 +369,8 @@
                     <p class="vk-lr-text">
                         Jos huomaat virheen jonkin sopimuksen tiedoissa tai hinnassa, otathan yhteyttä — korjaamme tiedot mielellämme.
                     </p>
+                    <p class="vk-lr-text">Sivuston ylläpitäjä:</p>
+                    <x-site.company-details />
                 </section>
 
                 {{-- "Löysitkö etsimäsi?" at the end of the page text. --}}

@@ -86,7 +86,7 @@
 
                 <div class="flex flex-col gap-2 md:w-[620px] md:max-w-[55%]">
                     <p class="vk-footer-text">
-                        Voltikka on yksityishenkilön ylläpitämä riippumaton energiavertailupalvelu. Se on harrasteprojekti,
+                        Voltikka on Seppo Puusan riippumaton energiavertailupalvelu. Se on harrasteprojekti,
                         joka ei ota provisiota sähköyhtiöiltä eikä rahoita toimintaansa mainoksilla.
                         <a href="/tietoa" class="vk-footer-inline-link vk-focus">Lue lisää</a>.
                     </p>
@@ -101,7 +101,7 @@
                         <a href="/tietosuoja" class="vk-footer-inline-link vk-focus">Tietosuoja ja evästeet</a>
                         ·
                         <a href="/kayttoehdot" class="vk-footer-inline-link vk-focus">Käyttöehdot</a>
-                        · &copy; {{ date('Y') }} Voltikka
+                        · <span class="whitespace-nowrap">&copy; {{ date('Y') }} {{ \App\Livewire\AboutPage::COMPANY_NAME }}, rekisterikoodi {{ \App\Livewire\AboutPage::COMPANY_REGISTRATION_CODE }}</span>
                     </p>
                 </div>
             </div>

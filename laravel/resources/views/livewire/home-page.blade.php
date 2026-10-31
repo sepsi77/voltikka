@@ -305,7 +305,7 @@
                 Voltikka ei ota provisiota sähköyhtiöiltä eikä mainosta yksittäisiä sopimuksia. Vertailut perustuvat samaan, julkisesti saatavilla olevaan sopimusdataan kaikille yhtiöille tasapuolisesti.
             </p>
             <p class="home-statement-note">
-                Voltikka on yksityishenkilön ylläpitämä riippumaton harrasteprojekti, jota ei rahoiteta mainoksilla.
+                Voltikka on Seppo Puusan riippumaton harrasteprojekti, jota ei rahoiteta mainoksilla.
             </p>
             <a href="/tietoa" class="home-statement-link vk-focus">
                 <span>Tietoa Voltikasta ja laskentatavasta.</span>

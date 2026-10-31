@@ -39,11 +39,7 @@ class ArticleSpotElectricity extends Component
             '@type' => 'Article',
             'headline' => 'Kannattaako pörssisähkö? Markkinavertailu 2026',
             'description' => 'Kannattaako pörssisähkö? Katso pörssisähkön ja kiinteiden 12 kuukauden sopimusten mediaanivuosikustannukset 5 000 kWh kulutuksella sekä hintavaihtelun riskit.',
-            'author' => [
-                '@type' => 'Organization',
-                'name' => 'Voltikka',
-                'url' => config('app.url'),
-            ],
+            'author' => AboutPage::maintainerSchema(),
             'publisher' => [
                 '@type' => 'Organization',
                 'name' => 'Voltikka',

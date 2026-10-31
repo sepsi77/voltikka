@@ -11,12 +11,12 @@
 --}}
 @if ($inked)
 <p {{ $attributes->merge(['class' => 'text-[13px] leading-5 text-ink-muted']) }}>
-    Sisällön ja laskentamenetelmän ylläpidosta vastaa Voltikka, riippumaton harrasteprojekti.@if($updated) {{ $dateLabel }} {{ $updated }}.@endif
+    Sisällön ja laskentamenetelmän ylläpidosta vastaa Seppo Puusa, Voltikan tekijä.@if($updated) {{ $dateLabel }} {{ $updated }}.@endif
     <a href="/tietoa#menetelma" class="vk-text-link vk-focus">Tietoa Voltikasta ja menetelmästä</a>.
 </p>
 @else
 <p {{ $attributes->merge(['class' => 'text-xs text-slate-500 leading-relaxed']) }}>
-    Sisällön ja laskentamenetelmän ylläpidosta vastaa Voltikka, riippumaton harrasteprojekti.@if($updated) {{ $dateLabel }} {{ $updated }}.@endif
+    Sisällön ja laskentamenetelmän ylläpidosta vastaa Seppo Puusa, Voltikan tekijä.@if($updated) {{ $dateLabel }} {{ $updated }}.@endif
     <a href="/tietoa#menetelma" class="font-medium text-slate-700 underline decoration-slate-300 underline-offset-2 hover:text-coral-600">Tietoa Voltikasta ja menetelmästä</a>.
 </p>
 @endif

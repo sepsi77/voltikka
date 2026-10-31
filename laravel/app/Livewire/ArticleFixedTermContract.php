@@ -37,11 +37,7 @@ class ArticleFixedTermContract extends Component
             '@type' => 'Article',
             'headline' => 'Kannattaako määräaikainen sähkösopimus?',
             'description' => 'Vertailu siitä, miten täysin kiinteähintainen 12 kuukauden sähkösopimus eroaa pörssisähköstä, vaihtuvista hinnoista ja kulutusvaikutuksesta.',
-            'author' => [
-                '@type' => 'Organization',
-                'name' => 'Voltikka',
-                'url' => config('app.url'),
-            ],
+            'author' => AboutPage::maintainerSchema(),
             'publisher' => [
                 '@type' => 'Organization',
                 'name' => 'Voltikka',

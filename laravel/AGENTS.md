@@ -352,6 +352,7 @@ The layout renders `<x-site.topbar :tone="$heroTone ?? null" />` and `<x-site.fo
 - `article-fixed-term-contract.blade.php` must contain no literal `<svg` (test): use `x-ink.*` components for marks.
 - Article chart colours come from design tokens at runtime (`getComputedStyle`) because the canvas cannot read CSS variables. The uPlot comparison chart gets `leadStroke` (= `--color-cat-spot`) in `ArticleContractPriceComparisonChart::getLeadChartPayloadProperty()`, outside the prepared-data cache; its non-lead colours stay in `resources/js/contract-price-statistics.js` (shared with `/sahkosopimus/tilastot`).
 - `x-methodology-byline` has an opt-in `inked` prop; without it the output is the original markup.
+- Publisher identity (user decision 2026-10-31): the site names its maintainer, Seppo Puusa (LinkedIn link on `/tietoa#yllapito`), and the operating company Breezily OÜ. The earlier anonymous "yksityishenkilön ylläpitämä" copy is gone. The values live once as `AboutPage::MAINTAINER_*` / `COMPANY_*` constants; `x-site.company-details` renders the legal block on `/tietoa#yhteys`, `/tietosuoja#rekisterinpitaja` (GDPR controller identity) and `/kayttoehdot#yhteys`. `AboutPage::maintainerSchema()` is the Organization `founder` and the article JSON-LD `author`; `companySchema()` is the `parentOrganization`. The contact email stays the Gmail address. Test: `tests/Feature/PublisherIdentityTest.php`.
 
 ### Teleported Alpine panels inside Livewire components
 

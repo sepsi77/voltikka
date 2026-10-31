@@ -1732,8 +1732,9 @@ class ContractDetailPageTest extends TestCase
             SpotPriceAverage::create([
                 'region' => 'FI',
                 'period_type' => SpotPriceAverage::PERIOD_MONTHLY,
-                'period_start' => now()->subMonths($index + 1)->startOfMonth(),
-                'period_end' => now()->subMonths($index + 1)->endOfMonth(),
+                // Step back from the month start: on the 31st, subMonths() overflows into the next month.
+                'period_start' => now()->startOfMonth()->subMonths($index + 1),
+                'period_end' => now()->startOfMonth()->subMonths($index + 1)->endOfMonth(),
                 'avg_price_with_tax' => $average,
                 'avg_price_without_tax' => $average / 1.255,
                 'hours_count' => 720,
