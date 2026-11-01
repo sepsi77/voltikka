@@ -16,8 +16,12 @@
     "status": "done"
   },
   {
-    "name": "User decision: review contents and priority of new collectors",
-    "status": "pending"
+    "name": "User decision: review shape (timing, text, outlook, length)",
+    "status": "done"
+  },
+  {
+    "name": "User decision: two audiences (consumers + journalists), one page, 1st-2nd working day, energy + tax, tentative recommendations",
+    "status": "done"
   },
   {
     "name": "Check licences: EEX settlement prices, ENTSO-E, JAO, GIE AGSI, NVE",
@@ -34,6 +38,46 @@
   {
     "name": "Collect Fingrid daily system data (consumption, production by type, net import)",
     "status": "done"
+  },
+  {
+    "name": "Prototype the September 2026 review as a draft document from production data (validate the shape and the metric set); fill the open points after the backfills",
+    "status": "in_progress"
+  },
+  {
+    "name": "Prototype layer 1 for September/October 2026: profile cost factors per house type (Datahub 364), bill outlook, cost of certainty, cheap hours and shifting savings, tentative recommendations",
+    "status": "pending"
+  },
+  {
+    "name": "Verify Fingrid Datahub user-group code list (BE01-BE14) and pick the household types",
+    "status": "pending"
+  },
+  {
+    "name": "Bill comparison engine: optional hourly consumption profile in the canonical period request (spot hours and Time split), with tests",
+    "status": "pending"
+  },
+  {
+    "name": "Consumer-type contract results for September 2026 (overall and per-category winners at normal price, since-January result) and the forward version",
+    "status": "pending"
+  },
+  {
+    "name": "Bill comparison surfaces: choose the Datahub profile from existing inputs (reviewed public change, tests)",
+    "status": "pending"
+  },
+  {
+    "name": "Publish the winner rules (method section) and make never-paid shareable winner images (1:1, 9:16, 1200x630) from the frozen snapshot",
+    "status": "pending"
+  },
+  {
+    "name": "Monthly month-start record of on-sale contract IDs and interpretation IDs for later month-end pricing",
+    "status": "pending"
+  },
+  {
+    "name": "Store each published recommendation and score it in later reviews",
+    "status": "pending"
+  },
+  {
+    "name": "User decision: final frozen metric set and key figures box, from the prototype",
+    "status": "pending"
   },
   {
     "name": "Design frozen monthly snapshot table and method version",
@@ -53,7 +97,7 @@
   },
   {
     "name": "Backfill neighbour zones and Fingrid history (after deploy, needs approval)",
-    "status": "pending"
+    "status": "in_progress"
   },
   {
     "name": "Collect JAO maxBorderFlow day-ahead capacity (Fingrid DA capacity datasets are empty)",
@@ -109,7 +153,7 @@
   },
   {
     "name": "Backfill history in production (ENTSO-E outages from 2026-01, JAO from 2024-10-29, Fingrid, neighbour zones, weather from 1991)",
-    "status": "pending"
+    "status": "in_progress"
   },
   {
     "name": "Fix EEX discovery (all-null ticker row) locally; live NP dry run",
@@ -117,6 +161,22 @@
   },
   {
     "name": "Deploy the EEX discovery fix (also activates GIE_API_KEY) and run gas-storage:fetch in production",
+    "status": "done"
+  },
+  {
+    "name": "Build the review page (stable URL per month, CSV, method, sources, corrections)",
+    "status": "pending"
+  },
+  {
+    "name": "Agent draft workflow: draft text from the frozen snapshot; user approves before publication",
+    "status": "pending"
+  },
+  {
+    "name": "Outlook v1: futures central case, weather outlook probability, events calendar, risk note; outlook-vs-outcome box from the 2nd review",
+    "status": "pending"
+  },
+  {
+    "name": "Video template (60-90 s) from the key figures, month chart and outlook",
     "status": "pending"
   },
   {

@@ -24,7 +24,7 @@ Inputs studied:
 
 ## Later phases (not started)
 
-2. Decide the review contents and the frozen monthly metric set (user decision).
+2. Decide the review contents and the frozen monthly metric set (user decision). Shape decided 2026-11-01 and reshaped the same day for two audiences (consumers on top, journalists below; see decisions.md); metric set follows from the September 2026 prototype.
 3. Build the missing collectors (each one is a separate, small task).
 4. Build the monthly snapshot (frozen numbers + method version) and the public page/CSV.
 5. Video template.

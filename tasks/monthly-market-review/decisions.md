@@ -163,3 +163,138 @@
     follow-ups).
 - Start dates: 2023 where the own-model task needs two winters; generation from 2024 to limit
   rows (about 1.2 M); reservoirs from 2015 and GIE from 2020 for normal and range comparisons.
+
+## 2026-11-01 – Review shape (user decisions)
+
+- **Timing:** one release on about the 7th of the next month. All sources have arrived then
+  (ERA5 is 5–6 days late). Datahub house-type weighted prices are marked "preliminary"
+  because Datahub can still correct them until about day 11.
+- **Text:** an agent writes the draft from the frozen numbers; the user edits and approves it
+  before publication.
+- **Outlook v1:** the FI futures central case for the next month and the next quarter (a few
+  quoted values, converted to c/kWh incl. VAT; no curve chart, see the restricted-data rule),
+  the ECMWF weather outlook as a probability, a calendar of known events, and a written risk
+  note (cold + calm upside). No numeric own scenario band until a method exists. From the
+  second review: last month's outlook vs the outcome.
+- **Length and audience:** short, for consumers and media: key figures box, about
+  800–1,200 words, 4–6 charts. The CSV holds the detail.
+- Agent assumptions not contradicted by the user: Finnish language; energy price only (no
+  network fees or taxes); published figures frozen in a snapshot table.
+- Section order (draft): key figures; the month in three sentences; spot review (month chart
+  with wind and temperature, extremes, negative hours, weekday × hour heat map); why the price
+  moved (driver table); what households paid (spot vs fixed by house type); contract market;
+  outlook; method, sources, CSV, corrections.
+- Next step: a prototype of the October 2026 review from production data, before the snapshot
+  table and the page are built. The prototype shows which metrics work and sets the final
+  metric set.
+
+## 2026-11-01 – Prototype: September 2026 (user choice)
+
+- User chose September 2026 as the first prototype month and asked to leave open every point that
+  depends on the running backfills. Files and findings: `prototype/README.md`.
+- Main findings: the mean alone misleads (mean 7.15, median 4.52 c/kWh); raw new/withdrawn offer
+  counts are mostly ID churn (392/419 raw, 37/37 without trusted replacements); a one-month spot vs
+  fixed comparison misleads, so the scorecard uses year-to-date with consumption weighting; price,
+  wind and temperature go in panels with one time axis (no dual axis).
+- Open decisions for the user are listed at the end of `prototype/README.md`.
+
+## 2026-11-01 – Review reshaped for two audiences (user decisions)
+
+Replaces the shape decision above where they conflict ("Review shape", same date).
+
+- Reason (user): the past-month review alone is not interesting for consumers. They want to know
+  how the market will affect their bill in the coming months, and whether they should change their
+  behaviour (high-usage spot customers in particular).
+- **Two audiences, one page, one URL.** Layer 1 for consumers at the top; layer 2 for journalists
+  below, with more detail and the CSV. A short monthly media email points to the page.
+- **Layer 1 (consumers):** (1) the expected monthly energy cost for the next 3–6 months for three
+  example households (apartment 2,000 kWh, house without electric heating 5,000 kWh, electrically
+  heated house 18,000 kWh) on spot and on a fixed contract, with a cold-and-calm bad case;
+  (2) "what certainty costs now": the futures-implied 12-month spot cost vs the median new
+  12-month fixed contract, in euros per year per house type; (3) for spot customers: the usually
+  cheap and expensive hours of the coming month and what a shift of flexible use saves in euros.
+- **Layer 2 (journalists):** key figures box (6–8 citable numbers, including the new
+  forward-looking Voltikka figures), last month's spot review, the driver table, the contract
+  market, the detailed outlook (quoted futures values, weather outlook, events calendar, last
+  outlook vs result), method, sources, CSV, corrections.
+- **Timing:** 1st–2nd working day of the month. Late data (ERA5 weather, Datahub weights for the
+  past month) affects only layer 2 details; mark them preliminary or add them on about the 7th.
+  This replaces the "about the 7th" decision.
+- **Bill scope:** energy + electricity tax. Network fees are not included, and the page says so.
+  Verify the current electricity tax (class I, incl. the security of supply fee and VAT) at
+  implementation; the code has no tax constant now.
+- **Advice:** euros and risks plus tentative recommendations. User: "The site has to be
+  opinionated for it to be useful." Working rules (agent proposal): a recommendation names the
+  household type, the condition and the reason in euros and risk (for example "if you heat with
+  electricity and cannot stand a cold-week bill, consider a fixed contract now: certainty costs
+  about X € a year"); store each recommendation with the review and score it in later reviews, so
+  the opinion has a public track record. This applies to the review only. The rule of the
+  fixed-term forecast page (rise/fall/unchanged, never lock/wait) is unchanged unless the user
+  decides otherwise.
+- Method for layer 1 (agent proposal, to validate): FI futures give the monthly base level; each
+  house type's Datahub hourly profile (dataset 364, 2023–2026) gives a monthly profile cost factor
+  (weighted price / base price); add the median spot margin and monthly fee. The rough flat-profile
+  example on 2026-10-06: spot about 8.8 c/kWh incl. margin vs 12.0 c fixed (about 160 €/year at
+  5,000 kWh); an electrically heated house has a smaller gap.
+- User approved (2026-11-01) the two working rules for recommendations: each one names the
+  household type, the condition and the reason in euros and risk; each one is stored with the
+  review and scored in later reviews (public track record).
+
+## 2026-11-01 – Consumer-type contract results (user idea)
+
+- User idea: calculate what each Fingrid consumer type would have paid with the different
+  contracts, "kinda like best contracts in month X".
+- Plan (agent proposal, not yet built):
+  - Consumer types: Datahub 364 user groups. Stored series BE01–BE14; BE01 apartment, BE02
+    electrically heated small house, BE03 small house without electric heating are certain;
+    BE04–BE06 look like households, BE07+ businesses. Verify Fingrid's official code list before
+    use. Datahub 364 history starts 2023-08-01. Monthly kWh = the group's real consumption.
+  - Engine: reuse `BillComparisonService::periodRowsForContracts()` (canonical period pricing,
+    realised hourly spot, phases, promotions, fees). Add one optional hourly consumption profile
+    to the canonical period request; today spot hours are flat and Time uses 85/15. No parallel
+    pricing code.
+  - Prices of month start: store on the 1st of each month the IDs of the contracts on sale and
+    their published interpretation IDs (immutable), and price them again at month end. The
+    September prototype uses the existing historical reconstruction instead.
+  - Output per group: cheapest overall, cheapest and median per category, actual vs normal-price
+    cost (promotion mark). Show per-category winners plus the running result since January
+    (rolling 12 months from 2027), because one month favours spot in autumn and fixed in a cold
+    winter.
+  - The same engine with a futures-based price path gives the forward consumer item ("best
+    contracts on sale now for your home type this winter").
+- User decisions on this plan (2026-11-01):
+  - Update the bill comparison to the more realistic Datahub profiles. Agent answer to the user's
+    question: no new required field. `/maksatko-liikaa` chooses the profile from its heating
+    toggle (on: BE02; off: BE01 at low and BE03 at higher annualised consumption, threshold from
+    Datahub data); the listing bill mode and the contract-page module choose from annualised
+    consumption only. An optional home-type choice can come later if needed. Bills before
+    2023-08-01 keep the flat profile. This changes public euro figures, so it is a reviewed change
+    with tests, separate from the prototype.
+  - Ignore promotions in the consumer-type results: rank by the normal-price cost.
+  - Show an overall winner as well as the category winners. User reason: winners can earn links and
+    social media mentions from the companies. Rules must be public and stable (for example: on sale
+    on day 1 of the month, national availability, normal price, the same consumer types every month).
+    A later "best in month X" badge with a link back to the review is possible; never paid.
+- User decision (2026-11-01): winner marks are shareable social media images, not HTML badges.
+  Agent notes: render them from the frozen monthly snapshot with the existing code-rendered
+  pipeline (`videos/`, HTML scenes → Playwright; or the OG image builder), in 1:1 and 9:16 (and
+  1200 × 630 for link previews). Content: month, consumer type or category, contract and company
+  name, the euro figure, and the review URL as text, because an image carries no link; the link
+  comes when the seller posts the image with the review URL. Company names only, no seller logos
+  unless permitted. Never paid.
+
+## 2026-11-01 – Consumer layer shape (user approved)
+
+- One household definition everywhere: the Datahub 364 groups at their real average consumption
+  (apartment BE01, house without electric heating BE03, electrically heated house BE02; verify the
+  code list), with one sentence that scales the euros for a reader who uses more. This replaces the
+  2,000 / 5,000 / 18,000 kWh example households of the earlier layer 1 decision.
+- One calculation: for each home type, one run of the bill comparison engine (with the profile
+  option) over the coming months at futures-based prices. It gives the monthly bill outlook, the
+  best and median spot and fixed contracts on sale now, and the cost of certainty (median fixed −
+  median spot). No separate method for each item.
+- Layout: one card per home type (bill for the coming months, spot vs fixed, best contracts,
+  tentative recommendation, one line "last month's winner for a home like yours"); below the
+  cards two short shared sections: the cold-and-calm bad case, and the cheap/expensive hours with
+  shifting savings for spot customers. Last month's full winner tables go to the journalist layer
+  and the social media images.
