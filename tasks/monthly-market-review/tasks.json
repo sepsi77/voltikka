@@ -120,7 +120,7 @@
     "status": "pending"
   },
   {
-    "name": "Later: own short- and medium-term spot price forecast models (fill the hourly weather, irradiance, Fingrid 245, hydrology and holiday gaps first)",
+    "name": "Later: own short- and medium-term spot price forecast models; data part is tasks/own-forecast-model-data/",
     "status": "pending"
   }
 ]

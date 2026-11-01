@@ -1,0 +1,16 @@
+[
+  {"name": "Read spec.md, tasks/monthly-market-review/decisions.md and laravel/app/Services/Fingrid/AGENTS.md", "status": "pending"},
+  {"name": "Verify each source endpoint, history depth, limits and licence with read-only requests (FMI WFS, Open-Meteo hourly, Syke OData, Fingrid 245)", "status": "pending"},
+  {"name": "Decide FMI station data vs Open-Meteo hourly at the same coordinates; record the reason in decisions.md", "status": "pending"},
+  {"name": "Decide how to keep forecast vintages (Fingrid 245, hourly weather forecasts); record it", "status": "pending"},
+  {"name": "Hourly temperature and wind speed: observations from 2023-01-01 and append-only 8-day forecast vintages", "status": "pending"},
+  {"name": "Neighbour wind speed points (EE, DK, DE, SE): hourly archive and forecast vintages in the Open-Meteo collector", "status": "pending"},
+  {"name": "Solar irradiance at 7 FI sites: hourly archive and forecast vintages in the Open-Meteo collector", "status": "pending"},
+  {"name": "Fingrid 245 wind forecast with vintages", "status": "pending"},
+  {"name": "Syke areal precipitation and snow water equivalent collector", "status": "pending"},
+  {"name": "Finnish holiday calendar support class (calculated, with tests)", "status": "pending"},
+  {"name": "Estimate production rows and size per table before backfills", "status": "pending"},
+  {"name": "Update context files (service AGENTS.md, app/Services/AGENTS.md, laravel/AGENTS.md, root AGENTS.md pointer)", "status": "pending"},
+  {"name": "Full test suite, Pint on new files", "status": "pending"},
+  {"name": "User approval: deploy, schedule, production backfills", "status": "pending"}
+]
