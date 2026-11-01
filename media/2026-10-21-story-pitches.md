@@ -34,6 +34,7 @@ Figures are monthly averages of daily medians. Each segment has 43–58 contract
 Topic #11. Timing: the KKV Aalto Energia decision was on 2025-10-31, so the anniversary is 2026-10-31.
 
 - Our data has 24 current contracts where the shown price is a promotion and the later increase is only in the description text.
+- Correction (2026-10-31): on 2026-10-23 only 5 active contracts have `misleading_first_12_months = detected`, and some are only free-base-fee offers. Do not use the figure 24. The story is not ready.
 - This story has the highest value and the highest risk. Check each case manually. Start with the aggregate count. If you name companies, give each company time to reply before publication.
 
 ### 3. "Same electricity, more than double the price: open-ended customers pay the most"
