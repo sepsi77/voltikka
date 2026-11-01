@@ -15,6 +15,21 @@ class SpotPriceImporter
      */
     public function import(array $spotPrices): void
     {
+        [$quarterRows, $hourRows] = $this->prepare($spotPrices);
+
+        $this->insertInChunks(SpotPriceQuarter::class, $quarterRows);
+        $this->insertInChunks(SpotPriceHour::class, $hourRows);
+    }
+
+    /**
+     * Normalize API records to the exact rows that import() inserts: quarter rows, then hourly
+     * rows (quarter-hour means plus direct hourly records). `spot:repair-history` uses the same
+     * rows, so a repair cannot use other VAT or averaging rules than the import.
+     *
+     * @return array{0: list<array<string, mixed>>, 1: list<array<string, mixed>>}
+     */
+    public function prepare(array $spotPrices): array
+    {
         $quarterData = [];
         $hourlyData = [];
 
@@ -28,7 +43,9 @@ class SpotPriceImporter
                 'timestamp' => $item['timestamp'],
                 'utc_datetime' => $utcDatetime,
                 'price_without_tax' => $item['price_without_tax'],
-                'vat_rate' => $this->vatRateFor($utcDatetime),
+                // Finnish electricity VAT applies only to the FI zone. Neighbour zones are
+                // market reference prices and keep vat_rate 0 (price_with_tax = VAT0 price).
+                'vat_rate' => $item['region'] === 'FI' ? $this->vatRateFor($utcDatetime) : 0.0,
             ];
 
             if (($item['resolution_minutes'] ?? 60) === 15) {
@@ -38,9 +55,7 @@ class SpotPriceImporter
             }
         }
 
-        $this->insertInChunks(SpotPriceQuarter::class, $quarterData);
-        $this->insertInChunks(SpotPriceHour::class, $this->calculateHourlyAverages($quarterData));
-        $this->insertInChunks(SpotPriceHour::class, $hourlyData);
+        return [$quarterData, [...$this->calculateHourlyAverages($quarterData), ...$hourlyData]];
     }
 
     /**

@@ -53,6 +53,15 @@ Schedule::command('spot:fetch')
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/spot-fetch.log'));
 
+// Neighbour-zone day-ahead prices for market reviews. Separate from spot:fetch so that a
+// neighbour failure cannot affect the Finnish import; insert-only, so reruns are harmless.
+Schedule::command('spot:fetch-neighbours')
+    ->hourlyAt(25)
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping(30)
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/spot-fetch-neighbours.log'));
+
 // Check official FI data independently after the hourly import has time to finish.
 Schedule::command('spot:check-freshness')
     ->hourlyAt(10)
@@ -114,6 +123,84 @@ Schedule::command('futures:fetch-eex')
     ->withoutOverlapping()
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/eex-futures-fetch.log'));
+
+// Fingrid system data for market reviews (about 30 requests at one per 2.5 s). The 3/16-day
+// lookback refills late and corrected hours, so one daily run is enough.
+Schedule::command('fingrid:fetch')
+    ->dailyAt('10:20')
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping(60)
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/fingrid-fetch.log'));
+
+// JAO Nordic flow-based day-ahead import capacity into FI (market reviews). The default
+// window covers today-2..tomorrow; tomorrow's values exist after the day-ahead auction.
+Schedule::command('jao:fetch')
+    ->dailyAt('12:40')
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping(30)
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/jao-fetch.log'));
+
+// EEX DE power, TTF gas and EUA carbon reference futures for market reviews (21 throttled
+// calls, about 5 min). Separate scope: never writes the eex_futures checkpoint or bumps caches.
+// EEX terms: internal use only until EEX approves publication.
+Schedule::command('futures:fetch-eex-europe')
+    ->dailyAt('12:30')
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping(30)
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/eex-europe-fetch.log'));
+
+// GIE AGSI+ EU and German gas storage (published in the evening CET). It runs only when
+// GIE_API_KEY is set, so a missing key does not create a daily scheduler error.
+Schedule::command('gas-storage:fetch')
+    ->dailyAt('10:35')
+    ->when(fn () => filled(config('gas_storage.api_key')))
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping(30)
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/gas-storage-fetch.log'));
+
+// ENTSO-E outage versions (A77/A78/A80), neighbour generation per type (A75) and reservoir
+// filling (A72) for market reviews. The outage step takes about 2-3 minutes.
+Schedule::command('entsoe:fetch')
+    ->dailyAt('10:50')
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping(60)
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/entsoe-transparency-fetch.log'));
+
+// NVE publishes the Norwegian reservoir week on Wednesdays.
+Schedule::command('nve:fetch-reservoirs')
+    ->weeklyOn(3, '15:30')
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping(30)
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/nve-fetch.log'));
+
+// Open-Meteo weather for market reviews (free tier, non-commercial use): ERA5 window and the
+// ECMWF 15-day ensemble daily, EC46 weekly, SEAS5 monthly (SEAS5 is published about the 5th).
+Schedule::command('weather:fetch')
+    ->dailyAt('10:40')
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping(60)
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/weather-fetch.log'));
+
+Schedule::command('weather:fetch --only=ecmwf_ec46')
+    ->weeklyOn(1, '10:50')
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping(60)
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/weather-fetch.log'));
+
+Schedule::command('weather:fetch --only=ecmwf_seas5')
+    ->monthlyOn(8, '11:00')
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping(60)
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/weather-fetch.log'));
 
 // Collect per-contract retail premiums after the morning contract interpretations can publish.
 Schedule::command('retail-premiums:collect --scheduled')

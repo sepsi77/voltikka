@@ -193,6 +193,11 @@ php artisan spot:check-freshness     # Read-only check that FI data covers the c
 php artisan spot:fetch-forecast      # Fetch third-party spot-price forecasts from nordpool-predict-fi
 php artisan spot:backfill            # Backfill historical spot prices; retries transient server/connection timeouts per chunk
 php artisan spot:averages            # Calculate spot price averages
+php artisan spot:fetch-neighbours    # Fetch SE1/SE3/EE/DE-LU day-ahead prices (market reviews; region-coded, VAT 0)
+php artisan spot:backfill --region=SE1  # Backfill one neighbour zone
+
+# Market review system data
+php artisan fingrid:fetch            # Fetch Fingrid open data as hourly values (daily window, or --from/--to backfill)
 
 # Electricity futures
 php artisan futures:fetch-eex        # Fetch EEX futures EOD settlement prices for configured Nordic month/quarter/year instruments
@@ -359,6 +364,12 @@ Retail collection and forecast generation use independent five-minute background
   - Historical comparisons (daily, weekly, monthly, year-over-year)
   - Price charts with signed zero baselines so negative hourly and 15-minute prices extend in the opposite direction from positive prices
   - CSV export
+
+### Monthly market review data (local, 2026-11-01)
+- Planning and data inventory: `tasks/monthly-market-review/` (`data-inventory.md` lists every needed source, its frequency and its gap)
+- Collected for the review, not yet read by any public page: neighbour-zone day-ahead prices (`spot:fetch-neighbours`, in the spot tables with their own region), Fingrid hourly system data (`fingrid:fetch`, `fingrid_hourly_values`, see `laravel/app/Services/Fingrid/AGENTS.md`), and append-only third-party spot-forecast vintages (`spot_price_forecast_runs`)
+- ENTSO-E A03 curves are expanded since 2026-11-01. Stored FI spot history before that date has missing hours, some hourly means from 3 of 4 quarters, and in 2022–2024 every second month holds only one day. `php artisan spot:repair-history --from=YYYY-MM --to=YYYY-MM [--apply]` repairs it (dry run by default); a production apply needs explicit approval (see `laravel/app/Services/SpotPriceImport/AGENTS.md`)
+- A published monthly figure must be frozen in its own snapshot; live Fingrid rows are corrected later
 
 ### Daily spot social publication
 - `spot:fetch` has no social side effects. It only persists Spot data, calculates averages, and warms caches.

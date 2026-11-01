@@ -39,6 +39,14 @@ return [
         'api_key' => env('ENTSOE_API_KEY'),
         'base_url' => 'https://web-api.tp.entsoe.eu/api',
         'finland_eic' => '10YFI-1--------U',
+        // Neighbour bidding zones collected for market reviews (spot:fetch-neighbours).
+        // Stored in spot_prices_* with their own region code; never with Finnish VAT.
+        'bidding_zones' => [
+            'SE1' => '10Y1001A1001A44P',
+            'SE3' => '10Y1001A1001A46L',
+            'EE' => '10Y1001A1001A39I',
+            'DE-LU' => '10Y1001A1001A82H',
+        ],
         'connect_timeout' => env('ENTSOE_CONNECT_TIMEOUT', 5),
         'timeout' => env('ENTSOE_TIMEOUT', 30),
     ],

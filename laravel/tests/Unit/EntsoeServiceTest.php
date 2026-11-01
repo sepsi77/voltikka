@@ -646,4 +646,96 @@ XML;
 
         $this->assertEquals($sortedTimestamps, $timestamps);
     }
+
+    private function a03Series(string $points, string $start = '2026-10-30T23:00Z', string $end = '2026-10-31T01:00Z', string $sequence = ''): string
+    {
+        $sequenceElement = $sequence === ''
+            ? ''
+            : "<classificationSequence_AttributeInstanceComponent.position>{$sequence}</classificationSequence_AttributeInstanceComponent.position>";
+
+        return <<<XML
+    <TimeSeries>
+        <mRID>1</mRID>
+        <businessType>A62</businessType>
+        <currency_Unit.name>EUR</currency_Unit.name>
+        <price_Measure_Unit.name>MWH</price_Measure_Unit.name>
+        {$sequenceElement}
+        <curveType>A03</curveType>
+        <Period>
+            <timeInterval>
+                <start>{$start}</start>
+                <end>{$end}</end>
+            </timeInterval>
+            <resolution>PT15M</resolution>
+            {$points}
+        </Period>
+    </TimeSeries>
+XML;
+    }
+
+    private function document(string $series): string
+    {
+        return '<?xml version="1.0" encoding="UTF-8"?>'
+            .'<Publication_MarketDocument xmlns="urn:iec62325.351:tc57wg16:451-3:publicationdocument:7:3">'
+            .$series.'</Publication_MarketDocument>';
+    }
+
+    private function point(int $position, float $price): string
+    {
+        return "<Point><position>{$position}</position><price.amount>{$price}</price.amount></Point>";
+    }
+
+    /**
+     * A03 omits a point when the price repeats; every omitted slot keeps the previous price,
+     * and the last point lasts until the end of the time interval.
+     */
+    public function test_a03_curve_fills_omitted_positions_until_interval_end(): void
+    {
+        // Two hours = 8 quarter-hours. Positions 2, 3 and 6-8 are omitted.
+        $points = $this->point(1, 10.0).$this->point(4, 20.0).$this->point(5, 30.0);
+        Http::fake(['web-api.tp.entsoe.eu/api*' => Http::response($this->document($this->a03Series($points)), 200)]);
+
+        $result = $this->service->fetchDayAheadPrices(Carbon::parse('2026-10-31'), Carbon::parse('2026-11-01'));
+
+        $this->assertCount(8, $result);
+        $this->assertSame([1.0, 1.0, 1.0, 2.0, 3.0, 3.0, 3.0, 3.0], array_map(fn ($row) => $row['price_without_tax'], $result));
+        $this->assertSame(Carbon::parse('2026-10-31T00:45:00Z')->timestamp, $result[7]['timestamp']);
+        $this->assertSame(15, $result[7]['resolution_minutes']);
+    }
+
+    /**
+     * DE-LU publishes two price sequences; only sequence 1 (the coupled SDAC price) is kept.
+     */
+    public function test_keeps_only_sequence_one_when_sequences_are_published(): void
+    {
+        $series = $this->a03Series($this->point(1, 200.0), sequence: '2')
+            .$this->a03Series($this->point(1, 250.0), sequence: '1');
+        Http::fake(['web-api.tp.entsoe.eu/api*' => Http::response($this->document($series), 200)]);
+
+        $result = $this->service->fetchDayAheadPrices(Carbon::parse('2026-10-31'), Carbon::parse('2026-11-01'), 'DE-LU');
+
+        $this->assertCount(8, $result);
+        $this->assertSame([25.0], array_values(array_unique(array_map(fn ($row) => $row['price_without_tax'], $result))));
+        $this->assertSame('DE-LU', $result[0]['region']);
+    }
+
+    public function test_requests_the_configured_neighbour_zone_eic(): void
+    {
+        Http::fake(['web-api.tp.entsoe.eu/api*' => Http::response($this->document($this->a03Series($this->point(1, 5.0))), 200)]);
+
+        $result = $this->service->fetchDayAheadPrices(Carbon::parse('2026-10-31'), Carbon::parse('2026-11-01'), 'SE1');
+
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'in_Domain=10Y1001A1001A44P')
+            && str_contains($request->url(), 'out_Domain=10Y1001A1001A44P'));
+        $this->assertSame('SE1', $result[0]['region']);
+    }
+
+    public function test_rejects_a_region_without_configured_eic(): void
+    {
+        Http::fake();
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        $this->service->fetchDayAheadPrices(Carbon::parse('2026-10-31'), Carbon::parse('2026-11-01'), 'XX');
+    }
 }

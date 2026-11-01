@@ -21,7 +21,8 @@ class BackfillSpot extends Command
     protected $signature = 'spot:backfill
                             {--start-date= : Start date for backfill (YYYY-MM-DD, defaults to 1 year ago)}
                             {--end-date= : End date for backfill (YYYY-MM-DD, defaults to today)}
-                            {--force : Force fetch even if data already exists for the period}';
+                            {--force : Force fetch even if data already exists for the period}
+                            {--region=FI : Bidding zone (FI or a key of services.entsoe.bidding_zones)}';
 
     /**
      * The console command description.
@@ -72,8 +73,15 @@ class BackfillSpot extends Command
         }
 
         $force = $this->option('force');
+        $region = (string) $this->option('region');
 
-        $this->info("Backfilling spot prices from {$startDate->format('Y-m-d')} to {$endDate->format('Y-m-d')}...");
+        if ($region !== 'FI' && ! is_string(config("services.entsoe.bidding_zones.{$region}"))) {
+            $this->error("Unknown region: {$region}");
+
+            return Command::FAILURE;
+        }
+
+        $this->info("Backfilling {$region} spot prices from {$startDate->format('Y-m-d')} to {$endDate->format('Y-m-d')}...");
 
         // Split date range into monthly chunks
         $chunks = $this->splitIntoMonthlyChunks($startDate, $endDate);
@@ -93,14 +101,14 @@ class BackfillSpot extends Command
             $chunkEnd = $chunk['end'];
 
             // Check if data exists for this period (unless --force)
-            if (! $force && $this->spotPriceImporter->hasCompleteHourlyCoverage($chunkStart, $chunkEnd, 'FI')) {
+            if (! $force && $this->spotPriceImporter->hasCompleteHourlyCoverage($chunkStart, $chunkEnd, $region)) {
                 $progressBar->advance();
 
                 continue;
             }
 
             try {
-                $spotPrices = $this->entsoeService->fetchDayAheadPrices($chunkStart, $chunkEnd);
+                $spotPrices = $this->entsoeService->fetchDayAheadPrices($chunkStart, $chunkEnd, $region);
 
                 if (! empty($spotPrices)) {
                     $this->spotPriceImporter->import($spotPrices);
@@ -111,6 +119,7 @@ class BackfillSpot extends Command
                 $this->newLine();
                 $this->error("Error fetching {$chunkStart->format('Y-m-d')} to {$chunkEnd->format('Y-m-d')} from ENTSO-E API after retries.");
                 Log::error('BackfillSpot command failed for chunk', [
+                    'region' => $region,
                     'start' => $chunkStart->toDateString(),
                     'end' => $chunkEnd->toDateString(),
                     'exception_class' => $e::class,
@@ -128,10 +137,12 @@ class BackfillSpot extends Command
             $this->info("Backfill completed! Processed {$totalRecords} records.");
             Log::info('Successfully backfilled spot prices', ['count' => $totalRecords]);
 
-            // Calculate averages after backfilling
-            $this->info('Calculating spot price averages...');
-            $this->averageService->calculateAllAverages();
-            $this->info('Averages calculated successfully.');
+            // Averages and every public consumer are FI-only.
+            if ($region === 'FI') {
+                $this->info('Calculating spot price averages...');
+                $this->averageService->calculateAllAverages();
+                $this->info('Averages calculated successfully.');
+            }
         } else {
             $this->info('Backfill completed! No new records to add.');
         }

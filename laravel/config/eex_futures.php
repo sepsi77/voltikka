@@ -84,4 +84,25 @@ return [
         ['market_region' => 'Nordics', 'area' => 'SE4', 'area_name' => 'Sweden SE4', 'maturity_type' => 'quarter', 'short_code' => '4SBQ'],
         ['market_region' => 'Nordics', 'area' => 'SE4', 'area_name' => 'Sweden SE4', 'maturity_type' => 'year', 'short_code' => '4SBY'],
     ],
+
+    /*
+     * Continental reference instruments for the monthly market review, fetched only by
+     * `futures:fetch-eex-europe` (never by `futures:fetch-eex`, so the 04:00 run, its checkpoint
+     * and the FI cache bump are unchanged). Short codes verified on the public endpoint on
+     * 2026-11-01. Rows share electricity_futures_eod_prices; every pricing reader filters
+     * area = FI and product = Base, and the command refuses an area of the list above.
+     *
+     * maturity_rule (default: maturity_type) and count give explicit maturities, because the
+     * price-ticker discovery is not reliable here: EUA lists only quarter/December months, and
+     * the ticker now returns a null row (not []) for unlisted maturities.
+     * month: current month onward; quarter: next quarter onward; year: next year onward;
+     * december: December of this year onward (YYYY12).
+     */
+    'europe_instruments' => [
+        ['market_region' => 'Germany', 'commodity' => 'POWER', 'area' => 'DE', 'area_name' => 'Germany (Phelix DE)', 'product' => 'Base', 'maturity_type' => 'month', 'short_code' => 'DEBM', 'count' => 6],
+        ['market_region' => 'Germany', 'commodity' => 'POWER', 'area' => 'DE', 'area_name' => 'Germany (Phelix DE)', 'product' => 'Base', 'maturity_type' => 'quarter', 'short_code' => 'DEBQ', 'count' => 4],
+        ['market_region' => 'Germany', 'commodity' => 'POWER', 'area' => 'DE', 'area_name' => 'Germany (Phelix DE)', 'product' => 'Base', 'maturity_type' => 'year', 'short_code' => 'DEBY', 'count' => 3],
+        ['market_region' => 'Netherlands', 'commodity' => 'NATGAS', 'area' => 'TTF', 'area_name' => 'TTF natural gas', 'product' => 'Physical', 'maturity_type' => 'month', 'short_code' => 'G3BM', 'count' => 6],
+        ['market_region' => 'EU', 'commodity' => 'ENVIRONMENTALS', 'area' => 'EU', 'area_name' => 'EU ETS allowance (EUA)', 'product' => 'EUA', 'maturity_type' => 'month', 'maturity_rule' => 'december', 'short_code' => 'FEUA', 'count' => 2],
+    ],
 ];

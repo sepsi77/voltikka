@@ -1,0 +1,98 @@
+[
+  {
+    "name": "Study the three price-driver research reports",
+    "status": "done"
+  },
+  {
+    "name": "Study nordpool-predict-fi data inputs",
+    "status": "done"
+  },
+  {
+    "name": "Inventory Voltikka's existing data",
+    "status": "done"
+  },
+  {
+    "name": "Write data-inventory.md (needed data, frequency, source, gap)",
+    "status": "done"
+  },
+  {
+    "name": "User decision: review contents and priority of new collectors",
+    "status": "pending"
+  },
+  {
+    "name": "Check licences: EEX settlement prices, ENTSO-E, JAO, GIE AGSI, NVE",
+    "status": "pending"
+  },
+  {
+    "name": "Keep nordpool-predict-fi forecast vintages (stop overwriting)",
+    "status": "done"
+  },
+  {
+    "name": "Collect neighbour-zone day-ahead prices (SE1, SE3, EE, DE-LU)",
+    "status": "done"
+  },
+  {
+    "name": "Collect Fingrid daily system data (consumption, production by type, net import)",
+    "status": "done"
+  },
+  {
+    "name": "Design frozen monthly snapshot table and method version",
+    "status": "pending"
+  },
+  {
+    "name": "Fix ENTSO-E A03 parsing (omitted points) and DE-LU sequence selection",
+    "status": "done"
+  },
+  {
+    "name": "User decision: repair stored FI spot history affected by A03 gaps",
+    "status": "done"
+  },
+  {
+    "name": "Production: add FINGRID_API_KEY Railway variable, deploy, run migrations (needs approval)",
+    "status": "pending"
+  },
+  {
+    "name": "Backfill neighbour zones and Fingrid history (after deploy, needs approval)",
+    "status": "pending"
+  },
+  {
+    "name": "Collect JAO maxBorderFlow day-ahead capacity (Fingrid DA capacity datasets are empty)",
+    "status": "done"
+  },
+  {
+    "name": "Collect weather (Open-Meteo archive, ensemble, seasonal)",
+    "status": "done"
+  },
+  {
+    "name": "Collect ENTSO-E REMIT unavailability (A77/A78/A80) for FI and SE",
+    "status": "done"
+  },
+  {
+    "name": "Build spot:repair-history (dry run default) and dry-run all FI history locally",
+    "status": "done"
+  },
+  {
+    "name": "Collect NVE reservoirs, ENTSO-E A75 generation and A72 reservoirs",
+    "status": "done"
+  },
+  {
+    "name": "Collect EEX DE power, TTF, EUA (internal only) and GIE gas storage",
+    "status": "done"
+  },
+  {
+    "name": "Get GIE AGSI+ API key (user) and add GIE_API_KEY to Railway",
+    "status": "pending"
+  },
+  {
+    "name": "User decision: ask EEX for publication approval / Media Usage licence",
+    "status": "pending"
+  },
+  {
+    "name": "User decision: ask JAO for publication approval",
+    "status": "pending"
+  },
+  {
+    "name": "User decision: EEX price-ticker discovery check (possible ~1 h shorter 04:00 run)",
+    "status": "pending"
+  }
+]

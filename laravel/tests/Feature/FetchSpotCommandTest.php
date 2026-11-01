@@ -418,8 +418,7 @@ class FetchSpotCommandTest extends TestCase
     public function test_hourly_schedule_limits_orphaned_overlap_lock_to_sixty_minutes(): void
     {
         $events = collect(app(Schedule::class)->events())
-            ->filter(fn ($event) => str_contains((string) $event->command, 'spot:fetch'))
-            ->reject(fn ($event) => str_contains((string) $event->command, 'spot:fetch-forecast'));
+            ->filter(fn ($event) => preg_match("/spot:fetch(['\"\s]|$)/", (string) $event->command) === 1);
 
         $this->assertCount(1, $events);
 

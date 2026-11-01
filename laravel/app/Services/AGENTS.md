@@ -346,6 +346,66 @@ Purpose:
 Read first:
 - `SpotSocial/AGENTS.md`
 
+### Fingrid open data
+Directory:
+- `Fingrid/`
+
+Purpose:
+- collect Fingrid system data (consumption, production by type, flows, flexibility, Datahub household profiles) as hourly values for the monthly market review
+
+Read first:
+- `Fingrid/AGENTS.md`
+
+### ENTSO-E Transparency datasets
+Directory:
+- `EntsoeTransparency/`
+
+Purpose:
+- REMIT outage versions (A77/A78/A80) for FI, SE1–SE3 and the FI borders, neighbour generation per type (A75), weekly reservoir filling (A72) for the market review. Separate from `EntsoeService` (prices). The same event can appear in A77 and A80: never add the two
+
+Read first:
+- `EntsoeTransparency/AGENTS.md`
+
+### JAO day-ahead capacity
+Directory:
+- `Jao/`
+
+Purpose:
+- collect JAO Nordic flow-based `maxBorderFlow` for the Finnish borders as hourly values for the market review. JAO terms forbid dissemination without approval: internal analysis only until the user decides
+
+Read first:
+- `Jao/AGENTS.md`
+
+### NVE reservoirs
+Directory:
+- `Nve/`
+
+Purpose:
+- collect weekly Norwegian reservoir filling (total and NO1–NO5) and the proven 20-year min/median/max reference
+
+Read first:
+- `Nve/AGENTS.md`
+
+### GIE gas storage
+Directory:
+- `GasStorage/`
+
+Purpose:
+- daily EU and German gas storage from GIE AGSI+ for the market review (`gas-storage:fetch`, needs `GIE_API_KEY`). The source credit "GIE AGSI" is mandatory
+
+Read first:
+- `GasStorage/AGENTS.md`
+
+### Open-Meteo weather
+Directory:
+- `OpenMeteo/`
+
+Purpose:
+- observed ERA5 daily weather (normals, heating degree days, hydro precipitation and snow) and append-only ECMWF ensemble/EC46/SEAS5 outlook vintages for the market review
+
+Read first:
+- `OpenMeteo/AGENTS.md`
+
 ### Spot forecasts
 Directory:
 - `SpotForecasts/`

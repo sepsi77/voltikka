@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Livewire\SpotPrice;
 use App\Models\SpotPriceForecast;
+use App\Models\SpotPriceForecastRun;
 use App\Models\SpotPriceHour;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -118,5 +119,36 @@ class FetchSpotForecastCommandTest extends TestCase
             'fetched_at' => Carbon::now('UTC'),
             'metadata' => ['test' => true],
         ]);
+    }
+
+    public function test_each_distinct_feed_is_kept_as_an_append_only_run(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-11-01 06:00:00', 'UTC'));
+        $url = config('services.spot_forecasts.nordpool_predict_fi.url');
+        $first = Carbon::parse('2026-11-02 00:00:00', 'UTC');
+        $second = $first->copy()->addHour();
+
+        Http::fakeSequence($url)
+            ->push([[$second->timestamp * 1000, 9.0], [$first->timestamp * 1000, 8.0]])
+            ->push([[$second->timestamp * 1000, 9.0], [$first->timestamp * 1000, 8.0]])
+            ->push([[$first->timestamp * 1000, 11.5], [$second->timestamp * 1000, 12.0]]);
+
+        $this->artisan('spot:fetch-forecast')->assertExitCode(0);
+        $this->artisan('spot:fetch-forecast')->assertExitCode(0);
+        $this->assertSame(1, SpotPriceForecastRun::count(), 'An unchanged feed must not add a run.');
+
+        $this->artisan('spot:fetch-forecast')->assertExitCode(0);
+
+        $runs = SpotPriceForecastRun::query()->orderBy('id')->get();
+        $this->assertCount(2, $runs);
+        $this->assertEquals([[$first->timestamp, 8.0], [$second->timestamp, 9.0]], $runs[0]->points);
+        $this->assertEquals([[$first->timestamp, 11.5], [$second->timestamp, 12.0]], $runs[1]->points);
+        $this->assertSame(2, $runs[1]->point_count);
+        $this->assertSame('2026-11-02 00:00:00', $runs[1]->first_utc_datetime);
+        $this->assertSame('2026-11-02 01:00:00', $runs[1]->last_utc_datetime);
+
+        // The display table still holds only the latest value per hour.
+        $this->assertSame(2, SpotPriceForecast::count());
+        $this->assertEquals(11.5, SpotPriceForecast::query()->where('timestamp', $first->timestamp)->value('price_with_tax'));
     }
 }

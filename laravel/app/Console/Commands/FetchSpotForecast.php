@@ -3,9 +3,13 @@
 namespace App\Console\Commands;
 
 use App\Models\SpotPriceForecast;
+use App\Models\SpotPriceForecastRun;
 use App\Services\SpotForecasts\NordpoolPredictFiService;
+use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Support\Carbon as SupportCarbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -71,21 +75,25 @@ class FetchSpotForecast extends Command
         }, $records);
 
         try {
-            foreach (array_chunk($upsertRows, 500) as $chunk) {
-                SpotPriceForecast::upsert(
-                    $chunk,
-                    ['source', 'region', 'timestamp'],
-                    [
-                        'utc_datetime',
-                        'price_with_tax',
-                        'vat_rate',
-                        'source_url',
-                        'fetched_at',
-                        'metadata',
-                        'updated_at',
-                    ]
-                );
-            }
+            DB::transaction(function () use ($upsertRows, $records, $now) {
+                foreach (array_chunk($upsertRows, 500) as $chunk) {
+                    SpotPriceForecast::upsert(
+                        $chunk,
+                        ['source', 'region', 'timestamp'],
+                        [
+                            'utc_datetime',
+                            'price_with_tax',
+                            'vat_rate',
+                            'source_url',
+                            'fetched_at',
+                            'metadata',
+                            'updated_at',
+                        ]
+                    );
+                }
+
+                SpotPriceForecastRun::insertOrIgnore($this->runRow($records, $now));
+            });
 
             Cache::forget('spot_price:forecast:nordpool_predict_fi:v1');
 
@@ -106,5 +114,32 @@ class FetchSpotForecast extends Command
 
             return Command::FAILURE;
         }
+    }
+
+    /**
+     * Build the append-only vintage row. The feed hash is the importer's SHA-256 of the raw
+     * response body, so an unchanged upstream feed is stored once (unique source + hash).
+     *
+     * @param  list<array<string, mixed>>  $records
+     * @return array<string, mixed>
+     */
+    private function runRow(array $records, SupportCarbon $now): array
+    {
+        $metadata = json_decode((string) $records[0]['metadata'], true, flags: JSON_THROW_ON_ERROR);
+        $points = array_map(fn (array $record) => [(int) $record['timestamp'], (float) $record['price_with_tax']], $records);
+        usort($points, fn (array $a, array $b) => $a[0] <=> $b[0]);
+
+        return [
+            'source' => $records[0]['source'],
+            'region' => $records[0]['region'],
+            'feed_hash' => (string) $metadata['feed_hash'],
+            'fetched_at' => $records[0]['fetched_at'],
+            'point_count' => count($points),
+            'first_utc_datetime' => Carbon::createFromTimestampUTC($points[0][0])->format('Y-m-d H:i:s'),
+            'last_utc_datetime' => Carbon::createFromTimestampUTC($points[array_key_last($points)][0])->format('Y-m-d H:i:s'),
+            'points' => json_encode($points, JSON_THROW_ON_ERROR),
+            'created_at' => $now,
+            'updated_at' => $now,
+        ];
     }
 }
