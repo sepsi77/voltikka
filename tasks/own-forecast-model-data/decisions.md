@@ -210,3 +210,55 @@
   that is the movement a consumer feels.
 - User accepted (2026-11-01) the default `weather:fetch` behaviour change (hourly neighbour wind window, about 14 calls/day) and the unproved GLOB_1MIN minute direction (no real effect on the models).
 - User rule (2026-11-01): local work and commits may continue; no production deploy until the running production backfills have finished (about 17:30 Helsinki).
+
+## 2026-11-01 – First baseline level for S (local data, read-only)
+
+- `research/baselines.py` scores baselines (a) same hour last week and (b) last known day
+  repeated on the local FI history (repaired, complete 2022–2026), issue days 2023-01-08..
+  2026-10-25 (1,387 days), EUR/MWh VAT 0. Output: `research/baselines-local-20261101.txt`.
+- Level to beat (all seasons): (b) hourly MAE 33.2 (D+1), 43.9 (D+4), 44.0 (D+7); (a) 44.0 at
+  every horizon. Daily-mean MAE (b) 27.7 at D+1, about 40 at D+4..D+7. Cheapest-3 hit rate
+  0.30–0.33 (random 0.125). After D+3 the naive baselines are no better than last week's prices,
+  so the D+4..D+7 tail is where an own model can add the most value (differentiator 3).
+- Baseline (c), the nordpool-predict-fi vintage, exists only from 2026-11-01. Idea to check: the
+  git history of its published prediction file could give older vintages for scoring only (not as
+  a model input).
+
+## 2026-11-01 – Historical seasonal forecasts for M (web check, no API calls)
+
+- **C3S SEAS5 on the Copernicus CDS** (`seasonal-monthly-single-levels`, also
+  `seasonal-original-single-levels` daily/6-hourly): 1° grid, 7-month forecasts, released on the
+  **6th of each month at 12 UTC** (use that as the as-of time, not the 1st). Real-time forecasts
+  from 2017 (system 4 Sept–Oct 2017, system 5 from Nov 2017, system 51 from Nov 2022; the agent
+  saw system 51 listed "up to April 2026" – a possible newer system after that is not verified).
+  Hindcasts 1981/1993–2016 with 25 members, produced later, so before Nov 2017 they are a
+  "hindcast proxy", not as-of evidence. Monthly variables include 2 m temperature, 10 m wind speed,
+  precipitation, snowfall and snow depth (water equivalent). Licence CC BY 4.0 (commercial use
+  allowed), DOI 10.24381/cds.68dd14c3. Access needs a free CDS account, a token and the `cdsapi`
+  package; area subsets work. Rough size: Nordic box, 5 variables, 6 leads, about 110 starts, all
+  members about 200 MB GRIB; ensemble means only a few MB. About 12–40 requests.
+- **ECMWF S2S (EC46-type extended range)** in the ECMWF Data Store: real-time from 2015 plus
+  reforecasts, 1.5° grid; current S2S licence rev. 4 puts ECMWF data under CC BY 4.0 with a 48 h
+  delay (older revisions were non-commercial with a 3-week delay). Useful for the first 1–1.5
+  months of M.
+- Not verified: CDS queue/size limits, system 51 hindcasts for 1981–1992, exact lead-month
+  definition, which ECMWF S2S parameters exist.
+- Agent recommendation: CDS SEAS5 monthly ensemble statistics are a low-effort, non-Open-Meteo
+  source for as-of seasonal features from Nov 2017; S2S covers weeks 1–6. Both need a user-owned
+  account (registration is the user's action).
+- User created the CDS and ECMWF Data Store accounts (2026-11-01). The two sites share one ECMWF account and one key (checked by hash, values not printed). Decision: one variable `ECMWF_API_KEY` for both CDS (SEAS5) and the ECMWF Data Store (S2S). Production needs the same Railway variable later (production variable write: explicit approval).
+- Key test (2026-11-01): `ECMWF_API_KEY` gives HTTP 200 on both `/api/retrieve/v1/jobs` (401 without it). One tiny job each (SEAS5 monthly ensemble mean 2 m temperature, Nov 2025 start, lead 1; S2S ECMWF control 2 m temperature 2025-11-03 00Z, +24 h; area 70N/20E/60N/30E) was accepted (201), finished `successful` within minutes and gave a valid GRIB file (336 and 304 bytes). Auth header `PRIVATE-TOKEN`; the same API path works on both hosts. Decoding needs ecCodes (for example the `eccodes`/`cfgrib` Python packages); not installed yet.
+- User approved installing ecCodes (2026-11-01). Research virtual environment `research/.venv` (git-ignored), Python 3.13, `eccodes` 2.50.0 (binary wheel with the library). Both test files decode: SEAS5 `2t` monthly ensemble mean for Nov 2025, 10×10 points at 1°, mean 0.3 °C (−6.5..7.0); S2S `2t` 0–24 h mean for 2025-11-03, 7×7 points at 1.5°, mean 5.0 °C. Values are plausible for the 60–70N, 20–30E box.
+
+## 2026-11-01 16:25 Helsinki: Fingrid 245 live check passed; deploy waits for the ENTSO-E chain
+
+- The production Fingrid backfill finished at 15:55 Helsinki with EXIT 0, so the shared Fingrid key is free again.
+- `fingrid:fetch-forecast-vintages` ran locally two times (1 request each). Run 1: "new vintage stored", exit 0. Run 2: "unchanged", exit 0 (the payload hash stops a duplicate).
+- Stored row: first hour 2026-11-01 15:00 UTC, 72 hours, 72 values, no empty hour, 339.75..6221.6 MW (plausible for FI wind capacity).
+- The production ENTSO-E chain still runs (new estimate 20:00–22:00 Helsinki, then reruns of 3 outage units and Turku/Tampere weather). A deploy stops the app container and would kill that chain, so the push is permitted but the deploy waits for the chain and its reruns.
+
+## 2026-11-01 18:15 Helsinki: backfill handoff from session voltikka-87
+
+- The session that runs the market-review backfills (voltikka-87) owns their completion. It sends one message when no chain runs, with every EXIT line, then does the reruns (outages SE1 A77, SE3 A77, SE1->FI A78; Turku/Tampere weather) and the local SQLite sync, and sends a second message when the local copy is fresh.
+- New ENTSO-E chain estimate: about 23:00-01:00 Helsinki (generation was running; then neighbour spot, JAO, NVE, gas storage).
+- This task does not poll production, does not run scripts/sync-production-database.sh and does not deploy until those messages arrive. Backup signal only: the status file named in that message (first word RUNNING, DONE or TIMEOUT).

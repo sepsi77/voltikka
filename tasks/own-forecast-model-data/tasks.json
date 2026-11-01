@@ -56,7 +56,11 @@
     "status": "done"
   },
   {
-    "name": "Live verification of Open-Meteo and Fingrid parts after the production backfills finish (no calls before)",
+    "name": "Live verification of the Fingrid 245 vintage command (done 2026-11-01 16:25 Helsinki, after the Fingrid backfill)",
+    "status": "done"
+  },
+  {
+    "name": "Live verification of the Open-Meteo parts (2026-11-02, after the hydro backfill, not in the same clock hour)",
     "status": "pending"
   },
   {
@@ -105,7 +109,7 @@
   },
   {
     "name": "M phase 1: check historical seasonal forecasts (C3S SEAS5 hindcasts/archive) for an as-of backtest; record terms and effort",
-    "status": "pending"
+    "status": "done"
   },
   {
     "name": "M phase 1: hydro balance proxy inputs (reservoirs, snow, precipitation vs normal) available as-of",
