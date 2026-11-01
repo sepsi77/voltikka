@@ -619,6 +619,36 @@ class FetchEexFuturesCommandTest extends TestCase
     }
 
     /** Full-scope FI Base month, quarter and year instruments with one candidate maturity each. */
+    public function test_all_null_ticker_row_ends_discovery_like_an_empty_one(): void
+    {
+        $this->fiBaseTenorInstruments();
+        config()->set('eex_futures.months_ahead', 4);
+        config()->set('eex_futures.request_delay_seconds', 0);
+        config()->set('eex_futures.request_delay_jitter_seconds', 0);
+        $unlistedRow = [[null, null, null, null, null, null, null]];
+
+        Http::fake(function (Request $request) use ($unlistedRow) {
+            // Since 2026-11 EEX answers an unlisted maturity with one all-null row.
+            if (str_contains($request->url(), 'price-ticker')
+                && ! in_array($request['maturity'], ['202605', '202606'], true)) {
+                return Http::response(['header' => ['lastUpdatedAt', 'settlPx'], 'data' => $unlistedRow]);
+            }
+
+            return $this->eexResponse($request);
+        });
+
+        $this->artisan('futures:fetch-eex', ['--tenor' => ['month'], '--dry-run' => true])
+            ->expectsOutputToContain('Discovered 2 month maturities')
+            ->assertExitCode(0);
+
+        $eodMaturities = collect(Http::recorded())
+            ->filter(fn ($pair) => str_contains($pair[0]->url(), '/chart/eod'))
+            ->map(fn ($pair) => $pair[0]['maturity'])
+            ->values()
+            ->all();
+        $this->assertSame(['202605', '202606'], $eodMaturities);
+    }
+
     private function fiBaseTenorInstruments(): void
     {
         Carbon::setTestNow(Carbon::create(2026, 5, 22, 12, 0, 0, 'Europe/Helsinki'));

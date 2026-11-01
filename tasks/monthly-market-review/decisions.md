@@ -96,3 +96,55 @@
 - Open issue reported by the EEX agent, not verified or changed: price-ticker now returns
   `[[null,…]]` for unlisted maturities, so discovery may treat every candidate as listed; a
   stricter check could shorten the 04:00 run from ~3.5 h to ~1 h. Needs a user decision.
+
+## 2026-11-01 – Release deploy-000013-9f1c253202e2
+
+- User asked to commit, deploy and run the first collection in production. Commit 9f1c253;
+  image built after three transient npm ETIMEDOUT failures (one tarball from registry.npmjs.org);
+  PHP 8.4.27 as before. Deployed 10:40 Helsinki after all four morning checkpoints were ready.
+  Deployment e3f879c3 SUCCESS; /up, /, /spot-price and /sahkosopimus/tilastot gave 200; all 11
+  migrations ran. FINGRID_API_KEY was set in Railway with --stdin and --skip-deploys.
+- First manual production runs: forecast run 1; neighbour zones 192 quarters each (VAT 0);
+  Fingrid 23 datasets / 8,000 rows; weather 160 days + 10 ENS runs; ENTSO-E 61 outage rows,
+  4,700 generation hours, 24 reservoir weeks; JAO 760 rows; NVE 570 weeks + 318 references;
+  EEX Europe 651 settlements, 0 failures. Gas storage not run (no GIE_API_KEY).
+- The daily outage window reads only documents updated in the last 3 days, so the active OL3
+  outage (revision from late October) appears only after an outage backfill.
+- Production dry run of spot:repair-history 2022-01..2026-11: 12,934 missing hours, 589 changed
+  hours, 1,130 missing quarters; 2025-11 and 2026-03 failed (ENTSO-E error) and must be rerun.
+  Today's prices (2026-11) were imported before the deploy with the old parser (2 wrong hours).
+
+## 2026-11-01 – Repair applied, data-use rule, EEX discovery, own models
+
+- Production apply of `spot:repair-history --from=2022-01 --to=2026-11`: all 59 months fetched;
+  12,942 hours and 1,329 quarters inserted, 691 hourly means corrected, averages recalculated.
+  A second production dry run found 0 missing and 0 changed rows. Corrected yearly FI means:
+  2022 154.0, 2023 56.5, 2024 45.6, 2025 40.5 €/MWh (VAT0), which agree with the reports.
+- User decision: the reviews only refer to EEX, JAO and other restricted data (figures and
+  sources in our own text); they do not republish the data sets. So no licence request now.
+- GIE_API_KEY is in laravel/.env and in Railway (set with --skip-deploys, so it is active only
+  after the next deployment). Local live run: EU 74.68 %, DE 61.17 % full on 2026-10-30.
+- EEX discovery: confirmed that the price-ticker returns `data: [[null, ...]]` for unlisted
+  maturities (FNBM 202706, 202812). Production log: discovery accepted 25/24/12 candidates and
+  the run made 793 EOD requests (02:01–05:34 UTC); only 268 area/maturity pairs had prices on
+  2026-10-30. In October every zone range was inside NP's range. Fixed locally (a row is listed
+  only with a non-null value). Live `--area=NP --dry-run`: 7 months, 11 quarters, 10 years
+  discovered, 28/28 requests with prices. Expected full run about 1 h 40 min.
+- User goal: Voltikka will in the end run its own short- and medium-term spot forecasts instead
+  of third-party ones. Not now. The nordpool-predict-fi inputs we do not yet collect: hourly
+  weather history and 8-day forecasts at FI stations and neighbour wind points, solar irradiance,
+  Fingrid 245, Syke hydrology, holidays.
+
+## 2026-11-01 – Rule for restricted data in the reviews (user decision)
+
+- User decision: the reviews may publish a handful of individual EEX and JAO figures, with the
+  source and date named, because they do not republish the data set.
+- Facts recorded with the decision: EEX's disclaimer (eex.com/en/disclaimer) forbids publication
+  "in any manner without the prior written approval of EEX AG" and has no quotation exception;
+  only a single personal non-commercial copy is permitted. Supporting arguments: a single price is
+  a fact without copyright, and the EU database right covers only substantial parts. Not legal
+  advice; residual contract risk because the data comes through EEX's own interface.
+- Working rules: quote only a few individual values with source and date; no EEX or JAO series as
+  tables, full curve charts or CSV; derived Voltikka values (changes, own forecasts) are ours.
+  Fingrid, GIE ("GIE AGSI"), Open-Meteo ("Weather data by Open-Meteo.com") and ENTSO-E data can be
+  published with attribution.

@@ -49,7 +49,7 @@
   },
   {
     "name": "Production: add FINGRID_API_KEY Railway variable, deploy, run migrations (needs approval)",
-    "status": "pending"
+    "status": "done"
   },
   {
     "name": "Backfill neighbour zones and Fingrid history (after deploy, needs approval)",
@@ -81,18 +81,46 @@
   },
   {
     "name": "Get GIE AGSI+ API key (user) and add GIE_API_KEY to Railway",
-    "status": "pending"
+    "status": "done"
   },
   {
     "name": "User decision: ask EEX for publication approval / Media Usage licence",
-    "status": "pending"
+    "status": "done"
   },
   {
     "name": "User decision: ask JAO for publication approval",
-    "status": "pending"
+    "status": "done"
   },
   {
     "name": "User decision: EEX price-ticker discovery check (possible ~1 h shorter 04:00 run)",
+    "status": "done"
+  },
+  {
+    "name": "First manual collection of every collector in production (2026-11-01)",
+    "status": "done"
+  },
+  {
+    "name": "Production dry run of spot:repair-history 2022-01..2026-11",
+    "status": "done"
+  },
+  {
+    "name": "Production apply of spot:repair-history (needs user permission) and rerun of 2025-11, 2026-03",
+    "status": "done"
+  },
+  {
+    "name": "Backfill history in production (ENTSO-E outages from 2026-01, JAO from 2024-10-29, Fingrid, neighbour zones, weather from 1991)",
+    "status": "pending"
+  },
+  {
+    "name": "Fix EEX discovery (all-null ticker row) locally; live NP dry run",
+    "status": "done"
+  },
+  {
+    "name": "Deploy the EEX discovery fix (also activates GIE_API_KEY) and run gas-storage:fetch in production",
+    "status": "pending"
+  },
+  {
+    "name": "Later: own short- and medium-term spot price forecast models (fill the hourly weather, irradiance, Fingrid 245, hydrology and holiday gaps first)",
     "status": "pending"
   }
 ]

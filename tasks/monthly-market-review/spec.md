@@ -28,6 +28,7 @@ Inputs studied:
 3. Build the missing collectors (each one is a separate, small task).
 4. Build the monthly snapshot (frozen numbers + method version) and the public page/CSV.
 5. Video template.
+6. Own short- and medium-term spot price forecast models (user goal 2026-11-01), to replace the third-party forecast.
 
 ## Constraints
 

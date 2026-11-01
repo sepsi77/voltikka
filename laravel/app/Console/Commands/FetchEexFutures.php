@@ -540,7 +540,7 @@ class FetchEexFutures extends Command
     /**
      * Probe EEX's price-ticker endpoint to find the contiguous listed maturity range.
      *
-     * Out-of-bounds maturities return HTTP 200 with an empty `data` array, so the
+     * Out-of-bounds maturities return HTTP 200 with an empty `data` array or one all-null row, so the
      * first empty maturity after one or more valid maturities is treated as the max.
      * Leading empty maturities are skipped to tolerate recently expired months.
      *

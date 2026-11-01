@@ -127,7 +127,17 @@ class EexFuturesService
     {
         $payload = $this->fetchPriceTickerData($instrument, $maturity);
 
-        return !empty($payload['data'] ?? []);
+        // An unlisted maturity can come back as one row of nulls (`data: [[null, ...]]`, seen
+        // 2026-11-01), not only as an empty array. Count a maturity as listed only when a row
+        // has at least one non-null value; otherwise discovery accepted every candidate and the
+        // 04:00 run made 793 EOD requests, about 525 of them for maturities without prices.
+        foreach (($payload['data'] ?? []) as $row) {
+            if (is_array($row) && array_filter($row, fn ($value) => $value !== null) !== []) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
