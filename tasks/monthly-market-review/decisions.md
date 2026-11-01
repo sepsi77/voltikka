@@ -148,3 +148,18 @@
   tables, full curve charts or CSV; derived Voltikka values (changes, own forecasts) are ours.
   Fingrid, GIE ("GIE AGSI"), Open-Meteo ("Weather data by Open-Meteo.com") and ENTSO-E data can be
   published with attribution.
+
+## 2026-11-01 – Production backfills (user approval)
+
+- User approved the production backfills. Deploy-000014 (EEX discovery fix, GIE key active) is
+  live; the first `gas-storage:fetch` stored 13 gas days each for EU and DE.
+- Started 10:17 UTC as three background chains in the app container (logs
+  `/app/storage/logs/backfill-20261101-{fingrid,entsoe,weather}.log`):
+  - Fingrid 23 datasets 2023-01-01..2026-10-31 (history for the own-model task);
+  - ENTSO-E outages from 2023-01-01, reservoirs from 2015-01-01, generation from 2024-01-01;
+    SE1/SE3/EE/DE-LU spot from 2023-01-01; JAO from 2024-10-29; NVE `--all`; GIE from 2020-01-01;
+  - Open-Meteo observed weather from 1991-01-01 for the 6 Finnish points only. The 4 hydro
+    points follow on 2026-11-02 because of the 10,000 calls/day limit (root AGENTS.md, Dated
+    follow-ups).
+- Start dates: 2023 where the own-model task needs two winters; generation from 2024 to limit
+  rows (about 1.2 M); reservoirs from 2015 and GIE from 2020 for normal and range comparisons.

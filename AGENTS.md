@@ -119,6 +119,16 @@ Agents should use the task tracking system in `tasks/` when working on this code
 
 Time-triggered work that is not yet possible. Check this list when the date has passed. Each item says what unblocks it and where the detail lives. **Remove an item once it is done**, and do not add anything here that a scheduled command already surfaces on its own.
 
+### After 2026-11-02 12:30 Helsinki — finish the market-review backfills
+
+The approved production backfills started on 2026-11-01 at 12:17 Helsinki (logs `/app/storage/logs/backfill-20261101-*.log` on the app volume). The Open-Meteo free tier allows 10,000 calls a day, so the observed weather history ran only for the 6 Finnish points.
+
+1. Read the three logs: every `EXIT` line must show 0. Rerun only a failed command.
+2. Run the hydro points in production (about 3,700 calls, about 75 min): `php artisan weather:fetch --from=1991-01-01 --point=no2_blasjo --point=no5_aurland --point=se1_akkajaure --point=se2_storuman --only=observed`.
+3. After the 2026-11-02 04:00 EEX run, read its checkpoint start and finish. Update the "about 07:35" deploy-window text in this file (`### Production code deployment`) with the measured run time of the fixed discovery.
+
+Record the results in `tasks/monthly-market-review/decisions.md`, then remove this item.
+
 ### After 2026-11-15 — score the falling-market forecast holdout
 
 The old fixed-term forecast (`fixed_term_futures_adjusted_v1`) said `rising` for every term on every day from 2026-09-14, while medians fell, because its expanding drift term dominated. On 2026-10-16 the drift-free model M2 (`fixed_term_futures_only_v1`) replaced it as an interim fix. A pre-declared study froze eight candidate models and a decision rule on 2026-10-16; its 30-day holdout targets end on 2026-11-14 and decide whether M2 stays or a refinement replaces it.
