@@ -352,6 +352,7 @@ Directory:
 
 Purpose:
 - collect Fingrid system data (consumption, production by type, flows, flexibility, Datahub household profiles) as hourly values for the monthly market review
+- keep append-only Fingrid 245 wind forecast vintages in `hourly_forecast_runs` (`fingrid:fetch-forecast-vintages`) for own spot price models
 
 Read first:
 - `Fingrid/AGENTS.md`
@@ -402,9 +403,30 @@ Directory:
 
 Purpose:
 - observed ERA5 daily weather (normals, heating degree days, hydro precipitation and snow) and append-only ECMWF ensemble/EC46/SEAS5 outlook vintages for the market review
+- for own spot price models: hourly ERA5 neighbour wind (`weather_hourly_observations`) and ECMWF HRES solar GHI forecast vintages (`hourly_forecast_runs`). User rule: prefer FMI/Syke/Fingrid; Open-Meteo only where they have no data
 
 Read first:
 - `OpenMeteo/AGENTS.md`
+
+### FMI open data
+Directory:
+- `Fmi/`
+
+Purpose:
+- hourly FMI station temperature/wind and radiation observations (`fmi_hourly_observations`) and edited/ECMWF point-forecast vintages (`hourly_forecast_runs`, source `fmi`) for own spot price models
+
+Read first:
+- `Fmi/AGENTS.md`
+
+### Syke hydrology
+Directory:
+- `Syke/`
+
+Purpose:
+- 5-day areal precipitation and snow water equivalent for 10 northern hydro catchments (`syke_hydrology_values`, `syke:fetch`), slow features for own spot price models. CC BY 4.0, credit Syke
+
+Read first:
+- `Syke/AGENTS.md`
 
 ### Spot forecasts
 Directory:

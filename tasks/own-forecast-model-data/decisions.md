@@ -23,3 +23,190 @@
   snow/precipitation covered the review. For a model it is a gap again, because the reference
   model uses Syke catchment data.
 - The free Open-Meteo API is used under the user's non-commercial decision (site has no income).
+
+## 2026-11-01 – Source checks (read-only), FMI preferred
+
+- User rule (2026-11-01): prefer non-Open-Meteo sources and APIs where they are available.
+  Open-Meteo is the fallback only.
+- User rule (2026-11-01): the production backfills (Fingrid, ENTSO-E chain incl. JAO/NVE/GIE,
+  Open-Meteo weather) run until about 16:30 Helsinki. Do not call those APIs from here until they
+  have finished (Fingrid and ENTSO-E limits are per key; the Open-Meteo hourly limit already
+  failed two weather points). FMI and Syke are not used by those backfills.
+- **FMI open data WFS** (no key, CC BY 4.0; limits 20,000 download requests/day and 600
+  requests/5 min, from the FMI WFS manual):
+  - Hourly observations `fmi::observations::weather::hourly::*` with `TA_PT1H_AVG`,
+    `WS_PT1H_AVG`: data from 2023-01-01 exists (Kumpula 4.2 °C at 2023-01-01 00Z). Limit
+    744 hours per request (a 90-day request gave "No more than 744 hours allowed"). Several
+    `fmisid` in one request work. The `multipointcoverage` form is about 10× smaller than
+    `simple` (3 stations × 1 month: 168 KB in 7.7 s).
+  - Edited forecast `fmi::forecast::edited::weather::scandinavia::point::*`: default 72 h;
+    with `endtime` it reaches about D+9.5 (2026-11-11 00Z on 2026-11-01). `timevaluepair` has
+    `om:resultTime` (2026-11-01T10:44:46Z), so a vintage has a real issue time. One request can
+    mix `fmisid` and `latlon` points. Parameters `temperature`, `windspeedms` (10 m),
+    `totalcloudcover`. No radiation (NaN).
+  - The edited forecast covers the neighbour points EE01, EE02, DK01, DK02, DE01, SE01, SE02,
+    SE03 to D+9.5, but not DE02 Niedersachsen ("No data available"). FMI's
+    `ecmwf::forecast::surface::point::*` covers DE02 to D+9.5 with `WindUMS`/`WindVMS` (10 m);
+    its `WindSpeedMS`, radiation and cloud parameters are all NaN.
+  - Radiation observations `fmi::observations::radiation::*`: `GLOB_1MIN` (1-minute W/m²),
+    168 hours per request (6.3 MB `simple`, 0.7 MB `multipointcoverage` per station-week).
+    The 7 solar sites of the reference model are FMI radiation stations.
+  - Radiation forecast: only MEPS `RadiationGlobal` (about 50 h). The edited forecast has cloud
+    cover to D+9.5.
+- **Syke Hydrologiarajapinta 1.1** (no key): `SadantaAlue` with `Jakso_Id eq 2` is a **5-day**
+  areal precipitation value (dates 11th, 16th, 21st …), latest 2026-10-21 on 2026-11-01, history
+  from 1974 (275 values since 2023 for place 848). `LumiAlue` (snow water equivalent, `Arvo` is a
+  string) is **twice a month** (1st and 16th, no summer values), history from 1965. So the spec's
+  "daily" is wrong: these are slow features. The 20 places are northern hydro catchments
+  (Oulujoki/Oulujärvi, Iijoki area, Kemijoki/Raudanjoki, Inari, Juutuanjoki); Suure 5 =
+  precipitation, Suure 7 = snow. Licence page not found at the expected URL; verify before
+  publication (models can use it).
+- Decision: Finnish station temperature and wind (observations and forecast vintages) come from
+  FMI, not Open-Meteo. Reasons: the user rule, the reference model uses these FMI stations, and
+  FMI gives a real forecast issue time.
+
+## 2026-11-01 – Source choices (user decisions) and storage design
+
+- User decision: neighbour wind **history** (9 points, 2023→) comes from the Open-Meteo archive,
+  in the existing `weather:fetch` collector, because no single non-Open-Meteo source has it. Run
+  the backfill only after today's production backfills (Open-Meteo daily limit; tomorrow).
+  Neighbour wind **forecasts** come from FMI (edited forecast for 8 points, FMI ECMWF U/V for
+  DE02).
+- User decision: the solar **forecast** comes from Open-Meteo (to D+10 at the 7 sites). Solar
+  **history** comes from FMI radiation stations (the preferred non-Open-Meteo source).
+- Agent decisions that follow (consistency between history and forecast of one feature):
+  - Solar: FMI `GLOB_1MIN` is global *horizontal* irradiance, so the Open-Meteo forecast uses
+    `shortwave_radiation` (GHI, W/m²), not the reference model's `global_tilted_irradiance`.
+  - Neighbour wind: FMI forecasts are 10 m wind, so the archive stores both `wind_speed_10m`
+    (same height as the forecast) and `wind_speed_100m` (the reference model's history height).
+- Storage: one generic append-only table `hourly_forecast_runs` for every hourly forecast
+  vintage (FMI edited/ECMWF, Open-Meteo solar, Fingrid 245): one row per source, product, point
+  and distinct payload, values as `{"variable": [hourly values]}` from `first_timestamp`, with
+  `issued_at` (source issue time, if known) and `fetched_at`. Reason: one reader pattern for the
+  model and no parallel vintage tables; `weather_outlook_runs` is daily and member-shaped, so it
+  is not reused. Observations go to per-source upsert tables (sources correct them).
+- FMI open data has exactly 7 radiation stations (same set on 2023-01-15, 2024-06-15,
+  2025-06-15 and 2026-10-31): 100908 Parainen Utö 59.77909,21.37479; 100968 Helsinki-Vantaa
+  airport 60.32937,24.97274; 101004 Helsinki Kumpula 60.20307,24.96131; 101104 Jokioinen Ilmala
+  60.81397,23.49825; 101756 Sotkamo Kuolaniemi 64.11197,28.33639; 101932 Sodankylä Tähtelä
+  67.36663,26.62901; 102035 Utsjoki Kevo 69.75637,27.00678. The reference model's Jyväskylä and
+  Kuopio sites are not FMI open-data radiation stations. Decision: the solar sites are these 7
+  stations, and the Open-Meteo solar forecast uses the same coordinates, so history and forecast
+  have the same points. Point key = FMISID as a string for every FMI station.
+
+## 2026-11-01 – Open-Meteo hourly and Fingrid 245 built (local, no live calls yet)
+
+- Neighbour wind history: `weather_hourly_observations`, ERA5 (`models=era5`, has 10 m and
+  100 m wind; ERA5-Land has no wind). Open-Meteo hourly wind is **instantaneous** at the hour;
+  FMI `WS_PT1H_AVG` is an hour mean. A model must align them (known difference, not a defect).
+  Part `observed_hourly`; it now also runs in the default `weather:fetch` (about 13.5 calls/day),
+  a documented behaviour change. Full 9-point backfill from 2023: about 900 calls, about 18 min;
+  do not run it in the same clock hour as the pending hydro backfill (about 3,700 calls).
+- Solar forecast: `solar_ghi`, model `ecmwf_ifs` (HRES 9 km, 15 days, hourly to +90 h, then
+  3/6-hourly interpolated by Open-Meteo). Not `best_match` (mixes models), not IFS 0.25° (3-hourly),
+  not ICON/MET Nordic/Météo-France (shorter than D+10). Radiation is the mean of the preceding
+  hour, so API time T is stored at the hour that starts at T−1 h. `issued_at` comes from the
+  unofficial `static/meta.json` (verify live; null when unreadable).
+- Fingrid 245: separate command `fingrid:fetch-forecast-vintages`, one request per run, horizon
+  72 h from the next full UTC hour, hourly mean of four quarters (an hour with fewer than 4 is
+  null), `issued_at` null (no issue-time attribute; `fetched_at` is the vintage time).
+- Storage estimates per year: `weather_hourly_observations` about 79k rows/12 MB (backfill
+  about 300k/45 MB); `solar_ghi` twice a day about 5k rows/9 MB; Fingrid 245 hourly about
+  8.8k rows/6 MB.
+- Proposed schedule: Fingrid 245 hourly at minute 45 (12:45 is before the 13:00 gate);
+  `weather:fetch --only=solar_ghi` at 11:45 and 23:45 Helsinki (00Z and 12Z HRES runs).
+
+## 2026-11-01 – Syke collector and holiday calendar built (local)
+
+- Syke API version 1.2 (syke.fi lists 1.2, 2026-05-11, as current; 1.1 is the previous version
+  and returned the same rows). Configurable with `SYKE_HYDROLOGY_BASE_URL`.
+- Licence: CC BY 4.0; credit for example "Source: Finnish Environment Institute (Syke),
+  Hydrologiarajapinta" (https://www.syke.fi/en/environmental-data/use-license-and-responsibilities).
+- Units from the `Suure` entity: 5 "Aluesadanta" mm, 7 "Lumen aluevesiarvo" mm.
+- Date key: a 5-day value at date D covers **D..D+4** (dates 1, 6, 11, 16, 21, 26; the 26th
+  covers to the month end). Evidence: for place 848 the monthly value (Jakso 3) equals the sum
+  of the six 5-day values of that month in 22 of 22 months (2024-12..2026-09); the other reading
+  matched 1 of 22. A model may use a value only after its period has ended and it is published
+  (on 11-01 the latest was D = 10-21, period end 10-25). Snow is a state on D (1st and 16th,
+  October–June only).
+- Paging: at most 500 rows per page with an absolute `odata.nextLink`; the client follows only
+  links on the same base and entity.
+- Rows are upserted (Syke corrections look rare); no vintages. Acceptable for slow features;
+  revisit if a model must reproduce corrections exactly.
+- Local live backfill from 2023-01-01: 2,750 precipitation rows (275 per place) and 680 snow
+  rows; about 900 rows per year (< 0.2 MB). Proposed schedule: daily 11:10 Helsinki.
+- `App\Support\FinnishHolidays`: public holidays plus two eves (juhannusaatto, jouluaatto).
+  Uudenvuodenaatto and vappuaatto are working days for most workplaces; pääsiäislauantai is a
+  Saturday, so a weekday feature covers it. Years before 1991 are rejected (loppiainen and
+  helatorstai were on Saturdays in 1973–1990). Tested for 2023–2027.
+
+## 2026-11-01 – Scope extended to the model (user decision)
+
+- User decision: the task includes the short-term model itself, because collectors without a
+  purpose make no sense. Phases: data → research model → pre-declared evaluation on real
+  forecast vintages → production forecaster with own vintages (no public UI) → recommendation
+  on public use. Public page changes and the medium-term model stay outside this task.
+- Agent proposals in spec.md, not yet confirmed by the user: target FI hourly VAT 0 €/MWh;
+  one run at 11:30 Helsinki for D+1..D+7; strict as-of inputs; baselines incl. the
+  nordpool-predict-fi vintage at issue time; household-oriented metrics (cheapest/most expensive
+  3 hours). Runtime (Python job on Railway vs a PHP-runnable model) is an open user decision
+  for phase 4, to decide with the phase 3 result.
+- Reason for the pre-declared holdout: forecast vintages exist only from 2026-11-01, so any
+  earlier backtest uses observed weather as a perfect-forecast stand-in and overstates skill.
+- The folder name `own-forecast-model-data` is kept for now (commit c8846e7 and memory refer to
+  it); rename it when phase 1 is committed if the user wants.
+
+## 2026-11-01 – Two models, no plain replication (user decisions)
+
+- User decision: build both a short-term model (hourly D+1..D+7, the same job as
+  nordpool-predict-fi) and a medium-term model (the next 2–3 months).
+- User decision: do not only replicate the current model. nordpool-predict-fi is a reference
+  and a baseline to beat. spec.md lists agent-proposed differentiators per model (calibrated
+  ranges, inputs the reference does not use, a level/shape structure for D+4..D+7, household
+  outputs scored directly, a public track record; for M: fundamentals-adjusted futures, a
+  weather-scenario range, the household-type cost translation). They are hypotheses for the
+  phase 3 evaluation, not confirmed features.
+- Order: S first (its data and holdout are faster); M phase 1 checks start now because most M
+  inputs already exist. Honest limit for M: monthly targets give few points and FI futures exist
+  only from 2026-04-08, so weekly targets carry most of the evidence.
+
+## 2026-11-01 – FMI collector built; integration
+
+- FMI hourly values are labelled at the END of the hour (proved: Kumpula 2026-10-31
+  `TA_PT1H_AVG/MAX/MIN` at label 08:00 = 7.2/7.3/7.1 equals the 10-minute `t2m` in
+  (07:00, 08:00]; all 11 hours 04:00–14:00 match). The importer stores label T at T−1 h. So the
+  earlier note "Kumpula 4.2 °C at 2023-01-01 00Z" is the hour 2022-12-31 23:00–24:00 UTC.
+- `GLOB_1MIN` minute direction is not proved (FMI documents it nowhere; a clear-day symmetry test
+  could not resolve ±30 s). Minute-ending-at-T is used, the same as the proven hourly rule; the
+  worst error is 1 of 60 minutes per hour.
+- Forecast arrays (FMI and Open-Meteo wind) are instants at the valid time; FMI observations are
+  hour means of [H, H+1). The model must align them (known, documented).
+- Station 101268 Kristiinankaupunki lighthouse has no observations since some date between
+  2025-06 and 2026-03; its forecast works. It stays; the model may need a replacement station.
+- Radiation night values are slightly negative (to about −7 W/m²); stored raw.
+- Live smoke (scratch database): daily window 4,031 observed + 504 radiation rows, 37 edited +
+  1 ECMWF vintages; a rerun stored no duplicates.
+- Backfill from 2023-01-01: about 46 observed requests (12 min) + 200 radiation requests
+  (2.4 h, about 950 MB download), about 2.0 M rows. Yearly: about 0.56 M rows / 115–140 MB in
+  `fmi_hourly_observations`; FMI vintages twice a day about 28k rows / 0.1–0.2 GB.
+- Schedule (manager): all forecast vintages are fetched at 11:05 Helsinki (FMI, Open-Meteo solar)
+  so that a model run at about 11:30 has them before the 13:00 gate; a second set at 23:05 for the
+  12Z runs; Fingrid 245 hourly at :45; Syke daily 11:10. FMI is fetched twice a day, not four times,
+  to halve storage; add more only if the model needs them.
+- The user confirmed the honest limit for the medium-term model (beating the futures on the mean is
+  hard; the value is the range, the cold-and-calm risk and the household cost).
+
+- Full suite after integration: 3,172 tests passed (25,708 assertions); Pint and `git diff --check` clean. Nothing committed or deployed.
+
+## 2026-11-01 – Medium-term model purpose (user decision)
+
+- User decision: the medium-term forecast is for consumers, not for business decisions. It tells
+  which way prices are likely to move in the next 2–3 months and roughly by how much; nobody makes
+  production decisions on it. Consequence (agent): keep the model and the output simple —
+  monthly mean, change from a level consumers know, a five-step direction class and a p10–p90
+  range. Main metrics are the direction hit rate and the share of wrong-way calls; weekly
+  targets are no longer a primary output.
+- The direction is against the reference level and includes the normal seasonal change, because
+  that is the movement a consumer feels.
+- User accepted (2026-11-01) the default `weather:fetch` behaviour change (hourly neighbour wind window, about 14 calls/day) and the unproved GLOB_1MIN minute direction (no real effect on the models).
+- User rule (2026-11-01): local work and commits may continue; no production deploy until the running production backfills have finished (about 17:30 Helsinki).

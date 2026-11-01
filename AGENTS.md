@@ -208,6 +208,9 @@ php artisan spot:backfill --region=SE1  # Backfill one neighbour zone
 
 # Market review system data
 php artisan fingrid:fetch            # Fetch Fingrid open data as hourly values (daily window, or --from/--to backfill)
+php artisan fingrid:fetch-forecast-vintages  # Append-only Fingrid 245 wind forecast vintages (own models)
+php artisan fmi:fetch                # FMI station observations, radiation and forecast vintages (own models)
+php artisan syke:fetch               # Syke areal precipitation and snow water equivalent (own models)
 
 # Electricity futures
 php artisan futures:fetch-eex        # Fetch EEX futures EOD settlement prices for configured Nordic month/quarter/year instruments
@@ -380,6 +383,10 @@ Retail collection and forecast generation use independent five-minute background
 - Collected for the review, not yet read by any public page: neighbour-zone day-ahead prices (`spot:fetch-neighbours`, in the spot tables with their own region), Fingrid hourly system data (`fingrid:fetch`, `fingrid_hourly_values`, see `laravel/app/Services/Fingrid/AGENTS.md`), and append-only third-party spot-forecast vintages (`spot_price_forecast_runs`)
 - ENTSO-E A03 curves are expanded since 2026-11-01. Stored FI spot history before that date has missing hours, some hourly means from 3 of 4 quarters, and in 2022–2024 every second month holds only one day. `php artisan spot:repair-history --from=YYYY-MM --to=YYYY-MM [--apply]` repairs it (dry run by default); a production apply needs explicit approval (see `laravel/app/Services/SpotPriceImport/AGENTS.md`)
 - A published monthly figure must be frozen in its own snapshot; live Fingrid rows are corrected later
+
+### Own spot price forecast models (local, 2026-11-01)
+- Task: `tasks/own-forecast-model-data/` (spec, decisions). Two models: short term (hourly D+1..D+7) and medium term (2–3 months, weekly/monthly with ranges). They are not a copy of nordpool-predict-fi; it is a baseline to beat. No public UI in this task
+- Phase 1 inputs: FMI (`fmi:fetch`, `app/Services/Fmi/`), Syke (`syke:fetch`), Fingrid 245 vintages, Open-Meteo hourly neighbour wind and solar forecast (only where FMI/Syke/Fingrid have no data; user rule), `App\Support\FinnishHolidays`. Forecast vintages are append-only in `hourly_forecast_runs`; a model must use only the vintage that existed at its issue time
 
 ### Daily spot social publication
 - `spot:fetch` has no social side effects. It only persists Spot data, calculates averages, and warms caches.

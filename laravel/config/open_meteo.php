@@ -34,8 +34,40 @@ return [
         'precipitation_sum', 'snowfall_sum', 'snowfall_water_equivalent_sum',
     ],
 
+    // Observed HOURLY weather for own spot price models (part "observed_hourly"): wind at the
+    // neighbour wind-power points, from the same ERA5 reanalysis as the daily part. Hours are UTC
+    // (timezone=GMT, timeformat=unixtime); --from/--to dates of this part are UTC days. Both
+    // heights are stored: the FMI forecasts of these points are 10 m wind, the reference model's
+    // history is 100 m. Hours without any value (ERA5 delay) are not stored.
+    'observed_hourly_model' => 'era5',
+    'observed_hourly_variables' => ['wind_speed_10m', 'wind_speed_100m'],
+
+    // Hourly forecast vintages, stored append-only in hourly_forecast_runs (source open_meteo).
+    // Not in the default run: each product has its own schedule (--only=<key>).
+    'hourly_forecasts' => [
+        // Global horizontal irradiance (GHI) forecast at the FMI radiation stations; it must
+        // match the FMI GLOB_1MIN history, which is also horizontal. One model, so that one
+        // vintage is one model run: ECMWF IFS HRES 9 km (15 days, runs every 6 hours, hourly to
+        // +90 h, 3-hourly to +144 h, 6-hourly later; Open-Meteo interpolates to 1 h).
+        // shortwave_radiation is the mean of the PRECEDING hour, so the value at API time T is
+        // stored at the hour that starts at T - 1 h (time_shift_seconds).
+        'solar_ghi' => [
+            'url' => 'https://api.open-meteo.com/v1/forecast',
+            'model' => 'ecmwf_ifs',
+            // Same unofficial metadata pattern as the ensemble products; best effort.
+            'meta_url' => 'https://api.open-meteo.com/data/ecmwf_ifs/static/meta.json',
+            'forecast_days' => 10,
+            'variables' => ['shortwave_radiation'],
+            'points' => 'solar_points',
+            'time_shift_seconds' => -3600,
+        ],
+    ],
+
     // Expected response units (wind is requested in m/s; the API default is km/h).
     'units' => [
+        'wind_speed_10m' => 'm/s',
+        'wind_speed_100m' => 'm/s',
+        'shortwave_radiation' => 'W/m²',
         'temperature_2m_mean' => '°C',
         'temperature_2m_min' => '°C',
         'temperature_2m_max' => '°C',
@@ -110,5 +142,38 @@ return [
         'no5_aurland' => ['name' => 'Aurland (NO5)', 'latitude' => 60.80, 'longitude' => 7.20, 'group' => 'hydro', 'weight' => null],
         'se1_akkajaure' => ['name' => 'Akkajaure (SE1)', 'latitude' => 67.65, 'longitude' => 17.60, 'group' => 'hydro', 'weight' => null],
         'se2_storuman' => ['name' => 'Storuman (SE2)', 'latitude' => 65.10, 'longitude' => 17.10, 'group' => 'hydro', 'weight' => null],
+    ],
+
+    /*
+     * Neighbour wind-power points for own spot price models (part "observed_hourly"). The same
+     * keys are used by the FMI forecast collector for the forecasts of these points. Source:
+     * nordpool-predict-fi util/openmeteo_windpower.py (commit f600ab7), see
+     * tasks/own-forecast-model-data/spec.md.
+     */
+    'neighbour_wind_points' => [
+        'ee01_hiiumaa' => ['name' => 'Hiiumaa (EE)', 'latitude' => 58.8960, 'longitude' => 22.5605],
+        'ee02_sopi_tootsi' => ['name' => 'Sopi-Tootsi (EE)', 'latitude' => 58.6347, 'longitude' => 25.1230],
+        'dk01_vesterhav' => ['name' => 'Vesterhav (DK)', 'latitude' => 56.4260, 'longitude' => 8.1281],
+        'dk02_anholt' => ['name' => 'Anholt (DK)', 'latitude' => 56.6013, 'longitude' => 11.1047],
+        'de01_schleswig_holstein' => ['name' => 'Schleswig-Holstein (DE)', 'latitude' => 54.2194, 'longitude' => 9.6961],
+        'de02_niedersachsen' => ['name' => 'Niedersachsen (DE)', 'latitude' => 52.6367, 'longitude' => 9.8451],
+        'se01_markbygden' => ['name' => 'Markbygden (SE)', 'latitude' => 65.2536, 'longitude' => 21.6020],
+        'se02_blakliden' => ['name' => 'Blakliden (SE)', 'latitude' => 64.5, 'longitude' => 17.0],
+        'se03_hajsberget' => ['name' => 'Häjsberget (SE)', 'latitude' => 59.7852, 'longitude' => 13.0042],
+    ],
+
+    /*
+     * Solar sites: the 7 FMI open-data radiation stations (point key = FMISID as a string), so
+     * the Open-Meteo forecast and the FMI GLOB_1MIN history have the same points. Coordinates:
+     * tasks/own-forecast-model-data/decisions.md (2026-11-01).
+     */
+    'solar_points' => [
+        '100908' => ['name' => 'Parainen Utö', 'latitude' => 59.77909, 'longitude' => 21.37479],
+        '100968' => ['name' => 'Helsinki-Vantaa airport', 'latitude' => 60.32937, 'longitude' => 24.97274],
+        '101004' => ['name' => 'Helsinki Kumpula', 'latitude' => 60.20307, 'longitude' => 24.96131],
+        '101104' => ['name' => 'Jokioinen Ilmala', 'latitude' => 60.81397, 'longitude' => 23.49825],
+        '101756' => ['name' => 'Sotkamo Kuolaniemi', 'latitude' => 64.11197, 'longitude' => 28.33639],
+        '101932' => ['name' => 'Sodankylä Tähtelä', 'latitude' => 67.36663, 'longitude' => 26.62901],
+        '102035' => ['name' => 'Utsjoki Kevo', 'latitude' => 69.75637, 'longitude' => 27.00678],
     ],
 ];

@@ -2,8 +2,10 @@
 
 Collects weather for the monthly market review (data inventory G6 and G22 in
 `../../../../tasks/monthly-market-review/`): observed daily weather from the ERA5 archive, and
-append-only outlook vintages from the ECMWF ensemble, EC46 and SEAS5. Nothing public reads these
-rows yet.
+append-only outlook vintages from the ECMWF ensemble, EC46 and SEAS5. It also collects two inputs
+for own spot price models (`../../../../tasks/own-forecast-model-data/`): hourly ERA5 wind at 9
+neighbour wind-power points, and append-only hourly solar (GHI) forecast vintages at the 7 FMI
+radiation stations. Nothing public reads these rows yet.
 
 Licence and terms: Open-Meteo data is CC BY 4.0. A published figure must credit
 "Weather data by Open-Meteo.com" with a link to https://open-meteo.com/ (ERA5 is also
@@ -13,10 +15,10 @@ gets any income (ads, affiliate links, paid features); then a paid plan is neede
 
 ## Files
 
-- `OpenMeteoService.php` – read-only client (no key): archive, ensemble/seasonal outlooks, and
-  best-effort model-run metadata. Waits between calls; retries 429, 5xx and connection errors.
-- `OpenMeteoWeatherImporter.php` – upserts observed days; stores one outlook row per distinct
-  payload; checks every response unit.
+- `OpenMeteoService.php` – read-only client (no key): archive (daily and hourly), forecast
+  (hourly), ensemble/seasonal outlooks, and best-effort model-run metadata. Waits between calls; retries 429, 5xx and connection errors.
+- `OpenMeteoWeatherImporter.php` – upserts observed days and hours; stores one outlook row and
+  one hourly forecast row per distinct payload; checks every response unit.
 - `../../Console/Commands/FetchWeather.php` – `php artisan weather:fetch`.
 - `../../../config/open_meteo.php` – points, weights, variables, units, products and limits.
 
@@ -33,6 +35,18 @@ gets any income (ads, affiliate links, paid features); then a paid plan is neede
   initialisation time from the unofficial `static/meta.json` file, read once per product before the
   point loop, or null. The hash covers model, first date and members, so a rerun of the same
   model run adds no row.
+
+- `weather_hourly_observations` – one row per (point, model, UTC hour). `timestamp` is the UTC
+  hour start in unix seconds and `utc_datetime` the same as UTC text without a cast (as in
+  `spot_prices_hour`). `wind_speed_10m` and `wind_speed_100m` (m/s) are **instantaneous** values
+  at that time (Open-Meteo: wind is instantaneous, radiation and precipitation are preceding-hour
+  values), not hour means. Upserted.
+- `hourly_forecast_runs` (shared with FMI and Fingrid, migration `2026_11_02_000001`) –
+  append-only, unique (source, product, point, payload_hash). Rows here have source `open_meteo`,
+  product = the config key (`solar_ghi`), point = the point key. `values` is
+  `{"shortwave_radiation": [value per UTC hour from first_timestamp]}`; `payload_hash` is SHA-256
+  of `json_encode([first_timestamp, values])`, so a rerun of the same run in the same UTC day adds
+  no row. `issued_at` is the model run time, see Rules.
 
 ## Rules
 
@@ -55,6 +69,33 @@ gets any income (ads, affiliate links, paid features); then a paid plan is neede
 - Never change the coordinates of an existing point key; add a new key. Finnish weights are
   population shares of the regions nearest to each point (see the config comment); hydro points
   have no weight.
+- Hourly parts use UTC: `timezone=GMT` and `timeformat=unixtime`. A response with a non-zero
+  `utc_offset_seconds` or a time that is not a full hour fails the point. The date options of
+  `observed_hourly` are UTC days (the daily part keeps Helsinki days).
+- `observed_hourly` uses ERA5 (`models=era5`) for the same reason as the daily part: one
+  consistent reanalysis for the whole history. ERA5 has 10 m and 100 m wind (ERA5-Land has no
+  wind). Both heights are stored: the FMI forecasts of these points are 10 m wind, and the
+  reference model (nordpool-predict-fi) uses 100 m history. Hours without any value (ERA5 delay)
+  are not stored. The point keys in `neighbour_wind_points` are shared with the FMI forecast
+  collector; never change their coordinates.
+- `solar_ghi` requests one model, ECMWF IFS HRES 9 km (`models=ecmwf_ifs`; 15 days, runs every
+  6 hours, hourly to +90 h, 3-hourly to +144 h, 6-hourly later, interpolated to 1 h by
+  Open-Meteo; https://open-meteo.com/en/docs/ecmwf-api). The default `best_match` mixes models,
+  so a vintage would have no single run time. HRES is preferred to IFS 0.25° (3-hourly) and to
+  MET Nordic / ICON (2.5–7.5 days, shorter than the 10-day need).
+- `shortwave_radiation` is global **horizontal** irradiance (GHI, W/m²), the same quantity as the
+  FMI `GLOB_1MIN` history (decisions.md 2026-11-01), not the reference model's
+  `global_tilted_irradiance`. Open-Meteo gives it as the **mean of the preceding hour**
+  (https://open-meteo.com/en/docs: "Solar radiation is averaged over the past hour"). The importer
+  therefore stores the API value of time T at the hour that starts at T − 1 h
+  (`time_shift_seconds = -3600`): index 0 of a run fetched with first API time 00:00Z is the hour
+  23:00–00:00Z. Readers that join FMI radiation must use the same hour-start convention.
+- `issued_at` of `solar_ghi` is `last_run_initialisation_time` from
+  `https://api.open-meteo.com/data/ecmwf_ifs/static/meta.json` (the same unofficial pattern as the
+  ensemble products; not yet checked live). It is read before and after the point loop; when the
+  two differ or the file cannot be read, `issued_at` is null and `fetched_at` is the vintage time.
+  Not verified: whether Open-Meteo fills the tail of the shorter 06/18 UTC HRES runs from the
+  previous run. Check it live before a model relies on `issued_at` for 06/18 UTC runs.
 - EC46 and SEAS5 are separate products (not the "seamless" mix), so every member is one
   continuous model trajectory and has one initialisation time.
 
@@ -68,21 +109,39 @@ A request with more than 10 variables or more than 2 weeks of data counts as sev
   10 points. Run it on two days, for example the 6 Finnish points one day and the 4 hydro points
   the next. One-year pieces with a 30 s pause stay under the hourly limit (~36 requests per
   point, about 18 min per point).
+- Hourly window (`observed_hourly`, 2 variables, 21 days): about 1.5 calls per point, 13.5 for
+  the 9 points. It is part of the default run (local change 2026-11-01, not deployed), so the daily
+  run at 10:40 costs about 13.5 calls more.
+- Hourly backfill from 2023-01-01: about 1,400 days / 14 = 100 calls per point, about 900 for the
+  9 points. Calendar-year pieces cost at most 26 calls each (36 requests, about 18 min with the
+  30 s pause), so it fits one day and one hour. Do not run it in the same hour as another
+  backfill that uses more than about 4,000 calls.
+- `solar_ghi`: 1 variable, 10 days = 1 call per point, 7 per fetch. Metadata calls are not
+  counted (https://open-meteo.com/en/docs/model-updates).
+- Call weight (https://open-meteo.com/en/pricing): more than 10 variables or more than 2 weeks
+  per location counts fractionally, e.g. 2 weeks with 15 variables = 1.5 calls.
 - Ensemble and seasonal requests count members and variables; the Open-Meteo docs only show the
   weight in their URL builder. Fetch EC46 weekly and SEAS5 monthly.
 
 A one-request 1991–2026 archive response for one point was 883 KB and took 4.7 s (2026-11-01).
 Storage: ensemble about 24 KB per point per run, EC46 about 62 KB, SEAS5 about 155 KB, so
 daily ensemble + weekly EC46 + monthly SEAS5 for 10 points is about 140 MB per year.
+`weather_hourly_observations`: 9 × 8,760 = about 79k rows (about 12 MB) per year; the backfill
+from 2023 is about 300k rows (about 45 MB). `solar_ghi` twice a day: about 5,100 rows (240 hourly
+values, about 9 MB) per year.
 
 ## Commands
 
 ```bash
-php artisan weather:fetch                                   # observed 21-day window + ecmwf_ens
+php artisan weather:fetch                                   # observed 21-day windows (daily + hourly) + ecmwf_ens
 php artisan weather:fetch --only=ecmwf_ec46                 # weekly
 php artisan weather:fetch --only=ecmwf_seas5                # monthly, after the ~5th
 php artisan weather:fetch --from=1991-01-01 --point=helsinki --point=oulu  # observed backfill
+php artisan weather:fetch --only=solar_ghi                  # solar GHI forecast vintage (own schedule)
+php artisan weather:fetch --from=2023-01-01 --only=observed_hourly  # hourly wind backfill (UTC days)
 ```
 
-A failed point does not stop the others; the run then exits 1. Logs contain the part, point,
+`--point` limits every selected part to those keys; a part without any of them is skipped, and a
+point that no selected part uses is an error. A failed point does not stop the others; the run
+then exits 1. Logs contain the part, point,
 date range and exception class only (no URL).

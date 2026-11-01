@@ -202,6 +202,48 @@ Schedule::command('weather:fetch --only=ecmwf_seas5')
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/weather-fetch.log'));
 
+// Inputs for own spot price models (tasks/own-forecast-model-data/). Forecast vintages are fetched
+// at 11:05 Helsinki, so that a model run at about 11:30 has them before the 13:00 day-ahead gate
+// closure, and again at 23:05 for the 12Z model runs. Rows are append-only vintages.
+// FMI: observations (72 h re-read) and edited/ECMWF point forecasts; no key, 600 requests / 5 min.
+Schedule::command('fmi:fetch')
+    ->dailyAt('11:05')
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping(30)
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/fmi-fetch.log'));
+
+Schedule::command('fmi:fetch --only=forecast')
+    ->dailyAt('23:05')
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping(30)
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/fmi-fetch.log'));
+
+// Open-Meteo ECMWF HRES solar GHI vintages (7 calls each): 00Z run at 11:05, 12Z run at 23:05.
+Schedule::command('weather:fetch --only=solar_ghi')
+    ->twiceDailyAt(11, 23, 5)
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping(30)
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/weather-fetch.log'));
+
+// Fingrid 245 wind power forecast vintages (one request per run, 72 h ahead).
+Schedule::command('fingrid:fetch-forecast-vintages')
+    ->hourlyAt(45)
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping(10)
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/fingrid-forecast-vintages.log'));
+
+// Syke 5-day areal precipitation and snow water equivalent (slow features; 90-day re-read).
+Schedule::command('syke:fetch')
+    ->dailyAt('11:10')
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping(30)
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/syke-fetch.log'));
+
 // Collect per-contract retail premiums after the morning contract interpretations can publish.
 Schedule::command('retail-premiums:collect --scheduled')
     ->everyFiveMinutes()

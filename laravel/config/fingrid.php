@@ -21,6 +21,15 @@ return [
     'realtime_lookback_days' => 3,
     'datahub_lookback_days' => 16,
 
+    // Rolling forecasts kept as append-only vintages in hourly_forecast_runs (source fingrid,
+    // product = dataset ID, point ''), never in fingrid_hourly_values: an upsert would keep only
+    // the latest revision. `fingrid:fetch-forecast-vintages`, one request per dataset and run.
+    // 245: wind power generation forecast, updated every 15 min, 15-min values, MWh/h, horizon
+    // 72 h (https://data.fingrid.fi/en/datasets/245). Values are hourly means of 4 quarters.
+    'forecast_vintages' => [
+        245 => ['variable' => 'wind_power_mw', 'horizon_hours' => 72],
+    ],
+
     'datasets' => [
         // System balance
         124 => ['name' => 'consumption', 'unit' => 'MW', 'group' => 'system'],

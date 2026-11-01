@@ -1,16 +1,130 @@
 [
-  {"name": "Read spec.md, tasks/monthly-market-review/decisions.md and laravel/app/Services/Fingrid/AGENTS.md", "status": "pending"},
-  {"name": "Verify each source endpoint, history depth, limits and licence with read-only requests (FMI WFS, Open-Meteo hourly, Syke OData, Fingrid 245)", "status": "pending"},
-  {"name": "Decide FMI station data vs Open-Meteo hourly at the same coordinates; record the reason in decisions.md", "status": "pending"},
-  {"name": "Decide how to keep forecast vintages (Fingrid 245, hourly weather forecasts); record it", "status": "pending"},
-  {"name": "Hourly temperature and wind speed: observations from 2023-01-01 and append-only 8-day forecast vintages", "status": "pending"},
-  {"name": "Neighbour wind speed points (EE, DK, DE, SE): hourly archive and forecast vintages in the Open-Meteo collector", "status": "pending"},
-  {"name": "Solar irradiance at 7 FI sites: hourly archive and forecast vintages in the Open-Meteo collector", "status": "pending"},
-  {"name": "Fingrid 245 wind forecast with vintages", "status": "pending"},
-  {"name": "Syke areal precipitation and snow water equivalent collector", "status": "pending"},
-  {"name": "Finnish holiday calendar support class (calculated, with tests)", "status": "pending"},
-  {"name": "Estimate production rows and size per table before backfills", "status": "pending"},
-  {"name": "Update context files (service AGENTS.md, app/Services/AGENTS.md, laravel/AGENTS.md, root AGENTS.md pointer)", "status": "pending"},
-  {"name": "Full test suite, Pint on new files", "status": "pending"},
-  {"name": "User approval: deploy, schedule, production backfills", "status": "pending"}
+  {
+    "name": "Read spec.md, tasks/monthly-market-review/decisions.md and laravel/app/Services/Fingrid/AGENTS.md",
+    "status": "done"
+  },
+  {
+    "name": "Verify each source endpoint, history depth, limits and licence with read-only requests (FMI WFS, Open-Meteo hourly, Syke OData, Fingrid 245)",
+    "status": "done"
+  },
+  {
+    "name": "Decide FMI station data vs Open-Meteo hourly at the same coordinates; record the reason in decisions.md",
+    "status": "done"
+  },
+  {
+    "name": "Decide how to keep forecast vintages (Fingrid 245, hourly weather forecasts); record it",
+    "status": "done"
+  },
+  {
+    "name": "Shared append-only table hourly_forecast_runs (migration 2026_11_02_000001)",
+    "status": "done"
+  },
+  {
+    "name": "Hourly temperature and wind speed: observations from 2023-01-01 and append-only 8-day forecast vintages",
+    "status": "done"
+  },
+  {
+    "name": "Neighbour wind speed points (EE, DK, DE, SE): hourly archive and forecast vintages in the Open-Meteo collector (Open-Meteo archive history; FMI forecasts)",
+    "status": "done"
+  },
+  {
+    "name": "Solar: FMI radiation history at the 7 FMI radiation stations; Open-Meteo GHI forecast vintages",
+    "status": "done"
+  },
+  {
+    "name": "Fingrid 245 wind forecast with vintages",
+    "status": "done"
+  },
+  {
+    "name": "Syke areal precipitation and snow water equivalent collector",
+    "status": "done"
+  },
+  {
+    "name": "Finnish holiday calendar support class (calculated, with tests)",
+    "status": "done"
+  },
+  {
+    "name": "Estimate production rows and size per table before backfills",
+    "status": "done"
+  },
+  {
+    "name": "Update context files (service AGENTS.md, app/Services/AGENTS.md, laravel/AGENTS.md, root AGENTS.md pointer)",
+    "status": "done"
+  },
+  {
+    "name": "Full test suite, Pint on new files",
+    "status": "done"
+  },
+  {
+    "name": "Live verification of Open-Meteo and Fingrid parts after the production backfills finish (no calls before)",
+    "status": "pending"
+  },
+  {
+    "name": "Schedule entries in routes/console.php (manager)",
+    "status": "done"
+  },
+  {
+    "name": "Phase 1: user approval for deploy, schedule and production backfills of the collectors",
+    "status": "pending"
+  },
+  {
+    "name": "S phase 2: export script and pinned input hashes from a local production snapshot (Python, like forecast-falling-market-study)",
+    "status": "pending"
+  },
+  {
+    "name": "S phase 2: as-of feature table (issue time, publication lags, latest vintage before issue)",
+    "status": "pending"
+  },
+  {
+    "name": "S phase 2: baselines (same hour last week, last known day repeated, third-party vintage at issue time) and metrics",
+    "status": "pending"
+  },
+  {
+    "name": "S phase 2: research model backtest on observed-weather stand-in, labelled as perfect-forecast input",
+    "status": "pending"
+  },
+  {
+    "name": "S phase 3: freeze candidate models and decision rule before the holdout; record hashes",
+    "status": "pending"
+  },
+  {
+    "name": "S phase 3: score on real forecast vintages after the holdout window; report to the user",
+    "status": "pending"
+  },
+  {
+    "name": "Phase 4: user decision on runtime (Python job vs PHP-runnable model)",
+    "status": "pending"
+  },
+  {
+    "name": "S phase 4: production forecaster with append-only own forecast vintages and automatic scoring (no public UI)",
+    "status": "pending"
+  },
+  {
+    "name": "S phase 5: recommendation to the user on public use (/spot-price, monthly review)",
+    "status": "pending"
+  },
+  {
+    "name": "M phase 1: check historical seasonal forecasts (C3S SEAS5 hindcasts/archive) for an as-of backtest; record terms and effort",
+    "status": "pending"
+  },
+  {
+    "name": "M phase 1: hydro balance proxy inputs (reservoirs, snow, precipitation vs normal) available as-of",
+    "status": "pending"
+  },
+  {
+    "name": "M phase 2: monthly as-of feature table, baselines (futures at issue, unchanged, normal seasonal change), direction classes and backtest",
+    "status": "pending"
+  },
+  {
+    "name": "M phase 3: freeze candidates, direction thresholds and decision rule; score direction hit rate, wrong-way share and change error on real vintages",
+    "status": "pending"
+  },
+  {
+    "name": "M phase 4: production forecaster with append-only vintages (after user approval)",
+    "status": "pending"
+  },
+  {
+    "name": "M phase 5: recommendation on public use (monthly review layer 1, pages)",
+    "status": "pending"
+  }
 ]

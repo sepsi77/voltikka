@@ -1,21 +1,140 @@
-# Data for own spot price forecast models
+# Own spot price forecast models: short term (D+1..D+7) and medium term (2–3 months)
 
-Status: not started (created 2026-11-01). Read `tasks/AGENTS.md`, the root `AGENTS.md` and
-`tasks/monthly-market-review/` (decisions.md, data-inventory.md) first.
+Status: phase 1 (data) in progress. Created 2026-11-01; scope extended the same day by user
+decisions (model included; medium-term model included; no plain replication). Read
+`tasks/AGENTS.md`, the root `AGENTS.md` and `tasks/monthly-market-review/` (decisions.md,
+data-inventory.md) first.
 
 ## Goal
 
-The user wants Voltikka to run its **own short-term (days) and medium-term (months) Finnish spot
-price forecasts** in the end, instead of the third-party forecast it now shows on `/spot-price`
-(`vividfog/nordpool-predict-fi`, imported by `spot:fetch-forecast`). Reason: a third-party
-forecast is not unique to the site; own models make the pages and the monthly market review
-distinctive, and Voltikka can keep and score its own forecast vintages.
+Voltikka runs its **own** Finnish spot price forecasts instead of the third-party forecast it now
+shows on `/spot-price` (`vividfog/nordpool-predict-fi`, imported by `spot:fetch-forecast`).
+Reason: a third-party forecast is not unique to the site; own models make the pages and the
+monthly market review distinctive, and Voltikka can keep and score its own forecast vintages.
 
-**This task is only the data part:** collect the inputs that a short-term model needs and that
-Voltikka does not yet collect. Building the model is a later, separate task. Do not build a model
-here. Do not change `/spot-price`.
+Two models (user decision 2026-11-01):
 
-## What a short-term model needs (reference: nordpool-predict-fi)
+- **Short-term model (S):** hourly, D+1..D+7, the same job as nordpool-predict-fi.
+- **Medium-term model (M):** the next 2–3 months (weekly and monthly levels and their range).
+
+User decision 2026-11-01: **do not only replicate the current model.** nordpool-predict-fi is a
+reference and a baseline to beat, not the design. Each model must have stated differentiators
+(below) that its evaluation proves or rejects.
+
+User decision 2026-11-01: collectors without a model have no purpose, so every collector in this
+task serves a named model feature. A public page change (`/spot-price`, review pages) is not in
+this task; phase 5 only records the recommendation.
+
+## Phases (for each model; S goes first because its data and holdout are faster)
+
+1. **Data:** collect the missing inputs with history and forecast vintages (S: sections below;
+   M: "Medium-term data" below).
+2. **Research model** (offline, Python, local production snapshot, like
+   `tasks/forecast-falling-market-study/`): as-of feature table, baselines, candidates, backtest.
+3. **Pre-declared evaluation on real vintages.** Freeze candidates and the decision rule before
+   the holdout data exists; score on as-of inputs only.
+4. **Production forecaster** (after user approval of phase 3 and of the runtime): scheduled runs
+   stored append-only and scored automatically. No public UI.
+5. **Recommendation** to the user on public use (`/spot-price`, monthly review layer 1).
+
+## Common requirements
+
+- **As-of rule (strict):** a run uses only data that existed at its issue time: observations up
+  to their real publication time, and the latest forecast vintage fetched before the issue time
+  (`hourly_forecast_runs`, `weather_outlook_runs`, `fetched_at`/`issued_at`). No later revision,
+  no realised weather in place of a forecast. Same principle as the root `AGENTS.md` history rules.
+- **Known evidence gaps:** forecast vintages exist only from the date each collector starts
+  (2026-11-01 or later); FI futures from 2026-04-08 only. Earlier training can use observed
+  weather only as a stand-in ("perfect forecast"), which overstates skill. Every result says
+  which kind of input it used.
+- **Probabilistic output:** every forecast has a median and a range (at least p10/p90), scored
+  with pinball loss and interval coverage, not only a point value.
+- **Candidate lists and decision rules are frozen before the holdout**, as in the falling-market
+  study; no tuning on the holdout.
+- **Storage of own forecasts:** append-only vintages with model version, issue time and input
+  provenance, never overwritten.
+- **Runtime (open user decision, phase 4):** research and training in Python on a local snapshot
+  (`scripts/sync-production-database.sh`). Production needs either a Python runtime on Railway
+  (new service or job image: production mutation) or a model that PHP can run. Decide with the
+  phase 3 result.
+- **Restricted inputs** (EEX, JAO) may be used internally; publication follows
+  `tasks/monthly-market-review/decisions.md` ("Rule for restricted data").
+
+## Short-term model (S)
+
+- **Target:** FI day-ahead price per UTC hour, VAT 0, €/MWh, `spot_prices_hour` region FI (the
+  hour is the mean of the four quarters since the 15-minute day-ahead). VAT only at display.
+- **Issue time and horizon:** one run each day before the 13:00 Helsinki gate closure (proposal
+  11:30 Helsinki) for every hour of D+1..D+7 (Helsinki days). Optional second run after the
+  day-ahead result (about 14:00) for D+2..D+7.
+- **Baselines to beat (same hours, same issue time):** (a) same hour 7 days earlier; (b) last
+  known day-ahead day repeated; (c) the nordpool-predict-fi vintage at issue time
+  (`spot_price_forecast_runs`, from 2026-11-01).
+- **Metrics:** MAE and RMSE per horizon day, MAE of the daily mean, error of the daily maximum,
+  hit rate of the 3 cheapest and 3 most expensive hours of a day, pinball loss and p10–p90
+  coverage; winter and summer separately when data allows.
+- **Differentiators (agent proposals, each to prove or reject in phase 3):**
+  1. Calibrated ranges per hour and per day (the reference gives a point value only; verify).
+  2. Inputs the reference does not use: Swedish nuclear and interconnector outage plans
+     (ENTSO-E A77/A78/A80 versions), neighbour-zone prices and German drivers (DE-LU day-ahead,
+     TTF gas, EUA carbon), Nordic reservoir state (NVE, ENTSO-E A72), Fingrid 247 solar and
+     flexibility series, the front futures level as an anchor for D+3..D+7.
+  3. A structure built for the tail of the week: separate daily level and hourly shape, so that
+     D+4..D+7 rely on fundamentals and the futures anchor, not on recent prices.
+  4. Household outputs scored directly: cheapest-hours plan for a day, "tomorrow cheaper than
+     today", expected daily cost per house type (Datahub 364 profiles).
+  5. A public track record against the reference (phase 5 recommendation, scored vintages).
+
+## Medium-term model (M)
+
+- **Purpose (user decision 2026-11-01):** consumer guidance, not business decisions. Tell
+  consumers which way the price is likely to move in the next 2–3 months and roughly by how much.
+  Nobody makes production or trading decisions on it, so precision beyond "direction + rough
+  size + honest range" has no value; keep the model and its output simple.
+- **Output:** for each of the next 3 calendar months: the expected FI spot mean (VAT 0, €/MWh;
+  shown later in c/kWh incl. VAT), its change from a reference level that consumers know (proposal:
+  the last complete calendar month and the last 30 days), a direction class (rises clearly /
+  rises / about unchanged / falls / falls clearly; thresholds frozen in phase 3), and a p10–p90
+  range. Optional: the monthly cost change in euros for the three example households (Datahub 364
+  profiles), so the monthly review's layer 1 can use it.
+- **The movement includes the season.** November → January usually rises because of winter;
+  that is the movement a consumer feels, so the direction is against the reference level, not a
+  season-adjusted value. The output may say how much of the change is normal for the season.
+- **Issue time:** weekly (proposal Monday 11:00 Helsinki, after the EC46 run is fetched) and on
+  the first working day of the month for the review.
+- **Baselines to beat:** (a) FI futures at issue time (month/quarter, delivery-weighted; FI
+  futures exist from 2026-04-08 only); (b) unchanged (the reference level); (c) the normal
+  seasonal change of recent years applied to the reference level.
+  Honest note (confirmed by the user 2026-11-01): beating the futures on the mean is hard. The
+  realistic value is the plain direction and size, the range, the cold-and-calm risk and the
+  household translation; the evaluation must show which of these hold.
+- **Metrics:** direction-class hit rate and the share of "wrong way" calls (the worst error for a
+  consumer), absolute error of the monthly change in c/kWh, p10–p90 coverage. Monthly targets give
+  few points: report n, and use overlapping 4-week windows from weekly issues for more evidence.
+- **Differentiators (agent proposals):** fundamentals-adjusted futures (hydro balance proxy from
+  reservoirs and snow vs normal, planned nuclear outages such as the OL3 annual revision, wind
+  capacity growth, gas/carbon), an explicit weather-scenario range from EC46 and SEAS5 vintages,
+  and the household-type cost translation.
+- **Public wording (phase 5):** direction and size in plain Finnish with visible uncertainty;
+  the fixed-term forecast page rule (rise/fall/unchanged, never "lock now"/"wait") applies unless
+  the user decides otherwise for the review's recommendations.
+
+## Medium-term data (phase 1 for M)
+
+Mostly collected already for the monthly review (2026-11-01): FI and DE futures, TTF, EUA
+(`eex_*`), NVE and ENTSO-E A72 reservoirs (from 2015), GIE gas storage, ERA5 daily weather from
+1991, EC46/SEAS5 outlook vintages (from 2026-11-01), ENTSO-E outage versions (from 2023),
+Fingrid capacities, Syke snow (this task). Gaps to check before phase 2 of M:
+
+- **Historical seasonal forecasts** for an as-of backtest before 2026-11: candidate C3S SEAS5
+  hindcasts and archived forecasts from the Copernicus Climate Data Store (non-Open-Meteo, open
+  licence, needs a free key; verify terms, resolution and effort).
+- **Futures history before 2026-04-08:** no open source known (documented gap). Backtests before
+  that date use fundamentals without the futures anchor and are labelled so.
+- **Nordic hydrological balance:** no open series (monthly-review decision); build a proxy from
+  reservoirs, snow and precipitation vs normal.
+
+## Short-term data (phase 1 for S; reference: nordpool-predict-fi)
 
 nordpool-predict-fi (MIT licence, studied at commit `f600ab7`, 2026-11-01,
 https://github.com/vividfog/nordpool-predict-fi) is an XGBoost model. Target: FI hourly spot price
@@ -79,7 +198,7 @@ incl. VAT (c/kWh). Horizon: next hour to end of D+7. It retrains on every run on
   dates + Midsummer + All Saints' Day). Do not depend on pyhäpäivä.fi (it was down on
   2025-03-27 per their code comment).
 
-## Requirements
+## Data requirements (phase 1)
 
 1. **Hourly resolution**, UTC hour keys (`timestamp` unix seconds + `utc_datetime` UTC text without
    a datetime cast, as in `spot_prices_hour` and `fingrid_hourly_values`; the local app timezone
@@ -109,7 +228,7 @@ incl. VAT (c/kWh). Horizon: next hour to end of D+7. It retrains on every run on
    does not stop the others and the run exits 1).
 6. No public UI. No change to `/spot-price` or to the third-party forecast import.
 
-## Constraints
+## Constraints (all phases)
 
 - Free Open-Meteo API: the user treats the use as non-commercial while the site has no income.
   Check again before the site gets income. Attribution: "Weather data by Open-Meteo.com".
@@ -123,6 +242,4 @@ incl. VAT (c/kWh). Horizon: next hour to end of D+7. It retrains on every run on
 
 ## Out of scope (later tasks)
 
-- The forecast model itself (feature table, training, evaluation, vintage scoring).
-- A medium-term (months) model; its inputs are mostly already collected for the monthly review
-  (futures, hydro reservoirs, gas, carbon, weather outlooks).
+- A public page change (`/spot-price`, review pages); phase 5 only records the recommendation.

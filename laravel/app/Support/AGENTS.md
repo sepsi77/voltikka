@@ -17,3 +17,7 @@ The scheduler throws a plain `Exception` ("Scheduled command [...] failed with e
 ## Database connection loss
 
 `DatabaseConnectionLost` decides whether a Throwable means "database unreachable" (only `QueryException`/`PDOException` in the previous chain, matched with Laravel's lost-connection phrases). `bootstrap/app.php` uses it for a retryable 503 and `config/sentry.php` `before_send` uses it for the one `database-connection-lost` fingerprint. Do not widen it to other exception classes: the phrase list contains generic socket text such as `reset by peer`. Tests: `DatabaseConnectionLostTest`. See `../../AGENTS.md#database-unavailability`.
+
+## Finnish holidays
+
+`FinnishHolidays` calculates Finnish holidays in code for demand-model features (no table, no external service, no PHP calendar extension). `forYear()`, `between()` (inclusive) and `on()` return `Y-m-d` => name + kind. Kind `public_holiday` is the 13 legal public holidays; kind `eve` is only juhannusaatto and jouluaatto, the de facto non-working days. Uudenvuodenaatto and vappuaatto are normal working days for most workplaces, and pääsiäislauantai is always a Saturday, so they are deliberately not included. Easter uses the anonymous Gregorian algorithm. Years before 1991 are rejected, because in 1973–1990 loppiainen and helatorstai were moved to Saturdays. Tests: `tests/Unit/FinnishHolidaysTest.php` (sources for the 2023–2027 dates are in its doc comment).

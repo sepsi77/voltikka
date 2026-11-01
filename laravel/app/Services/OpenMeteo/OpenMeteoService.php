@@ -11,7 +11,7 @@ use RuntimeException;
 use Throwable;
 
 /**
- * Read-only client for the free Open-Meteo APIs (archive, ensemble, seasonal). No key.
+ * Read-only client for the free Open-Meteo APIs (archive, forecast, ensemble, seasonal). No key.
  *
  * Every request after the first waits for the given delay, because the free tier allows fewer
  * than 600 calls per minute and 5,000 per hour, and a long or wide request counts as several
@@ -31,7 +31,7 @@ class OpenMeteoService
      */
     public function fetchArchive(array $point, CarbonInterface $from, CarbonInterface $to, float $delaySeconds): array
     {
-        return $this->getDaily((string) config('open_meteo.archive_url'), [
+        return $this->getBlock((string) config('open_meteo.archive_url'), [
             'latitude' => $point['latitude'],
             'longitude' => $point['longitude'],
             'start_date' => $from->format('Y-m-d'),
@@ -40,7 +40,7 @@ class OpenMeteoService
             'models' => (string) config('open_meteo.observed_model'),
             'timezone' => (string) config('open_meteo.timezone'),
             'wind_speed_unit' => 'ms',
-        ], $delaySeconds);
+        ], $delaySeconds, 'daily');
     }
 
     /**
@@ -54,7 +54,7 @@ class OpenMeteoService
      */
     public function fetchOutlook(array $product, array $point, float $delaySeconds): array
     {
-        return $this->getDaily($product['url'], [
+        return $this->getBlock($product['url'], [
             'latitude' => $point['latitude'],
             'longitude' => $point['longitude'],
             'models' => $product['model'],
@@ -62,7 +62,53 @@ class OpenMeteoService
             'forecast_days' => $product['forecast_days'],
             'timezone' => (string) config('open_meteo.timezone'),
             'wind_speed_unit' => 'ms',
-        ], $delaySeconds);
+        ], $delaySeconds, 'daily');
+    }
+
+    /**
+     * Observed hourly values for one point and an inclusive range of UTC days (ERA5).
+     *
+     * @param  array{latitude: float, longitude: float}  $point
+     * @return array<string, mixed> Decoded response with an 'hourly' block (unix-second times)
+     *
+     * @throws RequestException|ConnectionException
+     */
+    public function fetchArchiveHourly(array $point, CarbonInterface $from, CarbonInterface $to, float $delaySeconds): array
+    {
+        return $this->getBlock((string) config('open_meteo.archive_url'), [
+            'latitude' => $point['latitude'],
+            'longitude' => $point['longitude'],
+            'start_date' => $from->format('Y-m-d'),
+            'end_date' => $to->format('Y-m-d'),
+            'hourly' => implode(',', (array) config('open_meteo.observed_hourly_variables')),
+            'models' => (string) config('open_meteo.observed_hourly_model'),
+            'timezone' => 'GMT',
+            'timeformat' => 'unixtime',
+            'wind_speed_unit' => 'ms',
+        ], $delaySeconds, 'hourly');
+    }
+
+    /**
+     * One hourly forecast product (single model) for one point, in UTC hours.
+     *
+     * @param  array{url: string, model: string, forecast_days: int, variables: list<string>}  $product
+     * @param  array{latitude: float, longitude: float}  $point
+     * @return array<string, mixed>
+     *
+     * @throws RequestException|ConnectionException
+     */
+    public function fetchHourlyForecast(array $product, array $point, float $delaySeconds): array
+    {
+        return $this->getBlock($product['url'], [
+            'latitude' => $point['latitude'],
+            'longitude' => $point['longitude'],
+            'models' => $product['model'],
+            'hourly' => implode(',', $product['variables']),
+            'forecast_days' => $product['forecast_days'],
+            'timezone' => 'GMT',
+            'timeformat' => 'unixtime',
+            'wind_speed_unit' => 'ms',
+        ], $delaySeconds, 'hourly');
     }
 
     /**
@@ -91,7 +137,7 @@ class OpenMeteoService
      * @param  array<string, mixed>  $query
      * @return array<string, mixed>
      */
-    private function getDaily(string $url, array $query, float $delaySeconds): array
+    private function getBlock(string $url, array $query, float $delaySeconds, string $block): array
     {
         $this->waitForRateLimit($delaySeconds);
 
@@ -111,7 +157,7 @@ class OpenMeteoService
         $response->throw();
 
         $payload = $response->json();
-        if (! is_array($payload) || ! is_array($payload['daily']['time'] ?? null)) {
+        if (! is_array($payload) || ! is_array($payload[$block]['time'] ?? null)) {
             throw new RuntimeException('Open-Meteo returned an unexpected payload.');
         }
 
