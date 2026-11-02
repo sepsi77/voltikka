@@ -544,6 +544,9 @@ All SEO listing pages use `SeoContractsList`. The general and exact 6-, 12-, and
 - EEX requests are throttled by default with roughly 15 seconds between public API calls (`EEX_FUTURES_REQUEST_DELAY_SECONDS`, jitter configurable)
 - Default instruments are EEX Nordic System Price and Nordic zonal Base Month, Quarter, and Year futures; Baltic instruments must be added only after verified EEX short codes exist
 
+### Open-Meteo (weather for the market review and own models)
+- Free API, non-commercial use only. User decision (2026-11-01, confirmed 2026-11-02): Voltikka's use is non-commercial while the website is not monetised. **Before any monetisation (ads, paid affiliate links, paid features), move to a paid plan**; the current collection needs "API Professional" (Standard lacks the archive, ensemble and seasonal APIs). See `laravel/app/Services/OpenMeteo/AGENTS.md`
+
 ### EU PVGIS API (Solar Production)
 - Endpoint: `https://re.jrc.ec.europa.eu/api/v5_2/PVcalc`
 - Service: `PvgisService`

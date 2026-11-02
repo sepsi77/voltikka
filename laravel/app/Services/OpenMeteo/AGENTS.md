@@ -11,7 +11,14 @@ Licence and terms: Open-Meteo data is CC BY 4.0. A published figure must credit
 "Weather data by Open-Meteo.com" with a link to https://open-meteo.com/ (ERA5 is also
 Copernicus/ECMWF data). The free API is for non-commercial use only. User decision 2026-11-01:
 the site has no income, so the use is treated as non-commercial. Check this again before the site
-gets any income (ads, affiliate links, paid features); then a paid plan is needed.
+gets any income (ads, affiliate links, paid features); then a paid plan is needed. The user confirmed
+this on 2026-11-02 after reading the Open-Meteo terms and the Creative Commons non-commercial
+definition: non-commercial while the website is not monetised. Paid tiers (2026-11-02 price
+table): "API Standard" does not include the Historical Weather (archive/ERA5), Ensemble,
+Seasonal, Historical Forecast or Previous Runs APIs; the current collection needs
+"API Professional" (or Enterprise). Paid tiers also give reserved servers: the free servers had
+long HTTP 503 "overloaded" periods on 2026-11-02 (archive and previous-runs about 12:00 to after
+15:30 UTC).
 
 ## Files
 

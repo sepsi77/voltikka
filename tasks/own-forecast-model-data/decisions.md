@@ -291,3 +291,259 @@
 - Read-only checks: the 4 new tables exist (0 rows), 0 pending migrations, 5 new schedule entries registered.
 - Lesson: a wait loop must deploy only on `ready`; `pending_completion` is not finished (first loop stopped on it, the deploy did not run then).
 - Messaged session voltikka-87 to run the local sync. Still to check: today's morning_retail and morning_forecast reach a finished state after the deploy, and the first scheduled vintages appear (Fingrid 245 at 06:45; FMI/solar 11:05; Syke 11:10).
+
+## 2026-11-02 – SEAS5 skill for Finland is near zero beyond the start month
+
+- Fresh local sync (session voltikka-87, 06:22 Helsinki, against deploy-000015): ERA5 daily for the 6 Finnish points from 1991; hydro points not yet.
+- `research/seas5_skill.py` (read-only) compares the SEAS5 `fi` region with the mean of the 6 Finnish ERA5 points, starts 2017-11..2026-10, anomalies against the sample calendar-month mean. Result in `research/seas5-skill-local-20261102.txt`.
+- Temperature: correlation of the ensemble-mean anomaly with the observed anomaly is 0.74 at lead 1 (0.82 Nov–Mar), then 0.12, −0.09, −0.14, 0.10, −0.11 at leads 2–6 (n 102–107). Precipitation: 0.52 at lead 1, then 0.16, 0.20, −0.06, −0.01, 0.07. Lead 1 is the start month, about 5 days of which are past at the as-of time.
+- p10–p90 coverage of the member anomalies is 0.64–0.75 (target 0.80): the ensemble is a little too narrow.
+- Consequence for M: for months 2–3 ahead, SEAS5 gives about no information on the Finnish weather mean. The M model must not present a SEAS5 signal as a weather forecast for those months; use the observed climatological distribution (recent years) for the weather part of the range, and the current month from EC46/S2S and the days already observed. SEAS5 stays a candidate feature only if phase 2 shows value (for example Nordic runoff vs NVE inflow, not yet checked); otherwise it is dropped (simplest model). This supports the honest limit in the spec: the realistic value of M is direction and size from the current state (reservoirs, snow, futures, season), not from a weather forecast.
+- User decision (2026-11-02): agreed. The M model uses the observed weather of previous years for the weather part of its range instead of a seasonal weather forecast. SEAS5 stays only if the runoff vs inflow check shows value.
+- 2026-11-02, session voltikka-87: the production hydro weather backfill starts at 12:30 Helsinki (about 3,700 Open-Meteo calls, about 75 min, user-approved there). No deploy from 12:30 until its "hydro done" message. The scheduled solar_ghi/observed_hourly calls stay as they are. This task's local Open-Meteo live checks wait until after that backfill, and not in the same clock hour.
+- 2026-11-02 07:45 Helsinki, read-only checkpoint check after deploy-000015: eex_futures, morning_retail and morning_forecast are all `ready` for 2026-11-02. Retail and forecast became ready on their first scheduled ticks (07:15 and 07:30 Helsinki), so the 06:15 deploy did not delay the morning consumers.
+
+## 2026-11-02 – S phase 2: first as-of backtest (local, read-only)
+
+- User request (2026-11-02): start S phase 2 and do all the local work that is possible.
+- Scripts in `research/`:
+  - `s_export.py`: read-only CSV export of the S inputs from the local snapshot, with pins in
+    `s-inputs-20261102.json` (the CSV files are git-ignored under `data/s-export-20261102/`, 12 MB).
+  - `s_thirdparty_history.py`: baseline (c) from the git history of nordpool-predict-fi
+    `deploy/prediction.json`: 4,454 vintages, 2024-02-23..2026-11-02, 900,878 hourly values,
+    read with `git cat-file` from a bare blob-less clone in `data/npf-history/` (15 MB). No code
+    from the repo is checked out or run. As-of time = committer time (a later push is a small,
+    accepted risk). VAT removed with the rate of the target date (24 % to 2024-08-31, then 25.5 %).
+    Scoring only; it is never a model input.
+  - `s_backtest.py`: as-of feature table, baselines, candidates, quarterly expanding refit from
+    2024-01, metrics. Output: `s-backtest-20261102.txt` and `s-backtest-results-20261102.json`.
+- As-of rules used (documented in the script): prices up to the end of D; Fingrid observations
+  for hours that start before D 10:00 Helsinki (production fetches at 10:20, so a phase 4 run must
+  keep a fetch before it); outage plans = the latest revision of each document created at or
+  before 11:30, cancelled revision removes the document; FI month futures with trade date ≤ D−1.
+- Check of the outage logic: the as-of nuclear plan follows realised Fingrid 188 output
+  (correlation 0.84 at D+1, MAE 203 MW against 785 MW for a flat 4,372 MW; annual revisions visible).
+- Candidates (hyperparameters fixed before the first run): `h_asof` = gradient-boosted quantile
+  model (scikit-learn HistGradientBoosting, p10/p50/p90) on as-of inputs only; `p_standin` = the
+  same + weather stand-ins (stored Fingrid 246 wind forecast for the target hour, made about one day
+  before it; realised ERA5 daily temperature of the target day). `p_standin` is an upper bound with
+  overstated skill by construction. `*_cal` = the same p50 with conformal p10/p90 shifts from the
+  last 91 training days of each block.
+- Results, test issues 2024-01-01..2026-10-24 (1,028 days), hourly MAE EUR/MWh VAT 0, D+1..D+7:
+
+  | Model | All | Winter | Summer | Same rows as (c) | cov80 (cal) |
+  |---|---|---|---|---|---|
+  | a same hour last week | 44.3 | 53.1 | 38.9 | 42.7 | 0.78 |
+  | b last day repeated | 42.3 | 49.3 | 38.0 | 41.0 | 0.78 |
+  | c nordpool-predict-fi vintage | 28.6 | 30.3 | 27.7 | 28.6 | 0.81 (residual range) |
+  | h_asof (honest, no weather forecast) | 37.2 | 44.3 | 32.8 | 36.9 | 0.75 |
+  | p_standin (weather stand-ins) | 23.5 | 23.9 | 23.2 | 22.7 | 0.74 |
+
+  On the rows of (c) per horizon: (c) 21.8 at D+1 and 31–33 at D+4..D+7; h_asof 34–39;
+  p_standin 22–23 at every horizon. Pinball (cal): h_asof 12.2, (c) 10.0, p_standin 7.5.
+- Conclusions:
+  1. Without a weather forecast, our model beats the naive baselines (37 against 42–44) but loses
+     clearly to the reference (37 against 29). The reference uses weather forecasts; wind is the
+     main driver (Fingrid 246 vs realised wind MAE 401 MW).
+  2. With near-perfect weather, our model beats the reference at every horizon (about 23 against
+     22–33), most at D+3..D+7. The real gain lies between these two bounds. Only real forecast
+     vintages can show where (phase 3, collectors deployed 2026-11-02).
+  3. Ranges: raw quantile models cover only 0.51 (target 0.80). The conformal shift gives 0.75
+     (summer 0.81, winter 0.65) and a lower pinball. Winter ranges are still too narrow. A first
+     ratio-based calibration made the factor explode (×30 after the autumn 2023 spikes); it was
+     replaced by the additive form.
+  4. The direction of tomorrow's daily mean vs today (household output "tomorrow cheaper"): h_asof
+     0.64 at D+1, (c) 0.78, p_standin 0.77.
+- The first runs used all CPU cores and loaded the user's machine. `s_backtest.py` now limits
+  OpenMP to 2 threads by default (`OMP_NUM_THREADS`) and is run with `nice`.
+- These are phase 2 research numbers (design choices were made while looking at them). The phase 3
+  holdout on real vintages decides; its candidates and rule must be frozen first.
+- Proposal (needs a user decision; Open-Meteo, and not during the hydro backfill): an honest
+  historical weather-forecast input for the backtest. Candidate: the Open-Meteo Previous Runs API
+  (forecasts as issued 1–7 days before each hour; start date and models to verify). No non-Open-Meteo
+  source with archived D+1..D+7 forecasts is known (FMI does not archive its forecasts; ECMWF
+  MARS needs a licence). Without it, phase 3 must wait for about 2–3 months of our own vintages.
+
+## 2026-11-02 – Historical weather forecasts from Open-Meteo (user decision)
+
+- User decision (2026-11-02): Open-Meteo may be used for the historical weather forecasts of the
+  S backtest. Source: Previous Runs API (`<variable>_previous_dayN` = the value predicted 24·N h
+  before the valid time, N = 1..7; most models archived from January 2024; web docs read
+  2026-11-02, no API call yet).
+- `research/s_weather_previous_runs.py`: `probe` (which model has all leads in 2024-01 and 2026-10,
+  6 tiny requests), `fetch --model M` (one request per point and year, cached raw JSON in
+  `data/om-previous-runs/`, 15 s pause, stops on HTTP 429), `reduce` (group means per hour and lead
+  into `data/s-export-<stamp>/weather_previous_runs.csv`, pinned in `s-inputs-<stamp>.json`).
+- Points = the live collector points: 29 FMI stations (2 m temperature, 10 m wind, as the FMI
+  forecast parameters) and the 9 neighbour wind points (10 m wind). Estimate: 114 requests,
+  about 3,670 weighted calls (free tier 10,000/day, 5,000/hour). Planned model: `ecmwf_ifs`, the
+  same as the live `solar_ghi` product, if the probe shows the archive from 2024-01; else
+  `ecmwf_ifs025`.
+- Timing: the calls start after the production hydro backfill (session voltikka-87, from 12:30)
+  has sent "hydro done", and not in the same clock hour.
+- As-of rule in `s_backtest.py`: per target hour, the smallest N with
+  valid time − 24·N h + 7 h (publication lag) ≤ issue time; N > 7 leaves the features empty. At
+  11:30 this covers every hour to about D+7 05:00 Helsinki.
+- Phase 3 note: training uses Open-Meteo IFS forecasts, while production stores FMI forecasts at the
+  same points. Before phase 3 decide whether the candidate runs on live Open-Meteo values or on the
+  FMI vintages (and measure the difference).
+- The fetch request header carries no personal data (the user's email was removed before any
+  request).
+- Range calibration, second step (same run setup, 2 threads, 400 s): `*_scal` shifts p10/p90 by the
+  0.9 quantile of earlier blocks' out-of-sample misses (same season and horizon, targets in the
+  365 days before the block start; fallback `*_cal`). Coverage h_asof 0.75 → 0.77 (winter
+  0.65 → 0.68, summer 0.81 → 0.82); p_standin 0.74 → 0.78 (winter 0.69 → 0.74). Pinball h_asof
+  12.43 → 12.31. Winter ranges are still too narrow; the winter price spikes are the main cause.
+  Keep `*_scal` as the candidate range method for phase 3.
+- Level/shape candidate `ls_asof` (differentiator 3; same as-of inputs; daily-level quantile models on
+  one row per target day + hourly-shape quantile models on the deviation from the day mean;
+  range = both spreads as independent errors, then `*_scal`): hourly MAE 39.5 against 37.2 for
+  h_asof, worse at every horizon, also D+4..D+7 (40.0 against 37.7 at D+7); pinball 12.7 against
+  12.3. But the hour order is better: cheapest-3 hit rate 0.40 and most-expensive-3 0.41, against
+  0.36/0.37 (h_asof) and 0.37/0.39 (reference). Consequence: the split is rejected as the level
+  model; the separate shape model stays a candidate for the household "cheapest hours" output
+  (combination: level from the main model, hour order from the shape model). Decide with the
+  weather-forecast run.
+- 2026-11-02 11:12 Helsinki, read-only production check of the first collector rows after
+  deploy-000015 (times UTC): Fingrid 245 vintages hourly from 04:45 (5 by 08:45, 72 h); FMI edited
+  forecast 37 points (29 stations + 8 neighbour points) and FMI ECMWF 1 point (DE02) at 09:05,
+  232 h; Open-Meteo solar_ghi 7 points at 09:05, 240 h; FMI observations from 2026-10-30 09:00
+  (temperature and wind 28 stations, radiation 7); Syke 10 places for both series; Open-Meteo hourly
+  ERA5 observations 9 points to 2026-10-27. All as designed (28 observation stations: Kristiinankaupunki
+  lighthouse has no observations, known). The production backfills (FMI from 2023, neighbour wind,
+  Syke history) are still not run; they need user approval.
+
+## 2026-11-02 – Production backfills for the own models (user approval)
+
+- User approval (2026-11-02): the production backfills FMI from 2023, Open-Meteo neighbour wind and
+  Syke history, and the local Open-Meteo Previous Runs fetch.
+- Syke: `php artisan syke:fetch --from=2023-01-01`, 09:29 UTC, EXIT 0: 2,760 precipitation_5d and
+  690 snow_water_equivalent rows (log `/app/storage/logs/backfill-20261102-fmi-syke.log`).
+- FMI, first try in the same chain: EXIT 255 after 11 s, "Allowed memory size of 134217728 bytes
+  exhausted" (PHP CLI limit 128M) on the first 744 h observation piece (28 stations x 3
+  parameters builds many date objects). The daily 72 h window is not affected (11:05 run OK).
+  Restarted at 09:30 UTC as `php -d memory_limit=1024M artisan fmi:fetch --from=2023-01-01
+  --only=observed --only=radiation` (container limit 32 GB, 1.1 GB in use; the process uses about
+  240 MB). Log `/app/storage/logs/backfill-20261102-fmi.log`. Lesson: test a full backfill piece
+  locally under the production memory limit (`php -d memory_limit=128M`) before a production run.
+- `disown` does not exist in the container shell (dash); `setsid nohup ... &` alone detaches.
+- Neighbour wind (`weather:fetch --only=observed_hourly --from=2023-01-01`, about 900 calls) and
+  the local Previous Runs fetch wait for the "hydro done" message of session voltikka-87 and the
+  next clock hour. voltikka-87 was informed (09:31 UTC).
+- Cause of the FMI 128M failure (local measurement, in-memory test DB, synthetic 744 h ×
+  29 stations × 3 parameters = 64,728 rows): `FmiObservationImporter::record()` called `now()`
+  per row and kept the Carbon object twice (created_at, updated_at): 208 MB extra peak. Local fix:
+  the stamps are formatted once per import (same stored strings): 68 MB extra peak. FMI tests pass
+  (11), Pint clean; `Fmi/AGENTS.md` updated. Not deployed: the running production backfill uses
+  `-d memory_limit=1024M`, and the daily 72 h run was never affected. The fix goes out with the
+  next approved deploy.
+- FMI backfill result: EXIT 0 at 11:52 UTC (2 h 22 min): 1,916,704 hourly observation rows
+  (temperature and wind) and 234,592 radiation rows.
+- voltikka-87 sent "hydro done" at 11:48 UTC (rerun of no5_aurland and se2_storuman, EXIT 0).
+  Neighbour wind backfill started 12:00 UTC with `php -d memory_limit=1024M artisan weather:fetch
+  --only=observed_hourly --from=2023-01-01` (log `/app/storage/logs/backfill-20261102-weather.log`):
+  8 of 9 points stored 33,504 hourly rows each; se01_markbygden failed (RuntimeException, the
+  same transient failure as in the hydro run); EXIT 1 at 12:16 UTC. Rerun for that point only
+  (`--point=se01_markbygden`) at 13:21 UTC.
+- The rerun failed too (ConnectionException after 3 retries, EXIT 1 at 13:24 UTC). Both failures
+  were on the 2023 piece. One local request for the same piece (13:3x UTC) got HTTP 503
+  "The service is overloaded" from archive-api.open-meteo.com in 0.8 s: the failures are on the
+  service side, not in the point or our code. The log keeps only the exception class, so the
+  exact source of the first RuntimeException (unexpected payload or missing variable/unit in a
+  200 response) is not proved. Next try at 14:00 UTC.
+- Shell note: `echo EXIT $? $(date)` keeps the right status in dash (tested); `$?` must come
+  before any command substitution. In zsh, `$R args` with R="railway ssh ..." in a variable does
+  not word-split, so a local watcher written that way fails on every check (it did here; the
+  logs were then read directly).
+- 14:00 UTC se01_markbygden third try: RequestException after 11 s, EXIT 1. Local Previous Runs
+  probe 14:03–14:09 UTC: all 6 requests failed (HTTP 503 or timeout, models ecmwf_ifs,
+  ecmwf_ifs025, best_match). Open-Meteo is overloaded this afternoon; no more Open-Meteo calls
+  today. Tomorrow: se01_markbygden (4 requests, production) and then the local probe and fetch.
+
+## 2026-11-02 – External modelling advice compared with the plan
+
+- The user pasted two external opinions on S and M modelling. Both match the current design
+  (quantile gradient boosting, outage plans, neighbour prices, weather as main input, 2023+
+  training; M: futures as mean, historical weather years for the range).
+- Agent proposal for the next S run (local only, with the weather-forecast candidate): (1) a
+  per-target-hour net-load / tightness feature (expected demand minus expected wind, over planned
+  nuclear plus border capacity); (2) a load-weighted southern Finland temperature in addition to
+  the 29-station mean (the 29 stations are mostly west-coast wind sites, weak for heating demand);
+  (3) a linear quantile (LEAR-type) baseline. Deferred: ECMWF ensemble spread (no long archive to
+  backtest; collect live first), merit-order + ML residual, SE1/SE3 price forecasts, deep models.
+- M: no dispatch simulation or VECM (consumer purpose). The futures risk premium cannot be
+  estimated (FI futures only from 2026-04-08), so the M range must stay wide.
+- User decision (2026-11-02): "Let's try this" for items (1)–(3), and retry Open-Meteo after an
+  hour (probe again at 15:10 UTC).
+- Implemented locally (not yet run on real forecasts):
+  - `s_weather_previous_runs.py reduce` writes `fi_temp_south`: population-weighted temperature of
+    Helsinki Kumpula, Tampere-Pirkkala, Turku airport, Utti and Lappeenranta (weights = approximate
+    region population in millions: 1.75, 0.53, 0.49, 0.16, 0.12; needs 80 % of the weight).
+  - `s_backtest.py`: `add_netload` fits, per block on training rows only, a linear stage-1 model
+    of realised net load (Fingrid 124 − 75) from last week's consumption at the same UTC hour
+    (`cons_hod_7`, as-of), the southern temperature forecast, its change from last week
+    (`temp_south_7`, from lead-1 forecasts already public), a cold term below −10 °C, wind power
+    proxy × installed capacity, weekend, holiday and hour. Features `netload_exp`, `resid_load`
+    (minus planned nuclear MW) and its day mean. The fit MAE per block and horizon is saved in the
+    results JSON (`netload_fit`) as a check of stage 1. Border capacity is not in the ratio
+    (no nominal capacity series in the export); the border outage features stay separate.
+  - New candidates: `w_south` (w_forecast + southern temperature), `w_netload` (+ net load), and
+    `l_linear` (LEAR-type: one ridge model, alpha 1 fixed, on asinh(price/10), price inputs also
+    asinh, one-hot hour/weekday/month/horizon, median fill + missing flags; range from training
+    residual quantiles per horizon). LEAR proper fits one LASSO per hour; this is simpler.
+  - Smoke test with synthetic weather (blocks to 2024-09, 30 iterations): all columns filled,
+    no errors. Real scores need the Previous Runs fetch.
+- Border capacity (user request 2026-11-02: "import / export data from Fingrid ... an important
+  factor"). Findings: Fingrid has measured flows (55 EE, 60 SE1, 61 SE3, 194 net; realised, so only
+  usable as lagged issue-time inputs) and official day-ahead NTC datasets 24 SE1-FI, 25 SE3-FI,
+  26 FI-SE1, 27 FI-SE3, 112 EE-FI, 115 FI-EE. The NTC datasets have values until the flow-based
+  start (e.g. 2024-03-04: SE1-FI 1,560, SE3-FI 1,200, EE-FI 358 = EstLink 1 only) and zeros or
+  nothing after it. JAO `maxBorderFlow` (local table from 2024-10-29) continues the series.
+  `research/s_border_capacity.py` joins them into `border_capacity.csv` (pinned; 201,738 rows;
+  Fingrid history cached in data/fingrid-ntc, 6 requests). p50 SE1-FI 1,245 MW (NTC) and 1,432 MW
+  (JAO). The two methods differ (maxBorderFlow is not an NTC); the feature `flow_based` marks it.
+- Backtest features (as-of: capacity is published the day before delivery, so a run on D knows it
+  through the end of D): per border the median of the last 7 known days, import borders limited by
+  the A78 plans (`imp_se1`, `imp_se3`, `imp_ee`, `imp_cap`), export sum `exp_cap`, and in
+  `add_netload` `import_need = resid_load - imp_cap` (what domestic hydro, CHP and reserves must
+  cover after full import). New candidate `w_capacity` (w_south + capacity) between w_south and
+  w_netload, so each step shows its own effect. Smoke test OK.
+- User decision (2026-11-02): JAO capacity values (or their change from earlier periods) may be
+  mentioned when we explain model results, to the degree that they help explain the forecast or
+  the report. Recorded in `laravel/app/Services/Jao/AGENTS.md` with the limits (single values or
+  changes in text, credit "JAO Nordic publication tool"; tables, charts or downloads of JAO data
+  still need JAO's written permission).
+- 15:10–15:16 UTC second Previous Runs probe (user: "try again in an hour"): all 6 requests again
+  HTTP 503 or timeout. Third try at 17:00 UTC; if it fails, the fetch moves to 2026-11-03 morning.
+- User decision (2026-11-02): retry Open-Meteo once an hour until it works. A local loop runs the
+  6-request probe at the start of each UTC hour from 17:00 UTC (at most 36 tries) and stops at the
+  first response with data. Then: se01_markbygden rerun in production, the Previous Runs fetch,
+  reduce, the border-capacity pin check and the full S backtest.
+- User decision (2026-11-02): after reading the Open-Meteo terms and the Creative Commons
+  non-commercial definition, the current use is non-commercial while the website is not
+  monetised; monetisation moves it to commercial use (paid plan). Recorded in root AGENTS.md
+  (External APIs) and `laravel/app/Services/OpenMeteo/AGENTS.md`, with the tier finding: the
+  current collection (archive, ensemble, seasonal) needs "API Professional"; "API Standard" is not
+  enough. Open for phase 3: the S model's daily weather source (FMI, free, versus the Open-Meteo
+  forecast API, the same source as the training data).
+
+## 2026-11-02 – S weather source: FMI against Open-Meteo
+
+- User (2026-11-02): maybe use FMI data and train with it; at least test FMI against Open-Meteo.
+- Constraint: FMI serves only the current forecast (no archive). Our FMI vintages start
+  2026-11-01, so a model cannot be trained on FMI forecasts until about a year of vintages exists
+  (at least one winter; autumn 2027). Training now uses historical ECMWF IFS forecasts from the
+  Open-Meteo Previous Runs API.
+- Finding: FMI's open data also has the ECMWF surface forecast (`ecmwf::forecast::surface::point`)
+  at any point, to about D+9.5. Test 2026-11-02: one request for all 38 points (29 FMISIDs + 9
+  latlon) returned 38 positions x 240 h x 3 parameters in 2.6 s (718 kB), 6.2 % NaN (the last
+  hours). So production can feed the model with the same model family as its training data, free
+  and without Open-Meteo.
+- Local change (not deployed): the FMI `ecmwf` product now covers all stations and neighbour
+  points (`latlon_points` accepts a list of config keys). FMI tests 11 passed, Pint clean.
+  Deploy needs user approval (with the FMI memory fix).
+- Planned comparison once vintages accumulate (4–8 weeks, ideally with a cold spell): (1) weather
+  level: FMI ECMWF, FMI edited and Open-Meteo ECMWF IFS (Previous Runs for the same days) against
+  FMI observations, per lead day (MAE, bias); (2) price level: the trained S model with each source
+  as input on the same issue days. Open point: which Open-Meteo model matches FMI's ECMWF grid
+  best (ecmwf_ifs 9 km or ecmwf_ifs025); the probe compares both.

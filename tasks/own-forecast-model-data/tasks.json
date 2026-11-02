@@ -72,23 +72,63 @@
     "status": "done"
   },
   {
-    "name": "Phase 1: user approval and runs of the production backfills (FMI from 2023, Open-Meteo neighbour wind, Syke)",
-    "status": "pending"
+    "name": "Phase 1: read-only check of the first production vintages (2026-11-02 11:12: all collectors wrote data)",
+    "status": "done"
+  },
+  {
+    "name": "Phase 1: production backfills approved 2026-11-02; Syke done (EXIT 0)",
+    "status": "done"
+  },
+  {
+    "name": "Phase 1: FMI production backfill from 2023 (EXIT 0 at 11:52 UTC: 1,916,704 observation and 234,592 radiation rows)",
+    "status": "done"
+  },
+  {
+    "name": "Phase 1: Open-Meteo neighbour wind production backfill from 2023 (12:00 UTC: 8 of 9 points; se01_markbygden rerun 13:21 UTC)",
+    "status": "in_progress"
+  },
+  {
+    "name": "FMI backfill memory fix (stamps once per import, 208 → 68 MB): done locally; deploy with the next approved release",
+    "status": "in_progress"
   },
   {
     "name": "S phase 2: export script and pinned input hashes from a local production snapshot (Python, like forecast-falling-market-study)",
-    "status": "pending"
+    "status": "done"
   },
   {
     "name": "S phase 2: as-of feature table (issue time, publication lags, latest vintage before issue)",
-    "status": "pending"
+    "status": "done"
   },
   {
     "name": "S phase 2: baselines (same hour last week, last known day repeated, third-party vintage at issue time) and metrics",
-    "status": "pending"
+    "status": "done"
   },
   {
     "name": "S phase 2: research model backtest on observed-weather stand-in, labelled as perfect-forecast input",
+    "status": "done"
+  },
+  {
+    "name": "S phase 2: user decision on an honest historical weather-forecast input (approved 2026-11-02: Open-Meteo Previous Runs API)",
+    "status": "done"
+  },
+  {
+    "name": "S phase 2: probe and fetch the Previous Runs history (after 'hydro done', not in the same clock hour), reduce, rerun with w_forecast",
+    "status": "pending"
+  },
+  {
+    "name": "S phase 2: winter range calibration (seasonal conformal gives 0.68 in winter, target 0.80; still open)",
+    "status": "pending"
+  },
+  {
+    "name": "S phase 2: level/shape candidate for D+4..D+7 (differentiator 3)",
+    "status": "done"
+  },
+  {
+    "name": "S phase 2: cheapest-hours output: main-model level + shape-model hour order (check with w_forecast)",
+    "status": "pending"
+  },
+  {
+    "name": "S phase 2: rerun with FMI hourly, Syke and Open-Meteo neighbour wind after the production backfills and a fresh sync",
     "status": "pending"
   },
   {
@@ -121,6 +161,10 @@
   },
   {
     "name": "M phase 1: SEAS5 skill check against observed monthly temperature and precipitation (after the fresh local sync)",
+    "status": "done"
+  },
+  {
+    "name": "M phase 1: SEAS5 runoff vs NVE/ENTSO-E reservoir inflow for the hydro regions (keep SEAS5 only if it adds value)",
     "status": "pending"
   },
   {
@@ -145,6 +189,22 @@
   },
   {
     "name": "M phase 5: recommendation on public use (monthly review layer 1, pages)",
+    "status": "pending"
+  },
+  {
+    "name": "S: net-load feature, southern Finland temperature and LEAR-type linear baseline: implemented and smoke-tested 2026-11-02; score after the Previous Runs fetch",
+    "status": "in_progress"
+  },
+  {
+    "name": "Retry se01_markbygden neighbour wind backfill (4 requests) and the local Previous Runs probe/fetch on 2026-11-03 (Open-Meteo overloaded 2026-11-02 afternoon)",
+    "status": "pending"
+  },
+  {
+    "name": "FMI ECMWF forecast at all 38 points (S live weather source candidate): done locally 2026-11-02; deploy with the next approved release",
+    "status": "in_progress"
+  },
+  {
+    "name": "Compare FMI ECMWF, FMI edited and Open-Meteo ECMWF IFS forecasts (weather and price level) after 4-8 weeks of vintages",
     "status": "pending"
   }
 ]

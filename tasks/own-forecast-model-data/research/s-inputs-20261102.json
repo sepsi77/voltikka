@@ -1,0 +1,43 @@
+{
+  "export": "data/s-export-20261102",
+  "files": {
+    "spot.csv": {
+      "rows": 176999,
+      "sha256": "d8d69e77c04f0849d1324f6d9dbd80021a19c6651a2e0c7800cc4bb5d104fbdb"
+    },
+    "fingrid.csv": {
+      "rows": 268711,
+      "sha256": "c90be9ad2cc914773bac1c3e2b93fb84d88e805be97c0598acb5587bd91ca82f"
+    },
+    "outages.csv": {
+      "rows": 1950,
+      "sha256": "8ea8786b7073540a7df5a0739a3ec995b93d53685ceed196004f562280d62a42"
+    },
+    "futures.csv": {
+      "rows": 2939,
+      "sha256": "0ae78321827a810f162d9a9e6c6bd9ebcc52606a5df43e4b14938f90754f286a"
+    },
+    "weather_daily.csv": {
+      "rows": 10560,
+      "sha256": "5c916e036c188b55b8f393add4a3da8b09696731a31868c68d76a1eeccb13c1d"
+    },
+    "thirdparty_runs.csv": {
+      "rows": 4,
+      "sha256": "0b44317c32f2f9c7969e090b45d68bfee90e444e542dbe3f20e58b91d6fda14a"
+    },
+    "thirdparty_history.csv": {
+      "rows": 900878,
+      "sha256": "46a472c70c6b56ec0a55ed154a1b129a210be2d674541e536bc6d0ad24c3df78",
+      "source": "https://github.com/vividfog/nordpool-predict-fi deploy/prediction.json git history",
+      "repo_head": "cf8fcbe89a6ed57e50185ce3b88200a5f03a4903",
+      "vintages": 4454,
+      "skipped_vintages": 0
+    },
+    "border_capacity.csv": {
+      "rows": 201738,
+      "sha256": "bfad67959e609ca20227bc72b961fcd1ae4ae6722c570bfcebc1b018b4247f18",
+      "source": "Fingrid open data 24/25/26/27/112/115 (CC BY 4.0) until 2024-10-29 22:00 UTC; JAO Nordic publication tool maxBorderFlow (research use) from 2024-10-29 23:00 UTC",
+      "fetched": "2026-11-02"
+    }
+  }
+}

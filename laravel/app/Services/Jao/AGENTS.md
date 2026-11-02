@@ -52,6 +52,14 @@ the Nordic publication tool. Use the data for analysis; before a public review s
 or charts, get the user's decision (and if needed JAO's written permission). Credit "JAO Nordic
 publication tool".
 
+User decision (2026-11-02): when Voltikka explains its own forecast results (for example in the
+monthly review or the own-model reports), it may mention a JAO capacity value, or its change
+from earlier periods, to the degree that it helps explain the forecast. Use single values or
+changes in text, not data tables, series downloads or charts of JAO data, and credit
+"JAO Nordic publication tool". This is the user's decision; JAO's terms still name approval for
+dissemination (contact@jao.eu), so wider reuse (tables, charts, downloads) still needs JAO's
+written permission.
+
 ## Commands
 
 ```bash
