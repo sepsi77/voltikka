@@ -15,6 +15,11 @@ use Carbon\CarbonInterface;
  * contract costs: energy only, including ALV 25.5 %. If the visitor entered a
  * pre-VAT total, the Livewire component multiplies by 1.255 before constructing
  * this request so the service can always compare like-for-like.
+ *
+ * `hourlyConsumptionWeights` optionally shapes the period consumption: UTC
+ * hour-start Unix timestamp => non-negative weight (not kWh; `kwh` stays the
+ * period total). Only the canonical period engine reads it; the feature-off
+ * legacy calculator ignores it. No public surface passes it yet.
  */
 class BillComparisonRequest
 {
@@ -25,6 +30,7 @@ class BillComparisonRequest
         public readonly float $userTotalEur,
         public readonly bool $includesHeating = false,
         public readonly ?float $annualKwhOverride = null,
-    ) {
-    }
+        /** @var array<int, float|int>|null */
+        public readonly ?array $hourlyConsumptionWeights = null,
+    ) {}
 }

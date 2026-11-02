@@ -318,7 +318,38 @@ class BillComparisonCanonicalPricingTest extends TestCase
         $this->assertLessThanOrEqual(7, count($queries), 'The canonical period batch must not add one query per contract.');
     }
 
-    private function request(int $annualKwh = 5000): BillComparisonRequest
+    public function test_period_rows_pass_hourly_consumption_weights_to_the_canonical_engine(): void
+    {
+        $contract = $this->createContract('canonical-time-profile', [
+            $this->phase([
+                $this->canonicalComponent('energy_day', 10),
+                $this->canonicalComponent('energy_night', 2),
+            ]),
+        ]);
+        $contract->update(['metering' => 'Time']);
+        $contract->load('company');
+
+        $nightOnly = [];
+        $cursor = Carbon::parse('2026-05-01', 'Europe/Helsinki')->startOfDay()->utc();
+        $limit = Carbon::parse('2026-05-31', 'Europe/Helsinki')->startOfDay()->utc();
+        while ($cursor->lessThan($limit)) {
+            $localHour = $cursor->copy()->setTimezone('Europe/Helsinki')->hour;
+            $nightOnly[$cursor->getTimestamp()] = ($localHour >= 22 || $localHour < 7) ? 1.0 : 0.0;
+            $cursor->addHour();
+        }
+
+        $service = app(BillComparisonService::class);
+        $flat = $service->periodRowsForContracts([$contract], $this->request());
+        $weighted = $service->periodRowsForContracts([$contract], $this->request(weights: $nightOnly));
+
+        $this->assertEqualsWithDelta(26.4, $flat['rows'][$contract->id]->periodCostEur, 0.001);
+        $this->assertEqualsWithDelta(6.0, $weighted['rows'][$contract->id]->periodCostEur, 0.001);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $service->periodRowsForContracts([$contract], $this->request(weights: [$limit->getTimestamp() => 1.0]));
+    }
+
+    private function request(int $annualKwh = 5000, ?array $weights = null): BillComparisonRequest
     {
         return new BillComparisonRequest(
             startDate: Carbon::parse('2026-05-01', 'Europe/Helsinki'),
@@ -326,6 +357,7 @@ class BillComparisonCanonicalPricingTest extends TestCase
             kwh: 300,
             userTotalEur: 40,
             annualKwhOverride: $annualKwh,
+            hourlyConsumptionWeights: $weights,
         );
     }
 

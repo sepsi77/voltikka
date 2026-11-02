@@ -6,7 +6,10 @@ use App\Enums\TargetGroup;
 use App\Models\ElectricityContract;
 use App\Models\SpotPriceAverage;
 use App\Models\SpotPriceHour;
+use App\Services\CanonicalPricing\CanonicalContractPricingService;
+use App\Services\CanonicalPricing\DTO\CanonicalPeriodPricingOutcome;
 use App\Services\CanonicalPricing\DTO\CanonicalPeriodPricingRequest;
+use App\Services\CanonicalPricing\DTO\CanonicalPricingOutcome;
 use App\Services\CanonicalPricing\DTO\HistoricalSpotPrice;
 use App\Services\CanonicalPricing\DTO\SpotAssumptions;
 use App\Services\ContractPriceCalculator;
@@ -45,7 +48,7 @@ class BillComparisonService
     public function __construct(
         private readonly ContractPriceCalculator $calculator,
         private readonly ConsumptionProfile $profile,
-        private readonly \App\Services\CanonicalPricing\CanonicalContractPricingService $canonicalPricing,
+        private readonly CanonicalContractPricingService $canonicalPricing,
     ) {}
 
     public function compare(BillComparisonRequest $request): BillComparisonResult
@@ -287,6 +290,7 @@ class BillComparisonService
             'spotAvgCentsPerKwh' => $spotAvgCentsPerKwh,
             'spotPriceDay' => $rollingSpot?->day_avg_with_tax,
             'spotPriceNight' => $rollingSpot?->night_avg_with_tax,
+            'hourlyConsumptionWeights' => $request->hourlyConsumptionWeights,
         ];
     }
 
@@ -305,6 +309,7 @@ class BillComparisonService
             periodKwh: (float) $context['kwh'],
             annualizedKwh: (int) $context['annualKwh'],
             historicalSpotPrices: $history,
+            hourlyConsumptionWeights: $context['hourlyConsumptionWeights'],
         );
     }
 
@@ -443,7 +448,7 @@ class BillComparisonService
     }
 
     /**
-     * @param  array{annual: \App\Services\CanonicalPricing\DTO\CanonicalPricingOutcome, period: \App\Services\CanonicalPricing\DTO\CanonicalPeriodPricingOutcome}|null  $evaluation
+     * @param  array{annual: CanonicalPricingOutcome, period: CanonicalPeriodPricingOutcome}|null  $evaluation
      */
     private function buildCanonicalMarketRow(
         ElectricityContract $contract,

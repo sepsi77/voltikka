@@ -50,6 +50,7 @@ use App\Services\CanonicalPricing\Support\EnergyRuleOfferTerms;
 use App\Services\CanonicalPricing\Support\MonthlyUsageProfileBuilder;
 use App\Services\CanonicalPricing\Support\PhaseTimelineBuilder;
 use App\Services\DTO\EnergyUsage;
+use App\Services\SpotPriceAverageService;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 
@@ -812,6 +813,8 @@ class CanonicalContractPriceCalculator
             return $this->unavailablePeriod($annualOutcome->comparability, PeriodPricingUnavailableReason::NoPricing);
         }
 
+        $hourlyKwhProfile = $this->periodHourlyKwhProfile($request, $windowStart, $periodEnd);
+
         if ((new PromotionTermsAssessment)->isIncomplete($data, $windowStart, $periodEnd)
             || in_array(PromotionTermsAssessment::INSUFFICIENT, $annualOutcome->assumptions, true)) {
             return $this->unavailablePeriod(ContractComparability::ExcludedIncomplete, PeriodPricingUnavailableReason::InsufficientPromotionTerms);
@@ -981,6 +984,7 @@ class CanonicalContractPriceCalculator
                 $actualFlatApplied,
                 $phaseIndex,
                 $reset,
+                $hourlyKwhProfile,
             );
 
             $normalRates = $item['normal_rates'];
@@ -1003,6 +1007,7 @@ class CanonicalContractPriceCalculator
                     $normalFlatApplied,
                     $hasComponentDiscount ? $phaseIndex : ($lastCoveredPhaseIndex ?? $phaseIndex),
                     $reset,
+                    $hourlyKwhProfile,
                 );
             }
 
@@ -1040,7 +1045,7 @@ class CanonicalContractPriceCalculator
             'contract_offer_available_at_period_start',
             'relative_phases_anchor_at_period_start',
             'absolute_phase_dates_preserved',
-            'period_consumption_flat_by_actual_hour',
+            $hourlyKwhProfile === null ? 'period_consumption_flat_by_actual_hour' : 'period_consumption_hourly_profile',
             'monthly_fee_prorated_by_days_over_30',
         ], $periodRulePlan !== null ? [
             'energy_rule_period_uses_published_rates_without_forecast',
@@ -1590,14 +1595,18 @@ class CanonicalContractPriceCalculator
     }
 
     /**
-     * Cost one canonical phase slice against exact period usage. Consumption is
-     * flat across the period's real UTC hours. Time and seasonal fixed rates keep
-     * the bill comparison's 85/15 convention; Spot uses each matching realized
-     * hour. Ordinary monthly fees keep the legacy days/30 convention.
+     * Cost one canonical phase slice against exact period usage. Without a profile,
+     * consumption is flat across the period's real UTC hours and Time and seasonal
+     * fixed rates keep the bill comparison's 85/15 convention. With an hourly kWh
+     * profile, Time splits by actual Helsinki day/night hours and Season splits
+     * winter/other months by weighted kWh, keeping 85/15 inside winter months.
+     * Spot uses each matching realized hour. Ordinary monthly fees keep the legacy
+     * days/30 convention.
      *
      * @param  array<string, mixed>  $rates
      * @param  array<int, float>  $spotMap
      * @param  array<int, bool>  $flatApplied
+     * @param  array<int, float>|null  $hourlyKwhProfile  UTC hour-start timestamp => kWh
      */
     private function costPeriodSegment(
         WindowSegment $segment,
@@ -1608,9 +1617,15 @@ class CanonicalContractPriceCalculator
         array &$flatApplied,
         int $phaseIndex,
         ?ResetEstimate $reset,
+        ?array $hourlyKwhProfile = null,
     ): float {
         $hours = $this->segmentHourStarts($segment);
-        $segmentKwh = count($hours) * $hourlyKwh;
+        $hourKwh = static fn (CarbonImmutable $hourStart): float => $hourlyKwhProfile === null
+            ? $hourlyKwh
+            : $hourlyKwhProfile[$hourStart->getTimestamp()];
+        $segmentKwh = $hourlyKwhProfile === null
+            ? count($hours) * $hourlyKwh
+            : array_sum(array_map($hourKwh, $hours));
         $offset = $reset?->offsetForMonthKey($segment->start->format('Y-m')) ?? 0.0;
         $package = $rates['package'] ?? null;
 
@@ -1627,15 +1642,28 @@ class CanonicalContractPriceCalculator
         if ($rates['uses_spot']) {
             $margin = (float) ($rates['spot_margin'] ?? 0.0);
             foreach ($hours as $hourStart) {
-                $energyCents += $hourlyKwh * max(0.0, $spotMap[$hourStart->getTimestamp()] + $margin + $offset);
+                $energyCents += $hourKwh($hourStart) * max(0.0, $spotMap[$hourStart->getTimestamp()] + $margin + $offset);
             }
+        } elseif ($hourlyKwhProfile !== null && $metering === MeteringType::Time) {
+            $dayKwh = 0.0;
+            $nightKwh = 0.0;
+            foreach ($hours as $hourStart) {
+                $localHour = $hourStart->setTimezone('Europe/Helsinki')->hour;
+                if ($localHour >= SpotPriceAverageService::DAY_START_HOUR && $localHour < SpotPriceAverageService::DAY_END_HOUR) {
+                    $dayKwh += $hourKwh($hourStart);
+                } else {
+                    $nightKwh += $hourKwh($hourStart);
+                }
+            }
+            $energyCents = $dayKwh * max(0.0, ($rates['buckets']['DayTime'] ?? 0.0) + $offset)
+                + $nightKwh * max(0.0, ($rates['buckets']['NightTime'] ?? 0.0) + $offset);
         } else {
             $energyCents = match ($metering) {
                 MeteringType::Time => $segmentKwh * (
                     0.85 * max(0.0, ($rates['buckets']['DayTime'] ?? 0.0) + $offset)
                     + 0.15 * max(0.0, ($rates['buckets']['NightTime'] ?? 0.0) + $offset)
                 ),
-                MeteringType::Season => $this->fixedSeasonalPeriodEnergyCents($segment, $rates, $hourlyKwh, $offset),
+                MeteringType::Season => $this->fixedSeasonalPeriodEnergyCents($hours, $rates, $hourlyKwh, $offset, $hourlyKwhProfile),
                 default => $segmentKwh * max(0.0, ($rates['buckets']['General'] ?? 0.0) + $offset),
             };
         }
@@ -1654,29 +1682,73 @@ class CanonicalContractPriceCalculator
     }
 
     /**
+     * @param  list<CarbonImmutable>  $hours
      * @param  array<string, mixed>  $rates
+     * @param  array<int, float>|null  $hourlyKwhProfile
      */
-    private function fixedSeasonalPeriodEnergyCents(WindowSegment $segment, array $rates, float $hourlyKwh, float $offset): float
+    private function fixedSeasonalPeriodEnergyCents(array $hours, array $rates, float $hourlyKwh, float $offset, ?array $hourlyKwhProfile): float
     {
         $winterHours = 0;
         $otherHours = 0;
+        $winterProfileKwh = 0.0;
+        $otherProfileKwh = 0.0;
 
-        foreach ($this->segmentHourStarts($segment) as $hourStart) {
+        foreach ($hours as $hourStart) {
             $month = (int) $hourStart->setTimezone('Europe/Helsinki')->format('n');
+            $kwh = $hourlyKwhProfile[$hourStart->getTimestamp()] ?? 0.0;
             if (in_array($month, [1, 2, 3, 11, 12], true)) {
                 $winterHours++;
+                $winterProfileKwh += $kwh;
             } else {
                 $otherHours++;
+                $otherProfileKwh += $kwh;
             }
         }
 
+        // Without a profile keep the original hour-count multiplication unchanged.
+        $winterKwh = $hourlyKwhProfile === null ? $winterHours * $hourlyKwh : $winterProfileKwh;
+        $otherKwh = $hourlyKwhProfile === null ? $otherHours * $hourlyKwh : $otherProfileKwh;
+
         $winterRate = max(0.0, ($rates['buckets']['SeasonalWinterDay'] ?? 0.0) + $offset);
         $otherRate = max(0.0, ($rates['buckets']['SeasonalOther'] ?? 0.0) + $offset);
-        $winterKwh = $winterHours * $hourlyKwh;
-        $otherKwh = $otherHours * $hourlyKwh;
 
         return $winterKwh * ((0.85 * $winterRate) + (0.15 * $otherRate))
             + ($otherKwh * $otherRate);
+    }
+
+    /**
+     * Scale optional caller weights to kWh per UTC hour so the window total stays
+     * periodKwh. A malformed profile is a caller error, not a contract fact, so it
+     * throws instead of making every contract silently unavailable.
+     *
+     * @return array<int, float>|null UTC hour-start timestamp => kWh
+     */
+    private function periodHourlyKwhProfile(CanonicalPeriodPricingRequest $request, CarbonImmutable $windowStart, CarbonImmutable $periodEnd): ?array
+    {
+        $weights = $request->hourlyConsumptionWeights;
+        if ($weights === null) {
+            return null;
+        }
+
+        $windowWeights = [];
+        $cursor = $windowStart->utc();
+        $end = $periodEnd->utc();
+        while ($cursor->lessThan($end)) {
+            $timestamp = $cursor->getTimestamp();
+            $weight = $weights[$timestamp] ?? null;
+            if ((! is_int($weight) && ! is_float($weight)) || ! is_finite((float) $weight) || $weight < 0) {
+                throw new \InvalidArgumentException("Hourly consumption weight for UTC hour {$cursor->toIso8601String()} must be a finite number >= 0.");
+            }
+            $windowWeights[$timestamp] = (float) $weight;
+            $cursor = $cursor->addHour();
+        }
+
+        $sum = array_sum($windowWeights);
+        if ($sum <= 0.0) {
+            throw new \InvalidArgumentException('Hourly consumption weights must have a positive sum over the period.');
+        }
+
+        return array_map(static fn (float $weight): float => $request->periodKwh * $weight / $sum, $windowWeights);
     }
 
     /** @return list<CarbonImmutable> */

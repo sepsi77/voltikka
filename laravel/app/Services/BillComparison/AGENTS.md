@@ -229,6 +229,13 @@ Period rules:
 - unavailable reasons are stable: `consumption_cap`, `not_comparable`, `no_spot_history`, and
   `no_pricing`.
 
+Optional hourly consumption profile (2026-11-02, local): `BillComparisonRequest::$hourlyConsumptionWeights`
+(UTC hour-start timestamp => weight >= 0) passes through `canonicalPeriodRequest()` unchanged. They are
+weights, not kWh; `kwh` stays the period total. Null keeps the flat-hour and 85/15 conventions above,
+byte for byte. The feature-off legacy calculator ignores the field. No public surface passes it yet:
+the monthly market review is the first caller, and a Datahub profile choice for public surfaces is a
+separate reviewed change. Engine rules: `../CanonicalPricing/AGENTS.md` (period pricing).
+
 Canonical mode never calls the latest-component loader or `ContractPriceCalculator` for a market
 row. Canonical-only contracts can be costed. Missing, excluded, incomplete, or unsafe canonical
 pricing never falls back to relational rates. Feature-off loads normalized relational components

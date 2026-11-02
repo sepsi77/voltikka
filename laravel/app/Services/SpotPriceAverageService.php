@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\SpotPriceAverage;
 use App\Models\SpotPriceHour;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -15,15 +16,17 @@ class SpotPriceAverageService
      * Night hours: 22:00-07:00.
      */
     public const PERIOD_ROLLING_365D_LOCAL = SpotPriceAverage::PERIOD_ROLLING_365D_LOCAL;
+
     public const PERIOD_ROLLING_30D_LOCAL = SpotPriceAverage::PERIOD_ROLLING_30D_LOCAL;
 
-    private const DAY_START_HOUR = 7;
-    private const DAY_END_HOUR = 22;
+    public const DAY_START_HOUR = 7;
+
+    public const DAY_END_HOUR = 22;
 
     /**
      * Calculate and store all averages.
      *
-     * @param string $region Region code (default: FI)
+     * @param  string  $region  Region code (default: FI)
      */
     public function calculateAllAverages(string $region = 'FI'): void
     {
@@ -54,6 +57,7 @@ class SpotPriceAverageService
         }
 
         Log::info("Calculated {$count} daily averages");
+
         return $count;
     }
 
@@ -103,7 +107,7 @@ class SpotPriceAverageService
     {
         // Get distinct months using database-agnostic approach
         $months = SpotPriceHour::forRegion($region)
-            ->selectRaw($this->getMonthExpression() . ' as month')
+            ->selectRaw($this->getMonthExpression().' as month')
             ->groupByRaw($this->getMonthExpression())
             ->pluck('month');
 
@@ -114,6 +118,7 @@ class SpotPriceAverageService
         }
 
         Log::info("Calculated {$count} monthly averages");
+
         return $count;
     }
 
@@ -122,7 +127,7 @@ class SpotPriceAverageService
      */
     public function calculateMonthlyAverage(string $month, string $region = 'FI'): ?SpotPriceAverage
     {
-        $startOfMonth = Carbon::parse($month . '-01', 'UTC')->startOfMonth();
+        $startOfMonth = Carbon::parse($month.'-01', 'UTC')->startOfMonth();
         $endOfMonth = $startOfMonth->copy()->endOfMonth();
 
         $hours = SpotPriceHour::forRegion($region)
@@ -162,17 +167,18 @@ class SpotPriceAverageService
     public function calculateYearlyAverages(string $region = 'FI'): int
     {
         $years = SpotPriceHour::forRegion($region)
-            ->selectRaw($this->getYearExpression() . ' as year')
+            ->selectRaw($this->getYearExpression().' as year')
             ->groupByRaw($this->getYearExpression())
             ->pluck('year');
 
         $count = 0;
         foreach ($years as $year) {
-            $this->calculateYearlyAverage((int)$year, $region);
+            $this->calculateYearlyAverage((int) $year, $region);
             $count++;
         }
 
         Log::info("Calculated {$count} yearly averages");
+
         return $count;
     }
 
@@ -342,23 +348,23 @@ class SpotPriceAverageService
     /**
      * Calculate statistics from a collection of hourly prices.
      *
-     * @param \Illuminate\Support\Collection $hours Collection of SpotPriceHour models
+     * @param  Collection  $hours  Collection of SpotPriceHour models
      * @return array Statistics array
      */
     private function calculateStats($hours): array
     {
-        $dayHours = $hours->filter(fn($h) => $this->isDayHour(Carbon::parse($h->getRawOriginal('utc_datetime'), 'UTC')));
-        $nightHours = $hours->filter(fn($h) => !$this->isDayHour(Carbon::parse($h->getRawOriginal('utc_datetime'), 'UTC')));
+        $dayHours = $hours->filter(fn ($h) => $this->isDayHour(Carbon::parse($h->getRawOriginal('utc_datetime'), 'UTC')));
+        $nightHours = $hours->filter(fn ($h) => ! $this->isDayHour(Carbon::parse($h->getRawOriginal('utc_datetime'), 'UTC')));
 
         // Calculate averages
         $avgWithoutTax = $hours->avg('price_without_tax');
-        $avgWithTax = $hours->avg(fn($h) => $h->price_with_tax);
+        $avgWithTax = $hours->avg(fn ($h) => $h->price_with_tax);
 
         // Day/night averages
         $dayAvgWithoutTax = $dayHours->isNotEmpty() ? $dayHours->avg('price_without_tax') : null;
-        $dayAvgWithTax = $dayHours->isNotEmpty() ? $dayHours->avg(fn($h) => $h->price_with_tax) : null;
+        $dayAvgWithTax = $dayHours->isNotEmpty() ? $dayHours->avg(fn ($h) => $h->price_with_tax) : null;
         $nightAvgWithoutTax = $nightHours->isNotEmpty() ? $nightHours->avg('price_without_tax') : null;
-        $nightAvgWithTax = $nightHours->isNotEmpty() ? $nightHours->avg(fn($h) => $h->price_with_tax) : null;
+        $nightAvgWithTax = $nightHours->isNotEmpty() ? $nightHours->avg(fn ($h) => $h->price_with_tax) : null;
 
         return [
             'avg_without_tax' => $avgWithoutTax,
@@ -378,14 +384,12 @@ class SpotPriceAverageService
     private function isDayHour(Carbon $utcDatetime): bool
     {
         $finnishHour = $utcDatetime->copy()->setTimezone('Europe/Helsinki')->hour;
+
         return $finnishHour >= self::DAY_START_HOUR && $finnishHour < self::DAY_END_HOUR;
     }
 
     /**
      * Get the latest averages for display.
-     *
-     * @param string $region
-     * @return array
      */
     public function getLatestAverages(string $region = 'FI'): array
     {

@@ -385,7 +385,17 @@ Monthly included-energy packages are typed and costed as described below.
   inheritance logic and returns null for Spot, packages, and non-General tariffs.
 - `DTO/CanonicalPeriodPricingRequest` / `CanonicalPeriodPricingOutcome` — keep exact-period totals,
   measured period savings, relevant rates/margins, comparability, assumptions, and typed
-  unavailable reasons separate from the 12-month payload.
+  unavailable reasons separate from the 12-month payload. The request's optional last argument
+  `hourlyConsumptionWeights` (UTC hour-start timestamp => weight, not kWh) shapes period usage:
+  kWh_h = periodKwh × w_h / Σw over the window, so periodKwh stays the one total. Every window hour
+  needs a finite weight >= 0 and Σw > 0, else `calculatePeriod()` throws `InvalidArgumentException`
+  (caller error; a per-contract unavailable reason would silently drop every row). Extra keys are
+  ignored. With weights, Spot/General/package use weighted hourly kWh, Time splits by Helsinki
+  07–22 day hours (`SpotPriceAverageService::DAY_START_HOUR`/`DAY_END_HOUR`), and Season moves
+  weighted kWh between winter months but keeps 85/15 inside winter (no hour-level winter-day rule
+  exists). Actual and normal passes share the same kWh; assumption `period_consumption_hourly_profile`
+  replaces `period_consumption_flat_by_actual_hour`. Null is the unchanged flat/85-15 path. No public
+  surface passes weights yet.
 - `MarketReset/` — annualises monthly/quarterly/seasonal/other reset products with a shape-only
   forward-curve shift instead of holding one seasonal price flat. Cadence `other` uses the
   quarterly calendar and reference proxy. Own flag, own `AGENTS.md`.
