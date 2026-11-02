@@ -277,3 +277,17 @@
 
 - No production chain runs since 2026-11-01 20:04 Helsinki. EXIT 0: Fingrid, ENTSO-E reservoirs and generation, neighbour spot (SE1, SE3, EE, DE-LU), JAO, NVE, gas storage. EXIT 1: weather observed history (Turku, Tampere) and ENTSO-E outages (SE1 A77, SE3 A77, SE1->FI A78).
 - That session now reruns the failed parts in production and then syncs the local SQLite copy. This task still does not deploy (a deploy stops the reruns), does not read the local database and sends no ENTSO-E or Open-Meteo requests until message 2.
+
+## 2026-11-02 04:23 Helsinki – Sync failure and deploy route
+
+- Session voltikka-87: production reruns all EXIT 0 (Turku/Tampere weather 13,083 rows each; outages SE1->FI 373, SE3 A77 233, SE1 A77 1,876 rows). The local sync failed at 21:50 because production (3c03af7) does not have this task's 4 new tables; the local database is unchanged (2026-11-01 13:36 copy).
+- User decision (this session): deploy route. Commit b155d20 pushed; image `deploy-000015-b155d208ea65` built and pushed (PHP 8.4.27, the 4 migrations present; the entrypoint runs `migrate --force`). Not deployed yet: the build finished at 04:23, inside the EEX/morning-consumer window.
+- Deploy window: after today's eex_futures, morning_retail and morning_forecast checkpoints have finished and before 12:30 Helsinki (hydro weather backfill by voltikka-87; a deploy would stop it). After /up and the 4 tables are verified, message voltikka-87 so it runs the sync.
+
+## 2026-11-02 06:15 Helsinki – Deployed deploy-000015-b155d208ea65
+
+- User approved the deploy, then asked to deploy before the morning consumers instead of after them. `contracts:fetch` started at 06:00 and was `pending_completion` until `ready` at 06:13; `eex_futures` was `ready` at 05:43; `morning_retail`/`morning_forecast` had no row yet (start 07:15/07:30). Deployed at 06:15 with `--morning-checks-passed` on the user's instruction (the flag's documented condition, both consumers finished, was not literally met; the gap protected the same runs).
+- Deployment f254926d-1cc7-4095-9f34-aebceb8cfdfe: SUCCESS 06:15:40. `source.image` read back as the exact tag. `/up` 200, `/` 200. Rollback tag: deploy-000014-3c03af788a1b.
+- Read-only checks: the 4 new tables exist (0 rows), 0 pending migrations, 5 new schedule entries registered.
+- Lesson: a wait loop must deploy only on `ready`; `pending_completion` is not finished (first loop stopped on it, the deploy did not run then).
+- Messaged session voltikka-87 to run the local sync. Still to check: today's morning_retail and morning_forecast reach a finished state after the deploy, and the first scheduled vintages appear (Fingrid 245 at 06:45; FMI/solar 11:05; Syke 11:10).

@@ -68,7 +68,11 @@
     "status": "done"
   },
   {
-    "name": "Phase 1: user approval for deploy, schedule and production backfills of the collectors",
+    "name": "Phase 1: deploy and schedule of the collectors (deployed 2026-11-02 06:15 as deploy-000015-b155d208ea65)",
+    "status": "done"
+  },
+  {
+    "name": "Phase 1: user approval and runs of the production backfills (FMI from 2023, Open-Meteo neighbour wind, Syke)",
     "status": "pending"
   },
   {
