@@ -113,7 +113,7 @@
   },
   {
     "name": "Backfill neighbour zones and Fingrid history (after deploy, needs approval)",
-    "status": "in_progress"
+    "status": "done"
   },
   {
     "name": "Collect JAO maxBorderFlow day-ahead capacity (Fingrid DA capacity datasets are empty)",
@@ -169,7 +169,7 @@
   },
   {
     "name": "Backfill history in production (ENTSO-E outages from 2026-01, JAO from 2024-10-29, Fingrid, neighbour zones, weather from 1991)",
-    "status": "in_progress"
+    "status": "done"
   },
   {
     "name": "Fix EEX discovery (all-null ticker row) locally; live NP dry run",

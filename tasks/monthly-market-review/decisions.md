@@ -187,7 +187,14 @@
   same latest trade date. Probable cause: the about 45-day window lost one old trading day and
   gained none over the weekend (about 270 points per trading day). Check again after a normal
   weekday run.
-- Left: the 4 hydro weather points after 12:30 on 2026-11-02 (root AGENTS.md, Dated follow-ups).
+- Hydro weather points (approved, started 12:30 Helsinki on 2026-11-02, log
+  `backfill-20261102-hydro.log`): no2_blasjo and se1_akkajaure complete; no5_aurland (piece 1996)
+  and se2_storuman (piece 2012) failed with RuntimeException, the same transient Open-Meteo
+  failure as Turku/Tampere. The wrapper logged "EXIT 0" by mistake: it read `$?` after `$(date)`.
+  Store the exit code in a variable first. Rerun of only those points from the failed year
+  (upsert; log `backfill-20261102-hydro-rerun.log`): EXIT 0 for both, ended 13:44 Helsinki.
+  Production now has 13,084 era5 days (1991-01-01..2026-10-27) for each of the 4 points.
+  voltikka-38 was told "hydro done" for its Open-Meteo runs.
 
 ## 2026-11-01 – Review shape (user decisions)
 
