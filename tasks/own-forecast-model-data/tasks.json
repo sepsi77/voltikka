@@ -112,6 +112,18 @@
     "status": "done"
   },
   {
+    "name": "M phase 1: SEAS5 archive fetcher (research/seas5_fetch.py, CDS, starts 2017-11..latest, regional member means and anomalies)",
+    "status": "done"
+  },
+  {
+    "name": "M phase 1: SEAS5 skill check against observed monthly temperature and precipitation (after the fresh local sync)",
+    "status": "pending"
+  },
+  {
+    "name": "M phase 1: S2S (EC46-type) archive fetcher for weeks 1-6, if the SEAS5 backtest needs it",
+    "status": "pending"
+  },
+  {
     "name": "M phase 1: hydro balance proxy inputs (reservoirs, snow, precipitation vs normal) available as-of",
     "status": "pending"
   },

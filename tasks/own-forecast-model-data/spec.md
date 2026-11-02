@@ -128,7 +128,9 @@ Fingrid capacities, Syke snow (this task). Gaps to check before phase 2 of M:
 
 - **Historical seasonal forecasts** for an as-of backtest before 2026-11: candidate C3S SEAS5
   hindcasts and archived forecasts from the Copernicus Climate Data Store (non-Open-Meteo, open
-  licence, needs a free key; verify terms, resolution and effort).
+  licence, needs a free key; verify terms, resolution and effort). Done 2026-11-02:
+  `research/seas5_fetch.py` gives regional member means for every start from 2017-11
+  (see decisions.md).
 - **Futures history before 2026-04-08:** no open source known (documented gap). Backtests before
   that date use fundamentals without the futures anchor and are labelled so.
 - **Nordic hydrological balance:** no open series (monthly-review decision); build a proxy from

@@ -262,3 +262,18 @@
 - The session that runs the market-review backfills (voltikka-87) owns their completion. It sends one message when no chain runs, with every EXIT line, then does the reruns (outages SE1 A77, SE3 A77, SE1->FI A78; Turku/Tampere weather) and the local SQLite sync, and sends a second message when the local copy is fresh.
 - New ENTSO-E chain estimate: about 23:00-01:00 Helsinki (generation was running; then neighbour spot, JAO, NVE, gas storage).
 - This task does not poll production, does not run scripts/sync-production-database.sh and does not deploy until those messages arrive. Backup signal only: the status file named in that message (first word RUNNING, DONE or TIMEOUT).
+
+## 2026-11-02 – SEAS5 archive fetcher (M phase 1)
+
+- User approved building it (2026-11-01). Implemented as a local research script, `research/seas5_fetch.py`, not a Laravel collector: the CDS archive is permanent and never revised, so the as-of rule is met by the release time alone and nothing has to be captured live. Production already stores live SEAS5/EC46 vintages through Open-Meteo. Where a production M model reads SEAS5 stays the phase-5 runtime decision.
+- CDS constraints (checked 2026-11-01): ECMWF system 5 has real-time starts to 2022-10, system 51 from 2022-11 (2026 has starts 01–10; 2026-11 is released on 2026-11-06 12 UTC). System 4 only Sept–Oct 2017. 100 m wind speed does not exist for ECMWF; 10 m wind is used.
+- Request per start: `monthly_mean` (all 51 members), variables 2m_temperature, 10m_wind_speed, total_precipitation, runoff, leads 1–6, area 71N/4E/57N/32E at 1°. Model climate: `hindcast_climate_mean` per system and start month (24 files, 1993–2016 hindcast period). Units as delivered: K, m/s, and m/s rates for precipitation (`tprate`) and runoff (`mrort`).
+- Regions (cos-latitude weighted grid means, no land mask): `fi` 60–70N 21–30E, `no_south` 58–63N 5–11E (NO1/NO2/NO5 hydro), `nordic_north` 63–68N 13–21E (SE1/SE2/NO4 hydro, northern wind). As-of time for each start: day 6, 12:00 UTC.
+- Full run 2017-11..2026-10: 108 starts + 24 climate files, 0 failures, 123 MB GRIB (git-ignored `research/data/seas5/`), `seas5_regions.csv` 396,576 rows (108 × 4 variables × 6 leads × 3 regions × 51 members). About 6 minutes per 25 requests at 4 workers.
+- Checks: runoff for start 2025-11 was about 2× the model climate in all members; over all starts the median forecast/climate ratio is 0.84–1.14 per region and lead, so that start was a real wet anomaly, not a unit or join error. Temperature anomalies against the 1993–2016 model climate are positive in 92–100 % of starts at leads 3–6 (+0.5..+1.0 K): this is the warming since the hindcast period. The M model must therefore not read the raw anomaly as "warmer than normal"; use anomalies against a recent reference (for example the leave-one-year-out mean of the real-time starts, or the observed recent normal).
+- Not yet done: a skill check of SEAS5 against observed monthly temperature. The local snapshot has Helsinki ERA5 only to 2017 (it was synced before the production backfill), so it waits for the fresh sync from session voltikka-87.
+
+## 2026-11-02 – Backfill chains complete (message 1 of 2 from session voltikka-87)
+
+- No production chain runs since 2026-11-01 20:04 Helsinki. EXIT 0: Fingrid, ENTSO-E reservoirs and generation, neighbour spot (SE1, SE3, EE, DE-LU), JAO, NVE, gas storage. EXIT 1: weather observed history (Turku, Tampere) and ENTSO-E outages (SE1 A77, SE3 A77, SE1->FI A78).
+- That session now reruns the failed parts in production and then syncs the local SQLite copy. This task still does not deploy (a deploy stops the reruns), does not read the local database and sends no ENTSO-E or Open-Meteo requests until message 2.
