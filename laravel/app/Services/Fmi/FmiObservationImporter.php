@@ -28,6 +28,7 @@ class FmiObservationImporter
     public function importHourly(array $members, array $parameters, CarbonInterface $fetchedAt): int
     {
         $records = [];
+        $stamps = $this->stamps($fetchedAt);
 
         foreach ($members as $member) {
             $stations = $this->stationsByPosition($member['points']);
@@ -47,7 +48,7 @@ class FmiObservationImporter
                             continue;
                         }
                         // Keyed, so a repeated row cannot hit the same unique key twice in one upsert.
-                        $records[$fmisid.'|'.$field.'|'.$hour] = $this->record($fmisid, $field, $hour, $value, 1, $fetchedAt);
+                        $records[$fmisid.'|'.$field.'|'.$hour] = $this->record($fmisid, $field, $hour, $value, 1, $stamps);
                     }
                 }
             }
@@ -91,6 +92,7 @@ class FmiObservationImporter
         }
 
         $records = [];
+        $stamps = $this->stamps($fetchedAt);
         foreach ($groups as $group) {
             $records[] = $this->record(
                 $group['fmisid'],
@@ -98,7 +100,7 @@ class FmiObservationImporter
                 $group['hour'],
                 $group['sum'] / $group['count'],
                 $group['count'],
-                $fetchedAt
+                $stamps
             );
         }
 
@@ -139,12 +141,27 @@ class FmiObservationImporter
     }
 
     /**
+     * Formatted once per import, not per row: one Carbon object per row (created_at/updated_at)
+     * made a 744 h backfill piece (28 stations x 3 parameters) exceed the 128M PHP CLI limit in
+     * production on 2026-11-02. The strings equal what the query builder would bind for the
+     * Carbon objects (Y-m-d H:i:s in the object's own timezone).
+     *
+     * @return array{fetched_at: string, now: string}
+     */
+    private function stamps(CarbonInterface $fetchedAt): array
+    {
+        return [
+            'fetched_at' => $fetchedAt->copy()->utc()->format('Y-m-d H:i:s'),
+            'now' => now()->format('Y-m-d H:i:s'),
+        ];
+    }
+
+    /**
+     * @param  array{fetched_at: string, now: string}  $stamps
      * @return array<string, mixed>
      */
-    private function record(int $fmisid, string $parameter, int $hour, float $value, int $sampleCount, CarbonInterface $fetchedAt): array
+    private function record(int $fmisid, string $parameter, int $hour, float $value, int $sampleCount, array $stamps): array
     {
-        $now = now();
-
         return [
             'fmisid' => $fmisid,
             'parameter' => $parameter,
@@ -152,9 +169,9 @@ class FmiObservationImporter
             'utc_datetime' => gmdate('Y-m-d H:i:s', $hour),
             'value' => $value,
             'sample_count' => $sampleCount,
-            'fetched_at' => $fetchedAt->copy()->utc()->format('Y-m-d H:i:s'),
-            'created_at' => $now,
-            'updated_at' => $now,
+            'fetched_at' => $stamps['fetched_at'],
+            'created_at' => $stamps['now'],
+            'updated_at' => $stamps['now'],
         ];
     }
 

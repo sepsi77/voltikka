@@ -171,7 +171,10 @@ class FetchFmiData extends Command
     {
         $product = (array) config("fmi.forecasts.{$productKey}");
         $stations = $product['stations'] !== null ? (array) config('fmi.'.$product['stations'], []) : [];
-        $latlonPoints = $product['latlon_points'] !== null ? (array) config('fmi.'.$product['latlon_points'], []) : [];
+        $latlonPoints = [];
+        foreach ((array) ($product['latlon_points'] ?? []) as $listKey) {
+            $latlonPoints += (array) config('fmi.'.$listKey, []);
+        }
 
         $points = [];
         $parameters = $this->stationParameters(array_keys($stations));

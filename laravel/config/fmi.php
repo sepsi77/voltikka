@@ -48,8 +48,12 @@ return [
             'stations' => 'weather_stations',
             'latlon_points' => 'neighbour_points',
         ],
-        // FMI's copy of the ECMWF surface forecast; the edited forecast has no data at DE02.
-        // WindSpeedMS is NaN in this product, so the speed is computed from WindUMS/WindVMS.
+        // FMI's copy of the ECMWF surface forecast at every point: the 29 stations, the neighbour
+        // points and DE02 (the edited forecast has no data at DE02). The S model is trained on
+        // historical ECMWF IFS forecasts (Open-Meteo Previous Runs), so this product gives the same
+        // model family live, free (user decision 2026-11-02: test FMI against Open-Meteo). One
+        // request for all 38 points: about 0.7 MB, 3 s (tested 2026-11-02). WindSpeedMS is NaN in
+        // this product, so the speed is computed from WindUMS/WindVMS.
         'ecmwf' => [
             'stored_query' => 'ecmwf::forecast::surface::point::multipointcoverage',
             'parameters' => [
@@ -58,8 +62,8 @@ return [
                 'WindVMS' => 'wind_v_10m',         // m/s
             ],
             'speed_from' => ['wind_u_10m', 'wind_v_10m', 'wind_speed_10m'],
-            'stations' => null,
-            'latlon_points' => 'ecmwf_points',
+            'stations' => 'weather_stations',
+            'latlon_points' => ['neighbour_points', 'ecmwf_points'],
         ],
     ],
 

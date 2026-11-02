@@ -275,6 +275,11 @@ XML;
         $this->assertSame(['2026-11-11T12:00:00Z'], $this->queryValues($request, 'endtime'));
         $this->assertSame(['60'], $this->queryValues($request, 'timestep'));
 
+        // The ECMWF product asks for every station and both point lists in one request.
+        $ecmwfRequest = $this->requestsFor(self::ECMWF)[0];
+        $this->assertSame(['101004', '100908'], $this->queryValues($ecmwfRequest, 'fmisid'));
+        $this->assertSame(['58.896,22.5605', '52.6367,9.8451'], $this->queryValues($ecmwfRequest, 'latlon'));
+
         $this->assertSame(3, DB::table('hourly_forecast_runs')->count());
     }
 

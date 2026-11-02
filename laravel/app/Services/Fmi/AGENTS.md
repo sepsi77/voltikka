@@ -16,7 +16,10 @@ spot price models. Nothing public reads these rows yet. Task context:
   entity substitution, `LIBXML_NONET`, and any DOCTYPE is rejected. Output is columnar per
   position (timestamps + one list per field; `NaN` → null), because one PHP array per row used
   77 MB for one radiation week (7 stations × 10,080 minutes); columnar uses about 41 MB peak.
-- `FmiObservationImporter.php` – upserts `fmi_hourly_observations`.
+- `FmiObservationImporter.php` – upserts `fmi_hourly_observations`. Row timestamps are
+  formatted once per import (`stamps()`), not one Carbon object per row: per-row `now()` made one
+  744 h piece use about 208 MB extra and fail the 128M CLI limit in the 2026-11-02 production
+  backfill; now about 68 MB (synthetic 29-station × 3-parameter piece, 64,728 rows).
 - `FmiForecastImporter.php` – append-only `hourly_forecast_runs` rows (source `fmi`).
 - `../../Console/Commands/FetchFmiData.php` – `php artisan fmi:fetch`.
 - `../../../config/fmi.php` – stored queries, stations, points, limits.
@@ -67,7 +70,7 @@ the value describes, like `spot_prices_hour`.
 | Product | Stored query | Points | FMI parameter → value key |
 |---|---|---|---|
 | `edited` | `fmi::forecast::edited::weather::scandinavia::point::multipointcoverage` | 29 stations (`fmisid`, point key = FMISID string) + 8 neighbour points (`latlon`, point key e.g. `ee01_hiiumaa`) | `temperature` → `temperature_2m` (°C), `windspeedms` → `wind_speed_10m` (m/s), `totalcloudcover` → `total_cloud_cover` (%) |
-| `ecmwf` | `ecmwf::forecast::surface::point::multipointcoverage` | `de02_niedersachsen` (latlon) | `Temperature` → `temperature_2m`, `WindUMS` → `wind_u_10m`, `WindVMS` → `wind_v_10m`; computed `wind_speed_10m` = √(u² + v²), 2 decimals |
+| `ecmwf` | `ecmwf::forecast::surface::point::multipointcoverage` | the same 29 stations + 8 neighbour points, and `de02_niedersachsen` (latlon; locally since 2026-11-02, see below) | `Temperature` → `temperature_2m`, `WindUMS` → `wind_u_10m`, `WindVMS` → `wind_v_10m`; computed `wind_speed_10m` = √(u² + v²), 2 decimals |
 
 - The value keys are the Open-Meteo names for the same quantity, so a reader can mix sources.
 - One request per product, `timestep=60`, from the current UTC hour to +240 h. The edited
@@ -85,6 +88,12 @@ the value describes, like `spot_prices_hour`.
   unchanged forecast inserts nothing; a fetch in a later hour always gives a new row, because the
   first hour moves.
 - A configured point without values fails the product (exit 1); the other points are stored.
+- ECMWF at every point (local change 2026-11-02, not deployed): the S model is trained on
+  historical ECMWF IFS forecasts (Open-Meteo Previous Runs API), because FMI keeps no forecast
+  archive. FMI's ECMWF copy gives the same model family live and free, so it is the candidate
+  production weather source; the edited forecast is collected beside it for a comparison (user
+  decision: test FMI against Open-Meteo). A product's `latlon_points` may be a list of config
+  keys. One request for all 38 points: about 0.7 MB, 3 s, 240 h with the last ~15 h NaN.
 - The edited forecast has no data at DE02 ("No data available"), so DE02 uses FMI's ECMWF copy;
   its `WindSpeedMS`, cloud and radiation parameters are NaN.
 
