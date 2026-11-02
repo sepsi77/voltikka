@@ -49,14 +49,30 @@
   },
   {
     "name": "Verify Fingrid Datahub user-group code list (BE01-BE14) and pick the household types",
-    "status": "pending"
+    "status": "done"
   },
   {
     "name": "Bill comparison engine: optional hourly consumption profile in the canonical period request (spot hours and Time split), with tests",
-    "status": "pending"
+    "status": "done"
   },
   {
     "name": "Consumer-type contract results for September 2026 (overall and per-category winners at normal price, since-January result) and the forward version",
+    "status": "in_progress"
+  },
+  {
+    "name": "Commit the engine profile option (local, tested; no public change)",
+    "status": "pending"
+  },
+  {
+    "name": "Forward market-reset pricing for the review (period engine holds resets flat)",
+    "status": "pending"
+  },
+  {
+    "name": "Winner terms check: eligibility (new customers, national, household) and unknown normal prices",
+    "status": "pending"
+  },
+  {
+    "name": "User decision: winner rules (excluded categories, 12-month forward, analog mean)",
     "status": "pending"
   },
   {

@@ -164,6 +164,31 @@
 - Start dates: 2023 where the own-model task needs two winters; generation from 2024 to limit
   rows (about 1.2 M); reservoirs from 2015 and GIE from 2020 for normal and range comparisons.
 
+## 2026-11-02 – Backfill results
+
+- All chains stopped on 2026-11-01 at 20:04 Helsinki. EXIT 0: Fingrid (15:55), ENTSO-E
+  reservoirs, generation (1,223,035 rows), the 4 neighbour zones, JAO, NVE and GIE.
+- EXIT 1, rerun with EXIT 0 the same evening (log `backfill-20261101-rerun.log`): weather Turku
+  and Tampere (the points before and after them worked, so not the daily limit); outages SE1 A77,
+  SE3 A77 and SE1->FI A78 (request errors). `--zone` cannot select a document type, so SE1 and SE3
+  A80 ran again and added 0 rows.
+- Outages took 5 h 11 min for about 3,700 documents (about 5 s each): one extra mRID query per
+  document for its earlier revisions, and slow ENTSO-E answers. Daily runs are small. A future
+  outage backfill can skip the old revisions if the as-known history is not needed.
+- A remote `nohup ... &` without `setsid` stopped when the local SSH session was stopped. Start
+  long production jobs with `setsid nohup ... & disown`.
+- Local sync at 06:22 on 2026-11-02, after deploy-000015 (the own-model tables; the sync needs
+  the same tables on both sides, so it failed the evening before): outages 14,526, Fingrid
+  1,150,773, spot SE1/SE3/EE/DE-LU 33,648 hours each, JAO 140,928, NVE 9,960, GIE 4,990,
+  weather 78,562 daily rows for the 6 Finnish points.
+- EEX with the fixed discovery: the 2026-11-02 run started 04:01 and was ready 05:43
+  (1 h 42 min, 0 failures, 7,871 points). Earlier clean runs ended at about 07:35. Root AGENTS.md
+  deploy-window text updated. The point count fell from 8,113 (2026-11-01) to 7,871 with the
+  same latest trade date. Probable cause: the about 45-day window lost one old trading day and
+  gained none over the weekend (about 270 points per trading day). Check again after a normal
+  weekday run.
+- Left: the 4 hydro weather points after 12:30 on 2026-11-02 (root AGENTS.md, Dated follow-ups).
+
 ## 2026-11-01 – Review shape (user decisions)
 
 - **Timing:** one release on about the 7th of the next month. All sources have arrived then
@@ -298,3 +323,38 @@ Replaces the shape decision above where they conflict ("Review shape", same date
   cards two short shared sections: the cold-and-calm bad case, and the cheap/expensive hours with
   shifting savings for spot customers. Last month's full winner tables go to the journalist layer
   and the social media images.
+
+## 2026-11-02 – Consumer layer prototype (user approved the work)
+
+- Datahub 364 codes verified on data.fingrid.fi/en/datasets/364: BE01 apartment in an apartment
+  block, BE02 electrically heated small house, BE03 small house without electric heating. Value =
+  average kWh of one accounting point in one hour. Annual kWh (12 months to 2026-09): 2,132 /
+  11,111 / 6,843.
+- Engine: `CanonicalPeriodPricingRequest` and `BillComparisonRequest` have an optional
+  `hourlyConsumptionWeights` (UTC hour => weight; scaled to periodKwh). Spot per hour, General and
+  package by weighted kWh, Time by real hours (07–22 Helsinki, `SpotPriceAverageService`), Season
+  keeps 85/15 inside winter months. Bad weights throw. Null = old path. Full suite 3,181 passed.
+  Local only; no public surface passes weights.
+- Coming months: one 12-month run (Nov 2026–Oct 2027) per home type and weather analog. A
+  winter-only run favoured fixed prices unfairly. Futures: month future, else the quarter level
+  minus its month futures. Analogs: winters 2023-24, 2024-25, 2025-26; each target hour takes the
+  source hour with the same month, day of month and local hour; price = source spot − mean of the
+  mapped hours + future. Weekday matching repeated cold days (January level +3.6 c/kWh) and was
+  dropped. Ranking: the mean of the three analogs.
+- Past month: contracts on sale on day 1 whose current source episode covered day 1 (246 of 293
+  for September; the 47 others changed terms and are excluded in the prototype). Real hourly spot.
+- Rules found necessary (prototype of the public winner rules): national; the annual kWh limits
+  fit the home type; normal-price cost; no overall win for consumption-effect contracts (base
+  price only) or, in the forward run, market-reset contracts (the period engine holds the current
+  reset price flat); a terms check before a contract can win: restricted names (existing
+  customers, students, business; one seller labels a "(yritys)" product Household) and promotions
+  whose normal price is unknown.
+- Results (files `consumer_inputs.py`, `run_consumer.php`, `consumer_results.py`,
+  `consumer-results-2026-11.json`): September winners were spot and quarterly-reset contracts
+  (Korpela Kvartaali, Sähkötytöt Pörssisähkö). Coming 12 months: spot wins for the apartment
+  (best 248 €, median spot 286 € vs median fixed term 310 €); fixed terms win for houses (best
+  751 € without electric heating, 1,176 € electrically heated). Cost of certainty (median fixed
+  term − median spot): +17..+29 € apartment, +2..+50 € house, −27..+67 € electrically heated
+  house. Energy only; the electricity tax adds 2.918 c/kWh (verify on vero.fi).
+- Engine fact for later: the period Spot cost floors each hour at 0 (`max(0, spot + margin)`), so
+  negative hours give no credit. More weight in negative hours makes the floor matter more.
