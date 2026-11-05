@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<title>Haku</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:wght@400;600;700&display=block" rel="stylesheet">
+<style>
+  :root {
+    --color-ground: #F5F6F1;
+    --color-edge: #D9DFDC;
+    --color-ink: #16202E;
+    --color-ink-body: #3A4656;
+    --color-ink-muted: #5E6876;
+    --color-night: #14213A;
+    --color-fox: #C4501C;
+    --color-fox-deep: #9E3C10;
+    --color-aurora: #1C7A5E;
+    --color-lake: #2B5F8C;
+    --color-violet: #6A4C9C;
+    --color-granite: #535D68;
+    --paper: #FBF6EA;
+    --font-display: "Bricolage Grotesque", system-ui, sans-serif;
+    --font-sans: "Figtree", system-ui, sans-serif;
+    --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --ease-io: cubic-bezier(0.7, 0, 0.2, 1);
+  }
+  * { margin: 0; box-sizing: border-box; }
+  body { width: 100vw; height: 100vh; overflow: hidden; background: #152E5C; font-family: var(--font-sans); }
+  .layer { position: absolute; inset: 0; overflow: hidden; }
+  @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
+  @keyframes draw { from { stroke-dashoffset: 1000; } to { stroke-dashoffset: 0; } }
+
+  /* ---------- The village plate (hook and end card) ---------- */
+  .plate { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; transform-origin: 80% 55%; animation: plate-push 2.8s ease-in-out both, plate-end 3.9s ease-out 11.1s forwards; }
+  @keyframes plate-push { from { transform: scale(1); } to { transform: scale(1.05); } }
+  @keyframes plate-end { from { transform: scale(1.07); filter: brightness(0.92); } to { transform: scale(1.0); filter: brightness(0.92); } }
+
+  .wordmark-corner { position: absolute; left: 140px; top: 72px; display: flex; align-items: center; gap: 12px; }
+  .wordmark-corner span { font: 800 48px/1 var(--font-display); letter-spacing: -0.02em; color: #fff; }
+  .wordmark-corner.ink span { color: var(--color-ink); }
+
+  .headline {
+    position: absolute; left: 140px; top: 220px; width: 1000px;
+    font: 800 110px/1.0 var(--font-display); letter-spacing: -0.035em; color: #fff;
+    text-shadow: 0 4px 40px rgb(10 16 30 / 0.55);
+  }
+  .headline .w { display: inline-block; }
+  .paper .headline { color: var(--color-ink); text-shadow: none; }
+  .h2 { top: 380px; width: 820px; font-size: 88px; }
+  .h3 { top: 210px; width: 800px; font-size: 88px; }
+  @keyframes word-in { from { opacity: 0; translate: 0 50px; } to { opacity: 1; translate: 0 0; } }
+  @keyframes word-out { from { opacity: 1; translate: 0 0; } to { opacity: 0; translate: 0 -30px; } }
+
+  /* ---------- Paper, like the site: 2.6–11 s ---------- */
+  .paper {
+    background-color: var(--color-ground);
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.35  0 0 0 0 0.3  0 0 0 0 0.2  0 0 0 0.05 0'/></filter><rect width='300' height='300' filter='url(%23n)'/></svg>");
+    animation: fade-in 0.5s ease-in-out 2.62s both, fade-out 0.5s ease-in-out 11.15s forwards;
+  }
+
+  /* The list: a torn-paper strip that hangs under the search field. JS sets its top. */
+  .list { position: absolute; left: 1020px; top: 186px; width: 740px; height: 1400px; animation: unroll 0.55s var(--ease-io) 3.05s both, roll-up 0.4s var(--ease-io) 10.9s forwards; }
+  @keyframes unroll { from { clip-path: inset(0 0 100% 0); } to { clip-path: inset(0 0 0 0); } }
+  @keyframes roll-up { from { clip-path: inset(0 0 0 0); } to { clip-path: inset(0 0 100% 0); } }
+  .list .edge { display: block; width: 100%; height: 16px; }
+  .list .body { position: absolute; top: 16px; left: 0; right: 0; bottom: 0; background: #fff; border-left: 2px solid var(--color-ink); border-right: 2px solid var(--color-ink); overflow: hidden;
+    -webkit-mask-image: linear-gradient(180deg, #000 0, #000 var(--fade-start, 45%), transparent var(--fade-end, 62%)); }
+  /* The stream starts at the most expensive rows and scrolls up to the cheapest. It lands on the ranked
+     rows (same rows, same place), so the change to the ranked layer at 5.9 s cannot be seen. Then the
+     rows below the top eight fade, so the list narrows to the cheapest. */
+  .stream { position: absolute; left: 0; right: 0; top: 0; padding: 4px 30px; animation: stream-run 2.6s cubic-bezier(0.45, 0, 0.15, 1) 3.3s both, stream-blur 2.6s linear 3.3s both, fade-out 0.01s linear 6.5s forwards; }
+  @keyframes stream-run { from { translate: 0 var(--run); } to { translate: 0 0; } }
+  @keyframes stream-blur { 0% { filter: blur(0); } 25% { filter: blur(1.5px); } 45% { filter: blur(3px); } 70% { filter: blur(1px); } 85%, 100% { filter: blur(0); } }
+  .stream .line { display: flex; }
+  .stream .rank { position: static; display: flex; align-items: center; height: var(--row-h, 62px); margin-right: 20px; }
+  .stream .row { flex: 1; }
+  .stream .line.rest { animation: fade-out 0.45s ease-in-out 6.0s forwards; }
+  .ranked { position: absolute; left: 0; right: 0; top: 0; padding: 4px 30px; animation: fade-in 0.01s linear 5.9s both; }
+  .row { display: flex; align-items: center; height: var(--row-h, 62px); border-bottom: 2px solid var(--color-edge); gap: 22px; background: #fff; }
+  .ranked .row { position: absolute; left: 94px; right: 30px; }
+  .ranked .rank { position: absolute; left: 30px; height: var(--row-h, 62px); display: flex; align-items: center; }
+  .rank { width: 44px; font: 800 30px/1 var(--font-display); color: var(--color-ink-muted); flex-shrink: 0; }
+  .row .dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+  .row .bar-slot { flex: 1; display: flex; align-items: center; }
+  .row .bar { height: 9px; background: var(--color-ink); }
+  .row .move { width: 150px; font: 700 24px/1 var(--font-sans); flex-shrink: 0; opacity: 0; }
+  .row .move.up { color: var(--color-aurora); }
+  .row .move.down { color: var(--color-ink-muted); }
+  .row .price { width: 190px; text-align: right; font: 800 36px/1 var(--font-display); letter-spacing: -0.02em; color: var(--color-ink); flex-shrink: 0; }
+  @keyframes move-in { from { opacity: 0; translate: -16px 0; } to { opacity: 1; translate: 0 0; } }
+
+  /* The four homes of the listing presets */
+  .homes { position: absolute; left: 140px; top: 470px; width: 780px; display: flex; justify-content: space-between; }
+  .home { position: relative; width: 170px; display: flex; flex-direction: column; align-items: center; }
+  .home img { width: 170px; height: 170px; object-fit: contain; }
+  .home .kwh { font: 800 30px/1 var(--font-display); letter-spacing: -0.02em; color: var(--color-ink); margin-top: 6px; white-space: nowrap; }
+  .home .kwh small { font: 700 22px/1 var(--font-sans); color: var(--color-ink-muted); }
+  .home .now { position: absolute; left: 30px; right: 30px; bottom: -14px; height: 5px; background: var(--color-ink); animation: fade-out 0.3s ease-in 7.75s forwards; }
+  .home-loop { position: absolute; left: -38px; top: -26px; width: calc(100% + 76px); height: calc(100% + 64px); overflow: visible; }
+  .home-loop path { fill: none; stroke: var(--color-fox); stroke-width: 7; stroke-linecap: round; stroke-dasharray: 1000; animation: draw 0.6s cubic-bezier(0.6, 0, 0.3, 1) 7.7s both; }
+  @keyframes home-in { from { opacity: 0; translate: 0 40px; } to { opacity: 1; translate: 0 0; } }
+
+  /* ---------- The search field: one element for the whole film, moved by JS ---------- */
+  .field { position: absolute; border: 5px solid var(--color-ink); border-radius: 999px; background: #fff; display: flex; align-items: center; overflow: hidden; z-index: 5; }
+  .field svg { flex-shrink: 0; }
+  .field .typed { font-family: var(--font-display); font-weight: 800; letter-spacing: -0.02em; color: var(--color-ink); white-space: nowrap; }
+  .field .typed.selected { background: rgb(196 80 28 / 0.28); }
+  /* Frame 0 is the thumbnail: the search shows as a grey suggestion, and the typing writes over it. */
+  .field .ghost { font-family: var(--font-display); font-weight: 800; letter-spacing: -0.02em; color: #A3AAB3; white-space: nowrap; }
+  .field .caret { background: var(--color-fox); flex-shrink: 0; }
+
+  /* ---------- Snow (night parts only) ---------- */
+  #snow { position: absolute; inset: 0; animation: fade-out 0.3s ease-in 2.62s both, fade-in 0.5s ease-out 11.3s both; }
+  .flake { position: absolute; top: -40px; border-radius: 50%; background: #fff; animation: fall linear infinite; }
+  @keyframes fall { from { translate: 0 0; } to { translate: 120px var(--fall, 1200px); } }
+
+  /* ---------- End card: the shared end tag (as in hintalappu.html) ---------- */
+  .hang { position: absolute; }
+  .hang .cord { position: absolute; width: 4px; background: #0B1220; }
+  @keyframes drop {
+    0% { translate: 0 -1500px; animation-timing-function: cubic-bezier(0.4, 0, 0.9, 0.6); }
+    62% { translate: 0 38px; animation-timing-function: ease-in-out; }
+    80% { translate: 0 -14px; animation-timing-function: ease-in-out; }
+    100% { translate: 0 0; }
+  }
+  .card {
+    position: absolute; left: 0;
+    clip-path: polygon(15% 0, 85% 0, 100% 10%, 100% 100%, 0 100%, 0 10%);
+    background-color: var(--paper);
+    background-image:
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.35  0 0 0 0 0.28  0 0 0 0 0.18  0 0 0 0.10 0'/></filter><rect width='300' height='300' filter='url(%23n)'/></svg>"),
+      linear-gradient(170deg, rgb(255 255 255 / 0.5) 0%, rgb(255 255 255 / 0) 40%, rgb(120 90 50 / 0.10) 100%);
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .grommet { width: 64px; height: 64px; border-radius: 50%; flex-shrink: 0; background: radial-gradient(circle, #0B1220 0 15px, #B9A27A 16px 24px, #8C7652 25px 27px, transparent 28px); }
+  .shadow { position: absolute; left: 0; filter: drop-shadow(0 40px 50px rgb(0 0 0 / 0.45)); }
+  .end-hang { left: 230px; top: -150px; width: 760px; transform-origin: 380px 0; animation: drop 1.0s linear 11.5s both; }
+  .end-hang .cord { left: 378px; height: 302px; }
+  .end-card { top: 300px; width: 760px; height: 700px; }
+  .end-card .card { width: 760px; height: 700px; padding: 40px 48px 48px; }
+  .end-card .shadow { width: 760px; height: 700px; }
+  .wordmark { display: flex; align-items: center; gap: 14px; margin-top: 42px; }
+  .wordmark span { font: 800 76px/1 var(--font-display); letter-spacing: -0.02em; color: var(--color-ink); }
+  .hae { font: 800 64px/1 var(--font-display); letter-spacing: -0.03em; color: var(--color-ink); margin-top: 70px; align-self: flex-start; }
+  .search { align-self: stretch; margin-top: 22px; height: 100px; border: 5px solid var(--color-ink); border-radius: 52px; display: flex; align-items: center; gap: 22px; padding: 0 34px; background: #fff; }
+  .search .typed { font: 800 44px/1 var(--font-display); letter-spacing: -0.02em; color: var(--color-ink); }
+  .search .caret { width: 5px; height: 50px; background: var(--color-fox); }
+  .trust { font: 700 30px/1.3 var(--font-sans); color: var(--color-ink-muted); margin-top: auto; align-self: flex-start; }
+  .fox { position: absolute; left: 1340px; top: 600px; width: 470px; animation: fox-in 0.9s var(--ease-out) 12.5s both; }
+  @keyframes fox-in { from { opacity: 0; translate: 80px 30px; } to { opacity: 1; translate: 0 0; } }
+  .sparks { position: absolute; left: 1374px; top: 482px; width: 260px; height: 220px; overflow: visible; scale: 0.84; transform-origin: 0 0; }
+  .sparks path { animation: spark 2.4s ease-out both; }
+  .sparks path:nth-child(1) { animation-delay: 12.9s; } .sparks path:nth-child(2) { animation-delay: 13.15s; } .sparks path:nth-child(3) { animation-delay: 13.4s; }
+  @keyframes spark { from { opacity: 0; translate: 0 60px; } 30% { opacity: 1; } to { opacity: 0.9; translate: 0 -80px; } }
+
+  /* ---------- Other formats (body.square, body.vertical). Wide uses the rules above. ---------- */
+  .square .plate { object-position: 72% 50%; }
+  .square .wordmark-corner { left: 60px; top: 50px; }
+  .square .headline { left: 60px; top: 120px; width: 960px; font-size: 84px; }
+  .square .paper .headline { top: 120px; font-size: 64px; }
+  .square .list { left: 80px; width: 920px; }
+  .square .homes { left: 60px; top: 276px; width: 960px; }
+  .square .home { width: 150px; }
+  .square .home img { width: 120px; height: 120px; }
+  .square .home .kwh { font-size: 26px; }
+  .square .end-hang { left: -36px; top: -70px; scale: 0.8; }
+  .square .fox { left: 650px; top: 690px; width: 400px; }
+  .square .sparks { left: 680px; top: 592px; scale: 0.72; }
+
+  .vertical .plate { top: 560px; height: 1100px; object-fit: cover; object-position: 100% 50%; transform-origin: 60% 50%;
+    -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 12%, #000 88%, transparent 100%); }
+  .vertical .sky { position: absolute; inset: 0; background: linear-gradient(180deg, #0F2550 0%, #152E5C 30%, #1B3466 45%, #9DB0CC 72%, #F2F1EC 86%); }
+  .vertical .wordmark-corner { left: 70px; top: 200px; }
+  .vertical .headline { left: 70px; top: 300px; width: 940px; font-size: 112px; }
+  .vertical .paper .headline { top: 300px; font-size: 96px; }
+  .vertical .list { left: 90px; width: 900px; }
+  .vertical .homes { left: 70px; top: 536px; width: 940px; }
+  .vertical .home { width: 200px; }
+  .vertical .home img { width: 160px; height: 160px; }
+  .vertical .end-hang { left: 160px; top: 60px; }
+  .vertical .fox { left: 500px; top: 1090px; width: 520px; }
+  .vertical .sparks { left: 537px; top: 960px; scale: 0.93; }
+</style>
+</head>
+<body>
+  <div class="layer"><div class="sky"></div><img class="plate" src="../../design/scenes/winter-evening-village-v2.png" alt=""></div>
+
+  <div class="wordmark-corner" style="animation: fade-out 0.01s linear 3.2s both;">
+    <svg width="46" height="46" viewBox="0 0 34 34"><path d="M5 29 C 6 16, 14 7, 27 5 C 24 12, 22 20, 13 26 C 10 28, 7 29, 5 29 Z" fill="#C4501C"/><path d="M29.5 11.5 l1 2.2 2.2 1 -2.2 1 -1 2.2 -1 -2.2 -2.2 -1 2.2 -1 z" fill="#1C7A5E"/><circle cx="31" cy="4" r="1.6" fill="#6A4C9C"/></svg>
+    <span>Voltikka</span>
+  </div>
+  <div class="headline h1"><span class="w">Etsitkö</span> <span class="w">halvinta</span> <span class="w">sähkösopimusta?</span></div>
+
+  <div class="layer paper">
+    <div class="wordmark-corner ink">
+      <svg width="46" height="46" viewBox="0 0 34 34"><path d="M5 29 C 6 16, 14 7, 27 5 C 24 12, 22 20, 13 26 C 10 28, 7 29, 5 29 Z" fill="#C4501C"/><path d="M29.5 11.5 l1 2.2 2.2 1 -2.2 1 -1 2.2 -1 -2.2 -2.2 -1 2.2 -1 z" fill="#1C7A5E"/><circle cx="31" cy="4" r="1.6" fill="#6A4C9C"/></svg>
+      <span>Voltikka</span>
+    </div>
+    <div class="headline h2"><span class="w">Kaikki</span> <span class="w">Suomen</span> <span class="w">sähkösopimukset.</span></div>
+    <div class="headline h3"><span class="w">Hinnat</span> <span class="w">sinun</span> <span class="w">kulutuksellasi.</span></div>
+
+    <div class="homes" id="homes"></div>
+
+    <div class="list" id="list">
+      <svg class="edge" viewBox="0 0 620 14" preserveAspectRatio="none" id="list-edge"></svg>
+      <div class="body">
+        <div class="stream" id="stream"></div>
+        <div class="ranked" id="ranked"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="field" id="field">
+    <svg viewBox="0 0 18 18" id="field-icon"><circle cx="7.5" cy="7.5" r="5.5" fill="none" stroke="#5E6876" stroke-width="2"/><path d="M11.5 11.5 L16 16" stroke="#5E6876" stroke-width="2" stroke-linecap="round"/></svg>
+    <span class="typed" id="field-typed"></span><span class="caret" id="field-caret"></span><span class="ghost" id="field-ghost"></span>
+  </div>
+
+  <svg class="sparks" viewBox="0 0 260 220">
+    <path d="M40 180 l7 15 15 7 -15 7 -7 15 -7 -15 -15 -7 15 -7 z" fill="#1C7A5E"/>
+    <path d="M140 110 l9 18 18 9 -18 9 -9 18 -9 -18 -18 -9 18 -9 z" fill="#6A4C9C"/>
+    <path d="M220 40 l6 12 12 6 -12 6 -6 12 -6 -12 -12 -6 12 -6 z" fill="#1C7A5E"/>
+  </svg>
+  <img class="fox" src="../../design/mascot/fox-sit-skyward-v1.png" alt="">
+
+  <div class="hang end-hang">
+    <div class="cord"></div>
+    <div class="end-card shadow" style="position:absolute;"><div class="card">
+      <div class="grommet"></div>
+      <div class="wordmark">
+        <svg width="72" height="72" viewBox="0 0 34 34"><path d="M5 29 C 6 16, 14 7, 27 5 C 24 12, 22 20, 13 26 C 10 28, 7 29, 5 29 Z" fill="#C4501C"/><path d="M27 5 C 25.5 9, 24.5 12, 22.5 15 C 21 12.5, 22.5 8, 27 5 Z" fill="#FBF6EA"/><path d="M29.5 11.5 l1 2.2 2.2 1 -2.2 1 -1 2.2 -1 -2.2 -2.2 -1 2.2 -1 z" fill="#1C7A5E"/><circle cx="31" cy="4" r="1.6" fill="#6A4C9C"/></svg>
+        <span>Voltikka</span>
+      </div>
+      <div class="hae">Hae:</div>
+      <div class="search" id="tag-search">
+        <svg width="44" height="44" viewBox="0 0 18 18"><circle cx="7.5" cy="7.5" r="5.5" fill="none" stroke="#5E6876" stroke-width="2"/><path d="M11.5 11.5 L16 16" stroke="#5E6876" stroke-width="2" stroke-linecap="round"/></svg>
+        <span class="typed" id="typed"></span><span class="caret" id="caret"></span>
+      </div>
+      <div class="trust">Ei provisioita.<br>Kaikki sopimukset.</div>
+    </div></div>
+  </div>
+
+  <div id="snow"></div>
+
+<script>
+  const W = innerWidth, H = innerHeight;
+  const format = W > H ? 'wide' : W === H ? 'square' : 'vertical';
+  document.body.classList.add(format);
+
+  // Per format: the field in the hook and on the paper, the list top, the push when the homes come in, row height.
+  const L = {
+    wide: { hook: [140, 500, 760, 104], top: [1000, 70, 780, 92], push: 0, rowH: 62, flakes: 70, fade: ['48%', '64%'] },
+    square: { hook: [60, 330, 760, 100], top: [60, 290, 960, 84], push: 180, rowH: 56, flakes: 55, fade: ['30%', '44%'] },
+    vertical: { hook: [70, 690, 940, 112], top: [70, 540, 940, 96], push: 260, rowH: 66, flakes: 100, fade: ['46%', '60%'] },
+  }[format];
+  document.documentElement.style.setProperty('--row-h', `${L.rowH}px`);
+  document.documentElement.style.setProperty('--fade-start', L.fade[0]);
+  document.documentElement.style.setProperty('--fade-end', L.fade[1]);
+
+  let seed = 5;
+  const rand = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  const ease = (x) => x <= 0 ? 0 : x >= 1 ? 1 : x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+  const span = (t, a, b) => ease((t - a) / (b - a));
+  const mix = (a, b, k) => a + (b - a) * k;
+
+  // Torn top edge of the list.
+  let zig = 'M0 8';
+  for (let x = 10; x <= 620; x += 10) zig += ` L${x} ${(x / 10) % 2 === 1 ? 1 : 8}`;
+  document.getElementById('list-edge').innerHTML = `<path d="${zig} L620 14 L0 14 Z" fill="#fff"/><path d="${zig}" fill="none" stroke="#16202E" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;
+
+  // Rows: an ink bar and a category dot, never a name. Prices (€/kk) are fictional.
+  const dots = ['#1C7A5E', '#535D68', '#2B5F8C', '#6A4C9C'];
+  const bar = (i) => `<span class="bar-slot"><span class="bar" style="width:${40 + ((i * 41) % 48)}%"></span></span>`;
+  const stream = document.getElementById('stream');
+  const sp = [58, 60, 61, 63, 64, 66, 67, 69, 70];
+  while (sp.length < 50) sp.push(sp[sp.length - 1] + Math.round(rand() * 2));
+  // The rows are the same as the ranked rows below (rank, dot, bar, empty move slot, price).
+  stream.innerHTML = sp.map((p, i) => `<div class="line${i >= 8 ? ' rest' : ''}"><span class="rank">${i + 1}.</span><div class="row"><span class="dot" style="background:${dots[i % 4]}"></span>${bar(i)}<span class="move"></span><span class="price">${p} €/kk</span></div></div>`).join('');
+  stream.style.setProperty('--run', `${-(sp.length - 12) * L.rowH}px`);
+
+  // Ranked rows: price at 5 000 kWh, price at 18 000 kWh, and the place after the change.
+  const ranked = [
+    { a: 58, b: 171, to: 3 }, { a: 60, b: 168, to: 2 }, { a: 61, b: 176, to: 5 }, { a: 63, b: 174, to: 4 },
+    { a: 64, b: 179, to: 6 }, { a: 66, b: 162, to: 0 }, { a: 67, b: 186, to: 7 }, { a: 69, b: 165, to: 1 },
+  ];
+  const rankedEl = document.getElementById('ranked');
+  ranked.forEach((r, i) => {
+    const d = i - r.to;
+    const mark = d === 0 ? '' : `${d > 0 ? '↑' : '↓'} ${Math.abs(d)} ${Math.abs(d) === 1 ? 'sija' : 'sijaa'}`;
+    rankedEl.insertAdjacentHTML('beforeend', `<span class="rank" style="top:${4 + i * L.rowH}px">${i + 1}.</span>`);
+    rankedEl.insertAdjacentHTML('beforeend', `<div class="row" style="top:${4 + i * L.rowH}px">
+      <span class="dot" style="background:${dots[i % 4]}"></span>${bar(i)}<span class="move ${d > 0 ? 'up' : 'down'}">${mark}</span><span class="price">${r.a} €/kk</span></div>`);
+    r.el = rankedEl.lastElementChild;
+    r.price = r.el.querySelector('.price');
+    r.move = r.el.querySelector('.move');
+    r.move.style.animation = `move-in 0.35s var(--ease-out) ${10.0 + r.to * 0.06}s both`;
+  });
+
+  // The homes of the listing presets.
+  const homes = [['studio', '2 000'], ['apartment', '5 000'], ['rowhouse', '10 000'], ['house', '18 000']];
+  document.getElementById('homes').innerHTML = homes.map(([img, kwh], i) => `<div class="home" style="animation: home-in 0.5s var(--ease-out) ${6.85 + i * 0.12}s both">
+    <img src="../../design/illustrations/home-${img}-v1.png" alt=""><div class="kwh">${kwh} <small>kWh</small></div>
+    ${i === 1 ? '<span class="now"></span>' : ''}
+    ${i === 3 ? '<svg class="home-loop" viewBox="0 0 300 300" preserveAspectRatio="none"><path pathLength="1000" d="M60 40 C 150 0, 280 30, 290 140 C 300 250, 200 296, 130 290 C 40 282, 6 210, 12 140 C 18 80, 60 46, 120 30"/></svg>' : ''}</div>`).join('');
+
+  // Headlines.
+  // h1 has no entry: it is on screen from frame 0, because frame 0 is often the YouTube thumbnail.
+  const timing = { h1: [null, 2.6], h2: [3.0, 6.4], h3: [6.65, 10.9] };
+  for (const [name, [start, out]] of Object.entries(timing)) {
+    document.querySelectorAll(`.${name} .w`).forEach((w, i) => {
+      const exit = `word-out 0.35s ease-in ${out}s forwards`;
+      w.style.animation = start === null ? exit : `word-in 0.6s var(--ease-out) ${start + i * 0.12}s both, ${exit}`;
+    });
+  }
+
+  // Snow.
+  const snow = document.getElementById('snow');
+  snow.style.setProperty('--fall', `${H + 120}px`);
+  for (let i = 0; i < L.flakes; i++) {
+    const near = rand();
+    const size = 3 + near * near * 16;
+    const f = document.createElement('div');
+    f.className = 'flake';
+    f.style.cssText = `left:${rand() * (W + 80) - 80}px; width:${size}px; height:${size}px; opacity:${0.35 + near * 0.5};
+      filter:blur(${near > 0.8 ? 4 : near > 0.5 ? 1.5 : 0}px); animation-duration:${14 - near * 8}s; animation-delay:${-rand() * 14}s;`;
+    snow.appendChild(f);
+  }
+
+  // Typing. The key times are also in sfx.sh (key clicks): keep them the same.
+  const first = 'halvin sähkösopimus';
+  const gaps = [0.09, 0.08, 0.1, 0.07, 0.09, 0.08, 0.13, 0.08, 0.07, 0.09, 0.08, 0.1, 0.07, 0.08, 0.09, 0.07, 0.08, 0.1, 0.09];
+  const keyTimes = []; let k = 0.75;
+  for (const g of gaps) { keyTimes.push(k); k += g; }
+  const cta = 'voltikka sähkösopimus';
+  const ctaStart = 12.2, ctaGap = 0.075;
+
+  const field = document.getElementById('field');
+  const fieldIcon = document.getElementById('field-icon');
+  const fieldTyped = document.getElementById('field-typed');
+  const fieldCaret = document.getElementById('field-caret');
+  const fieldGhost = document.getElementById('field-ghost');
+  const list = document.getElementById('list');
+  const endHang = document.querySelector('.end-hang');
+  const endCard = document.querySelector('.end-card');
+
+  const setField = ([x, y, w, h]) => {
+    const s = h / 100;
+    Object.assign(field.style, { left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px`, gap: `${22 * s}px`, padding: `0 ${34 * s}px`, borderWidth: `${Math.max(3, 5 * s)}px` });
+    fieldIcon.setAttribute('width', 44 * s); fieldIcon.setAttribute('height', 44 * s);
+    fieldTyped.style.fontSize = fieldGhost.style.fontSize = `${44 * s}px`;
+    fieldCaret.style.width = `${Math.max(3, 5 * s)}px`; fieldCaret.style.height = `${50 * s}px`;
+  };
+  const lerpRect = (a, b, k) => a.map((v, i) => mix(v, b[i], k));
+
+  window.renderFrame = (t) => {
+    // Field position: hook → top of the list (→ homes push). It does not move to the end tag: a field
+    // that waits for the falling tag looked like a second, ghost field (user, 2026-11-05). It clears its
+    // text and fades out with the paper; the tag brings its own field.
+    const pushK = span(t, 6.6, 7.2);
+    const top = [L.top[0], L.top[1] + L.push * pushK, L.top[2], L.top[3]];
+    const rect = lerpRect(L.hook, top, span(t, 2.7, 3.3));
+    // Enter: a short press at 2.5 s.
+    const press = t > 2.45 && t < 2.65 ? 1 - 0.03 * Math.sin(Math.PI * (t - 2.45) / 0.2) : 1;
+    const gone = span(t, 11.25, 11.6);
+    field.style.transform = `scale(${press * (1 - 0.04 * gone)})`;
+    field.style.opacity = 1 - gone;
+    field.style.visibility = gone >= 1 ? 'hidden' : 'visible';
+    setField(rect);
+    list.style.top = `${top[1] + top[3] - 6}px`;
+
+    // Text: the first search, the quick clear, then the brand search.
+    let text = first.slice(0, keyTimes.filter((x) => x <= t).length);
+    fieldGhost.textContent = t < 2.45 ? first.slice(text.length) : '';
+    fieldTyped.classList.toggle('selected', t >= 11.0 && t < 11.2);
+    fieldTyped.textContent = t >= 11.2 ? '' : text;
+    document.getElementById('typed').textContent = cta.slice(0, Math.max(0, Math.min(cta.length, Math.floor((t - ctaStart) / ctaGap))));
+    const typing = (t > 0.7 && t < 2.4) || (t > ctaStart && t < ctaStart + cta.length * ctaGap);
+    const blink = typing || Math.floor(t * 2) % 2 === 0;
+    fieldCaret.style.opacity = blink ? 1 : 0;
+    document.getElementById('caret').style.opacity = blink ? 1 : 0;
+
+    // The tag swings when the drop has ended.
+    const u = t - 12.5;
+    endHang.style.rotate = u < 0 ? '0deg' : `${6 * Math.exp(-u / 1.6) * Math.sin(2 * Math.PI * u / 1.7) + 1.2 * Math.sin(2 * Math.PI * u / 3.3)}deg`;
+    endCard.style.transform = u < 0 ? 'none' : `perspective(2400px) rotateY(${5 * Math.exp(-u / 2) * Math.sin(2 * Math.PI * u / 2.0) + 2 * Math.sin(2 * Math.PI * u / 4.1)}deg)`;
+
+    // Ranked list: prices count up to 18 000 kWh, then the rows change places.
+    const count = span(t, 8.2, 9.0);
+    const move = span(t, 9.2, 10.0);
+    for (const [i, r] of ranked.entries()) {
+      r.price.textContent = `${Math.round(mix(r.a, r.b, count))} €/kk`;
+      const y = mix(i, r.to, move) * L.rowH;
+      const lift = Math.sin(Math.PI * move) * (r.to < i ? 1 : 0);
+      r.el.style.transform = `translateY(${y - i * L.rowH}px) scale(${1 + 0.025 * lift})`;
+      r.el.style.zIndex = r.to < i ? 2 : 1;
+      r.el.style.opacity = r.to > i ? 1 - 0.55 * Math.sin(Math.PI * move) : 1;
+      r.el.style.boxShadow = lift > 0.01 ? `0 ${10 * lift}px ${24 * lift}px rgb(22 32 46 / ${0.18 * lift})` : 'none';
+    }
+  };
+</script>
+</body>
+</html>

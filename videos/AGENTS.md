@@ -51,7 +51,7 @@ Write scenes with normal CSS keyframes and `animation-delay`. Do not use `setTim
 | Folder | What it is |
 |---|---|
 | `spike/` | 3 s technical test (plate drift, fox entry, word stagger, ink draw-on) |
-| `youtube-brand-video/` | 15 s YouTube brand ad, concept Hintalappu; see its `AGENTS.md` |
+| `youtube-brand-video/` | 15 s YouTube brand ads for rotation: Hintalappu, Oma lasku and Haku; see its `AGENTS.md` |
 
 ## Media files
 
