@@ -97,9 +97,9 @@ class OpenMeteoService
      *
      * @throws RequestException|ConnectionException
      */
-    public function fetchHourlyForecast(array $product, array $point, float $delaySeconds): array
+    public function fetchHourlyForecast(array $product, array $point, float $delaySeconds, ?string $run = null): array
     {
-        return $this->getBlock($product['url'], [
+        $query = [
             'latitude' => $point['latitude'],
             'longitude' => $point['longitude'],
             'models' => $product['model'],
@@ -108,7 +108,23 @@ class OpenMeteoService
             'timezone' => 'GMT',
             'timeformat' => 'unixtime',
             'wind_speed_unit' => 'ms',
-        ], $delaySeconds, 'hourly');
+        ];
+        if ($run !== null) {
+            $query['run'] = $run; // Single Runs API: one model run, e.g. 2026-11-06T00:00
+        }
+
+        return $this->getBlock($product['url'], $query, $delaySeconds, 'hourly');
+    }
+
+    /**
+     * True when the Single Runs API answered that the requested run is not available yet
+     * (HTTP 400, reason "The requested model run is not available", checked 2026-11-06).
+     */
+    public static function isRunNotAvailable(Throwable $e): bool
+    {
+        return $e instanceof RequestException
+            && $e->response->status() === 400
+            && str_contains(strtolower((string) $e->response->json('reason')), 'not available');
     }
 
     /**

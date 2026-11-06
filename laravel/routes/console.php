@@ -229,6 +229,17 @@ Schedule::command('weather:fetch --only=solar_ghi')
     ->appendOutputTo(storage_path('logs/weather-fetch.log'));
 
 // Fingrid 245 wind power forecast vintages (one request per run, 72 h ahead).
+// Own S model weather (s_v1): the ECMWF 00 UTC run of the day from the Open-Meteo Single Runs
+// API. Each tick stores only the points still missing; a run that is not ready yet waits quietly.
+// The availability time is not known yet (checked 2026-11-06 only after it), so try every hour.
+Schedule::command('weather:fetch --only=ecmwf_00z')
+    ->hourlyAt(15)
+    ->between('9:00', '14:30')
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping(30)
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/weather-fetch.log'));
+
 Schedule::command('fingrid:fetch-forecast-vintages')
     ->hourlyAt(45)
     ->timezone('Europe/Helsinki')

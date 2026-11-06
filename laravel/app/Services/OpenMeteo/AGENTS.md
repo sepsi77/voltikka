@@ -4,8 +4,9 @@ Collects weather for the monthly market review (data inventory G6 and G22 in
 `../../../../market-review/`): observed daily weather from the ERA5 archive, and
 append-only outlook vintages from the ECMWF ensemble, EC46 and SEAS5. It also collects two inputs
 for own spot price models (`../../../../tasks/own-forecast-model-data/`): hourly ERA5 wind at 9
-neighbour wind-power points, and append-only hourly solar (GHI) forecast vintages at the 7 FMI
-radiation stations. Nothing public reads these rows yet.
+neighbour wind-power points, append-only hourly solar (GHI) forecast vintages at the 7 FMI
+radiation stations, and the 00 UTC ECMWF run of each day at 38 points (`ecmwf_00z`, the S model
+weather). Nothing public reads these rows yet.
 
 Licence and terms: Open-Meteo data is CC BY 4.0. A published figure must credit
 "Weather data by Open-Meteo.com" with a link to https://open-meteo.com/ (ERA5 is also
@@ -105,6 +106,28 @@ long HTTP 503 "overloaded" periods on 2026-11-02 (archive and previous-runs abou
   previous run. Check it live before a model relies on `issued_at` for 06/18 UTC runs.
 - EC46 and SEAS5 are separate products (not the "seamless" mix), so every member is one
   continuous model trajectory and has one initialisation time.
+- `ecmwf_00z` (2026-11-06) is the issue-day weather of the own S model `s_v1`
+  (`../../../../tasks/own-forecast-model-data/s-model-freeze.md`). It asks the **Single Runs API**
+  (`https://single-runs-api.open-meteo.com/v1/forecast`, `models=ecmwf_ifs`,
+  `run=<Helsinki day>T00:00`) for one exact run: ECMWF IFS HRES 00 UTC of the day, 9 days,
+  `temperature_2m`, `wind_speed_10m`, `wind_speed_100m`, `shortwave_radiation`, at the 38 training
+  points (the 29 `fmi.weather_stations`, keys = FMISID strings, and the 9 `neighbour_wind_points`;
+  `points` is a list of full config keys). It is the source the model was trained on
+  (`research/s_weather_single_runs.py`), so do not change the model, variables, days, points or
+  time convention without a new model version. Rules:
+  - `issued_at` is the requested run time, not the metadata file, so it is exact.
+  - **No time shift**, also for radiation (stored at the API time, unlike `solar_ghi`), because the
+    training data has none.
+  - A point already stored for the run is not requested again, so the hourly ticks (09:15–14:15
+    Helsinki) fill only what is missing and then cost nothing.
+  - HTTP 400 "The requested model run is not available" (a run not ready yet) is a quiet wait:
+    exit 0, nothing stored, the other points are not requested. Other errors fail the point.
+    The S workflow's readiness check owns the deadline. On 2026-11-06 the 00 UTC run was available
+    at 19:10 Helsinki; the 12 UTC run was not yet at 19:15. The morning availability time is not
+    measured yet.
+  - User decision 2026-11-06 (option A): all four variables come from here, an exception to the
+    rule "Open-Meteo only where FMI has no data"; FMI's ECMWF copy stays collected for the planned
+    comparison. Production had no 100 m wind and no radiation at these points before.
 
 ## API budget (free tier: < 10,000 calls/day, 5,000/hour, 600/minute)
 
@@ -125,6 +148,8 @@ A request with more than 10 variables or more than 2 weeks of data counts as sev
   backfill that uses more than about 4,000 calls.
 - `solar_ghi`: 1 variable, 10 days = 1 call per point, 7 per fetch. Metadata calls are not
   counted (https://open-meteo.com/en/docs/model-updates).
+- `ecmwf_00z`: 4 variables, 9 days = 1 call per point, 38 per stored run (once a day; ticks
+  after the run is stored send nothing).
 - Call weight (https://open-meteo.com/en/pricing): more than 10 variables or more than 2 weeks
   per location counts fractionally, e.g. 2 weeks with 15 variables = 1.5 calls.
 - Ensemble and seasonal requests count members and variables; the Open-Meteo docs only show the
@@ -145,6 +170,7 @@ php artisan weather:fetch --only=ecmwf_ec46                 # weekly
 php artisan weather:fetch --only=ecmwf_seas5                # monthly, after the ~5th
 php artisan weather:fetch --from=1991-01-01 --point=helsinki --point=oulu  # observed backfill
 php artisan weather:fetch --only=solar_ghi                  # solar GHI forecast vintage (own schedule)
+php artisan weather:fetch --only=ecmwf_00z                  # S model weather: 00 UTC run of today (hourly 09:15-14:15)
 php artisan weather:fetch --from=2023-01-01 --only=observed_hourly  # hourly wind backfill (UTC days)
 ```
 

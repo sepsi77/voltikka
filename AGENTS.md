@@ -392,7 +392,7 @@ Retail collection and forecast generation use independent five-minute background
 
 ### Own spot price forecast models (local, 2026-11-01)
 - Task: `tasks/own-forecast-model-data/` (spec, decisions). Two models: short term (hourly D+1..D+7) and medium term (2–3 months, weekly/monthly with ranges). They are not a copy of nordpool-predict-fi; it is a baseline to beat. No public UI in this task
-- Phase 1 inputs: FMI (`fmi:fetch`, `app/Services/Fmi/`), Syke (`syke:fetch`), Fingrid 245 vintages, Open-Meteo hourly neighbour wind and solar forecast (only where FMI/Syke/Fingrid have no data; user rule), `App\Support\FinnishHolidays`. Forecast vintages are append-only in `hourly_forecast_runs`; a model must use only the vintage that existed at its issue time
+- Phase 1 inputs: FMI (`fmi:fetch`, `app/Services/Fmi/`), Syke (`syke:fetch`), Fingrid 245 vintages, Open-Meteo hourly neighbour wind and solar forecast (only where FMI/Syke/Fingrid have no data; user rule), `App\Support\FinnishHolidays`. Exception (user decision 2026-11-06): the frozen S model `s_v1` reads all its weather from the Open-Meteo Single Runs API (`weather:fetch --only=ecmwf_00z`), the source it was trained on; FMI's ECMWF copy stays collected for a comparison. Contract with the Temporal pilot: `tasks/own-forecast-model-data/s-model-freeze.md` Forecast vintages are append-only in `hourly_forecast_runs`; a model must use only the vintage that existed at its issue time
 
 ### Daily spot social publication
 - `spot:fetch` has no social side effects. It only persists Spot data, calculates averages, and warms caches.

@@ -6,6 +6,7 @@ use App\Services\OpenMeteo\OpenMeteoService;
 use App\Services\OpenMeteo\OpenMeteoWeatherImporter;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Throwable;
 
 /**
@@ -25,7 +26,7 @@ class FetchWeather extends Command
                             {--from= : Observed backfill start date (YYYY-MM-DD, Europe/Helsinki local day)}
                             {--to= : Observed backfill end date, inclusive (default yesterday)}
                             {--point=* : Only these point keys (default: all configured points of each part)}
-                            {--only=* : Only these parts: observed, observed_hourly, ecmwf_ens, ecmwf_ec46, ecmwf_seas5, solar_ghi}';
+                            {--only=* : Only these parts: observed, observed_hourly, ecmwf_ens, ecmwf_ec46, ecmwf_seas5, solar_ghi, ecmwf_00z}';
 
     protected $description = 'Fetch Open-Meteo observed weather and forecast/outlook vintages for market reviews and models';
 
@@ -49,7 +50,17 @@ class FetchWeather extends Command
             $pointSets[$key] = $pointSets['observed'];
         }
         foreach ($hourlyForecasts as $key => $product) {
-            $pointSets[$key] = (array) config('open_meteo.'.$product['points'], []);
+            if (is_array($product['points'])) {
+                // A list of full config keys (other config files too); keys stay as strings.
+                $pointSets[$key] = [];
+                foreach ($product['points'] as $configKey) {
+                    foreach ((array) config($configKey, []) as $pointKey => $point) {
+                        $pointSets[$key][(string) $pointKey] = $point;
+                    }
+                }
+            } else {
+                $pointSets[$key] = (array) config('open_meteo.'.$product['points'], []);
+            }
         }
 
         $requestedPoints = array_map('strval', (array) $this->option('point'));
@@ -203,6 +214,10 @@ class FetchWeather extends Command
      */
     private function fetchHourlyForecastPart(string $part, array $product, array $pointKeys, array $points, float $delay): int
     {
+        if (isset($product['run_hour_utc'])) {
+            return $this->fetchSingleRunPart($part, $product, $pointKeys, $points, $delay);
+        }
+
         $failed = 0;
         $runBefore = $this->client->fetchModelRunAt((string) $product['meta_url'], $delay);
         $payloads = [];
@@ -226,6 +241,53 @@ class FetchWeather extends Command
             } catch (Throwable $e) {
                 $failed++;
                 $this->logFailure($part, (string) $point, $e);
+            }
+        }
+
+        return $failed;
+    }
+
+    /**
+     * One exact model run (Single Runs API): the run of the Helsinki day at run_hour_utc, so
+     * issued_at is known without the metadata file. Points already stored for this run are
+     * skipped, so the hourly schedule only fills what is missing. A run that is not ready yet is
+     * a quiet wait (exit 0, nothing stored); the S workflow's readiness check owns the deadline.
+     *
+     * @param  array<string, mixed>  $product
+     * @param  list<string>  $pointKeys
+     * @param  array<array-key, array{latitude: float, longitude: float}>  $points
+     * @return int Number of failed points
+     */
+    private function fetchSingleRunPart(string $part, array $product, array $pointKeys, array $points, float $delay): int
+    {
+        $runDate = Carbon::now((string) config('open_meteo.timezone'))->format('Y-m-d');
+        $hour = sprintf('%02d:00', (int) $product['run_hour_utc']);
+        $issuedAt = "{$runDate} {$hour}:00";
+
+        $stored = DB::table('hourly_forecast_runs')
+            ->where('source', 'open_meteo')->where('product', $part)->where('issued_at', $issuedAt)
+            ->whereIn('point', $pointKeys)->pluck('point')->map(fn ($point) => (string) $point)->all();
+        $missing = array_values(array_diff($pointKeys, $stored));
+        if ($missing === []) {
+            $this->info("Forecast {$part}: run {$issuedAt} UTC already stored for every point.");
+
+            return 0;
+        }
+
+        $failed = 0;
+        foreach ($missing as $point) {
+            try {
+                $payload = $this->client->fetchHourlyForecast($product, $points[$point], $delay, "{$runDate}T{$hour}");
+                $this->importer->storeHourlyForecastRun($part, $product, $point, $payload, $issuedAt, Carbon::now('UTC'));
+                $this->info("Forecast {$part} {$point}: run {$issuedAt} UTC stored.");
+            } catch (Throwable $e) {
+                if (OpenMeteoService::isRunNotAvailable($e)) {
+                    $this->info("Forecast {$part}: run {$issuedAt} UTC is not available yet.");
+
+                    return $failed;
+                }
+                $failed++;
+                $this->logFailure($part, $point, $e);
             }
         }
 

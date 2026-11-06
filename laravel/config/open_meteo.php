@@ -61,6 +61,23 @@ return [
             'points' => 'solar_points',
             'time_shift_seconds' => -3600,
         ],
+        // Issue-day weather of the own S model (s_v1, tasks/own-forecast-model-data/
+        // s-model-freeze.md): the ECMWF IFS HRES 00 UTC run of the Helsinki day, from the Single
+        // Runs API, so one vintage is exactly that run. This is the source the model was trained on
+        // (research/s_weather_single_runs.py: same model, variables, 9 days and points). User
+        // decision 2026-11-06 (option A): all four variables come from here, an exception to
+        // "Open-Meteo only where FMI has no data"; FMI's ECMWF copy is still collected for the
+        // comparison. Values stay at the API time (no shift), as in the training data. A run that
+        // is not ready yet answers HTTP 400 "not available"; the command then waits quietly.
+        'ecmwf_00z' => [
+            'url' => 'https://single-runs-api.open-meteo.com/v1/forecast',
+            'model' => 'ecmwf_ifs',
+            'run_hour_utc' => 0,
+            'forecast_days' => 9,
+            'variables' => ['temperature_2m', 'wind_speed_10m', 'wind_speed_100m', 'shortwave_radiation'],
+            // The 29 FMI stations (point key = FMISID string) and the 9 neighbour wind points.
+            'points' => ['fmi.weather_stations', 'open_meteo.neighbour_wind_points'],
+        ],
     ],
 
     // Expected response units (wind is requested in m/s; the API default is km/h).
@@ -68,6 +85,7 @@ return [
         'wind_speed_10m' => 'm/s',
         'wind_speed_100m' => 'm/s',
         'shortwave_radiation' => 'W/m²',
+        'temperature_2m' => '°C',
         'temperature_2m_mean' => '°C',
         'temperature_2m_min' => '°C',
         'temperature_2m_max' => '°C',

@@ -691,3 +691,32 @@
   workflow calls, the append-only vintage storage and the score calculation. The Temporal task
   owns the trigger, the readiness facts, the deadlines, the runtime, the worker and the
   workflows (forecast run, weekly refit, scoring).
+
+## 2026-11-06 – S frozen as `s_v1`
+
+- `s-model-freeze.md` is the contract with `tasks/temporal-orchestration/`: model parts, the two
+  input views and their cuts, production sources and gaps, the model-step interface and the
+  pre-declared live decision rule, with SHA-256 of the frozen files.
+- Found while mapping the inputs: production collects no 100 m wind and no radiation at the 29 FI
+  stations (FMI's ECMWF copy has temperature and 10 m wind only; Open-Meteo `solar_ghi` covers the
+  7 radiation stations). Every part needs the 100 m wind (stage-1 wind in the net load). The
+  training source, the Open-Meteo Single Runs API, answered for the current day's 00 UTC run.
+  The source choice is a user decision (gap 1), because option A needs an exception to the
+  Open-Meteo rule.
+- Fingrid 245, Fingrid 246 and the third-party forecast are not model inputs; the Temporal draft
+  listed two of them as run inputs. The third-party vintage is needed only for scoring.
+- The frozen method has no rejecting validation gate on the weekly refit (the backtest had
+  none); a technically valid refit becomes active.
+
+## 2026-11-06 – S weather source: option A; training-history import approved
+
+- User decision: option A. `s_v1` reads all four weather variables (2 m temperature, 10 m and
+  100 m wind, radiation) at the 38 points from the Open-Meteo Single Runs API, the exact training
+  source. This is an exception to "Open-Meteo only where FMI has no data" for this model; FMI's
+  ECMWF copy stays collected for the comparison (improvements task, item 12).
+- New collector: product `ecmwf_00z` of `weather:fetch` (`laravel/app/Services/OpenMeteo/AGENTS.md`).
+  It requests the run `<Helsinki day>T00:00`, so `issued_at` is exact; no time shift (as in the
+  training data); points already stored are skipped; "run not available" is a quiet wait.
+  Hourly 09:15–14:15 Helsinki. Local and tested; deployment is a separate approval.
+- User approval: the one-time import of the training history into production (gap 2). It runs
+  only when the production tables and the import exist; the exact action is shown first.

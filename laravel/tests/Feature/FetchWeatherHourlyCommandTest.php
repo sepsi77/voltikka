@@ -250,4 +250,80 @@ class FetchWeatherHourlyCommandTest extends TestCase
         $this->artisan('weather:fetch --point=999999')->assertExitCode(1);
         Http::assertNothingSent();
     }
+
+    public function test_single_run_product_stores_the_00_utc_run_of_the_day_with_its_run_time(): void
+    {
+        $times = $this->hours('2026-11-01 00:00', 216);
+        $series = [
+            'temperature_2m' => array_fill(0, 216, 3.5),
+            'wind_speed_10m' => array_fill(0, 216, 6.0),
+            'wind_speed_100m' => array_fill(0, 216, 9.5),
+            'shortwave_radiation' => array_fill(0, 216, 0.0),
+        ];
+        Http::fake(['single-runs-api.open-meteo.com/*' => Http::response($this->hourlyPayload($times, $series))]);
+
+        $this->artisan('weather:fetch --only=ecmwf_00z --point=101004 --point=ee01_hiiumaa')->assertExitCode(0);
+
+        $rows = DB::table('hourly_forecast_runs')->orderBy('point')->get();
+        $this->assertSame(['101004', 'ee01_hiiumaa'], $rows->pluck('point')->all());
+        $this->assertSame(['open_meteo'], $rows->pluck('source')->unique()->values()->all());
+        $this->assertSame(['ecmwf_00z'], $rows->pluck('product')->unique()->values()->all());
+        $this->assertSame('2026-11-01 00:00:00', $rows[0]->issued_at);
+        // No shift: the training data keeps every value at the API time.
+        $this->assertSame($times[0], (int) $rows[0]->first_timestamp);
+        $this->assertSame(216, (int) $rows[0]->hour_count);
+        $this->assertSame(['temperature_2m', 'wind_speed_10m', 'wind_speed_100m', 'shortwave_radiation'], array_keys(json_decode($rows[0]->values, true)));
+
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'latitude=60.20307')
+            && str_contains($request->url(), 'run=2026-11-01T00%3A00')
+            && str_contains($request->url(), 'models=ecmwf_ifs')
+            && str_contains($request->url(), 'forecast_days=9')
+            && str_contains($request->url(), 'hourly=temperature_2m%2Cwind_speed_10m%2Cwind_speed_100m%2Cshortwave_radiation'));
+        // No metadata request: the run time is the requested run.
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'meta.json'));
+        Http::assertSentCount(2);
+
+        // A later tick sends nothing for points already stored for this run.
+        $this->artisan('weather:fetch --only=ecmwf_00z --point=101004 --point=ee01_hiiumaa')->assertExitCode(0);
+        Http::assertSentCount(2);
+    }
+
+    public function test_single_run_not_available_yet_is_a_quiet_wait(): void
+    {
+        Http::fake(['single-runs-api.open-meteo.com/*' => Http::response(
+            ['error' => true, 'reason' => 'The requested model run is not available. Model: ecmwf_ifs, run: 2026-11-01T00:00Z'], 400)]);
+
+        $this->artisan('weather:fetch --only=ecmwf_00z --point=101004 --point=ee01_hiiumaa')->assertExitCode(0);
+
+        $this->assertSame(0, DB::table('hourly_forecast_runs')->count());
+        // The first point answers "not available", so the others are not requested.
+        Http::assertSentCount(1);
+    }
+
+    public function test_single_run_other_errors_fail_the_point_and_the_rest_continue(): void
+    {
+        $times = $this->hours('2026-11-01 00:00', 216);
+        $series = array_fill_keys(['temperature_2m', 'wind_speed_10m', 'wind_speed_100m', 'shortwave_radiation'], array_fill(0, 216, 1.0));
+        Http::fake(function ($request) use ($times, $series) {
+            return str_contains($request->url(), 'latitude=60.20307')
+                ? Http::response(['error' => true, 'reason' => 'Parameter hourly is invalid'], 400)
+                : Http::response($this->hourlyPayload($times, $series));
+        });
+
+        $this->artisan('weather:fetch --only=ecmwf_00z --point=101004 --point=ee01_hiiumaa')->assertExitCode(1);
+
+        $this->assertSame(['ee01_hiiumaa'], DB::table('hourly_forecast_runs')->pluck('point')->all());
+    }
+
+    public function test_single_run_product_covers_the_38_training_points(): void
+    {
+        Http::fake(['single-runs-api.open-meteo.com/*' => Http::response(
+            ['error' => true, 'reason' => 'The requested model run is not available.'], 400)]);
+
+        // Every FMI station and neighbour point key is accepted for the part.
+        $points = [...array_map('strval', array_keys(config('fmi.weather_stations'))), ...array_keys(config('open_meteo.neighbour_wind_points'))];
+        $this->assertCount(38, $points);
+        $options = implode(' ', array_map(fn ($point) => "--point={$point}", $points));
+        $this->artisan("weather:fetch --only=ecmwf_00z {$options}")->assertExitCode(0);
+    }
 }
