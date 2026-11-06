@@ -682,3 +682,12 @@
   only the D+2 part uses the afternoon view.
 - The morning-view inputs must be exactly the 11:30 vintages, not newer ones, because the D+3..D+7
   models were trained and scored on them.
+
+## 2026-11-06 – S production runs as the Temporal pilot
+
+- User decision: the S forecast becomes the first Temporal workflow, built as a part of
+  `tasks/temporal-orchestration/`, not in this task.
+- This task delivers: the frozen S model (phase 3), the forecast and training code that the
+  workflow calls, the append-only vintage storage and the score calculation. The Temporal task
+  owns the trigger, the readiness facts, the deadlines, the runtime, the worker and the
+  workflows (forecast run, weekly refit, scoring).

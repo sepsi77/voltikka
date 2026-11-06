@@ -39,3 +39,18 @@
   Issue names the input. The model code keeps no fallback logic for missing inputs.
 - Still open: the deadline per run, and the exact readiness fact for each input (spec,
   "Forecast workflows"). Applies to S and M.
+
+## 2026-11-06 – The own S forecast is the pilot workflow
+
+- User decision: the S forecast becomes the first Temporal workflow, and the work is done as a
+  part of this task, not in `tasks/own-forecast-model-data/`.
+- It replaces the morning chain as the phase 1 pilot. Reasons: S is a new pipeline, so no
+  scheduler entry must move; its first weeks are a live test with no public output; it needs the
+  parts that this task needs anyway (event trigger, input fan-in with a deadline, a weekly
+  workflow, a Python worker).
+- E32 fixed the S run design (`tasks/own-forecast-model-data/decisions.md`): one run after the
+  D+1 prices, D+2..D+7, both input views ready before the run.
+- Division of work: the own-model task delivers the frozen model, the forecast and training code
+  that the workflow calls, the append-only vintage storage and the score calculation. This task
+  owns the workflows, the readiness facts, the deadlines, the runtime and the worker.
+- The morning chain moves to phase 2 (shadow first, then cut over).

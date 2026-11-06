@@ -57,6 +57,10 @@ this task; phase 5 only records the recommendation.
   (`scripts/sync-production-database.sh`). Production needs either a Python runtime on Railway
   (new service or job image: production mutation) or a model that PHP can run. Decide with the
   phase 3 result.
+  Update 2026-11-06 (user decision): the S forecast is the pilot workflow of
+  `tasks/temporal-orchestration/`; the runtime, the worker and the workflows (forecast run,
+  weekly refit, scoring) are decided and built there. This task delivers the model and the code
+  that the workflow calls.
 - **Restricted inputs** (EEX, JAO) may be used internally; publication follows
   `tasks/monthly-market-review/decisions.md` ("Rule for restricted data").
 

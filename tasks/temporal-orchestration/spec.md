@@ -158,10 +158,14 @@ same fan-in rules as S, including "run only when every input is ready". Scoring 
 0. Decision record: hosting, runtime, process layout, versioning, checkpoint role, cost; compare
    with the minimal alternative. User approval before any infrastructure.
 1. Infrastructure and one pilot: Temporal namespace, worker service, CI/image for the worker,
-   Sentry. Pilot: the morning chain (EEX + contract import → retail + forecast → evaluation),
-   running in shadow (read-only or dry-run) beside the scheduler.
-2. Cut over the morning chain (scheduler entries removed in the same change), then the spot
-   chain, then the market-review inputs and own-model inputs (fan-in for the own-model run).
+   Sentry. Pilot (user decision 2026-11-06): the own S forecast workflow (section "Forecast
+   workflows", item 1): the event trigger after the D+1 result, the input fan-in, the weekly
+   refit and the Python worker. S is new, so no scheduler entry moves, and its first weeks are a
+   live test with no public output. The work is done in this task; the own-model task delivers
+   the frozen model and the code that the workflow calls.
+2. The morning chain (EEX + contract import → retail + forecast → evaluation) in shadow
+   (read-only or dry-run) beside the scheduler, then its cut over (scheduler entries removed in
+   the same change), then the spot chain, then the market-review inputs and the M workflows.
 3. Backfills as workflows with per-API rate limits.
 4. Remove the deploy-window rules from root `AGENTS.md` and `scripts/deploy-image.sh` once no
    data job runs in the web service; update context files.

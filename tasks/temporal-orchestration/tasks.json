@@ -8,10 +8,10 @@
   {"name": "Phase 0: S weekly refit workflow (training, validation gate, atomic model switch) and the Python worker decision, together with the own-model runtime decision", "status": "pending"},
   {"name": "Phase 0: user approval of the decision record", "status": "pending"},
   {"name": "Phase 1: Temporal namespace, worker service, image and Sentry (after approval)", "status": "pending"},
-  {"name": "Phase 1: pilot morning chain workflow in shadow mode beside the scheduler", "status": "pending"},
-  {"name": "Phase 2: cut over the morning chain (remove its scheduler entries in the same change)", "status": "pending"},
+  {"name": "Phase 1: pilot = the own S forecast workflow (trigger after the D+1 result, input fan-in, weekly refit, Python worker); live test with no public output (user decision 2026-11-06)", "status": "pending"},
+  {"name": "Phase 2: morning chain workflow in shadow mode beside the scheduler, then cut over (remove its scheduler entries in the same change)", "status": "pending"},
   {"name": "Phase 2: cut over the spot chain", "status": "pending"},
-  {"name": "Phase 2: cut over the market-review and own-model input collectors; own S/M forecast, refit and scoring workflows (after own-model phase 4 approval)", "status": "pending"},
+  {"name": "Phase 2: cut over the market-review and own-model input collectors; own M forecast and scoring workflows (after own-model approval)", "status": "pending"},
   {"name": "Phase 3: backfills as workflows with per-API rate limits", "status": "pending"},
   {"name": "Phase 4: remove the data-job deploy-window rules from root AGENTS.md and scripts/deploy-image.sh; update context files", "status": "pending"}
 ]
