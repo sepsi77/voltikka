@@ -38,6 +38,36 @@
       "sha256": "bfad67959e609ca20227bc72b961fcd1ae4ae6722c570bfcebc1b018b4247f18",
       "source": "Fingrid open data 24/25/26/27/112/115 (CC BY 4.0) until 2024-10-29 22:00 UTC; JAO Nordic publication tool maxBorderFlow (research use) from 2024-10-29 23:00 UTC",
       "fetched": "2026-11-02"
+    },
+    "weather_previous_runs.csv": {
+      "rows": 167832,
+      "sha256": "4508f91d7ec314c853346820f106c1c178b789a25c76e12f4826f4192101cace",
+      "source": "Open-Meteo Previous Runs API, model ecmwf_ifs025, 2024-01-01..2026-11-01",
+      "fetched": "2026-11-02"
+    },
+    "fingrid_extra.csv": {
+      "rows": 33608,
+      "sha256": "ee473494e03f065cb33b7b3b4f38f67b64835fe3547510108b4118424efb6ed6",
+      "source": "local SQLite snapshot: Fingrid 267 installed solar capacity (E7)",
+      "exported": "2026-11-02"
+    },
+    "weather_previous_runs_extra.csv": {
+      "rows": 162475,
+      "sha256": "d68811b83fafd1d954bc29d551fd978ae8785385fac36ea7e2f8ac5d6186d176",
+      "source": "Open-Meteo Previous Runs API, model ecmwf_ifs025, 100 m wind + shortwave radiation, 2024-01-01..2026-11-01",
+      "fetched": "2026-11-02"
+    },
+    "outages_se3.csv": {
+      "rows": 831,
+      "sha256": "305d828b98fbab41024139659876c921df78ee0f0967d62e839a4f3eb1667ed1",
+      "source": "local SQLite snapshot: ENTSO-E SE3 nuclear (B14) A77/A80 revisions (E18)",
+      "exported": "2026-11-02"
+    },
+    "weather_single_runs.csv": {
+      "rows": 207792,
+      "sha256": "672239a2322fd40f0240d35fd4d83de83dc6f52904156328a2dd5c865e3ae59e",
+      "source": "Open-Meteo Single Runs API, ecmwf_ifs 00 UTC run of each issue day, 2024-03-14..2026-10-31",
+      "fetched": "2026-11-06"
     }
   }
 }

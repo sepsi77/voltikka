@@ -1,0 +1,35 @@
+{
+  "export": "data/m-export-20261102",
+  "files": {
+    "prices_daily.csv": {
+      "rows": 17296,
+      "sha256": "7772fddbc77d06491745373878aadc90035b890b6ba545de62e5b6737d2fba31",
+      "source": "ENTSO-E Transparency A44 2015-2022 (FI, SE1, SE3, DE-AT-LU/DE-LU); local snapshot from 2023",
+      "fetched": "2026-11-02"
+    },
+    "reservoirs.csv": {
+      "rows": 1848,
+      "sha256": "c3f3f5f0cc153487fc906f6b66eeb6b78ea90e29802c0c72a8588971064b2afc",
+      "source": "local SQLite snapshot",
+      "exported": "2026-11-02"
+    },
+    "weather.csv": {
+      "rows": 78498,
+      "sha256": "3d83f2126215e527bbd7785b83097d8425d0495e5a3aa6322aa174224c19ffd7",
+      "source": "local SQLite snapshot",
+      "exported": "2026-11-02"
+    },
+    "futures.csv": {
+      "rows": 1028,
+      "sha256": "150d756e79ce8035800eba9f97708b5987efaaf020c9b5cdef95da591b3faf3c",
+      "source": "local SQLite snapshot",
+      "exported": "2026-11-02"
+    },
+    "nve.csv": {
+      "rows": 1660,
+      "sha256": "7ff393b546e4740432a39363f33b70ae5387c5c86c1a9d1df3c45bf83545dc28",
+      "source": "local SQLite snapshot",
+      "exported": "2026-11-02"
+    }
+  }
+}

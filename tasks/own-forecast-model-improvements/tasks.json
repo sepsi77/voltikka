@@ -1,0 +1,4 @@
+[
+  {"name": "Wait until the S and M production versions are live and scored (own-forecast-model-data phases 3-4)", "status": "pending"},
+  {"name": "Pick the next backlog item from spec.md (prefer new information) and record the choice in decisions.md", "status": "pending"}
+]

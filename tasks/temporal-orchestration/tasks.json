@@ -4,12 +4,14 @@
   {"name": "Phase 0: hosting decision (Temporal Cloud vs self-hosted on Railway) with cost and operations", "status": "pending"},
   {"name": "Phase 0: PHP runtime decision (temporal/sdk + RoadRunner, Laravel integration, PHP 8.4 image)", "status": "pending"},
   {"name": "Phase 0: process layout, worker versioning and the role of data_freshness_checkpoints", "status": "pending"},
+  {"name": "Phase 0: forecast workflows: S trigger (after the D+1 day-ahead result, E32), the exact readiness fact per input and the deadline per run (rule decided: run only when every input is ready)", "status": "pending"},
+  {"name": "Phase 0: S weekly refit workflow (training, validation gate, atomic model switch) and the Python worker decision, together with the own-model runtime decision", "status": "pending"},
   {"name": "Phase 0: user approval of the decision record", "status": "pending"},
   {"name": "Phase 1: Temporal namespace, worker service, image and Sentry (after approval)", "status": "pending"},
   {"name": "Phase 1: pilot morning chain workflow in shadow mode beside the scheduler", "status": "pending"},
   {"name": "Phase 2: cut over the morning chain (remove its scheduler entries in the same change)", "status": "pending"},
   {"name": "Phase 2: cut over the spot chain", "status": "pending"},
-  {"name": "Phase 2: cut over the market-review and own-model input collectors (fan-in for the own-model run)", "status": "pending"},
+  {"name": "Phase 2: cut over the market-review and own-model input collectors; own S/M forecast, refit and scoring workflows (after own-model phase 4 approval)", "status": "pending"},
   {"name": "Phase 3: backfills as workflows with per-API rate limits", "status": "pending"},
   {"name": "Phase 4: remove the data-job deploy-window rules from root AGENTS.md and scripts/deploy-image.sh; update context files", "status": "pending"}
 ]

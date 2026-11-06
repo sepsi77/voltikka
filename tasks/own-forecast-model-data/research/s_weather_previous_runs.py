@@ -73,10 +73,22 @@ SOUTH_WEIGHTS = {"fmi_101004": 1.75, "fmi_101118": 0.53, "fmi_101065": 0.49, "fm
                  "fmi_101237": 0.12}
 
 
-def points():
-    out = {f"fmi_{k}": (lat, lon, ("temperature_2m", "wind_speed_10m")) for k, (lat, lon) in FMI_STATIONS.items()}
-    out.update({k: (lat, lon, ("wind_speed_10m",)) for k, (lat, lon) in NEIGHBOUR_POINTS.items()})
+# Variable sets. "base": the first fetch (2 m temperature, 10 m wind). "extra" (experiment E3,
+# 2026-11-02): 100 m wind (turbine hub height) at every point and global horizontal radiation at
+# the FMI stations, kept per point by reduce-extra so a stage-1 model can learn wind power.
+VARSETS = {"base": (("temperature_2m", "wind_speed_10m"), ("wind_speed_10m",)),
+           "extra": (("wind_speed_100m", "shortwave_radiation"), ("wind_speed_100m",))}
+
+
+def points(varset="base"):
+    fmi_vars, nb_vars = VARSETS[varset]
+    out = {f"fmi_{k}": (lat, lon, fmi_vars) for k, (lat, lon) in FMI_STATIONS.items()}
+    out.update({k: (lat, lon, nb_vars) for k, (lat, lon) in NEIGHBOUR_POINTS.items()})
     return out
+
+
+def cache_dir(model, varset):
+    return CACHE / (model if varset == "base" else f"{model}-{varset}")
 
 
 def hourly_vars(base):
@@ -129,11 +141,12 @@ def year_chunks():
 
 
 def fetch(args):
-    pts = points()
+    pts = points(args.set)
+    folder = cache_dir(args.model, args.set)
     todo, total = [], 0.0
     for name, (lat, lon, base) in pts.items():
         for y, a, b in year_chunks():
-            target = CACHE / args.model / f"{name}_{y}.json"
+            target = folder / f"{name}_{y}.json"
             w = weight(len(hourly_vars(base)), (b - a).days + 1)
             if not target.exists():
                 todo.append((name, lat, lon, base, y, a, b, target, w))
@@ -144,7 +157,7 @@ def fetch(args):
         return
     if total > args.max_calls:
         sys.exit(f"estimate {total:.0f} is over --max-calls {args.max_calls}; stop")
-    (CACHE / args.model).mkdir(parents=True, exist_ok=True)
+    folder.mkdir(parents=True, exist_ok=True)
     failed = 0
     for i, (name, lat, lon, base, y, a, b, target, w) in enumerate(todo, 1):
         try:
@@ -228,6 +241,48 @@ def reduce(args):
     print(f"{out}: {rows} rows")
 
 
+def reduce_extra(args):
+    """Per-point 100 m wind (ws100_<point>) and the mean radiation of the FMI stations (ghi_fi,
+    W/m2, needs 80 % of the stations) per UTC hour and lead day, pinned like reduce."""
+    values = {}
+    for path in sorted(cache_dir(args.model, "extra").glob("*.json")):
+        name = path.stem.rsplit("_", 1)[0]
+        hourly = json.loads(path.read_text())["hourly"]
+        for key, series in hourly.items():
+            if "_previous_day" not in key:
+                continue
+            var, lead = key.split("_previous_day")
+            values.setdefault((name, var, int(lead)), {}).update(
+                {ts: v for ts, v in zip(hourly["time"], series) if v is not None})
+    names = list(points("extra"))
+    fmi = [p for p in names if p.startswith("fmi_")]
+    all_ts = sorted({ts for d in values.values() for ts in d})
+    out = HERE / "data" / f"s-export-{args.stamp}" / "weather_previous_runs_extra.csv"
+    rows = 0
+    with open(out, "w", newline="") as fh:
+        w = csv.writer(fh, lineterminator="\n")
+        w.writerow(["target_ts", "lead_day", "ghi_fi"] + [f"ws100_{p}" for p in names])
+        for lead in LEADS:
+            for ts in all_ts:
+                ws = [values.get((p, "wind_speed_100m", lead), {}).get(ts) for p in names]
+                ghi = [values.get((p, "shortwave_radiation", lead), {}).get(ts) for p in fmi]
+                ghi = [v for v in ghi if v is not None]
+                if all(v is None for v in ws) and not ghi:
+                    continue
+                g = f"{sum(ghi) / len(ghi):.1f}" if len(ghi) >= 0.8 * len(fmi) else ""
+                w.writerow([ts, lead, g] + ["" if v is None else f"{v:.2f}" for v in ws])
+                rows += 1
+    pins_path = HERE / f"s-inputs-{args.stamp}.json"
+    pins = json.loads(pins_path.read_text())
+    pins["files"]["weather_previous_runs_extra.csv"] = {
+        "rows": rows, "sha256": hashlib.sha256(out.read_bytes()).hexdigest(),
+        "source": f"Open-Meteo Previous Runs API, model {args.model}, 100 m wind + shortwave radiation, {START}..{END}",
+        "fetched": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+    }
+    pins_path.write_text(json.dumps(pins, indent=2) + "\n")
+    print(f"{out}: {rows} rows")
+
+
 def main():
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -237,11 +292,15 @@ def main():
     f.add_argument("--dry-run", action="store_true")
     f.add_argument("--pause", type=float, default=15.0)
     f.add_argument("--max-calls", type=float, default=4500.0)
+    f.add_argument("--set", default="base", choices=sorted(VARSETS))
     r = sub.add_parser("reduce")
     r.add_argument("--model", required=True)
     r.add_argument("stamp")
+    re_ = sub.add_parser("reduce-extra")
+    re_.add_argument("--model", required=True)
+    re_.add_argument("stamp")
     args = ap.parse_args()
-    {"probe": probe, "fetch": fetch, "reduce": reduce}[args.cmd](args)
+    {"probe": probe, "fetch": fetch, "reduce": reduce, "reduce-extra": reduce_extra}[args.cmd](args)
 
 
 if __name__ == "__main__":

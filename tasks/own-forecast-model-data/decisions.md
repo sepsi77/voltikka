@@ -547,3 +547,138 @@
   FMI observations, per lead day (MAE, bias); (2) price level: the trained S model with each source
   as input on the same issue days. Open point: which Open-Meteo model matches FMI's ECMWF grid
   best (ecmwf_ifs 9 km or ecmwf_ifs025); the probe compares both.
+- Deploy (user approval 2026-11-02: "deploy all of the current changes, as long as nothing is
+  running in prod"): checks at 17:41–17:47 Helsinki: only the scheduler and the queue worker ran,
+  the queue was empty, and all four checkpoints of the day were `ready`. voltikka-87 confirmed it
+  had nothing running and that its commits de79fae, 1a862c0 and c25e6cc were safe to ship. Full
+  suite 3,181 passed, asset build OK, `git diff --check` clean. Commits b0712ff (FMI ECMWF at every
+  point, import memory fix) and 799a532 (research and docs); pushed b155d20..799a532. Image
+  `deploy-000016-799a5327cd18` (PHP 8.4.27); deployment acea5a59 SUCCESS at 15:50 UTC; /up 200,
+  home 200; production config shows the ECMWF product with all stations and point lists, and the
+  importer has `stamps()`. First all-point ECMWF vintage: the scheduled 23:05 Helsinki run.
+- Meteostat (user question 2026-11-02): not adopted. It aggregates station observations (for
+  Finland mostly FMI, which we already take from the source), has no forecasts (the main model
+  input), and its station data has gaps where ERA5 is complete. Licence: CC BY 4.0, commercial
+  use allowed (user check 2026-11-02; an earlier agent guess of CC BY-NC was wrong), so it stays
+  an option if station data is ever needed. If neighbour-country station data is needed later, prefer
+  the national sources (SMHI open data, MET Norway Frost API); licence terms not yet checked.
+- Open-Meteo answered again at 16:00 UTC (probe loop, try 2). se01_markbygden rerun: EXIT 0 at
+  16:02 UTC, 33,504 hourly rows (2023-01-01..2026-10-27), equal to the other 8 points. The
+  neighbour wind backfill is complete.
+- Previous Runs archive (probe 2026-11-02, point fmi_101267, leads 1–7): `ecmwf_ifs` (9 km) has
+  no data on 2024-01..2025-07 test dates (only recent data), so it cannot cover the backtest;
+  `ecmwf_ifs025` (0.25°) has leads 1–2 on 2024-02-05 and all leads from 2024-03-05 at the latest
+  (none on 2024-01-10). The fetch uses `ecmwf_ifs025` (114 requests, about 3,670 weighted calls),
+  started 16:01 UTC. FMI's ECMWF copy may have a finer grid; the source comparison covers it.
+
+## 2026-11-02 – S backtest with honest weather forecasts (ecmwf_ifs025 Previous Runs)
+
+- Run 17:00–17:27 UTC (1,693 s, 2 threads). Weather file: 167,832 rows, all leads from
+  2024-02-10. Fair comparison = `thirdparty_rows` (same 6,171 target days as the reference).
+  MAE / pinball / p10–p90 coverage / cheapest-3 / dearest-3 hit rate, all horizons:
+
+  | Model | MAE | Pinball | Cov80 | Cheap3 | Dear3 |
+  |---|---|---|---|---|---|
+  | c_thirdparty (nordpool-predict-fi, range from its residuals) | 28.58 | 10.04 | 0.81 | 0.37 | 0.39 |
+  | w_south_scal (best MAE of ours) | 29.84 | 9.96 | 0.81 | 0.38 | 0.44 |
+  | w_netload_cal (best pinball of ours) | 30.18 | 9.85 | 0.77 | 0.37 | 0.42 |
+  | w_forecast_scal | 30.11 | 10.08 | 0.81 | 0.39 | 0.44 |
+  | w_capacity_scal | 30.49 | 10.27 | 0.80 | 0.39 | 0.43 |
+  | h_asof_scal (no weather) | 36.91 | 12.05 | 0.79 | 0.37 | 0.39 |
+  | p_standin_scal (perfect weather, upper bound) | 22.70 | 7.52 | 0.79 | 0.49 | 0.51 |
+
+- Per horizon (MAE, thirdparty_rows), reference vs w_south_scal: D+1 21.8 vs 26.1, D+2 26.6 vs
+  27.5, D+3 29.4 vs 28.3, D+4 31.1 vs 29.9, D+5 30.2 vs 31.0, D+6 30.9 vs 33.5, D+7 32.6 vs 36.1.
+  We are better at D+3–D+4 and worse at D+1 and D+5–D+7.
+- D+1 gap is partly a backtest handicap: the Previous Runs API only gives runs 24·N h before the
+  valid time, so with the 7 h publish lag most D+1 hours use a run about 2 days old, while the
+  reference (and our production run with the latest FMI ECMWF run) uses the D 00Z run. The
+  backtest therefore understates live skill most at D+1. D+7 often has no lead ≤ 7 forecast.
+- Honest weather forecasts are worth 7 €/MWh MAE (36.9 → 29.8); perfect weather would give a
+  further 7 (22.7): forecast error dominates, as both external sources said.
+- South temperature: small gain (30.11 → 29.84). Border capacity: no overall gain (30.49);
+  winter bucket 37.40 → 36.97. Net load: overall 30.18, but best winter MAE (36.08 vs 37.40) and
+  best pinball; consistent with tightness mattering in winter. The differences between these
+  variants are small (≈ 0.3–0.6) and may be noise; no variant is a clear winner yet.
+- Stage-1 net-load estimate is weak: test MAE 750–1,510 MW per block (worst in winter). Likely
+  causes: 10 m wind at 0.25° with a crude power curve. Improvement: 100 m wind, fitted power curve.
+- l_linear (LEAR-type): on `weather_period` MAE 30.50 (as good as the best tree), but it explodes
+  in early blocks and winter (MAE 127; sinh of extrapolated values). Needs clipping in the asinh
+  space before it is a usable baseline.
+- Range: calibrated ranges cover 0.81 at a pinball equal to or better than the reference's
+  residual-based range; the reference itself publishes no range.
+- Winter bucket comparisons with the reference are not fair (different rows: 2,133 vs 2,723
+  days); use thirdparty_rows.
+
+## 2026-11-02 – Iterative model experiments (user instruction)
+
+- User (2026-11-02): work iteratively without asking; per result form a hypothesis, test it,
+  keep or discard it, track the experiments, use Codex as a second opinion, for S and M.
+- Log, protocols and the current best models: `research/experiments.md`. Decision rules were
+  fixed before the experiments (S: paired MAE on the reference rows, DEV 2024-07..2025-06 decides,
+  HOLD 2025-07.. confirms, 90 % day-bootstrap; M: MALE on DEV 2019–2022 and HOLD 2023–, wrong-way
+  limit). Both HOLD periods have been used in selection; only future issues are a clean test.
+- S, kept: south temperature (ablation E5), stage-1 net load (E1c) with a stage-1 wind model from
+  100 m wind (E7a), separate models for D+1 and D+2–D+4 (E4), wind/solar inputs for D+1 (E7b),
+  SE3 nuclear plans for D+2–D+4 (E18), a bounded per-hour linear model blended 50/50 into the p50
+  of D+2–D+7 (E12b, E15b), smaller trees for D+5–D+7 (E22). Consolidated as `s_best` in
+  s_backtest.py (reproduces the composite exactly). Against nordpool-predict-fi on the same rows:
+  DEV −3.97 EUR/MWh (better), HOLD +0.88 (worse; better at D+3–D+4, level at D+1, behind at D+2 and
+  D+5–D+7). Discarded: recency weights, per-day models, more capacity, risk-band range, linear with
+  wind inputs, hourly medians beyond D+1, very small trees, horizon blends.
+- Linear-model guard: no linear prediction when < 30 % of its training rows have weather forecasts
+  (2024 Q1 MAE 389 without it); outside DEV/HOLD, no effect on the decisions.
+- M (`m_backtest.py`, `m_prices.py`, `m_export.py`; ENTSO-E prices 2015–2022 fetched and checked
+  equal to local 2022 data): best `m_best` = 0.85 × [0.7 ridge correction of the seasonal change
+  (Nordic/FI reservoirs, DE/FI level, FI trend, temperature and snow anomalies) + 0.3 seasonal
+  change] + 0.15 × calendar-month median level (log space); direction only where it agrees with the
+  seasonal baseline; range from 2.5/97.5 % of earlier out-of-sample log errors. MALE 0.273 / 0.458
+  (seasonal baseline 0.322 / 0.550), wrong way 0.02 / 0.13, coverage 0.82 / 0.81. The direction
+  strictness trade-off for phase 3 is in experiments.md (M26).
+- Open: E8, issue-time weather from the Open-Meteo Single Runs API (ECMWF HRES 00 UTC run of the
+  issue day; 962 days × 38 calls, fetched within the free daily limit from 2026-11-02 19:00 UTC
+  over about 4 days). It removes the D+1 forecast-age handicap and the D+7 gaps and matches the
+  production source (FMI ECMWF). Expected to matter most where we still trail at D+2 and D+5–D+7.
+- First production run with deploy-000016 (scheduled `fmi:fetch --only=forecast`, 23:05 Helsinki
+  2026-11-02): FMI ECMWF 38 new vintages (all points, 232 h, issued 20:02 UTC = the 12 UTC run) and
+  edited 37 vintages. The live FMI-vs-Open-Meteo comparison data starts here.
+
+## 2026-11-06 – Production orchestration goes to the Temporal task
+
+- The production runs of S and M (daily S run after the D+1 day-ahead result, weekly S refit from
+  E30, weekly/monthly M run, scoring) are planned as Temporal workflows in
+  `tasks/temporal-orchestration/spec.md`, "Forecast workflows". The runtime decision (Python on
+  Railway) is taken together with that task's phase 0.
+- User decision 2026-11-06: a production forecast runs only when every input is ready; the
+  orchestration layer checks it (`tasks/temporal-orchestration/decisions.md`). The production
+  model code therefore needs no fallback for a missing input. A backtest note: the research
+  backtest still fills a few gaps with an older weather source (Previous Runs where no single run
+  exists, mostly before 2024-03-14); in production those issues would get no forecast.
+
+## 2026-11-06 – Research stops after E32; next step is production
+
+- User decision: stop the model research after E32; move further development to a new task
+  (`tasks/own-forecast-model-improvements/`), because the user wants the models in production
+  soon.
+- Production candidates: S = `s_best` with the weekly refit (E30; issue time from E32);
+  M = `m_best`. The open research items of tasks.json moved to the new task's backlog.
+- Next: freeze both models (phase 3), the runtime decision (phase 4, with
+  `tasks/temporal-orchestration/` phase 0), then the production forecaster with live scoring.
+
+## 2026-11-06 – E32: production issue time and design
+
+- One S run per day at D 14:30 Helsinki, after the D+1 FI prices are stored (user request: the
+  forecast comes right after the spot prices are published). D+1 shows the published prices.
+- D+2 comes from `best_d1` fitted on the afternoon view (prices through D+1, Fingrid before
+  14:00, outage plans and the third-party vintage at 14:30). D+3..D+7 come from the E30 parts on
+  the morning view (inputs as of D 11:30, Fingrid before 10:00). Weather in both views: the 00 UTC
+  ECMWF run of D. Weekly refit. No D+8.
+- Reason (E32, `research/experiments.md`): the afternoon view helps D+2 (HOLD −1.37 €/MWh without
+  April 2026, CI below 0) but is worse at D+3..D+7 in both periods (DEV +0.47, CI above 0). The
+  combined design is HOLD −0.35 [−0.51, −0.20] against E30 and −1.42 [−2.05, −0.79] against the
+  third party at its 14:30 vintage.
+- One run builds both views: the morning-view inputs are a subset of what is stored at 14:30,
+  because every vintage is stored append-only with its time. The four model parts stay four:
+  only the D+2 part uses the afternoon view.
+- The morning-view inputs must be exactly the 11:30 vintages, not newer ones, because the D+3..D+7
+  models were trained and scored on them.

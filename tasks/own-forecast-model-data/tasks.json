@@ -1,210 +1,55 @@
 [
-  {
-    "name": "Read spec.md, tasks/monthly-market-review/decisions.md and laravel/app/Services/Fingrid/AGENTS.md",
-    "status": "done"
-  },
-  {
-    "name": "Verify each source endpoint, history depth, limits and licence with read-only requests (FMI WFS, Open-Meteo hourly, Syke OData, Fingrid 245)",
-    "status": "done"
-  },
-  {
-    "name": "Decide FMI station data vs Open-Meteo hourly at the same coordinates; record the reason in decisions.md",
-    "status": "done"
-  },
-  {
-    "name": "Decide how to keep forecast vintages (Fingrid 245, hourly weather forecasts); record it",
-    "status": "done"
-  },
-  {
-    "name": "Shared append-only table hourly_forecast_runs (migration 2026_11_02_000001)",
-    "status": "done"
-  },
-  {
-    "name": "Hourly temperature and wind speed: observations from 2023-01-01 and append-only 8-day forecast vintages",
-    "status": "done"
-  },
-  {
-    "name": "Neighbour wind speed points (EE, DK, DE, SE): hourly archive and forecast vintages in the Open-Meteo collector (Open-Meteo archive history; FMI forecasts)",
-    "status": "done"
-  },
-  {
-    "name": "Solar: FMI radiation history at the 7 FMI radiation stations; Open-Meteo GHI forecast vintages",
-    "status": "done"
-  },
-  {
-    "name": "Fingrid 245 wind forecast with vintages",
-    "status": "done"
-  },
-  {
-    "name": "Syke areal precipitation and snow water equivalent collector",
-    "status": "done"
-  },
-  {
-    "name": "Finnish holiday calendar support class (calculated, with tests)",
-    "status": "done"
-  },
-  {
-    "name": "Estimate production rows and size per table before backfills",
-    "status": "done"
-  },
-  {
-    "name": "Update context files (service AGENTS.md, app/Services/AGENTS.md, laravel/AGENTS.md, root AGENTS.md pointer)",
-    "status": "done"
-  },
-  {
-    "name": "Full test suite, Pint on new files",
-    "status": "done"
-  },
-  {
-    "name": "Live verification of the Fingrid 245 vintage command (done 2026-11-01 16:25 Helsinki, after the Fingrid backfill)",
-    "status": "done"
-  },
-  {
-    "name": "Live verification of the Open-Meteo parts (2026-11-02, after the hydro backfill, not in the same clock hour)",
-    "status": "pending"
-  },
-  {
-    "name": "Schedule entries in routes/console.php (manager)",
-    "status": "done"
-  },
-  {
-    "name": "Phase 1: deploy and schedule of the collectors (deployed 2026-11-02 06:15 as deploy-000015-b155d208ea65)",
-    "status": "done"
-  },
-  {
-    "name": "Phase 1: read-only check of the first production vintages (2026-11-02 11:12: all collectors wrote data)",
-    "status": "done"
-  },
-  {
-    "name": "Phase 1: production backfills approved 2026-11-02; Syke done (EXIT 0)",
-    "status": "done"
-  },
-  {
-    "name": "Phase 1: FMI production backfill from 2023 (EXIT 0 at 11:52 UTC: 1,916,704 observation and 234,592 radiation rows)",
-    "status": "done"
-  },
-  {
-    "name": "Phase 1: Open-Meteo neighbour wind production backfill from 2023 (12:00 UTC: 8 of 9 points; se01_markbygden rerun 13:21 UTC)",
-    "status": "in_progress"
-  },
-  {
-    "name": "FMI backfill memory fix (stamps once per import, 208 → 68 MB): done locally; deploy with the next approved release",
-    "status": "in_progress"
-  },
-  {
-    "name": "S phase 2: export script and pinned input hashes from a local production snapshot (Python, like forecast-falling-market-study)",
-    "status": "done"
-  },
-  {
-    "name": "S phase 2: as-of feature table (issue time, publication lags, latest vintage before issue)",
-    "status": "done"
-  },
-  {
-    "name": "S phase 2: baselines (same hour last week, last known day repeated, third-party vintage at issue time) and metrics",
-    "status": "done"
-  },
-  {
-    "name": "S phase 2: research model backtest on observed-weather stand-in, labelled as perfect-forecast input",
-    "status": "done"
-  },
-  {
-    "name": "S phase 2: user decision on an honest historical weather-forecast input (approved 2026-11-02: Open-Meteo Previous Runs API)",
-    "status": "done"
-  },
-  {
-    "name": "S phase 2: probe and fetch the Previous Runs history (after 'hydro done', not in the same clock hour), reduce, rerun with w_forecast",
-    "status": "pending"
-  },
-  {
-    "name": "S phase 2: winter range calibration (seasonal conformal gives 0.68 in winter, target 0.80; still open)",
-    "status": "pending"
-  },
-  {
-    "name": "S phase 2: level/shape candidate for D+4..D+7 (differentiator 3)",
-    "status": "done"
-  },
-  {
-    "name": "S phase 2: cheapest-hours output: main-model level + shape-model hour order (check with w_forecast)",
-    "status": "pending"
-  },
-  {
-    "name": "S phase 2: rerun with FMI hourly, Syke and Open-Meteo neighbour wind after the production backfills and a fresh sync",
-    "status": "pending"
-  },
-  {
-    "name": "S phase 3: freeze candidate models and decision rule before the holdout; record hashes",
-    "status": "pending"
-  },
-  {
-    "name": "S phase 3: score on real forecast vintages after the holdout window; report to the user",
-    "status": "pending"
-  },
-  {
-    "name": "Phase 4: user decision on runtime (Python job vs PHP-runnable model)",
-    "status": "pending"
-  },
-  {
-    "name": "S phase 4: production forecaster with append-only own forecast vintages and automatic scoring (no public UI)",
-    "status": "pending"
-  },
-  {
-    "name": "S phase 5: recommendation to the user on public use (/spot-price, monthly review)",
-    "status": "pending"
-  },
-  {
-    "name": "M phase 1: check historical seasonal forecasts (C3S SEAS5 hindcasts/archive) for an as-of backtest; record terms and effort",
-    "status": "done"
-  },
-  {
-    "name": "M phase 1: SEAS5 archive fetcher (research/seas5_fetch.py, CDS, starts 2017-11..latest, regional member means and anomalies)",
-    "status": "done"
-  },
-  {
-    "name": "M phase 1: SEAS5 skill check against observed monthly temperature and precipitation (after the fresh local sync)",
-    "status": "done"
-  },
-  {
-    "name": "M phase 1: SEAS5 runoff vs NVE/ENTSO-E reservoir inflow for the hydro regions (keep SEAS5 only if it adds value)",
-    "status": "pending"
-  },
-  {
-    "name": "M phase 1: S2S (EC46-type) archive fetcher for weeks 1-6, if the SEAS5 backtest needs it",
-    "status": "pending"
-  },
-  {
-    "name": "M phase 1: hydro balance proxy inputs (reservoirs, snow, precipitation vs normal) available as-of",
-    "status": "pending"
-  },
-  {
-    "name": "M phase 2: monthly as-of feature table, baselines (futures at issue, unchanged, normal seasonal change), direction classes and backtest",
-    "status": "pending"
-  },
-  {
-    "name": "M phase 3: freeze candidates, direction thresholds and decision rule; score direction hit rate, wrong-way share and change error on real vintages",
-    "status": "pending"
-  },
-  {
-    "name": "M phase 4: production forecaster with append-only vintages (after user approval)",
-    "status": "pending"
-  },
-  {
-    "name": "M phase 5: recommendation on public use (monthly review layer 1, pages)",
-    "status": "pending"
-  },
-  {
-    "name": "S: net-load feature, southern Finland temperature and LEAR-type linear baseline: implemented and smoke-tested 2026-11-02; score after the Previous Runs fetch",
-    "status": "in_progress"
-  },
-  {
-    "name": "Retry se01_markbygden neighbour wind backfill (4 requests) and the local Previous Runs probe/fetch on 2026-11-03 (Open-Meteo overloaded 2026-11-02 afternoon)",
-    "status": "pending"
-  },
-  {
-    "name": "FMI ECMWF forecast at all 38 points (S live weather source candidate): done locally 2026-11-02; deploy with the next approved release",
-    "status": "in_progress"
-  },
-  {
-    "name": "Compare FMI ECMWF, FMI edited and Open-Meteo ECMWF IFS forecasts (weather and price level) after 4-8 weeks of vintages",
-    "status": "pending"
-  }
+  {"name": "Read spec.md, tasks/monthly-market-review/decisions.md and laravel/app/Services/Fingrid/AGENTS.md", "status": "done"},
+  {"name": "Verify each source endpoint, history depth, limits and licence with read-only requests (FMI WFS, Open-Meteo hourly, Syke OData, Fingrid 245)", "status": "done"},
+  {"name": "Decide FMI station data vs Open-Meteo hourly at the same coordinates; record the reason in decisions.md", "status": "done"},
+  {"name": "Decide how to keep forecast vintages (Fingrid 245, hourly weather forecasts); record it", "status": "done"},
+  {"name": "Shared append-only table hourly_forecast_runs (migration 2026_11_02_000001)", "status": "done"},
+  {"name": "Hourly temperature and wind speed: observations from 2023-01-01 and append-only 8-day forecast vintages", "status": "done"},
+  {"name": "Neighbour wind speed points (EE, DK, DE, SE): hourly archive and forecast vintages in the Open-Meteo collector (Open-Meteo archive history; FMI forecasts)", "status": "done"},
+  {"name": "Solar: FMI radiation history at the 7 FMI radiation stations; Open-Meteo GHI forecast vintages", "status": "done"},
+  {"name": "Fingrid 245 wind forecast with vintages", "status": "done"},
+  {"name": "Syke areal precipitation and snow water equivalent collector", "status": "done"},
+  {"name": "Finnish holiday calendar support class (calculated, with tests)", "status": "done"},
+  {"name": "Estimate production rows and size per table before backfills", "status": "done"},
+  {"name": "Update context files (service AGENTS.md, app/Services/AGENTS.md, laravel/AGENTS.md, root AGENTS.md pointer)", "status": "done"},
+  {"name": "Full test suite, Pint on new files", "status": "done"},
+  {"name": "Live verification of the Fingrid 245 vintage command (done 2026-11-01 16:25 Helsinki, after the Fingrid backfill)", "status": "done"},
+  {"name": "Live verification of the Open-Meteo parts (2026-11-02, after the hydro backfill, not in the same clock hour)", "status": "pending"},
+  {"name": "Schedule entries in routes/console.php (manager)", "status": "done"},
+  {"name": "Phase 1: deploy and schedule of the collectors (deployed 2026-11-02 06:15 as deploy-000015-b155d208ea65)", "status": "done"},
+  {"name": "Phase 1: read-only check of the first production vintages (2026-11-02 11:12: all collectors wrote data)", "status": "done"},
+  {"name": "Phase 1: production backfills approved 2026-11-02; Syke done (EXIT 0)", "status": "done"},
+  {"name": "Phase 1: FMI production backfill from 2023 (EXIT 0 at 11:52 UTC: 1,916,704 observation and 234,592 radiation rows)", "status": "done"},
+  {"name": "Phase 1: Open-Meteo neighbour wind production backfill from 2023: all 9 points, 33,504 hourly rows each (se01 completed 16:02 UTC after Open-Meteo overload)", "status": "done"},
+  {"name": "FMI backfill memory fix (stamps once per import, 208 -> 68 MB): deployed in deploy-000016", "status": "done"},
+  {"name": "S phase 2: export script and pinned input hashes from a local production snapshot (Python, like forecast-falling-market-study)", "status": "done"},
+  {"name": "S phase 2: as-of feature table (issue time, publication lags, latest vintage before issue)", "status": "done"},
+  {"name": "S phase 2: baselines (same hour last week, last known day repeated, third-party vintage at issue time) and metrics", "status": "done"},
+  {"name": "S phase 2: research model backtest on observed-weather stand-in, labelled as perfect-forecast input", "status": "done"},
+  {"name": "S phase 2: user decision on an honest historical weather-forecast input (approved 2026-11-02: Open-Meteo Previous Runs API)", "status": "done"},
+  {"name": "S phase 2: probe and fetch the Previous Runs history (after 'hydro done', not in the same clock hour), reduce, rerun with w_forecast", "status": "done"},
+  {"name": "S phase 2: level/shape candidate for D+4..D+7 (differentiator 3)", "status": "done"},
+  {"name": "S E32 (last research experiment, user decision 2026-11-06): issue after the D+1 day-ahead result vs 11:30; decide the production issue time (decided: one 14:30 run, D+2 afternoon model, D+3..D+7 morning-view models)", "status": "done"},
+  {"name": "Move the remaining research ideas to tasks/own-forecast-model-improvements/ (user decision 2026-11-06)", "status": "done"},
+  {"name": "S phase 3: freeze the production model (E32 combined design: 14:30 run, D+2 best_d1 afternoon view, D+3..D+7 E30 parts morning view, weekly refit) and the live decision rule; record hashes", "status": "pending"},
+  {"name": "S phase 3: score on real forecast vintages after the holdout window; report to the user", "status": "pending"},
+  {"name": "Phase 4: user decision on runtime (Python job vs PHP-runnable model), together with tasks/temporal-orchestration phase 0", "status": "pending"},
+  {"name": "S phase 4: production forecaster with append-only own forecast vintages and automatic scoring (no public UI)", "status": "pending"},
+  {"name": "S phase 5: recommendation to the user on public use (/spot-price, monthly review)", "status": "pending"},
+  {"name": "M phase 1: check historical seasonal forecasts (C3S SEAS5 hindcasts/archive) for an as-of backtest; record terms and effort", "status": "done"},
+  {"name": "M phase 1: SEAS5 archive fetcher (research/seas5_fetch.py, CDS, starts 2017-11..latest, regional member means and anomalies)", "status": "done"},
+  {"name": "M phase 1: SEAS5 skill check against observed monthly temperature and precipitation (after the fresh local sync)", "status": "done"},
+  {"name": "M phase 2: monthly as-of feature table, baselines (futures at issue, unchanged, normal seasonal change), direction classes and backtest", "status": "done"},
+  {"name": "M phase 3: freeze m_best, direction thresholds and the decision rule; score direction hit rate, wrong-way share and change error on real vintages", "status": "pending"},
+  {"name": "M phase 4: production forecaster with append-only vintages (after user approval)", "status": "pending"},
+  {"name": "M phase 5: recommendation on public use (monthly review layer 1, pages)", "status": "pending"},
+  {"name": "S: net-load, southern temperature, border capacity and linear baseline scored 2026-11-02 (small gains, see decisions.md)", "status": "done"},
+  {"name": "Retry se01_markbygden neighbour wind backfill (4 requests) and the local Previous Runs probe/fetch on 2026-11-03 (Open-Meteo overloaded 2026-11-02 afternoon)", "status": "done"},
+  {"name": "FMI ECMWF forecast at all 38 points: deployed in deploy-000016 (2026-11-02 17:50 Helsinki); first run 23:05", "status": "done"},
+  {"name": "S: clip the linear baseline in asinh space (it explodes in early blocks and winter)", "status": "done"},
+  {"name": "S: improve the net-load stage 1 (100 m wind, fitted power curve; test MAE 750-1,510 MW)", "status": "done"},
+  {"name": "S: reduce the D+1 backtest handicap (latest run at issue time: Open-Meteo Single Runs API or live FMI shadow scoring)", "status": "done"},
+  {"name": "S iterative experiments E1–E23: s_best consolidated (research/experiments.md)", "status": "done"},
+  {"name": "M phase 2: backtest, baselines and experiments M0–M27: m_best (research/experiments.md)", "status": "done"},
+  {"name": "S E8: issue-time ECMWF HRES single runs (fetch over ~4 days, then reduce and rerun s_best with them)", "status": "done"}
 ]

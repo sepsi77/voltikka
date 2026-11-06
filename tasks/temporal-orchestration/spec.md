@@ -46,6 +46,69 @@ the "deployment arithmetic" (which job runs now, which window is safe) must go a
 | Other | retail-premiums:calibrate, social:weekly-offers-video, cache:reclaim-expired-files | monthly, weekly, every minute |
 | Manual backfills | spot:backfill, fingrid:fetch --from, weather:fetch --from, entsoe/jao/nve/gas history | by hand on the app container |
 
+## Forecast workflows (added 2026-11-06)
+
+Three kinds of forecast work need orchestration. The own models are not in production yet
+(`tasks/own-forecast-model-data/`, phase 4 needs user approval). Plan them as Temporal workflows
+from the start, so they never get a clock-based scheduler version.
+
+**1. Own short-term spot model S (hourly, 7 days ahead).**
+- **Trigger: an event, not a clock.** The planned issue is right after the FI day-ahead result for
+  D+1 is stored (SDAC result about 13:45 Helsinki; nominal issue time 14:30). Decided after
+  E32 (`tasks/own-forecast-model-data/decisions.md`, 2026-11-06): one run per day; it forecasts
+  D+2..D+7 (D+1 is the published prices). D+2 uses the afternoon inputs (prices through D+1,
+  Fingrid before 14:00, outage plans and the third-party vintage at 14:30); D+3..D+7 use the
+  morning inputs (the vintages as of D 11:30, Fingrid before 10:00). Both input sets must be ready
+  before the run. The workflow starts when `spot:fetch` has stored all FI hours of D+1, not at a
+  fixed time: on some days the auction result is late (decoupling).
+- **Fan-in of inputs before the run.** Each input must be fresh for the issue time (strict as-of
+  rule). Today the collectors run at fixed times that were set for other uses:
+  - day-ahead prices FI, SE1, SE3, EE, DE-LU through D+1 (`spot:fetch` hourly,
+    `spot:fetch-neighbours` hourly at :25);
+  - Fingrid hourly data up to shortly before the issue (`fingrid:fetch` runs only at 10:20, so an
+    afternoon issue needs one more fetch first);
+  - ENTSO-E outage plans and border capacity at the issue time (`entsoe:fetch` 10:50);
+  - the 00 UTC ECMWF run of D from FMI (`fmi:fetch` 11:05; the run is public at about 08:00 UTC),
+    Open-Meteo neighbour wind/solar (`weather:fetch --only=solar_ghi` 11:05) and Fingrid 245
+    vintages (hourly at :45);
+  - FI futures with trade date ≤ D−1 (`futures:fetch-eex` 04:00).
+  **Rule (user decision 2026-11-06): the model runs only when every input is ready.** The
+  orchestration layer owns this check, not the model code. The workflow waits for each input (or
+  starts its fetch), and it starts the model run only when all inputs are ready for this issue.
+  There is no run with a missing input, with an empty value, or with an older vintage in place of
+  the expected one. "Ready" must be defined per input as an exact, checkable fact (for example:
+  all FI hours of D+1 stored; the 00 UTC ECMWF run of D stored for every point; Fingrid data up to
+  the cut; an outage-plan fetch after a given time). If an input is not ready at the deadline,
+  that issue gets no forecast, and a Sentry Issue names the input. Open: the deadline per run
+  (how long a late forecast is still useful) and the exact readiness fact per input.
+- **Weekly refit.** E30 showed that a model refitted each week is clearly better than a monthly
+  or quarterly refit (HOLD MAE 25.7 against 27.0 €/MWh for the third-party forecast). So
+  production needs a second workflow: weekly training on the full history, a validation gate
+  (for example, no worse than the last model on the last weeks), and an atomic switch to the new
+  model version. The daily run uses the last validated version. A failed refit keeps the old
+  model and raises a Sentry Issue. Training is CPU-heavy (gradient-boosted quantile models), so
+  it must not run in the web container.
+- **Python runtime.** The models are Python (scikit-learn). Temporal can run a Python worker on
+  its own task queue beside the PHP workers, so the PHP side can orchestrate and the Python worker
+  can train and predict. This is one option for the open runtime decision of the own-model task
+  (`tasks/own-forecast-model-data/spec.md`, "Runtime"). Decide both together in phase 0.
+- **Storage and scoring.** Every run stores an append-only vintage with the model version, issue
+  time and the input vintages that it used. A scoring workflow scores each target day when its
+  official prices arrive (the same event as the trigger), against the third-party forecast too.
+
+**2. Own medium-term model M (monthly means, 3 months).** Weekly issue (proposal Monday 11:00
+Helsinki, after `weather:fetch --only=ecmwf_ec46` on Monday 10:50) and on the first working day
+of the month for the monthly review. Inputs: EC46, SEAS5 (fetched on the 8th), NVE reservoirs
+(Wednesday), Syke hydrology, gas storage, EEX futures. It is light (no long training) but has the
+same fan-in rules as S, including "run only when every input is ready". Scoring starts when a target month is complete.
+
+**3. Existing forecasts.**
+- The fixed-term contract forecast (`forecasting:run-fixed-contracts`, evaluation 07:45) is
+  already part of the morning chain above; no change to its method.
+- The third-party feed `spot:fetch-forecast` (every 6 h) stays a simple scheduled fetch. It is
+  the baseline for S, so S scoring needs its vintage at the S issue time; keep it append-only
+  (`spot_price_forecast_runs`).
+
 ## Requirements
 
 1. **Deploy-safe.** A web deploy never stops a running pipeline. A worker deploy loses at most
