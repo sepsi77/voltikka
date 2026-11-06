@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<title>Sähkömarkkinakatsaus · lokakuu 2026 · Kolme kotia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:wght@400;500;600;700;800&display=block" rel="stylesheet">
+<link rel="stylesheet" href="lib.css">
+<style>
+  .street-home { position: absolute; transform-origin: 50% 100%; }
+  .home-l { position: absolute; left: 60px; width: 560px; }
+  .home-name { position: absolute; left: 96px; top: 840px; width: 520px; }
+  .panel { position: absolute; left: 680px; top: 170px; width: 1150px; height: 860px; }
+  .fact { display: flex; align-items: baseline; gap: 26px; }
+  .ctx { position: absolute; width: 820px; }
+  .ctx .num { font-size: 150px; line-height: 1; }
+  .num { white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<!-- ============ Opener: three homes on the dusk snowfield ============ -->
+<section class="scene" id="sc-open">
+  <div id="cam" style="position:absolute; inset:0; transform-origin:0 0">
+    <img class="plate" src="../../design/scenes/village-dusk-plate-v1.png" alt="" style="position:absolute">
+    <img class="street-home" id="sh1" src="../../design/illustrations/home-apartment-v1.png" style="left:230px; top:560px; width:360px" alt="">
+    <img class="street-home" id="sh2" src="../../design/illustrations/home-rowhouse-v1.png" style="left:700px; top:620px; width:520px" alt="">
+    <img class="street-home" id="sh3" src="../../design/illustrations/home-house-v1.png" style="left:1330px; top:520px; width:470px" alt="">
+  </div>
+  <div class="abs" id="open-q" style="left:110px; top:110px; width:1700px; color:var(--color-ink)">
+    <div class="h-hero" style="font-size:140px; color:#fff; text-shadow:0 4px 40px rgb(10 16 30 / 0.45)">Kiinteä vai pörssisähkö?</div>
+    <div class="h-2" id="open-a" style="color:#fff; margin-top:24px; text-shadow:0 4px 30px rgb(10 16 30 / 0.45)">Tänä talvena vastaus riippuu kodistasi.</div>
+  </div>
+  <div class="abs" id="open-k" style="left:110px; top:110px">
+    <div class="kicker" style="color:#FFE2CC; font-size:26px">Voltikan sähkömarkkinakatsaus · lokakuu 2026</div>
+    <div class="h-1" style="color:#fff; margin-top:16px; text-shadow:0 4px 30px rgb(10 16 30 / 0.45)">Talven sähkölasku kolmelle kodille</div>
+  </div>
+</section>
+
+<!-- ============ Context: four facts ============ -->
+<section class="scene paper" id="sc-ctx">
+  <div class="abs" style="left:96px; top:170px"><div class="kicker">Miksi kysymys on nyt tärkeä</div></div>
+  <div class="ctx" id="c1" style="left:96px; top:250px"><div class="num down">4,77</div><div class="lead">c/kWh: pörssisähkö maksoi lokakuussa keskimäärin. Lokakuu oli halpa.</div></div>
+  <div class="ctx" id="c2" style="left:1000px; top:250px"><div class="num up">15,7</div><div class="lead">c/kWh: tammikuun futuuri (EEX 30.10.). Talvesta tulee kallis.</div></div>
+  <div class="ctx" id="c3" style="left:96px; top:640px"><div class="num" style="font-size:96px">3 syytä</div><div class="lead">Norjan vesialtaat vajaat, kaasuvarastot vajaammat kuin vuosi sitten, Olkiluoto 3 palaa vasta 11.11.</div></div>
+  <div class="ctx" id="c4" style="left:1000px; top:640px"><div class="num up" style="font-size:96px">51 c/kWh</div><div class="lead">pörssisähkö maanantaina 2.11. illalla, kun tuuli heikkeni.</div></div>
+</section>
+
+<!-- ============ BE02 ============ -->
+<section class="scene paper" id="sc-be02">
+  <img class="home-l" src="../../design/illustrations/home-house-v1.png" style="top:290px" alt="">
+  <div class="home-name"><div class="kicker" style="color:var(--color-ink-muted)">Koti 1 / 3</div><div class="h-3" style="margin-top:8px">Sähkölämmitteinen pientalo</div><div class="label" style="margin-top:6px">noin 11 100 kWh vuodessa</div></div>
+  <div class="panel" id="be02-a">
+    <div class="kicker">Arvioitu lasku kuukaudessa, €</div>
+    <div class="caption" style="margin:10px 0 20px" id="be02-legend"></div>
+  </div>
+  <div class="abs" id="be02-w" style="left:740px; top:890px"></div>
+  <div class="abs" id="be02-r" style="left:1300px; top:890px"></div>
+  <div class="panel" id="be02-b">
+    <div class="stamp"><b>Neuvomme</b><span>24 kk kiinteä hinta nyt</span></div>
+    <div class="ledger" id="be02-led" style="margin-top:50px"></div>
+    <div id="be02-notes" style="margin-top:34px"></div>
+  </div>
+</section>
+
+<!-- ============ BE03 ============ -->
+<section class="scene paper" id="sc-be03">
+  <img class="home-l" src="../../design/illustrations/home-rowhouse-v1.png" style="top:390px" alt="">
+  <div class="home-name"><div class="kicker" style="color:var(--color-ink-muted)">Koti 2 / 3</div><div class="h-3" style="margin-top:8px">Pientalo ilman sähkölämmitystä</div><div class="label" style="margin-top:6px">noin 6 800 kWh vuodessa</div></div>
+  <div class="panel" id="be03-a">
+    <div class="kicker">Arvioitu lasku kuukaudessa, €</div>
+    <div class="caption" style="margin:10px 0 20px" id="be03-legend"></div>
+  </div>
+  <div class="panel" id="be03-b">
+    <div class="stamp"><b>Neuvomme</b><span>Pörssisähkö tai edullisin<br>24–36 kk kiinteä</span></div>
+    <div id="be03-notes" style="margin-top:60px"></div>
+  </div>
+</section>
+
+<!-- ============ BE01 ============ -->
+<section class="scene paper" id="sc-be01">
+  <img class="home-l" src="../../design/illustrations/home-apartment-v1.png" style="top:300px; width:470px; left:90px" alt="">
+  <div class="home-name"><div class="kicker" style="color:var(--color-ink-muted)">Koti 3 / 3</div><div class="h-3" style="margin-top:8px">Kerrostaloasunto</div><div class="label" style="margin-top:6px">noin 2 100 kWh vuodessa</div></div>
+  <div class="panel" id="be01-b">
+    <div class="stamp"><b>Neuvomme</b><span>Pysy pörssisähkössä</span></div>
+    <div class="ledger" id="be01-led" style="margin-top:60px"></div>
+  </div>
+</section>
+
+<!-- ============ Quarterly ============ -->
+<section class="scene paper" id="sc-q">
+  <div class="abs" style="left:96px; top:170px"><div class="kicker" style="color:var(--color-lake)">Jos sinulla on kvartaalisähkö</div><div class="h-1" style="margin-top:12px">Hinta nousee 1.1.2027</div></div>
+  <div class="abs" id="q1" style="left:96px; top:420px"><div class="num" style="font-size:200px; color:var(--color-lake)">+3,8</div><div class="lead">c/kWh: mediaani 13,12 → noin 16,9</div></div>
+  <div class="abs" id="q2" style="left:900px; top:420px"><div class="num up" style="font-size:200px">+155 €</div><div class="lead">tammi–maalis sähkölämmitteisessä pientalossa</div></div>
+  <div class="abs" id="q3" style="left:96px; top:800px"><div class="stamp"><b>Neuvomme</b><span>Vaihda kiinteään ennen vuodenvaihdetta</span></div></div>
+</section>
+
+<!-- ============ Outro ============ -->
+<section class="scene" id="sc-out">
+  <img class="plate" id="out-plate" src="../../design/scenes/village-dusk-plate-v1.png" alt="">
+  <div class="abs" id="out-note" style="left:120px; top:90px; width:1700px"><div class="lead" style="color:#fff; text-shadow:0 2px 20px rgb(10 16 30 / 0.5)">Laskelmat: energia + sähkövero 2,918 c/kWh. Siirtomaksut eivät ole mukana. Tyypillinen sopimus = tarjolla olevien sopimusten mediaani 2.11.2026.</div></div>
+  <div class="abs" id="out-card" style="left:180px; top:230px; width:820px; padding:56px 64px 60px; background:var(--paper); clip-path:polygon(12% 0, 88% 0, 100% 8%, 100% 100%, 0 100%, 0 8%)">
+    <div style="display:flex; align-items:center; gap:16px" id="out-logo"><span style="font:800 80px/1 var(--font-display); letter-spacing:-0.02em">Voltikka</span></div>
+    <div class="h-2" style="margin-top:56px">Laske oma laskusi omalla kulutuksellasi</div>
+    <div class="num" style="font-size:96px; color:var(--color-fox-deep); margin-top:26px">voltikka.fi</div>
+  </div>
+  <img class="abs" id="out-fox" src="../../design/mascot/fox-sit-skyward-v1.png" alt="" style="left:1320px; top:560px; width:460px">
+</section>
+
+<script src="timeline/kotia.js"></script>
+<script src="data/2026-10.js"></script>
+<script src="lib.js"></script>
+<script>
+const END = TL.total;
+$('#out-logo').insertAdjacentHTML('afterbegin', LOGO(72));
+const T = {
+    ctx: S('h_ctx1') - 0.3, be02: S('h_be02_0') + 0.6, be03: S('k_be03_1') - 0.3, be01: S('h_be01_0') - 0.2,
+    q: S('h_q0') - 0.2, out: S('h_note') - 0.3,
+};
+scene('sc-open', 0, T.ctx, { fadeIn: 0 });
+scene('sc-ctx', T.ctx, S('h_be02_0') - 0.2, { wipe: true, z: 2, fadeOut: 0.4 });
+// Between context and BE02 the opener comes back: the camera flies to the electrically heated house.
+scene('sc-be02', T.be02, T.be03, { wipe: true, z: 4 });
+scene('sc-be03', T.be03, T.be01, { wipe: true, z: 5 });
+scene('sc-be01', T.be01, T.q, { wipe: true, z: 6 });
+scene('sc-q', T.q, T.out, { wipe: true, z: 7 });
+scene('sc-out', T.out, END + 1, { z: 8, fadeOut: 0 });
+chrome(T.ctx, T.out, [['Talvi', T.ctx], ['Sähkölämmitys', T.be02], ['Ei sähkölämmitystä', T.be03], ['Kerrostalo', T.be01], ['Kvartaali', T.q]], { title: 'Kolme kotia · lokakuu 2026' });
+
+// ---------- Opener ----------
+{
+    const sopen = $('#sc-open');
+    // The opener is shown again from the end of the context to the start of BE02 (camera move).
+    const back0 = S('h_be02_0') - 0.2;
+    tick((t) => {
+        const on = t < T.ctx + 0.8 || (t >= back0 && t < T.be02 + 0.8);
+        sopen.style.display = on ? 'block' : 'none';
+        if (t >= back0) sopen.style.opacity = 1;
+    });
+    // The homes stand on the snow from frame 0 (thumbnail); each gives a small hop when the line names the three homes.
+    ['#sh1', '#sh2', '#sh3'].forEach((id, i) => {
+        const h = $(id);
+        tick((t) => { const u = t - (S('h_open2') + 4.2 + i * 0.35); const hop = u > 0 && u < 0.5 ? Math.sin(u / 0.5 * Math.PI) * 26 : 0; h.style.transform = `translateY(${-hop}px)`; });
+    });
+    show($('#open-q'), -1, { t1: S('h_open2') - 0.3 });
+    show($('#open-a'), S('h_open1') + 2.6, { dy: 20 });
+    show($('#open-k'), S('h_open2') + 0.1, { t1: T.ctx - 0.2, dy: 20 });
+    // Camera: a slow drift, then the flight to the house (scale around its door).
+    const cam = $('#cam');
+    tick((t) => {
+        if (t < back0) { cam.style.transform = `scale(${lerp(1, 1.04, P(t, 0, T.ctx, 'lin'))})`; return; }
+        const p = P(t, back0 + 0.3, 1.3, 'io');
+        const s = lerp(1, 3.2, p), fx = 1560, fy = 820;
+        cam.style.transform = `translate(${fx * (1 - s)}px, ${fy * (1 - s)}px) scale(${s})`;
+    });
+}
+
+// ---------- Context ----------
+[['#c1', 'h_ctx1'], ['#c2', 'h_ctx2'], ['#c3', 'h_ctx3'], ['#c4', 'h_ctx4']].forEach(([id, l]) => show($(id), S(l) + 0.1, { dy: 40 }));
+
+// ---------- A home chart ----------
+function homeChart(group, panelId, legendId, t0, t1) {
+    const c = billChart(group, { w: 1150, h: 560 });
+    $('#' + panelId).appendChild(c.node);
+    $('#' + legendId).innerHTML = legend([['#1C7A5E', 'Pörssisähkö (tyypillinen)'], ['#535D68', 'Kiinteä 12 kk (tyypillinen)']]);
+    c.grow(t0, 1.6);
+    show($('#' + panelId), t0 - 0.3, { t1, dy: 20 });
+    return c;
+}
+
+// ---------- BE02 ----------
+{
+    const g = D.groups.BE02;
+    const c = homeChart('BE02', 'be02-a', 'be02-legend', S('k_be02_1') + 0.2, S('k_be02_4') - 0.3);
+    c.mark('winter', S('k_be02_2')); c.mark('rest', S('k_be02_3'));
+    $('#be02-w').innerHTML = `<div class="kicker" style="color:var(--color-lake)">Marras–maalis</div><div class="h-3" style="margin-top:8px; font-size:34px">pörssi ${fi(g.winter.spot_eur_mean)} € · kiinteä ${fi(g.winter.fixed_eur_mean)} €</div>`;
+    $('#be02-r').innerHTML = `<div class="kicker" style="color:#6B4A00">Huhti–loka</div><div class="h-3" style="margin-top:8px; font-size:34px">pörssi ${fi(g.rest.spot_eur_mean)} € · kiinteä ${fi(g.rest.fixed_eur_mean)} €</div>`;
+    show($('#be02-w'), S('k_be02_2') + 0.5, { t1: S('k_be02_4') - 0.3, dy: 20 });
+    show($('#be02-r'), S('k_be02_3') + 0.5, { t1: S('k_be02_4') - 0.3, dy: 20 });
+    show($('#be02-b'), S('k_be02_4') - 0.2, { dy: 0, dur: 0.2 });
+    stamp($('#be02-b'), S('k_be02_4') + 0.6, -3);
+    const led = $('#be02-led');
+    led.appendChild(el(`<div class="kicker" style="color:var(--color-ink-muted)">Edullisimmat 2.11. · ensimmäinen vuosi · energia + sähkövero</div>`));
+    show(led.firstElementChild, S('k_be02_5'), { dy: 10 });
+    [['Cheap', 'Määräaikainen 36 kk', 'noin 1 495 €', 'k_be02_5', 0.2, '#535D68'], ['Pohjois-Karjalan Sähkö', 'Optimi takuu 24 kuukautta', 'noin 1 495 €', 'k_be02_5', 1.6, '#535D68'], ['Herrfors', 'Spot+ · edullisin pörssisähkö', 'noin 1 564 €', 'k_be02_6', 0.2, '#1C7A5E']]
+        .forEach(([s, p, e, l, d, c]) => { const r = el(`<div class="row"><span class="dot" style="background:${c}; align-self:center"></span><span class="k">${s}<small style="display:block; font:600 22px/1.3 var(--font-sans); color:var(--color-ink-muted); margin-top:4px">${p}</small></span><span class="v">${e}</span></div>`); led.appendChild(r); show(r, S(l) + d, { dy: 24 }); });
+    $('#be02-notes').innerHTML = `<div class="label" id="n1" style="font-size:28px"><b style="color:var(--color-ink)">Toisena vuonna</b> pitkä sopimus maksaa pörssisähköä enemmän: hinnassa ovat mukana halvemmat tulevat vuodet.</div>
+      <div class="label" id="n2" style="font-size:28px; margin-top:18px"><b style="color:var(--color-aurora)">Kulutusjousto:</b> pörssisähköllä noin <b style="color:var(--color-ink)">77 € vuodessa</b> halvemmalla, kun automatiikka siirtää noin 900 kWh halvoille tunneille.</div>`;
+    show($('#n1'), S('k_be02_7'), { dy: 20 });
+    show($('#n2'), S('k_be02_8'), { dy: 20 });
+}
+
+// ---------- BE03 ----------
+{
+    const g = D.groups.BE03;
+    const c = homeChart('BE03', 'be03-a', 'be03-legend', S('k_be03_1') + 0.2, S('k_be03_3') - 0.3);
+    c.mark('winter', S('k_be03_2')); c.mark('rest', S('k_be03_2') + 1.5);
+    show($('#be03-b'), S('k_be03_3') - 0.2, { dy: 0, dur: 0.2 });
+    stamp($('#be03-b'), S('k_be03_3') + 0.2);
+    $('#be03-notes').innerHTML = `<div class="fact" id="b3n1"><span class="num" style="font-size:80px">950–970 €</span><span class="lead">vuodessa: pörssisähkö ja edullisin pitkä kiinteä hinta</span></div>
+      <div class="fact" id="b3n2" style="margin-top:36px"><span class="num up" style="font-size:80px">+65 €</span><span class="lead">vuodessa: keskihintainen 12 kk kiinteä</span></div>`;
+    show($('#b3n1'), S('k_be03_3') + 1.2, { dy: 20 });
+    show($('#b3n2'), S('k_be03_3') + 5.0, { dy: 20 });
+}
+
+// ---------- BE01 ----------
+{
+    show($('#be01-b'), S('k_be01_2') - 0.4, { dy: 0, dur: 0.2 });
+    stamp($('#be01-b'), S('k_be01_2') + 0.1);
+    [['Vuodessa', 'noin 40 € kiinteää halvempi', 1.6], ['Kallein talviviikko', 'noin 30 €', 4.2], ['Edullisin pörssisähkö', 'Nordic Green Energy Pörssisähkö', 8.2]]
+        .forEach(([k, v, d]) => { const r = el(`<div class="row"><span class="k" style="font-family:var(--font-sans); font-weight:600; font-size:30px; color:var(--color-ink-body)">${k}</span><span class="v">${v}</span></div>`); $('#be01-led').appendChild(r); show(r, S('k_be01_2') + d, { dy: 24 }); });
+}
+
+// ---------- Quarterly ----------
+show($('#q1'), S('k_q1') + 0.4, { dy: 30 });
+show($('#q2'), S('k_q2') + 0.6, { dy: 30 });
+show($('#q3'), S('k_q2') + 5.4, { dy: 0, dur: 0.1 });
+stamp($('#q3'), S('k_q2') + 5.4);
+
+// ---------- Outro ----------
+drift($('#out-plate'), T.out, END, { from: 1.08, to: 1.0 });
+show($('#out-note'), S('h_note'), { dy: 10 });
+dropIn($('#out-card'), S('h_out1') + 0.1);
+show($('#out-fox'), S('h_out1') + 1.1, { dx: 80, dy: 30, dur: 0.9 });
+tick((t) => { $('#sc-out').style.opacity = 1 - P(t, END - 0.8, 0.8, 'lin'); });
+</script>
+</body>
+</html>

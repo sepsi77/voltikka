@@ -1,0 +1,251 @@
+1
+00:00:00,800 --> 00:00:05,105
+Tämä on Voltikan sähkömarkkinakatsaus lokakuulta 2026.
+
+2
+00:00:05,905 --> 00:00:08,855
+Lokakuu oli halpa. Talvesta tulee kallis.
+
+3
+00:00:09,755 --> 00:00:14,442
+Kerromme, miksi talvesta tulee kallis ja mikä sähkösopimus kannattaa nyt valita.
+
+4
+00:00:16,042 --> 00:00:18,324
+Halpa sähkö loppuu marraskuussa.
+
+5
+00:00:19,224 --> 00:00:23,896
+Sähköpörssissä tammikuun sähkö maksaa nyt lähes 16 senttiä kilowattitunnilta.
+
+6
+00:00:23,896 --> 00:00:26,202
+Se on yli kolme kertaa lokakuun hinta.
+
+7
+00:00:27,102 --> 00:00:32,158
+Odotamme, että pörssisähkö maksaa marraskuusta maaliskuuhun 11–16 senttiä.
+
+8
+00:00:33,358 --> 00:00:34,419
+Syitä on kolme.
+
+9
+00:00:34,919 --> 00:00:39,206
+Norjan vesialtaissa on 13 prosenttiyksikköä tavallista vähemmän vettä.
+
+10
+00:00:39,906 --> 00:00:42,954
+Euroopan kaasuvarastot ovat vajaammat kuin vuosi sitten.
+
+11
+00:00:43,654 --> 00:00:47,695
+Ja Olkiluoto 3 palaa vuosihuollosta vasta 11. marraskuuta.
+
+12
+00:00:48,995 --> 00:00:54,647
+Marraskuun ensimmäisenä maanantaina tuulivoimaa oli vain kolmannes lokakuun tasosta.
+
+13
+00:00:54,647 --> 00:00:58,415
+Illalla pörssisähkö maksoi 51 senttiä kilowattitunnilta.
+
+14
+00:00:59,615 --> 00:01:04,356
+Pahin riski on kylmä ja tyyni viikko, kuten tammikuussa 2024.
+
+15
+00:01:04,356 --> 00:01:08,631
+Silloin pörssisähkö maksaa viikon ajan noin 34 senttiä.
+
+16
+00:01:10,231 --> 00:01:13,449
+Laskimme talven sähkölaskun kolmelle tavalliselle kodille.
+
+17
+00:01:14,149 --> 00:01:18,321
+Mukana ovat sähköenergia ja sähkövero. Siirtomaksut eivät ole mukana.
+
+18
+00:01:19,621 --> 00:01:23,939
+Sähkölämmitteinen pientalo käyttää noin 11 000 kilowattituntia vuodessa.
+
+19
+00:01:24,639 --> 00:01:31,893
+Marraskuusta maaliskuuhun pörssisähkö maksaa sille noin 150 euroa enemmän kuin tavallinen kiinteä hinta.
+
+20
+00:01:31,893 --> 00:01:34,544
+Kylmänä talvena ero on noin 190 euroa.
+
+21
+00:01:35,444 --> 00:01:37,194
+Kesällä tilanne kääntyy.
+
+22
+00:01:37,194 --> 00:01:42,081
+Huhtikuusta lokakuuhun kiinteä hinta maksaa noin 225 euroa enemmän.
+
+23
+00:01:42,081 --> 00:01:45,728
+Koko vuonna pörssisähkö on noin 75 euroa halvempi.
+
+24
+00:01:46,628 --> 00:01:52,346
+Siksi neuvomme: pörssisähkö on pitkällä aikavälillä halvempi, mutta tuleva talvi on sille riski.
+
+25
+00:01:52,346 --> 00:01:56,754
+Kiinteä hinta antaa varmuuden talven laskusta, mutta siitä maksat kesällä.
+
+26
+00:01:58,054 --> 00:02:01,131
+Jos haluat kiinteän hinnan, valitse 24 kuukautta.
+
+27
+00:02:01,131 --> 00:02:05,400
+Se kattaa kaksi talvea, ja se on halvempi kuin 12 kuukauden sopimus.
+
+28
+00:02:06,100 --> 00:02:09,812
+Edullisin on Pohjois-Karjalan Sähkön Optimi takuu.
+
+29
+00:02:09,812 --> 00:02:12,930
+Ensimmäinen vuosi maksaa noin 1 500 euroa.
+
+30
+00:02:12,930 --> 00:02:17,756
+Edullisin pörssisähkö, Herrforsin Spot+, maksaa noin 1 560 euroa.
+
+31
+00:02:18,656 --> 00:02:26,490
+Toisena vuonna pörssisähkö on noin 175 euroa halvempi, joten kahdessa vuodessa se on noin 115 euroa edullisempi.
+
+32
+00:02:26,490 --> 00:02:32,576
+Kolmen vuoden sopimus maksaa kolmessa vuodessa noin 290 euroa enemmän kuin pörssisähkö.
+
+33
+00:02:33,476 --> 00:02:40,142
+Jos siirrät kulutusta automatiikalla halvoille tunneille, säästät pörssisähköllä vielä noin 80 euroa vuodessa.
+
+34
+00:02:41,742 --> 00:02:46,227
+Pientalo ilman sähkölämmitystä käyttää vajaat 7 000 kilowattituntia vuodessa.
+
+35
+00:02:46,928 --> 00:02:53,274
+Sille pörssisähkö ja edullisin pitkä kiinteä hinta maksavat vuodessa lähes saman verran, vajaat tuhat euroa.
+
+36
+00:02:54,074 --> 00:02:57,979
+Valitse pörssisähkö tai edullisin pitkä kiinteä hinta.
+
+37
+00:02:57,979 --> 00:03:02,679
+Keskihintainen 12 kuukauden sopimus maksaa noin 65 euroa enemmän.
+
+38
+00:03:04,279 --> 00:03:08,555
+Kerrostaloasunnossa sähköä kuluu noin 2 000 kilowattituntia vuodessa.
+
+39
+00:03:09,255 --> 00:03:10,528
+Pysy pörssisähkössä.
+
+40
+00:03:10,528 --> 00:03:16,895
+Se on vuodessa noin 40 euroa kiinteää halvempi, ja kalleinkin talviviikko maksaa vain noin 30 euroa.
+
+41
+00:03:16,895 --> 00:03:19,823
+Edullisin on Nordic Green Energyn Pörssisähkö.
+
+42
+00:03:21,423 --> 00:03:25,865
+Kvartaalisopimusten hinta nousee vuodenvaihteessa lähes neljä senttiä kilowattitunnilta.
+
+43
+00:03:26,565 --> 00:03:33,267
+Sähkölämmitteisessä pientalossa tammikuusta maaliskuuhun maksaa silloin noin 155 euroa enemmän kuin nyt.
+
+44
+00:03:33,267 --> 00:03:38,294
+Vaihda ennen vuodenvaihdetta pörssisähköön tai 24 kuukauden kiinteään hintaan.
+
+45
+00:03:39,894 --> 00:03:41,439
+Sitten sopimusmarkkina.
+
+46
+00:03:42,139 --> 00:03:47,183
+Myyjät nostivat energiahintojaan, vaikka pörssisähkö halpeni lokakuussa kolmanneksen.
+
+47
+00:03:48,083 --> 00:03:53,387
+Voltikan hintaindeksi, joka seuraa myyjien energiahintoja, nousi lokakuussa 12 prosenttia.
+
+48
+00:03:53,387 --> 00:03:59,988
+Suurin osa noususta tuli kuun vaihteessa, kun kvartaali- ja kuukausihintaisten sopimusten uudet hinnat alkoivat.
+
+49
+00:04:00,788 --> 00:04:04,361
+Myyjät hinnoittelevat tulevaa talvea, eivät mennyttä kuukautta.
+
+50
+00:04:05,561 --> 00:04:08,398
+Pitkät sopimukset ovat nyt lyhyitä halvempia.
+
+51
+00:04:08,398 --> 00:04:16,974
+Kahden vuoden sopimus maksaa keskimäärin alle 11 senttiä ja puolen vuoden sopimus noin 15 senttiä, koska se kattaa lähes pelkkää talvea.
+
+52
+00:04:18,574 --> 00:04:20,415
+Lopuksi lyhyesti lokakuusta.
+
+53
+00:04:21,215 --> 00:04:25,490
+Pörssisähkö maksoi lokakuussa keskimäärin alle viisi senttiä kilowattitunnilta.
+
+54
+00:04:26,290 --> 00:04:30,675
+Se on kolmanneksen vähemmän kuin syyskuussa ja viidennes vähemmän kuin vuotta aiemmin.
+
+55
+00:04:31,875 --> 00:04:34,618
+Hintaa painoivat alas tuuli ja lämmin sää.
+
+56
+00:04:35,118 --> 00:04:39,051
+Tuulivoimaa tuotettiin 23 prosenttia enemmän kuin vuotta aiemmin.
+
+57
+00:04:39,851 --> 00:04:46,148
+Lokakuu oli lähes kolme astetta tavallista lämpimämpi, joten lämmitystä tarvittiin neljännes tavallista vähemmän.
+
+58
+00:04:46,948 --> 00:04:50,939
+Hinta pysyi alhaalla, vaikka ydinvoimasta oli käytössä alle puolet.
+
+59
+00:04:51,839 --> 00:04:58,098
+Hinta oli korkeimmillaan 30. lokakuuta, kun tuuli heikkeni ja Olkiluoto 1 oli vuorokauden pois verkosta.
+
+60
+00:04:59,398 --> 00:05:05,637
+Marraskuun kaksi ensimmäistä viikkoa näyttävät tavallista lämpimämmiltä, joten marraskuu jää futuuria halvemmaksi.
+
+61
+00:05:06,537 --> 00:05:11,751
+Lämmin syksy painoi hinnat selvästi futuurien alle. Sen varaan ei kannata laskea talvea.
+
+62
+00:05:13,351 --> 00:05:18,394
+Laske sopimusten hinnat omalla kulutuksellasi Voltikassa: voltikka.fi.
+
+63
+00:05:19,294 --> 00:05:21,631
+Seuraava katsaus ilmestyy joulukuun alussa.

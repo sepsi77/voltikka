@@ -1,7 +1,10 @@
 // Renders an HTML scene to MP4, one frame at a time.
 //
 //   node render.mjs <scene.html> [--duration 3] [--fps 30] [--size 1920x1080]
-//                   [--out file.mp4] [--stills 0,1.5,3]
+//                   [--out file.mp4] [--stills 0,1.5,3] [--from 0]
+//
+// --from starts the render at that time (seconds), so a long video can render in parallel
+// parts; see render-parallel.sh.
 //
 // Output goes to out/ next to the scene (the project folder), unless --out is given.
 //
@@ -24,6 +27,7 @@ if (!scene) {
 }
 
 const duration = Number(option('duration', 3));
+const from = Number(option('from', 0));
 const fps = Number(option('fps', 30));
 const [width, height] = option('size', '1920x1080').split('x').map(Number);
 const name = basename(scene, extname(scene)) === 'index' ? basename(dirname(resolve(scene))) : basename(scene, extname(scene));
@@ -64,10 +68,11 @@ if (stills) {
     ], { stdio: ['pipe', 'inherit', 'inherit'] });
     const done = new Promise((ok, fail) => ffmpeg.on('close', (code) => (code === 0 ? ok() : fail(new Error(`ffmpeg exit ${code}`)))));
 
+    const first = Math.round(from * fps);
     const frames = Math.round(duration * fps);
     const started = Date.now();
     for (let frame = 0; frame < frames; frame++) {
-        await seek(frame / fps);
+        await seek((first + frame) / fps);
         const png = await page.screenshot({ type: 'png' });
         if (!ffmpeg.stdin.write(png)) await new Promise((ok) => ffmpeg.stdin.once('drain', ok));
     }

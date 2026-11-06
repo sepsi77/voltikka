@@ -1,0 +1,93 @@
+/* Shared look of the market review videos. Tokens: design/voltikka-tokens.css (copied values). */
+:root {
+  --color-ground: #F5F6F1;
+  --color-snow-white: #FFFFFF;
+  --color-edge: #D9DFDC;
+  --color-edge-strong: #B9C2C0;
+  --color-ink: #16202E;
+  --color-ink-body: #3A4656;
+  --color-ink-muted: #5E6876;
+  --color-night: #14213A;
+  --color-night-lead: #C9D3E3;
+  --color-fox: #C4501C;
+  --color-fox-deep: #9E3C10;
+  --color-aurora: #1C7A5E;
+  --color-lake: #2B5F8C;
+  --color-violet: #6A4C9C;
+  --color-granite: #535D68;
+  --color-price-high: #B3261E;
+  --color-star: #E0A21B;
+  --paper: #FBF6EA;
+  --font-display: "Bricolage Grotesque", system-ui, sans-serif;
+  --font-sans: "Figtree", system-ui, sans-serif;
+}
+* { margin: 0; box-sizing: border-box; }
+body { width: 1920px; height: 1080px; overflow: hidden; background: var(--color-night); font-family: var(--font-sans); color: var(--color-ink); }
+.scene { position: absolute; inset: 0; overflow: hidden; display: none; }
+.abs { position: absolute; }
+.paper {
+  background-color: var(--color-ground);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.35  0 0 0 0 0.3  0 0 0 0 0.2  0 0 0 0.05 0'/></filter><rect width='300' height='300' filter='url(%23n)'/></svg>");
+}
+.night { background: var(--color-night); color: #fff; }
+.plate { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; will-change: transform; }
+.shade-left { position: absolute; inset: 0; background: linear-gradient(100deg, rgb(20 33 58 / 0.78) 0%, rgb(20 33 58 / 0.45) 42%, rgb(20 33 58 / 0) 70%); }
+
+/* Type */
+.kicker { font: 800 22px/1 var(--font-sans); letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-fox-deep); }
+.night .kicker, .on-plate .kicker { color: #F2B48F; }
+.h-hero { font: 800 128px/0.98 var(--font-display); letter-spacing: -0.035em; }
+.h-1 { font: 800 92px/1.02 var(--font-display); letter-spacing: -0.03em; }
+.h-2 { font: 800 64px/1.06 var(--font-display); letter-spacing: -0.025em; }
+.h-3 { font: 800 44px/1.1 var(--font-display); letter-spacing: -0.02em; }
+.lead { font: 500 34px/1.35 var(--font-sans); color: var(--color-ink-body); }
+.night .lead, .on-plate .lead { color: var(--color-night-lead); }
+.label { font: 600 26px/1.3 var(--font-sans); color: var(--color-ink-body); }
+.caption { font: 500 22px/1.3 var(--font-sans); color: var(--color-ink-muted); }
+.night .caption { color: #9FB0C8; }
+.num { font-family: var(--font-display); font-weight: 800; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
+.on-plate { color: #fff; text-shadow: 0 4px 40px rgb(10 16 30 / 0.5); }
+.w { display: inline-block; }
+.up { color: var(--color-price-high); }
+.down { color: var(--color-aurora); }
+
+/* Chrome: corner wordmark and chapter rail */
+.chrome { position: absolute; left: 0; right: 0; top: 0; height: 110px; pointer-events: none; }
+.wm { position: absolute; left: 96px; top: 48px; display: flex; align-items: center; gap: 12px; }
+.wm span { font: 800 34px/1 var(--font-display); letter-spacing: -0.02em; }
+.wm em { font: 600 22px/1 var(--font-sans); font-style: normal; color: var(--color-ink-muted); margin-left: 10px; }
+.rail { position: absolute; right: 96px; top: 52px; display: flex; gap: 34px; font: 700 22px/1 var(--font-sans); color: var(--color-ink-muted); }
+.rail .on { color: var(--color-ink); }
+.rail .item { position: relative; padding-bottom: 12px; }
+.rail .item svg { position: absolute; left: -4px; bottom: -2px; width: calc(100% + 8px); height: 12px; overflow: visible; }
+.rail .item path { fill: none; stroke: var(--color-fox); stroke-width: 4; stroke-linecap: round; }
+.chrome.dark .wm span, .chrome.dark .rail .on { color: #fff; }
+.chrome.dark .wm em, .chrome.dark .rail { color: #9FB0C8; }
+.chrome.dark .rail, .chrome.dark .wm { text-shadow: 0 1px 10px rgb(10 18 34 / 0.9), 0 0 3px rgb(10 18 34 / 0.7); }
+
+/* Ink */
+.ink path, path.ink { fill: none; stroke: var(--color-fox); stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; }
+.hair { height: 0; border-top: 2px solid var(--color-edge); }
+.stamp {
+  display: inline-flex; flex-direction: column; gap: 6px; padding: 22px 34px 24px; border: 6px solid var(--color-fox-deep);
+  color: var(--color-fox-deep); border-radius: 6px; transform-origin: 50% 50%;
+}
+.stamp b { font: 800 22px/1 var(--font-sans); letter-spacing: 0.16em; text-transform: uppercase; }
+.stamp span { font: 800 54px/1.02 var(--font-display); letter-spacing: -0.025em; }
+
+/* Ledger rows (factor table, contract list) */
+.ledger { display: flex; flex-direction: column; }
+.ledger .row { display: flex; align-items: baseline; gap: 24px; padding: 20px 0 18px; border-bottom: 2px solid var(--color-edge); }
+.ledger .row .k { font: 800 34px/1.1 var(--font-display); letter-spacing: -0.015em; }
+.ledger .row .v { font: 800 34px/1 var(--font-display); letter-spacing: -0.02em; margin-left: auto; white-space: nowrap; }
+.ledger .row .d { font: 500 24px/1.3 var(--font-sans); color: var(--color-ink-body); }
+
+/* Charts */
+svg.chart { overflow: visible; }
+svg.chart text { font-family: var(--font-sans); }
+.axis-label { font: 600 20px/1 var(--font-sans); fill: var(--color-ink-muted); }
+.source { position: absolute; font: 500 18px/1.3 var(--font-sans); color: var(--color-ink-muted); }
+.night .source, .on-plate .source { color: #9FB0C8; }
+
+/* Glyph dots for the pricing categories */
+.dot { display: inline-block; width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0; }

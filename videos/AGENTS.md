@@ -1,6 +1,6 @@
 # videos/ — code-rendered video
 
-Marketing videos made from HTML scenes. No video library (no Remotion). Read the root `AGENTS.md` first; the brand rules in `design/` apply to every frame. Current work: `tasks/youtube-brand-video/`.
+Marketing videos made from HTML scenes. No video library (no Remotion). Read the root `AGENTS.md` first; the brand rules in `design/` apply to every frame. Current work: `tasks/youtube-brand-video/` and the monthly review video (`tasks/monthly-market-review/video.md`).
 
 ## Folder layout
 
@@ -8,7 +8,7 @@ Each video project has its own folder. The shared tools stay at the top.
 
 ```
 videos/
-├── render.mjs, generate-audio.mjs, package.json   # shared tools (one node_modules)
+├── render.mjs, render-parallel.sh, generate-audio.mjs, package.json   # shared tools (one node_modules)
 ├── spike/                  # 3 s technical test
 └── <project>/              # one folder per video project, e.g. youtube-brand-video/
     ├── AGENTS.md           # project notes: brief pointer, script, timing, voice, how to rebuild
@@ -33,6 +33,8 @@ node render.mjs spike/index.html --stills 0.3,1,3      # PNG stills for review: 
 node render.mjs spike/index.html --duration 3          # spike/out/spike.mp4
 ```
 
+A long video renders in parallel parts: `render.mjs --from <s>` starts at a time, and `render-parallel.sh <scene> <duration> <out.mp4> [jobs]` splits the frames over jobs and joins the parts with stream copy (about 25 frames per second with 6 jobs).
+
 Other formats use `--size` (for example `--size 1080x1920` for 9:16). A scene can read its viewport size and change its layout; `youtube-brand-video/hintalappu.html` makes 16:9, 1:1 and 9:16 from one file.
 
 Write scenes with normal CSS keyframes and `animation-delay`. Do not use `setTimeout`, `requestAnimationFrame` or real clocks for motion: the renderer cannot seek them. JS-driven parts (for example typing) read t in `window.renderFrame(t)`.
@@ -41,9 +43,10 @@ Write scenes with normal CSS keyframes and `animation-delay`. Do not use `setTim
 
 `generate-audio.mjs` calls OpenRouter: `speech` (`/api/v1/audio/speech`), `transcribe` (`/api/v1/audio/transcriptions`, ElevenLabs Scribe) and `music` (Lyria 3 through chat completions; audio output is only available with `stream: true`). Run it from the project folder (`node ../generate-audio.mjs ... --out audio/x.mp3`), so files land in that project's `audio/`. It reads `OPENROUTER_API_KEY` from `laravel/.env` first, because the shell can hold an unrelated, invalid key. Never print the key.
 
-- Finnish voice: `microsoft/mai-voice-2.1` with `fi-FI-Harper:MAI-Voice-2.1` (female, default) or `fi-FI-Grant:MAI-Voice-2.1` (male). ElevenLabs voices are English voices speaking Finnish: "Hae" became "Hai"/"Hei". Gemini TTS said "Foltikka" (and returns only raw PCM).
+- Finnish voice: for long narration use `google/gemini-3.8-flash-tts` voice `Kore` with a style instruction (monthly review, user choice 2026-11-06: more dynamic than ElevenLabs v4 and MAI). `microsoft/mai-voice-2.1` with `fi-FI-Harper:MAI-Voice-2.1` (female) or `fi-FI-Grant:MAI-Voice-2.1` (male) is the older default; it reads digits in the nominative ("kaksikymmentäneljä kuukauden"). ElevenLabs voices are English voices speaking Finnish: "Hae" became "Hai"/"Hei". Gemini TTS said "Foltikka" (and returns only raw PCM).
+- Voice control (test 2026-11-06, `monthly-market-review/voice-test.mjs`): `--speed` works on MAI (0.6 → 9.7 s, 2.0 → 2.9 s for one line); SSML is read aloud. `elevenlabs/eleven-v4` reads Finnish clearly in the transcript and takes inline tags (`[confident]`), but refuses `speed` (HTTP 400); a pace tag changed the tempo only a little. Gemini 3.8 Flash TTS takes `--instructions` (style) and was the fastest at default (1.9–2.2 words per second). Fish Audio S2.1 Pro mangled Finnish numbers. OpenAI TTS is not on OpenRouter. For any model, `ffmpeg -af atempo=1.15` makes a take faster without a pitch change. Only MAI has native Finnish voices on OpenRouter.
 - Check every voice line by transcribing it, and transcribe the final mix too: the agent cannot listen, and a transcript shows unclear words and voice lost under music. A bare "Hae: Voltikka" was heard as "Hei Voltikka"; "Hae: Voltikka sähkösopimus" is clear (the longer phrase gives "Hae" context).
-- Music: `google/lyria-3-clip-preview` gives a 30 s clip (about 24 s of music) for $0.04.
+- Music: `google/lyria-3-clip-preview` gives a 30 s clip (about 24 s of music) for $0.04. `google/lyria-3-pro-preview` gives about 3 minutes for $0.08 (use it for long videos).
 - Mix to −14 LUFS (YouTube) and duck the music under the voice; `youtube-brand-video/mix.sh` is a working example.
 
 ## Projects
@@ -52,6 +55,7 @@ Write scenes with normal CSS keyframes and `animation-delay`. Do not use `setTim
 |---|---|
 | `spike/` | 3 s technical test (plate drift, fox entry, word stagger, ink draw-on) |
 | `youtube-brand-video/` | 15 s YouTube brand ads for rotation: Hintalappu, Oma lasku and Haku; see its `AGENTS.md` |
+| `monthly-market-review/` | 3–5 min narrated videos of the monthly market review (October 2026: four concept variations); see its `AGENTS.md` |
 
 ## Media files
 

@@ -1,0 +1,27 @@
+Lokakuu oli halpa, mutta talvesta tulee kallis. Pörssisähkö maksoi lokakuussa keskimäärin 4,77 c/kWh, ja tammikuun futuuri on jo 15,7 c/kWh. Kerromme, miksi talvesta tulee kallis ja mikä sähkösopimus nyt kannattaa kolmessa tavallisessa kodissa.
+
+Neuvomme lyhyesti:
+• Sähkölämmitteinen pientalo: pörssisähkö on pitkällä aikavälillä halvempi, mutta tuleva talvi on sille riski. Jos haluat kiinteän hinnan, valitse 24 kuukautta.
+• Pientalo ilman sähkölämmitystä: pysy pörssisähkössä.
+• Kerrostaloasunto: pysy pörssisähkössä.
+• Kvartaalisähkö: hinta nousee 1.1. noin 3,8 c/kWh. Vaihda ennen vuodenvaihdetta pörssisähköön tai 24 kuukauden kiinteään hintaan.
+
+Myyjät nostivat energiahintojaan lokakuussa 12 %, vaikka pörssisähkö halpeni kolmanneksen.
+
+0:00 Lokakuu oli halpa, talvesta tulee kallis
+0:15 Miksi talvesta tulee kallis
+1:09 Mikä sopimus nyt kannattaa
+1:19 Sähkölämmitteinen pientalo
+2:41 Pientalo ilman sähkölämmitystä
+3:03 Kerrostaloasunto
+3:20 Kvartaalisähkö
+3:39 Sopimusmarkkina
+4:18 Lokakuu lyhyesti
+
+Laske sopimusten hinnat omalla kulutuksellasi: https://voltikka.fi/sahkosopimus
+Koko katsaus lukuineen ja kuvineen: https://voltikka.fi/markkinakatsaus/2026-10
+
+Laskelmat: sähköenergia ja sähkövero (2,918 c/kWh alv mukaan lukien), ei siirtomaksuja. Kodit: Fingrid Datahub (keskimääräinen kerrostaloasunto, pientalo ilman sähkölämmitystä ja sähkölämmitteinen pientalo). Tulevat hinnat: Suomen sähköfutuurit (EEX) 30.10.2026 ja kolmen menneen talven tuntivaihtelu. Sopimukset: Voltikan päivittäin keräämät hinnat 2.11.2026.
+Lähteet: ENTSO-E, Fingrid (CC BY 4.0), Open-Meteo.com (ERA5, ECMWF), NVE, GIE AGSI, EEX, Voltikka.
+
+#sähkö #pörssisähkö #sähkösopimus

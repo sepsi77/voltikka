@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<title>Voltikan sähkösää · lokakuu 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:wght@400;500;600;700;800&display=block" rel="stylesheet">
+<link rel="stylesheet" href="lib.css">
+<style>
+  .board { background: #10203A; color: #fff; }
+  .board::before { content: ''; position: absolute; inset: 0; background-image: linear-gradient(rgb(255 255 255 / 0.035) 2px, transparent 2px), linear-gradient(90deg, rgb(255 255 255 / 0.035) 2px, transparent 2px); background-size: 96px 96px; }
+  .board .kicker { color: #F2B48F; }
+  .board .lead { color: var(--color-night-lead); }
+  .ico { stroke: currentColor; fill: none; stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; }
+  .show-title { position: absolute; left: 110px; bottom: 120px; display: flex; flex-direction: column; gap: 14px; }
+  .show-title .bar { display: inline-flex; align-items: baseline; gap: 22px; padding: 22px 34px 24px; background: var(--color-night); color: #fff; }
+  .show-title .bar b { font: 800 84px/1 var(--font-display); letter-spacing: -0.03em; }
+  .show-title .sub { display: inline-flex; padding: 14px 34px; background: var(--color-fox); color: #fff; font: 800 30px/1 var(--font-sans); letter-spacing: 0.04em; align-self: flex-start; }
+  .day { position: absolute; top: 360px; width: 380px; display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .day .when { font: 800 40px/1 var(--font-display); letter-spacing: -0.02em; }
+  .day svg { width: 230px; height: 230px; margin: 34px 0 20px; }
+  .day .val { font: 800 150px/1 var(--font-display); letter-spacing: -0.04em; white-space: nowrap; }
+  .day .unit { font: 600 28px/1.3 var(--font-sans); color: var(--color-ink-muted); margin-top: 8px; }
+  .marker { position: absolute; display: flex; align-items: center; gap: 14px; white-space: nowrap; }
+  .marker .pin { width: 26px; height: 26px; border-radius: 50%; border: 5px solid #fff; flex-shrink: 0; }
+  .marker .txt { background: rgb(16 32 58 / 0.92); color: #fff; padding: 12px 18px 13px; font: 700 26px/1.2 var(--font-sans); }
+  .marker .txt b { font: 800 30px/1 var(--font-display); display: block; margin-bottom: 4px; }
+  .price-tag { position: absolute; padding: 16px 22px; background: #fff; color: var(--color-ink); text-align: center; }
+  .price-tag .z { font: 800 22px/1 var(--font-sans); letter-spacing: 0.12em; color: var(--color-ink-muted); }
+  .price-tag .p { font: 800 64px/1 var(--font-display); letter-spacing: -0.03em; margin-top: 8px; }
+  .advice-row { display: flex; align-items: center; gap: 46px; padding: 10px 0; border-bottom: 2px solid var(--color-edge); }
+  .advice-row img { width: 170px; flex-shrink: 0; }
+  .advice-row .who { font: 800 34px/1.1 var(--font-display); width: 420px; flex-shrink: 0; }
+  .advice-row .what { font: 800 46px/1.1 var(--font-display); color: var(--color-fox-deep); letter-spacing: -0.02em; }
+  .advice-row .why { font: 500 26px/1.3 var(--font-sans); color: var(--color-ink-body); margin-top: 6px; }
+  .num { white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<!-- ============ Opener: the weather station in autumn ============ -->
+<section class="scene" id="sc-open">
+  <img class="plate" id="open-plate" src="../../design/scenes/forecast-hero-syksy-v1.png" alt="">
+  <div class="show-title" id="open-title">
+    <div class="bar"><span id="open-logo"></span><b>Voltikan sähkösää</b></div>
+    <div class="sub">Lokakuu 2026 ja näkymät talveen</div>
+  </div>
+</section>
+
+<!-- ============ October recap ============ -->
+<section class="scene board" id="sc-oct">
+  <div class="abs" style="left:110px; top:150px"><div class="kicker">Lokakuun sää</div><div class="h-1" style="margin-top:12px">Lämmin ja tuulinen</div></div>
+  <div class="abs" id="oct-icons" style="left:110px; top:420px; display:flex; gap:90px; color:#fff">
+    <div id="ic-wind" style="text-align:center"><svg width="230" height="230" viewBox="0 0 120 120" class="ico"><path d="M10 44 H70 C 82 44 86 30 76 24 C 68 19 60 26 62 32"/><path d="M10 64 H92 C 104 64 108 80 98 86 C 90 91 82 84 84 78"/><path d="M10 84 H56"/></svg><div class="h-3" style="margin-top:10px">+23 %</div><div class="lead">tuulivoimaa</div></div>
+    <div id="ic-temp" style="text-align:center"><svg width="230" height="230" viewBox="0 0 120 120" class="ico"><path d="M52 20 C 52 14 68 14 68 20 V72 C 78 78 78 96 60 100 C 42 96 42 78 52 72 Z"/><path d="M60 50 V84" stroke="#FF9E7A" stroke-width="10"/><path d="M80 30 H92 M80 44 H92 M80 58 H92"/></svg><div class="h-3" style="margin-top:10px">+2,9 °C</div><div class="lead">normaalia lämpimämpi</div></div>
+  </div>
+  <div class="abs" id="oct-price" style="left:1050px; top:390px">
+    <div class="kicker">Pörssisähkö lokakuussa</div>
+    <div class="num" style="font-size:300px; line-height:1; margin-top:10px; color:#7FD6B5">4,77</div>
+    <div class="lead" style="font-size:38px">c/kWh keskimäärin · syyskuusta <b style="color:#7FD6B5">−33 %</b></div>
+  </div>
+  <div class="abs" id="oct-30" style="left:110px; top:380px; width:1700px">
+    <div class="kicker">Kuun kallein päivä · 30.10.</div>
+    <div style="display:flex; align-items:flex-end; gap:80px; margin-top:20px">
+      <div class="num" style="font-size:300px; line-height:1; color:#FF9E7A">18,6</div>
+      <div style="padding-bottom:40px"><div class="lead" style="font-size:38px">c/kWh päivän keskihinta</div><div class="lead" style="font-size:32px; margin-top:16px">Tuuli tyyntyi, ja Olkiluoto 1 oli<br>vuorokauden pois verkosta.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Map ============ -->
+<section class="scene board" id="sc-map">
+  <div class="abs" style="left:110px; top:150px; width:520px"><div class="kicker">Lokakuun sääkartta</div><div class="h-2" style="margin-top:12px">Missä sähkö tehtiin ja minne se meni</div></div>
+  <div class="abs" id="map" style="left:700px; top:40px; width:750px; height:1000px">
+    <img src="../../design/illustrations/map-finland-talvi-v1.png" style="width:750px" alt="">
+  </div>
+  <div class="abs caption" style="left:110px; top:1000px; color:#9FB0C8">Hinnat ilman arvonlisäveroa, c/kWh, lokakuun keskiarvo.</div>
+</section>
+
+<!-- ============ Forecast ============ -->
+<section class="scene paper" id="sc-fc">
+  <div class="abs" style="left:110px; top:150px"><div class="kicker">Ennuste</div><div class="h-1" style="margin-top:12px">Talvi on tulossa</div></div>
+  <div id="days"></div>
+  <div class="abs source" style="left:110px; top:1000px">Futuurit: EEX, Finnish Power Base, 30.10.2026, alv 25,5 %, c/kWh.</div>
+  <div class="abs" id="press" style="left:110px; top:780px; width:1700px; display:flex; gap:120px"></div>
+</section>
+
+<!-- ============ Warning ============ -->
+<section class="scene night" id="sc-warn">
+  <img class="plate" id="warn-plate" src="../../design/scenes/night-sky-plate-v1.png" alt="" style="opacity:0.5">
+  <div class="abs" id="warn-head" style="left:110px; top:150px; display:flex; align-items:center; gap:34px">
+    <svg width="150" height="132" viewBox="0 0 150 132"><path d="M75 8 L142 124 H8 Z" fill="#E0A21B" stroke="#16202E" stroke-width="6" stroke-linejoin="round"/><path d="M75 46 V86" stroke="#16202E" stroke-width="12" stroke-linecap="round"/><circle cx="75" cy="106" r="7" fill="#16202E"/></svg>
+    <div><div class="kicker" style="color:#E0A21B">Sähkövaroitus</div><div class="h-1" style="margin-top:8px">Kylmä ja tyyni sää</div></div>
+  </div>
+  <div class="abs" id="warn-a" style="left:110px; top:420px; display:flex; gap:150px">
+    <div><div class="num" style="font-size:240px; color:#FF9E7A">51</div><div class="lead" style="font-size:36px">c/kWh maanantaina 2.11. illalla</div></div>
+    <div id="warn-b"><div class="num" style="font-size:240px">~34</div><div class="lead" style="font-size:36px">c/kWh koko viikon, jos sää on<br>kuin tammikuussa 2024</div></div>
+  </div>
+</section>
+
+<!-- ============ Contract market: the air pressure ============ -->
+<section class="scene board" id="sc-mkt">
+  <div class="abs" style="left:110px; top:150px"><div class="kicker">Sopimusmarkkinan ilmanpaine</div><div class="h-1" style="margin-top:12px">Myyjät hinnoittelevat jo talvea</div></div>
+  <div class="abs" id="mkt-1" style="left:110px; top:420px; display:flex; gap:150px">
+    <div><div class="num" style="font-size:200px; color:#FF9E7A">+3,7 %</div><div class="lead">myyjien energiahinnat lokakuussa</div></div>
+    <div><div class="num" style="font-size:200px; color:#FF9E7A">+36 %</div><div class="lead">toukokuun pohjalta (Voltikan hintaindeksi 13,27 c/kWh)</div></div>
+  </div>
+  <div class="abs" id="mkt-2" style="left:110px; top:400px; width:1700px"></div>
+</section>
+
+<!-- ============ Advice ============ -->
+<section class="scene paper" id="sc-adv">
+  <div class="abs" style="left:110px; top:140px"><div class="kicker">Näin varaudut talveen</div></div>
+  <div class="abs" id="adv" style="left:110px; top:190px; width:1700px"></div>
+</section>
+
+<!-- ============ Outro: the same weather station in winter ============ -->
+<section class="scene" id="sc-out">
+  <img class="plate" id="out-plate" src="../../design/scenes/forecast-hero-talvi-v1.png" alt="">
+  <div class="show-title" id="out-title" style="bottom:150px">
+    <div class="bar"><b style="font-size:96px; color:#FFB089">voltikka.fi</b></div>
+    <div class="sub">Laske oman kotisi hinnat · sähkösää palaa joulukuun alussa</div>
+  </div>
+</section>
+
+<script src="timeline/saa.js"></script>
+<script src="data/2026-10.js"></script>
+<script src="lib.js"></script>
+<script>
+const END = TL.total;
+$('#open-logo').innerHTML = LOGO(64);
+const T = { oct: S('s_oct1') - 0.3, map: S('s_map0') - 0.3, fc: S('s_fc0') - 0.3, warn: S('s_warn0') - 0.3, mkt: S('s_mkt0') - 0.3, adv: S('s_adv0') - 0.3, out: S('s_out1') - 0.3 };
+scene('sc-open', 0, T.oct, { fadeIn: 0 });
+scene('sc-oct', T.oct, T.map, { z: 2, wipe: true });
+scene('sc-map', T.map, T.fc, { z: 3 });
+scene('sc-fc', T.fc, T.warn, { z: 4, wipe: true });
+scene('sc-warn', T.warn, T.mkt, { z: 5 });
+scene('sc-mkt', T.mkt, T.adv, { z: 5.5, wipe: true });
+scene('sc-adv', T.adv, T.out, { z: 6, wipe: true });
+scene('sc-out', T.out, END + 1, { z: 7, fadeOut: 0 });
+chrome(T.oct, T.out, [['Lokakuu', T.oct], ['Kartta', T.map], ['Ennuste', T.fc], ['Varoitus', T.warn], ['Sopimukset', T.mkt], ['Näin varaudut', T.adv]],
+    { title: 'Sähkösää · lokakuu 2026', darkFrom: [[T.oct, T.fc], [T.warn, T.adv]] });
+
+// ---------- Opener ----------
+drift($('#open-plate'), 0, T.oct, { from: 1.0, to: 1.12, ox: '72%', oy: '45%' });
+show($('#open-title'), -1);
+
+// ---------- October ----------
+show($('#ic-wind'), S('s_oct1') + 0.5, { dy: 40, t1: S('s_oct3') - 0.3 });
+show($('#ic-temp'), S('s_oct1') + 1.4, { dy: 40, t1: S('s_oct3') - 0.3 });
+show($('#oct-price'), S('s_oct2') + 0.1, { dy: 40, t1: S('s_oct3') - 0.3 });
+show($('#oct-30'), S('s_oct3') + 0.1, { dy: 40 });
+// The wind lines blow: dash offset loops.
+$$('#ic-wind path').forEach((p, i) => { p.style.strokeDasharray = '70 30'; tick((t) => { p.style.strokeDashoffset = -(t * 60 + i * 20) % 100; }); });
+
+// ---------- Map ----------
+{
+    const map = $('#map');
+    // Positions as fractions of the illustration (it is not a true projection; places are approximate).
+    const at = (fx, fy) => ({ left: fx * 750, top: fy * 1000 });
+    const add = (html, fx, fy, t0, dx = 0, dy = 0) => {
+        const n = el(html); const p = at(fx, fy);
+        n.style.left = `${p.left + dx}px`; n.style.top = `${p.top + dy}px`;
+        map.appendChild(n); show(n, t0, { dy: 20 }); return n;
+    };
+    add(`<div class="marker"><span class="pin" style="background:#B3261E"></span><span class="txt"><b>Olkiluoto 3</b>vuosihuollossa koko kuun</span></div>`, 0.25, 0.73, S('s_map1') + 0.3, -13, -13);
+    add(`<div class="marker"><span class="pin" style="background:#E0A21B"></span><span class="txt"><b>Loviisa 1 ja 2</b>huollossa osan kuusta</span></div>`, 0.58, 0.87, S('s_map1') + 3.6, -13, -13);
+    // Wind turbines along the west coast.
+    const turbine = (fx, fy, k) => {
+        const n = el(`<svg width="70" height="110" viewBox="0 0 70 110" style="position:absolute; overflow:visible"><path d="M35 40 V108" stroke="#fff" stroke-width="5" stroke-linecap="round"/><g class="rot"><path d="M35 40 L35 4 M35 40 L66 58 M35 40 L4 58" stroke="#fff" stroke-width="6" stroke-linecap="round"/></g><circle cx="35" cy="40" r="6" fill="#1C7A5E"/></svg>`);
+        const p = at(fx, fy); n.style.left = `${p.left - 35}px`; n.style.top = `${p.top - 100}px`;
+        map.appendChild(n); show(n, S('s_map2') + 0.2 + k * 0.15, { dy: 30 });
+        const r = $('.rot', n); r.style.transformOrigin = '35px 40px'; tick((t) => { r.style.transform = `rotate(${(t * 140 + k * 40) % 360}deg)`; });
+    };
+    [[0.36, 0.32], [0.33, 0.43], [0.30, 0.50], [0.32, 0.58], [0.40, 0.25], [0.27, 0.64]].forEach(([x, y], k) => turbine(x, y, k));
+    add(`<div class="marker"><span class="txt" style="background:#1C7A5E"><b>Tuulivoima +23 %</b>2,83 TWh lokakuussa</span></div>`, 0.42, 0.44, S('s_map2') + 1.4);
+    // Neighbour prices (VAT 0) and the flows.
+    const nb = D.neighbours_vat0;
+    const tag = (zone, name, v, x, y, t0, hi) => { const n = el(`<div class="price-tag" style="left:${x}px; top:${y}px"><div class="z">${zone} · ${name}</div><div class="p" style="color:${hi}">${fi(v, 2)}</div></div>`); $('#sc-map').appendChild(n); show(n, t0, { dy: 20 }); };
+    tag('FI', 'Suomi', nb.FI, 1500, 470, S('s_map3') - 0.2, '#16202E');
+    tag('SE1', 'Pohjois-Ruotsi', nb.SE1, 330, 440, S('s_map3') + 0.2, '#1C7A5E');
+    tag('SE3', 'Etelä-Ruotsi', nb.SE3, 330, 720, S('s_map3') + 2.4, '#B3261E');
+    tag('EE', 'Viro', nb.EE, 1560, 900, S('s_map3') + 3.4, '#B3261E');
+    const flows = el(`<svg class="abs" width="1920" height="1080" style="left:0; top:0; overflow:visible; pointer-events:none">
+      <path id="fl-se1" d="M560 420 C 690 380, 780 260, 900 190" stroke="#7FD6B5" stroke-width="10" fill="none" stroke-linecap="round" marker-end="url(#ah1)"/>
+      <path id="fl-ee" d="M1180 1010 C 1300 1050, 1450 1040, 1550 990" stroke="#FF9E7A" stroke-width="10" fill="none" stroke-linecap="round" marker-end="url(#ah2)"/>
+      <defs><marker id="ah1" markerWidth="5" markerHeight="5" refX="2.5" refY="2.5" orient="auto"><path d="M0 0 L5 2.5 L0 5 Z" fill="#7FD6B5"/></marker><marker id="ah2" markerWidth="5" markerHeight="5" refX="2.5" refY="2.5" orient="auto"><path d="M0 0 L5 2.5 L0 5 Z" fill="#FF9E7A"/></marker></defs></svg>`);
+    $('#sc-map').appendChild(flows);
+    // SE1 → FI: the arrow runs from Sweden into Finland, so reverse it.
+    $('#fl-se1', flows).setAttribute('d', 'M560 490 C 640 380, 700 270, 900 200');
+    draw($('#fl-se1', flows), S('s_map3') + 0.6, 1.0);
+    draw($('#fl-ee', flows), S('s_map3') + 3.8, 1.0);
+    // Arrow heads show only while their line draws.
+    [['#fl-se1', S('s_map3') + 0.6], ['#fl-ee', S('s_map3') + 3.8]].forEach(([id, t0]) => { const f = $(id, flows); tick((t) => { f.style.opacity = t >= t0 ? 1 : 0; }); });
+}
+
+// ---------- Forecast ----------
+{
+    const icons = {
+        wind: '<path d="M14 44 H70 C 82 44 86 30 76 24 C 68 19 60 26 62 32"/><path d="M14 64 H92 C 104 64 108 80 98 86 C 90 91 82 84 84 78"/>',
+        cloud: '<path d="M30 84 C 14 84 12 62 28 58 C 28 40 52 32 62 46 C 72 34 96 40 94 60 C 108 62 106 84 92 84 Z"/>',
+        snow: '<path d="M60 16 V104 M22 38 L98 82 M22 82 L98 38"/><path d="M50 22 L60 32 L70 22 M50 98 L60 88 L70 98"/>',
+        sun: '<circle cx="60" cy="60" r="20"/><path d="M60 14 V26 M60 94 V106 M14 60 H26 M94 60 H106 M28 28 L36 36 M84 84 L92 92 M28 92 L36 84 M84 36 L92 28"/>',
+    };
+    const days = [
+        ['Marraskuu', 'cloud', '11,3', 'futuuri', '#5E6876'],
+        ['Joulukuu', 'cloud', '11,2', 'futuuri', '#5E6876'],
+        ['Tammi–maalis', 'snow', '14,5', 'futuuri', '#B3261E'],
+        ['Vuosi 2027', 'sun', '8,4', 'futuuri', '#1C7A5E'],
+    ];
+    days.forEach(([when, ic, v, u, c], i) => {
+        const n = el(`<div class="day" style="left:${110 + i * 430}px"><div class="when">${when}</div><svg viewBox="0 0 120 120" class="ico" style="color:${c}">${icons[ic]}</svg><div class="val" style="color:${c}">${v}</div><div class="unit">${u}</div></div>`);
+        $('#days').appendChild(n);
+        show(n, S('s_fc1') + [0.3, 1.0, 4.6, 6.6][i], { dy: 50, t1: S('s_fc2') - 0.3 });
+    });
+    $('#press').innerHTML = `
+      <div id="p1" style="display:flex; gap:26px; align-items:center"><div class="num" style="font-size:120px; color:var(--color-lake)">−13</div><div class="lead">%-yks.: Norjan vesialtaat<br>tavallista vajaammat</div></div>
+      <div id="p2" style="display:flex; gap:26px; align-items:center"><div class="num" style="font-size:120px; color:var(--color-violet)">74,6 %</div><div class="lead">Euroopan kaasuvarastot<br>(vuosi sitten 82,8 %)</div></div>`;
+    $('#press').style.top = '480px';
+    show($('#p1'), S('s_fc2') + 0.6, { dy: 30, t1: S('s_fc3') - 0.3 });
+    show($('#p2'), S('s_fc2') + 2.4, { dy: 30, t1: S('s_fc3') - 0.3 });
+    const nov = el(`<div class="abs" id="nov" style="left:110px; top:420px; width:1700px"><div class="day" style="position:static; width:380px"><div class="when">Marraskuun alku</div><svg viewBox="0 0 120 120" class="ico" style="color:#1C7A5E">${icons.wind}</svg></div>
+      <div style="position:absolute; left:480px; top:60px"><div class="h-1">Lämmin ja tuulinen</div><div class="lead" style="margin-top:18px; font-size:40px">Marraskuu jää futuuria (11,3 c/kWh) halvemmaksi.</div><div class="caption" style="margin-top:14px">ECMWF 1.11.: kaksi ensimmäistä viikkoa tavallista lämpimämpiä, ensimmäinen viikko tuulisempi.</div></div></div>`);
+    $('#sc-fc').appendChild(nov);
+    show(nov, S('s_fc3') + 0.1, { dy: 30 });
+}
+
+// ---------- Warning ----------
+drift($('#warn-plate'), T.warn, T.adv, { from: 1.0, to: 1.08 });
+show($('#warn-head'), S('s_warn0') - 0.1, { dy: 30 });
+{
+    const tri = $('#warn-head svg');
+    tick((t) => { const u = t - S('s_warn0'); tri.style.transform = u > 0 && u < 1.2 ? `rotate(${Math.sin(u * 18) * 6 * (1 - u / 1.2)}deg)` : 'none'; });
+}
+show($('#warn-a'), S('s_warn1') + 3.0, { dy: 40 });
+show($('#warn-b'), S('s_warn2') + 0.2, { dy: 40 });
+tick((t) => { $('#warn-b').style.opacity = P(t, S('s_warn2') + 0.2, 0.6); });
+
+// ---------- Contract market ----------
+$$('#mkt-1 > div').forEach((d, i) => show(d, S('s_mkt1') + [0.2, 5.6][i], { dy: 40, t1: S('s_mkt2') - 0.3 }));
+{
+    const terms = [['6 kk', 14.9, 'kattaa lähes pelkkää talvea'], ['12 kk', 12.0, ''], ['24 kk', 10.9, 'hinnassa mukana myös vuosi 2028']];
+    $('#mkt-2').innerHTML = '<div class="kicker">Määräaikaisten mediaanihinta 2.11., c/kWh</div>';
+    terms.forEach(([n, v, note], i) => {
+        const r = el(`<div style="display:flex; align-items:center; gap:30px; margin-top:40px"><div class="h-3" style="width:150px">${n}</div><div class="tb" style="height:70px; width:${v / 16 * 1000}px; background:${i === 2 ? '#7FD6B5' : '#9FB0C8'}"></div><div class="num" style="font-size:64px">${fi(v, 1)}</div><div class="lead" style="font-size:26px">${note}</div></div>`);
+        $('#mkt-2').appendChild(r);
+        const t0 = S('s_mkt2') + [6.6, 7.6, 3.4][i];
+        show(r, t0, { dy: 10 }); growX($('.tb', r), t0);
+    });
+    show($('#mkt-2 .kicker'), S('s_mkt2') + 0.2, { dy: 10 });
+}
+
+// ---------- Advice ----------
+{
+    const rows = [
+        ['s_adv0', 'home-house-v1', 'Sähkölämmitteinen pientalo', '24 kk kiinteä hinta nyt', 'Poistaa kalliin tammikuun riskin. Edullisimmat: Cheap Määräaikainen 36 kk, Pohjois-Karjalan Sähkö Optimi takuu 24 kk.', 1.0],
+        ['s_adv2', 'home-rowhouse-v1', 'Pientalo ilman sähkölämmitystä', 'Pörssisähkö tai edullisin pitkä kiinteä', 'Kumpikin noin 950–970 € vuodessa (energia + sähkövero).', 0.2],
+        ['s_adv3', 'home-apartment-v1', 'Kerrostaloasunto', 'Pysy pörssisähkössä', 'Kallein talviviikko noin 30 €. Edullisin: Nordic Green Energy Pörssisähkö.', 0.2],
+        ['s_adv4', null, 'Kvartaalisähkö', 'Vaihda kiinteään ennen 1.1.', 'Hinta nousee vuodenvaihteessa noin 3,8 c/kWh.', 0.2],
+    ];
+    rows.forEach(([line, img, who, what, why, d]) => {
+        const r = el(`<div class="advice-row">${img ? `<img src="../../design/illustrations/${img}.png">` : `<div style="width:170px; display:flex; justify-content:center"><svg width="150" height="110" viewBox="0 0 150 110"><path d="M10 80 H60 V30 H140" fill="none" stroke="#2B5F8C" stroke-width="10" stroke-linejoin="round"/><path d="M60 10 V100" stroke="#16202E" stroke-width="3" stroke-dasharray="6 6"/></svg></div>`}<div class="who">${who}</div><div><div class="what">${what}</div><div class="why">${why}</div></div></div>`);
+        $('#adv').appendChild(r);
+        show(r, (line === 's_adv0' ? S('s_adv1') : S(line)) + d - (line === 's_adv0' ? 1.0 : 0), { dy: 30 });
+    });
+}
+
+// ---------- Outro ----------
+drift($('#out-plate'), T.out, END, { from: 1.12, to: 1.0, ox: '72%', oy: '45%' });
+show($('#out-title'), S('s_out1') + 0.6, { dy: 30 });
+tick((t) => { $('#sc-out').style.opacity = 1 - P(t, END - 0.8, 0.8, 'lin'); });
+</script>
+</body>
+</html>

@@ -30,6 +30,10 @@ if (command === 'speech') {
     // Some models (Gemini TTS) return only raw PCM: 24 kHz, 16-bit, mono. It is wrapped as WAV.
     const format = option('format', 'mp3');
     const body = { model: option('model', 'elevenlabs/eleven-v3'), input: option('text'), voice: option('voice'), response_format: format };
+    if (option('speed')) body.speed = Number(option('speed'));
+    // Delivery guidance (OpenAI, Gemini, Fish Audio) and provider settings as JSON, e.g. '{"elevenlabs":{"voice_settings":{"speed":1.1}}}'.
+    if (option('instructions')) body.instructions = option('instructions');
+    if (option('provider-options')) body.provider = { options: JSON.parse(option('provider-options')) };
     const response = await fetch('https://openrouter.ai/api/v1/audio/speech', { method: 'POST', headers, body: JSON.stringify(body) });
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${(await response.text()).slice(0, 500)}`);
     const audio = Buffer.from(await response.arrayBuffer());
