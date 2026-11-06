@@ -23,6 +23,8 @@ return [
             'title' => 'Halpa lokakuu, kallis talvi',
             'lead' => 'Lokakuu oli lämmin ja tuulinen, ja pörssisähkö maksoi keskimäärin vain 4,77 c/kWh. Halpa sähkö loppuu marraskuussa: tammikuun futuuri on 15,7 c/kWh. Katso, mitä se tarkoittaa sinun sähkölaskullesi.',
             'description' => 'Pörssisähkö maksoi lokakuussa 4,77 c/kWh, mutta talvesta tulee kallis. Katso, paljonko sähkö maksaa talvella ja kannattaako pörssisähkö vai kiinteä hinta.',
+            // One line for the home page row ("Uusin sähkömarkkinakatsaus").
+            'teaser' => 'Miksi talvesta tulee kallis, ja kannattaako nyt pörssisähkö vai kiinteä hinta.',
             'published_on' => '2026-11-06',
             'next_on' => '2026-12-05',
             'draft' => false,

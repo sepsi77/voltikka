@@ -530,3 +530,8 @@ Replaces the shape decision above where they conflict ("Review shape", same date
   one folder per edition in `editions/<YYYY-MM>/`. `compute.py`, `drivers.py`, `charts.py` and
   `site_payloads.py` now read and write `editions/<month>/`. Paths above this entry that say
   `prototype/` mean `tools/` (scripts) or `editions/<month>/` (figures and drafts).
+- (same day, user approved the Paper proposal) **The home page features the latest review**: a
+  row directly under the Preferred Sources strip, before "Palvelut", in the pattern of the
+  "Maksatko sähköstäsi liikaa?" row: video thumbnail with the length, kicker "Uusin
+  sähkömarkkinakatsaus · <kuukausi>", the review title, the edition's `teaser` line, "Lue
+  katsaus →" and "Katso video". It follows the latest published review automatically.

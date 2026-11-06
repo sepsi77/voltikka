@@ -31,8 +31,9 @@ text), `laravel/resources/market-reviews/<month>/` (frozen chart JSON and CSV). 
 4. Page: copy the previous month's Blade view as a start, write the frozen text; chart JSON with
    `tools/site_payloads.py` (it refuses to overwrite; `--force` only before publication); CSV
    `luvut.csv` (no EEX futures values). Add the edition with `draft => true` to the config.
-5. Publish: `draft => false`, `published_on`, video `youtube_id` + `uploaded_on`; tests; commit;
-   deploy with approval.
+5. Publish: `draft => false`, `published_on`, `teaser` (the one line of the home page row), video
+   `youtube_id` + `uploaded_on`; tests; commit; deploy with approval. The home page row and the
+   menu link change to the new edition by themselves.
 
 ## Rules that are easy to get wrong
 

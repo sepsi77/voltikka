@@ -1125,3 +1125,81 @@ a.mr-video-poster:focus-visible .mr-video-play {
 .mr-video-caption {
     max-width: 900px;
 }
+
+/* ---------- Latest review on the home page (x-market-review.home-feature) ---------- */
+
+/* The row reuses the home "Maksatko liikaa?" layout (.home-bill-row, .home-bill-text); only the
+   poster and the two actions are its own. The strip line above is the only rule on top. */
+.mr-feature {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.mr-feature-poster {
+    position: relative;
+    display: block;
+    flex-shrink: 0;
+    width: 100%;
+    max-width: 480px;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    border-radius: 10px;
+}
+
+.mr-feature-poster img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.mr-feature-poster .mr-feature-art {
+    object-fit: contain;
+}
+
+.mr-feature-poster .mr-video-time {
+    right: 10px;
+    bottom: 10px;
+    font-size: 12px;
+    line-height: 16px;
+}
+
+.mr-feature .home-heading a {
+    color: inherit;
+}
+
+.mr-feature .home-heading a:hover {
+    text-decoration: underline 2px var(--color-fox);
+    text-underline-offset: 6px;
+}
+
+.mr-feature-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+}
+
+.mr-feature-video {
+    font-size: 15px;
+    line-height: 20px;
+    font-weight: 800;
+    color: var(--color-ink);
+    text-decoration: underline 1px var(--color-edge-strong);
+    text-underline-offset: 4px;
+}
+
+.mr-feature-video:hover {
+    text-decoration-color: var(--color-fox);
+}
+
+@media (min-width: 1024px) {
+    .mr-feature-poster {
+        width: 336px;
+    }
+
+    .mr-feature-text {
+        flex: 0 1 580px;
+    }
+}

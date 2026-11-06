@@ -12,7 +12,7 @@
     $show = $video !== null && ($id !== null || $draft);
 @endphp
 @if ($show)
-    <section class="mr-video" aria-labelledby="mr-video-title">
+    <section id="video" class="mr-video" aria-labelledby="mr-video-title">
         <h2 id="mr-video-title" class="mr-caps mr-caps--fox">Katso videona</h2>
         <div class="mr-video-frame" @if ($id) x-data="{ playing: false }" @endif>
             @if ($id)

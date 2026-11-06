@@ -211,6 +211,36 @@ class MarketReviewPageTest extends TestCase
         ];
     }
 
+    public function test_the_home_page_features_the_latest_published_review(): void
+    {
+        config()->set('market_reviews.editions.2026-09.teaser', 'Syyskuun lyhyt kuvaus.');
+        config()->set('market_reviews.editions.2026-09.video', $this->video('abcDEF12345', '2026-11-06'));
+
+        $content = $this->get('/')->assertOk()->getContent();
+
+        $document = new \DOMDocument;
+        @$document->loadHTML($content);
+        $xpath = new \DOMXPath($document);
+        // Directly under the Preferred Sources strip, before "Palvelut".
+        $row = $xpath->query('//*[@data-page-action-strip]/following-sibling::div[1]/*[1][self::section][contains(@class,"mr-feature")]');
+        $this->assertSame(1, $row->length);
+        $this->assertStringContainsString('Uusin sähkömarkkinakatsaus · Syyskuu 2026', $row->item(0)->textContent);
+        $this->assertStringContainsString('Syyskuun lyhyt kuvaus.', $row->item(0)->textContent);
+        $this->assertSame(1, $xpath->query('//section[contains(@class,"mr-feature")]//a[@href="/markkinakatsaus#video"]')->length);
+
+        // The draft October review is not featured while it is a draft.
+        $this->assertStringNotContainsString('Halpa lokakuu, kallis talvi', $content);
+    }
+
+    public function test_the_home_page_has_no_review_row_without_a_published_review(): void
+    {
+        config()->set('market_reviews.editions', [
+            '2026-10' => $this->edition('Lokakuu 2026', '2026-11-05', draft: true),
+        ]);
+
+        $this->get('/')->assertOk()->assertDontSee('Uusin sähkömarkkinakatsaus');
+    }
+
     public function test_the_csv_downloads_the_frozen_key_figures_without_futures_values(): void
     {
         config()->set('market_reviews.show_drafts', true);

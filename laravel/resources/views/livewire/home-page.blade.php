@@ -26,6 +26,8 @@
     <x-page-action-strip />
 
     <div class="vk-wrap home-body">
+        <x-market-review.home-feature :review="\App\Support\MarketReviews::latest()" />
+
         {{-- Palvelut: the contract comparison with the count as a giant numeral, the live spot
              price with today's hours, the three tool vignettes and the bill comparison. --}}
         <section class="home-section" aria-labelledby="home-services-title">
