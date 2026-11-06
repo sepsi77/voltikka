@@ -21,7 +21,8 @@
         || request()->is('sahkosopimus/kannattaako-porssisahko')
         || request()->is('sahkosopimus/kannattaako-maaraaikainen')
         || request()->is('maksatko-liikaa')
-        || request()->is('spot-price');
+        || request()->is('spot-price')
+        || request()->is('markkinakatsaus*');
     // The consumption calculator lives under /sahkosopimus but has its own top-level item.
     $isContractsNavActive = request()->is('sahkosopimus*') && ! $isDataNavActive && ! request()->is('sahkosopimus/laskuri');
 
@@ -47,6 +48,11 @@
         ['label' => 'Kannattaako määräaikainen?', 'href' => '/sahkosopimus/kannattaako-maaraaikainen', 'active' => request()->is('sahkosopimus/kannattaako-maaraaikainen')],
         ['label' => 'Pörssisähkön hinta', 'href' => '/spot-price', 'active' => request()->is('spot-price')],
     ];
+    // The monthly market review link appears only while a review is visible (a draft is
+    // visible only with market_reviews.show_drafts), so production never links to a 404.
+    if (\App\Support\MarketReviews::latest() !== null) {
+        $dataLinks[] = ['label' => 'Sähkömarkkinakatsaus', 'href' => '/markkinakatsaus', 'active' => request()->is('markkinakatsaus*')];
+    }
 
     $menus = [
         ['label' => 'Sähkösopimukset', 'href' => '/sahkosopimus', 'active' => $isContractsNavActive, 'links' => $contractLinks],

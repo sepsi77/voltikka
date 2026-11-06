@@ -1,6 +1,6 @@
 # videos/ — code-rendered video
 
-Marketing videos made from HTML scenes. No video library (no Remotion). Read the root `AGENTS.md` first; the brand rules in `design/` apply to every frame. Current work: `tasks/youtube-brand-video/` and the monthly review video (`tasks/monthly-market-review/video.md`).
+Marketing videos made from HTML scenes. No video library (no Remotion). Read the root `AGENTS.md` first; the brand rules in `design/` apply to every frame. Current work: `tasks/youtube-brand-video/` and the monthly review video (`market-review/video.md`).
 
 ## Folder layout
 

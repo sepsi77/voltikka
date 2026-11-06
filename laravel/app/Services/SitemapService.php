@@ -7,6 +7,7 @@ use App\Livewire\TermsOfService;
 use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\Postcode;
+use App\Support\MarketReviews;
 use Carbon\Carbon;
 
 class SitemapService
@@ -77,6 +78,7 @@ class SitemapService
     {
         return array_merge(
             $this->getMainPageUrls(),
+            $this->getMarketReviewUrls(),
             $this->getPricingTypeUrls(),
             $this->getHousingTypeUrls(),
             $this->getEnergySourceUrls(),
@@ -191,6 +193,36 @@ class SitemapService
                 'priority' => 0.3,
             ],
         ];
+    }
+
+    /**
+     * Published monthly market reviews: the stable latest-review URL and every dated review
+     * (both are self-canonical). Drafts are never listed, even when show_drafts is on.
+     */
+    public function getMarketReviewUrls(): array
+    {
+        $published = MarketReviews::published();
+        if ($published === []) {
+            return [];
+        }
+
+        $baseUrl = config('app.url');
+        $urls = [[
+            'loc' => $baseUrl.'/markkinakatsaus',
+            'lastmod' => reset($published)['published_on'],
+            'changefreq' => 'monthly',
+            'priority' => 0.8,
+        ]];
+        foreach ($published as $month => $review) {
+            $urls[] = [
+                'loc' => $baseUrl.'/markkinakatsaus/'.$month,
+                'lastmod' => $review['published_on'],
+                'changefreq' => 'yearly',
+                'priority' => 0.6,
+            ];
+        }
+
+        return $urls;
     }
 
     /**

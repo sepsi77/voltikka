@@ -2,7 +2,7 @@
 
 Collects daily EU and German gas storage levels from GIE AGSI+ (https://agsi.gie.eu) for the
 monthly market review (data inventory G9). Nothing public reads these rows yet. Task context:
-`../../../../tasks/monthly-market-review/`.
+`../../../../market-review/`.
 
 ## Files
 

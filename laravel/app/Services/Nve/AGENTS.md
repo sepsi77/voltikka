@@ -2,7 +2,7 @@
 
 Collects Norwegian weekly hydro reservoir filling for Norway and the elspot zones NO1–NO5, with the
 min/median/max of the same ISO week over twenty years, for the monthly market review. Nothing
-public reads these rows yet. Task context: `../../../../tasks/monthly-market-review/` (G10).
+public reads these rows yet. Task context: `../../../../market-review/` (G10).
 
 ## Files
 

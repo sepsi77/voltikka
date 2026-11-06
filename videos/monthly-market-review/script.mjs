@@ -2,8 +2,8 @@
 //
 // One line = one voice file (audio/vo/<voice>/<id>.wav). A line that two variants share is
 // generated once per voice. The scenes read the start times from timeline/<variant>.js, which
-// timeline.mjs makes from the measured voice durations. Figures: tasks/monthly-market-review/
-// prototype/2026-10-katsaus.md (edition 5.11.2026) and its JSON files.
+// timeline.mjs makes from the measured voice durations. Figures: market-review/
+// editions/2026-10/2026-10-katsaus.md (published 6.11.2026) and its JSON files.
 //
 // Write numbers so that the Finnish voice reads them well: digits are fine ("16", "1 150"),
 // but no units in short form (c/kWh, €, %) and no ranges with a dash.

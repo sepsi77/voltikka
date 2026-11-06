@@ -1,5 +1,5 @@
 [
-  {"name": "Read spec.md, tasks/monthly-market-review/decisions.md and laravel/app/Services/Fingrid/AGENTS.md", "status": "done"},
+  {"name": "Read spec.md, market-review/decisions.md and laravel/app/Services/Fingrid/AGENTS.md", "status": "done"},
   {"name": "Verify each source endpoint, history depth, limits and licence with read-only requests (FMI WFS, Open-Meteo hourly, Syke OData, Fingrid 245)", "status": "done"},
   {"name": "Decide FMI station data vs Open-Meteo hourly at the same coordinates; record the reason in decisions.md", "status": "done"},
   {"name": "Decide how to keep forecast vintages (Fingrid 245, hourly weather forecasts); record it", "status": "done"},

@@ -1,4 +1,5 @@
-"""Prototype SVG charts from metrics-YYYY-MM.json (no dependencies). Usage: python3 -I charts.py 2026-09"""
+"""Prototype SVG charts from metrics-YYYY-MM.json and, when present, drivers-YYYY-MM.json (no dependencies).
+Usage: python3 -I charts.py 2026-10"""
 
 import json
 import sys
@@ -7,7 +8,8 @@ from pathlib import Path
 
 INK, MUTED, EDGE, GROUND = "#16202E", "#5E6876", "#D9DFDC", "#F5F6F1"
 SERIES = ["#2B5F8C", "#C4501C", "#6A4C9C"]  # lake, fox, violet; direct labels on every line
-FONT = "font-family='Inter, system-ui, sans-serif'"
+SPOT, WIND, WARM, COLD = "#1C7A5E", "#535D68", "#C4501C", "#2B5F8C"  # site tokens: aurora (cat-spot), granite, fox, lake
+FONT = "font-family='Figtree, system-ui, sans-serif'"  # the site font; the page embeds the SVG inline
 WEEKDAYS = ["ma", "ti", "ke", "to", "pe", "la", "su"]
 
 
@@ -20,28 +22,72 @@ def svg(w, h, body, title):
             f"<title>{title}</title><rect width='{w}' height='{h}' fill='{GROUND}'/>{body}</svg>\n")
 
 
-def daily_bars(m):
+def daily_bars(m, d=None):
+    """Daily price bars. With drivers data, two panels below on the same x axis: wind GWh and temperature anomaly."""
     days = m["spot"]["daily_means_c_kwh_vat"]
     mean = m["spot"]["mean_c_kwh_vat"]
-    w, h, l, t, b = 760, 300, 48, 40, 36
-    pw, ph = w - l - 16, h - t - b
+    panels = d is not None
+    w, l, t, ph = 760, 48, 40, 224
+    h = 550 if panels else 300
+    pw = w - l - 16
     top = max(5 * ((max(days.values()) // 5) + 1), 5)
     y = lambda v: t + ph - v / top * ph
     bw = pw / len(days)
+    xs = {day: l + i * bw for i, day in enumerate(days)}
     out = [f"<text x='{l}' y='22' fill='{INK}' font-size='14' font-weight='600'>Pörssisähkön vuorokausikeskihinta, c/kWh (alv 25,5 %)</text>"]
     for v in range(0, int(top) + 1, 5):
         out.append(f"<line x1='{l}' x2='{w-16}' y1='{y(v)}' y2='{y(v)}' stroke='{EDGE}'/>"
                    f"<text x='{l-8}' y='{y(v)+4}' text-anchor='end' fill='{MUTED}'>{v}</text>")
-    for i, (d, v) in enumerate(days.items()):
-        x = l + i * bw + 1
+    for day, v in days.items():
+        x = xs[day] + 1
         hh = max(y(0) - y(v), 1)
-        out.append(f"<rect x='{x:.1f}' y='{y(v):.1f}' width='{bw-2:.1f}' height='{hh:.1f}' rx='2' fill='{SERIES[0]}'><title>{d}: {fi(v, 2)} c/kWh</title></rect>")
-        dd = date.fromisoformat(d)
-        if dd.day in (1, 8, 15, 22, 29):
-            out.append(f"<text x='{x + bw/2:.1f}' y='{h-14}' text-anchor='middle' fill='{MUTED}'>{dd.day}.{dd.month}.</text>")
+        out.append(f"<rect x='{x:.1f}' y='{y(v):.1f}' width='{bw-2:.1f}' height='{hh:.1f}' rx='2' fill='{SPOT}'><title>{day}: {fi(v, 2)} c/kWh</title></rect>")
     out.append(f"<line x1='{l}' x2='{w-16}' y1='{y(mean)}' y2='{y(mean)}' stroke='{INK}' stroke-width='1.5' stroke-dasharray='5 4'/>"
                f"<text x='{w-16}' y='22' text-anchor='end' fill='{MUTED}'>katkoviiva = kuukauden keskihinta {fi(mean, 2)}</text>")
-    return svg(w, h, "".join(out), "Daily mean spot price")
+    if panels:
+        out += wind_panel(d["wind"]["daily_gwh"], xs, bw, l, w, 290, 300, 90)
+        temp = d["temperature"][m["month"]]
+        out += anomaly_panel(temp["daily_anomaly_c"], temp["missing_days"], xs, bw, l, w, 416, 426, 90)
+    for day in days:
+        dd = date.fromisoformat(day)
+        if dd.day in (1, 8, 15, 22, 29):
+            out.append(f"<text x='{xs[day] + bw/2:.1f}' y='{h-14}' text-anchor='middle' fill='{MUTED}'>{dd.day}.{dd.month}.</text>")
+    return svg(w, h, "".join(out), "Daily mean spot price" + (", wind power and temperature anomaly" if panels else ""))
+
+
+def wind_panel(series, xs, bw, l, w, label_y, t, ph):
+    top = max(50 * (int(max(series.values()) // 50) + 1), 50)
+    y = lambda v: t + ph - v / top * ph
+    out = [f"<text x='{l}' y='{label_y}' fill='{INK}' font-weight='600'>Tuulivoiman tuotanto, GWh vuorokaudessa</text>"]
+    for v in range(0, top + 1, 50):
+        out.append(f"<line x1='{l}' x2='{w-16}' y1='{y(v)}' y2='{y(v)}' stroke='{EDGE}'/>"
+                   f"<text x='{l-8}' y='{y(v)+4}' text-anchor='end' fill='{MUTED}'>{v}</text>")
+    for day, v in series.items():
+        if day not in xs:
+            continue
+        hh = max(y(0) - y(v), 1)
+        out.append(f"<rect x='{xs[day] + 1:.1f}' y='{y(v):.1f}' width='{bw-2:.1f}' height='{hh:.1f}' rx='2' fill='{WIND}'><title>{day}: {fi(v)} GWh</title></rect>")
+    return out
+
+
+def anomaly_panel(series, missing, xs, bw, l, w, label_y, t, ph):
+    peak = max(abs(v) for v in series.values())
+    step = 5 if peak > 6 else 2
+    lim = step * (int(peak // step) + 1)
+    y = lambda v: t + ph / 2 - v / lim * ph / 2
+    note = f" · {', '.join(f'{date.fromisoformat(x).day}.{date.fromisoformat(x).month}.' for x in missing)} puuttuu (ERA5 viive)" if missing else ""
+    out = [f"<text x='{l}' y='{label_y}' fill='{INK}' font-weight='600'>Lämpötila vs. 1991–2020 normaali, °C</text>"
+           f"<text x='{w-16}' y='{label_y}' text-anchor='end' fill='{MUTED}'>oranssi = lämpimämpi, sininen = kylmempi{note}</text>"]
+    for v in range(-lim, lim + 1, step):
+        out.append(f"<line x1='{l}' x2='{w-16}' y1='{y(v)}' y2='{y(v)}' stroke='{INK if v == 0 else EDGE}'/>"
+                   f"<text x='{l-8}' y='{y(v)+4}' text-anchor='end' fill='{MUTED}'>{'+' if v > 0 else ''}{v}</text>")
+    for day, v in series.items():
+        if day not in xs:
+            continue
+        top, bottom = (y(v), y(0)) if v >= 0 else (y(0), y(v))
+        colour = WARM if v >= 0 else COLD
+        out.append(f"<rect x='{xs[day] + 1:.1f}' y='{top:.1f}' width='{bw-2:.1f}' height='{max(bottom - top, 1):.1f}' rx='2' fill='{colour}'><title>{day}: {'+' if v > 0 else ''}{fi(v)} °C</title></rect>")
+    return out
 
 
 def heatmap(m):
@@ -98,9 +144,11 @@ def fixed_lines(m):
 
 def main():
     month = sys.argv[1]
-    here = Path(__file__).parent
+    here = Path(__file__).resolve().parents[1] / "editions" / month  # market-review/editions/<month>/
     m = json.loads((here / f"metrics-{month}.json").read_text())
-    for name, fn in [("daily-price", daily_bars), ("heatmap", heatmap), ("fixed-medians", fixed_lines)]:
+    drivers = here / f"drivers-{month}.json"  # optional: wind and temperature panels under the price chart
+    d = json.loads(drivers.read_text()) if drivers.exists() else None
+    for name, fn in [("daily-price", lambda x: daily_bars(x, d)), ("heatmap", heatmap), ("fixed-medians", fixed_lines)]:
         (here / f"chart-{month}-{name}.svg").write_text(fn(m))
 
 

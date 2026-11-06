@@ -1,4 +1,10 @@
-# Prototype: September 2026 review
+# Monthly market review tools
+
+Run every command from `market-review/tools/`. The scripts read and write the files of an edition in
+`../editions/<month>/` (compute.py, drivers.py, charts.py and site_payloads.py find that folder
+themselves; the other scripts take the paths as arguments). Moved here from
+`tasks/monthly-market-review/prototype/` on 2026-11-06; older notes below that say "prototype"
+mean this folder.
 
 Purpose: test the review shape (decisions.md, 2026-11-01) on real data before we build the
 snapshot table and the page. Not for publication.
@@ -6,7 +12,7 @@ snapshot table and the page. Not for publication.
 ## Files
 
 - `compute.py` – reads the local SQLite copy of production (read-only) and writes
-  `metrics-YYYY-MM.json`. `python3 -I compute.py ../../../laravel/database/database.sqlite 2026-09 2026-10-07`
+  `metrics-YYYY-MM.json`. `python3 -I compute.py ../../laravel/database/database.sqlite 2026-09 2026-10-07`
   (month, assumed publication date; futures are read from trade dates before that date).
 - `charts.py` – three SVG charts from the metrics, no dependencies. `python3 -I charts.py 2026-09`
 - `2026-09-katsaus.md` – the Finnish draft. ⟦AVOIN⟧ = waits for backfilled data, ⟦TARKISTA⟧ = check
@@ -70,3 +76,54 @@ Data: production copy synced 2026-11-01 ~13:36 Helsinki. At that time the backfi
    still "a handful"?
 4. VAT on negative hours: the site multiplies negative prices by 1.255 as well (`price_with_tax`).
    Keep that convention in the review or show negative hours without VAT?
+
+## October 2026 (journalist layer, edition 2026-11-02)
+
+Data: production copy synced 2026-11-06. Commands:
+
+```
+python3 -I compute.py ../../laravel/database/database.sqlite 2026-10 2026-11-02
+python3 -I drivers.py ../../laravel/database/database.sqlite 2026-10 2026-11-02
+python3 -I charts.py 2026-10
+```
+
+- `compute.py` fix: 2026-10-01 has no contract statistics, so the contract block now uses the first
+  and last day of the month with data (`contracts.start_date` / `end_date`; October: 2.10–31.10).
+  The 745-hour DST month needed no change.
+- `drivers.py` → `drivers-2026-10.json`: wind, ERA5 temperature and heating degree days vs the
+  1991–2020 normal, nuclear, consumption, net import with a sign check, neighbour prices and FI=SE1/EE
+  shares, NVE Norway reservoirs, GIE gas, Datahub-weighted spot price (BE01–BE03, preliminary),
+  known outages 2.11.–15.12., ECMWF ENS/EC46 week probabilities, Voltikka's fixed-term forecast, and
+  last outlook vs result. Each item has the review month, the same month a year earlier and the
+  previous month. The `assumptions` list in the file states every method choice.
+- `charts.py`: when `drivers-YYYY-MM.json` exists, the daily price chart gets two panels on the same
+  x axis (daily wind GWh, temperature anomaly °C). Without it the chart is the old one.
+
+Data gaps: ERA5 ends 30.10. (31.10. missing); no contract statistics on 1.10.; Datahub October is
+preliminary until about 11.11.; A78 outages give no nominal value, so only the remaining capacity.
+
+## October 2026 consumer layer
+
+```
+python3 -I consumer_inputs.py ../../laravel/database/database.sqlite <inputs.json> --review 2026-11 --past 2026-10 --trade-date 2026-10-30
+cd ../../laravel && CONSUMER_INPUTS=<inputs.json> CONSUMER_OUT=<rows.csv> CONSUMER_FORWARD_DATE=2026-11-02 php -d memory_limit=2G artisan tinker ../market-review/tools/run_consumer.php
+python3 -I consumer_results.py <rows.csv> ../editions/2026-10/consumer-results-2026-11.json
+python3 -I consumer_outlook.py ../../laravel/database/database.sqlite <inputs.json> ../editions/2026-10/consumer-outlook-2026-11.json --date 2026-11-02
+python3 -I consumer_charts.py ../editions/2026-10/consumer-outlook-2026-11.json ../editions/2026-10/chart-2026-11-bill-outlook.svg
+```
+
+The engine run takes about 3.5 min. Draft: `../editions/2026-10/2026-10-katsaus.md` (method notes in decisions.md, 2026-11-06).
+
+Spot cost over a 24–36-month contract period (for the long fixed-contract comparison; years 2–3
+use the later futures on 30.10.2026):
+
+```bash
+python3 -I contract_term.py <scratch>/consumer-inputs-2026-11.json ../editions/2026-10/consumer-outlook-2026-11.json BE02 0.24 3.04
+```
+
+Site charts (2026-11-06): the site page draws interactive charts (Chart.js bars, uPlot index line)
+from frozen JSON, not from these SVGs. Write the JSON with
+`python3 -I site_payloads.py 2026-10 ../editions/2026-10/consumer-outlook-2026-11.json ../../laravel/database/database.sqlite ../../laravel/resources/market-reviews/2026-10`
+(kuva-1 bill outlook, kuva-2 daily drivers, kuva-3 daily price index of the review month). The
+script refuses to overwrite existing files; `--force` only before publication.
+The SVG scripts stay for drafts and use the site token colours and Figtree.

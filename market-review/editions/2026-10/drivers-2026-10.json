@@ -1,0 +1,1053 @@
+{
+ "month": "2026-10",
+ "publish_date_assumed": "2026-11-02",
+ "month_boundaries": "Europe/Helsinki",
+ "wind": {
+  "2026-10": {
+   "hours": 745,
+   "hours_expected": 745,
+   "production_twh": 2.834,
+   "mean_mw": 3804.0,
+   "capacity_mw_month_end": 9553.0,
+   "capacity_factor_pct": 39.8,
+   "max_hour_mw": 7483.0,
+   "min_hour_mw": 92.0
+  },
+  "2025-10": {
+   "hours": 745,
+   "hours_expected": 745,
+   "production_twh": 2.296,
+   "mean_mw": 3081.0,
+   "capacity_mw_month_end": 9237.0,
+   "capacity_factor_pct": 33.7,
+   "max_hour_mw": 6499.0,
+   "min_hour_mw": 48.0
+  },
+  "2026-09": {
+   "hours": 720,
+   "hours_expected": 720,
+   "production_twh": 1.678,
+   "mean_mw": 2330.0,
+   "capacity_mw_month_end": 9521.0,
+   "capacity_factor_pct": 24.5,
+   "max_hour_mw": 6644.0,
+   "min_hour_mw": -10.0
+  },
+  "daily_gwh": {
+   "2026-10-01": 72.2,
+   "2026-10-02": 57.1,
+   "2026-10-03": 77.2,
+   "2026-10-04": 60.3,
+   "2026-10-05": 106.9,
+   "2026-10-06": 127.9,
+   "2026-10-07": 116.4,
+   "2026-10-08": 43.1,
+   "2026-10-09": 137.6,
+   "2026-10-10": 107.0,
+   "2026-10-11": 63.0,
+   "2026-10-12": 72.3,
+   "2026-10-13": 58.9,
+   "2026-10-14": 90.3,
+   "2026-10-15": 113.1,
+   "2026-10-16": 99.7,
+   "2026-10-17": 53.7,
+   "2026-10-18": 43.1,
+   "2026-10-19": 134.9,
+   "2026-10-20": 90.3,
+   "2026-10-21": 88.8,
+   "2026-10-22": 110.9,
+   "2026-10-23": 110.4,
+   "2026-10-24": 67.6,
+   "2026-10-25": 129.6,
+   "2026-10-26": 146.1,
+   "2026-10-27": 152.7,
+   "2026-10-28": 137.6,
+   "2026-10-29": 99.3,
+   "2026-10-30": 33.6,
+   "2026-10-31": 32.1
+  }
+ },
+ "temperature": {
+  "2026-10": {
+   "days_with_data": 30,
+   "days_in_month": 31,
+   "first_date": "2026-10-01",
+   "last_date": "2026-10-30",
+   "missing_days": [
+    "2026-10-31"
+   ],
+   "mean_c": 7.8,
+   "normal_1991_2020_same_days_c": 4.9,
+   "anomaly_c": 2.9,
+   "hdd17_kd": 270.0,
+   "hdd17_normal_1991_2020_same_days_kd": 361.0,
+   "hdd17_pct_of_normal": 75.0,
+   "hdd17_normal_1991_2020_full_month_kd": 376.0,
+   "daily_anomaly_c": {
+    "2026-10-01": 1.7,
+    "2026-10-02": 4.3,
+    "2026-10-03": 4.4,
+    "2026-10-04": 3.4,
+    "2026-10-05": 2.6,
+    "2026-10-06": 4.9,
+    "2026-10-07": 1.7,
+    "2026-10-08": -0.7,
+    "2026-10-09": 0.9,
+    "2026-10-10": -2.5,
+    "2026-10-11": -2.4,
+    "2026-10-12": -1.8,
+    "2026-10-13": -2.0,
+    "2026-10-14": 2.4,
+    "2026-10-15": 5.4,
+    "2026-10-16": 6.7,
+    "2026-10-17": 3.1,
+    "2026-10-18": -1.7,
+    "2026-10-19": -0.5,
+    "2026-10-20": 1.5,
+    "2026-10-21": 2.3,
+    "2026-10-22": 4.9,
+    "2026-10-23": 5.5,
+    "2026-10-24": 5.4,
+    "2026-10-25": 5.4,
+    "2026-10-26": 6.9,
+    "2026-10-27": 6.7,
+    "2026-10-28": 6.8,
+    "2026-10-29": 6.0,
+    "2026-10-30": 5.2
+   }
+  },
+  "2025-10": {
+   "days_with_data": 31,
+   "days_in_month": 31,
+   "first_date": "2025-10-01",
+   "last_date": "2025-10-31",
+   "missing_days": [],
+   "mean_c": 6.7,
+   "normal_1991_2020_same_days_c": 4.8,
+   "anomaly_c": 1.9,
+   "hdd17_kd": 318.0,
+   "hdd17_normal_1991_2020_same_days_kd": 376.0,
+   "hdd17_pct_of_normal": 85.0,
+   "hdd17_normal_1991_2020_full_month_kd": 376.0,
+   "daily_anomaly_c": {
+    "2025-10-01": -1.2,
+    "2025-10-02": -0.5,
+    "2025-10-03": -0.9,
+    "2025-10-04": -0.7,
+    "2025-10-05": 1.5,
+    "2025-10-06": 2.7,
+    "2025-10-07": 3.6,
+    "2025-10-08": 4.5,
+    "2025-10-09": 3.5,
+    "2025-10-10": 2.5,
+    "2025-10-11": 2.1,
+    "2025-10-12": 0.6,
+    "2025-10-13": 0.1,
+    "2025-10-14": 0.8,
+    "2025-10-15": 2.0,
+    "2025-10-16": 2.2,
+    "2025-10-17": -2.7,
+    "2025-10-18": -2.9,
+    "2025-10-19": 0.9,
+    "2025-10-20": 1.8,
+    "2025-10-21": 3.8,
+    "2025-10-22": 3.0,
+    "2025-10-23": 3.8,
+    "2025-10-24": 3.9,
+    "2025-10-25": 4.8,
+    "2025-10-26": 5.3,
+    "2025-10-27": 3.6,
+    "2025-10-28": 2.1,
+    "2025-10-29": 2.3,
+    "2025-10-30": 2.7,
+    "2025-10-31": 3.5
+   }
+  },
+  "2026-09": {
+   "days_with_data": 30,
+   "days_in_month": 30,
+   "first_date": "2026-09-01",
+   "last_date": "2026-09-30",
+   "missing_days": [],
+   "mean_c": 11.8,
+   "normal_1991_2020_same_days_c": 10.6,
+   "anomaly_c": 1.2,
+   "hdd17_kd": 113.0,
+   "hdd17_normal_1991_2020_same_days_kd": 159.0,
+   "hdd17_pct_of_normal": 71.0,
+   "hdd17_normal_1991_2020_full_month_kd": 159.0,
+   "daily_anomaly_c": {
+    "2026-09-01": 3.3,
+    "2026-09-02": 1.0,
+    "2026-09-03": 0.2,
+    "2026-09-04": -1.2,
+    "2026-09-05": -1.6,
+    "2026-09-06": -2.6,
+    "2026-09-07": -2.0,
+    "2026-09-08": 2.4,
+    "2026-09-09": 2.4,
+    "2026-09-10": 1.1,
+    "2026-09-11": -0.2,
+    "2026-09-12": -0.7,
+    "2026-09-13": 1.1,
+    "2026-09-14": -1.2,
+    "2026-09-15": -0.8,
+    "2026-09-16": 3.1,
+    "2026-09-17": 3.6,
+    "2026-09-18": 2.6,
+    "2026-09-19": 3.4,
+    "2026-09-20": 3.5,
+    "2026-09-21": 0.5,
+    "2026-09-22": -0.5,
+    "2026-09-23": 0.0,
+    "2026-09-24": 2.6,
+    "2026-09-25": 3.8,
+    "2026-09-26": 3.4,
+    "2026-09-27": 1.7,
+    "2026-09-28": 2.1,
+    "2026-09-29": 4.1,
+    "2026-09-30": 0.5
+   }
+  }
+ },
+ "nuclear": {
+  "2026-10": {
+   "hours": 745,
+   "hours_expected": 745,
+   "production_twh": 1.522,
+   "mean_mw": 2042.0,
+   "installed_mw_assumed": 4394,
+   "availability_pct": 46.5
+  },
+  "2025-10": {
+   "hours": 745,
+   "hours_expected": 745,
+   "production_twh": 2.982,
+   "mean_mw": 4003.0,
+   "installed_mw_assumed": 4394,
+   "availability_pct": 91.1
+  },
+  "2026-09": {
+   "hours": 720,
+   "hours_expected": 720,
+   "production_twh": 1.707,
+   "mean_mw": 2371.0,
+   "installed_mw_assumed": 4394,
+   "availability_pct": 54.0
+  }
+ },
+ "consumption": {
+  "2026-10": {
+   "hours": 745,
+   "hours_expected": 745,
+   "consumption_twh": 7.143,
+   "mean_mw": 9588.0,
+   "peak_hour_mw": 11799.0,
+   "peak_hour_local": "2026-10-19T10:00:00+03:00"
+  },
+  "2025-10": {
+   "hours": 745,
+   "hours_expected": 745,
+   "consumption_twh": 7.018,
+   "mean_mw": 9420.0,
+   "peak_hour_mw": 11126.0,
+   "peak_hour_local": "2025-10-22T19:00:00+03:00"
+  },
+  "2026-09": {
+   "hours": 720,
+   "hours_expected": 720,
+   "consumption_twh": 6.121,
+   "mean_mw": 8502.0,
+   "peak_hour_mw": 9808.0,
+   "peak_hour_local": "2026-09-28T19:00:00+03:00"
+  }
+ },
+ "trade": {
+  "2026-10": {
+   "hours": 745,
+   "hours_expected": 745,
+   "net_export_twh": -0.393,
+   "net_import_twh": 0.393,
+   "sign_note": "Fingrid 194 is positive for net export and negative for net import.",
+   "flows_twh": {
+    "fi_to_se1": {
+     "net_twh": -0.431,
+     "export_twh": 0.173,
+     "import_twh": 0.603
+    },
+    "fi_to_se3": {
+     "net_twh": -0.567,
+     "export_twh": 0.03,
+     "import_twh": 0.597
+    },
+    "fi_to_ee": {
+     "net_twh": 0.643,
+     "export_twh": 0.647,
+     "import_twh": 0.004
+    }
+   },
+   "sign_check": {
+    "flows_55_60_61_net_twh": -0.356,
+    "net_194_same_hours_twh": -0.393,
+    "hours_same_sign_pct": 99.1,
+    "consumption_minus_production_twh": 0.393,
+    "note": "Flows 55/60/61 omit the small Norway (and Russia) borders, so the sums differ a little."
+   }
+  },
+  "2025-10": {
+   "hours": 745,
+   "hours_expected": 745,
+   "net_export_twh": 0.202,
+   "net_import_twh": -0.202,
+   "sign_note": "Fingrid 194 is positive for net export and negative for net import.",
+   "flows_twh": {
+    "fi_to_se1": {
+     "net_twh": -0.336,
+     "export_twh": 0.027,
+     "import_twh": 0.363
+    },
+    "fi_to_se3": {
+     "net_twh": -0.064,
+     "export_twh": 0.193,
+     "import_twh": 0.257
+    },
+    "fi_to_ee": {
+     "net_twh": 0.634,
+     "export_twh": 0.635,
+     "import_twh": 0.001
+    }
+   },
+   "sign_check": {
+    "flows_55_60_61_net_twh": 0.235,
+    "net_194_same_hours_twh": 0.202,
+    "hours_same_sign_pct": 97.7,
+    "consumption_minus_production_twh": -0.201,
+    "note": "Flows 55/60/61 omit the small Norway (and Russia) borders, so the sums differ a little."
+   }
+  },
+  "2026-09": {
+   "hours": 720,
+   "hours_expected": 720,
+   "net_export_twh": -0.515,
+   "net_import_twh": 0.515,
+   "sign_note": "Fingrid 194 is positive for net export and negative for net import.",
+   "flows_twh": {
+    "fi_to_se1": {
+     "net_twh": -0.7,
+     "export_twh": 0.103,
+     "import_twh": 0.803
+    },
+    "fi_to_se3": {
+     "net_twh": -0.312,
+     "export_twh": 0.047,
+     "import_twh": 0.358
+    },
+    "fi_to_ee": {
+     "net_twh": 0.534,
+     "export_twh": 0.547,
+     "import_twh": 0.014
+    }
+   },
+   "sign_check": {
+    "flows_55_60_61_net_twh": -0.478,
+    "net_194_same_hours_twh": -0.515,
+    "hours_same_sign_pct": 98.3,
+    "consumption_minus_production_twh": 0.516,
+    "note": "Flows 55/60/61 omit the small Norway (and Russia) borders, so the sums differ a little."
+   }
+  }
+ },
+ "neighbour_prices": {
+  "2026-10": {
+   "vat_basis": "VAT 0 (price_without_tax), c/kWh",
+   "hours": {
+    "FI": 745,
+    "SE1": 745,
+    "SE3": 745,
+    "EE": 745,
+    "DE-LU": 745
+   },
+   "mean_c_kwh_vat0": {
+    "FI": 3.8,
+    "SE1": 2.72,
+    "SE3": 7.35,
+    "EE": 8.21,
+    "DE-LU": 16.92
+   },
+   "hours_fi_equal_se1_pct": 4.6,
+   "hours_fi_equal_ee_pct": 22.1,
+   "hours_fi_equal_se3_pct": 2.6,
+   "quarters_fi_equal_se1_pct": 6.2,
+   "quarters_fi_equal_ee_pct": 23.8,
+   "equal_tolerance_c_kwh": 0.001
+  },
+  "2025-10": {
+   "vat_basis": "VAT 0 (price_without_tax), c/kWh",
+   "hours": {
+    "FI": 745,
+    "SE1": 745,
+    "SE3": 745,
+    "EE": 745,
+    "DE-LU": 745
+   },
+   "mean_c_kwh_vat0": {
+    "FI": 4.89,
+    "SE1": 1.3,
+    "SE3": 5.72,
+    "EE": 8.97,
+    "DE-LU": 8.44
+   },
+   "hours_fi_equal_se1_pct": 1.3,
+   "hours_fi_equal_ee_pct": 12.5,
+   "hours_fi_equal_se3_pct": 0.5,
+   "quarters_fi_equal_se1_pct": 1.5,
+   "quarters_fi_equal_ee_pct": 13.7,
+   "equal_tolerance_c_kwh": 0.001
+  },
+  "2026-09": {
+   "vat_basis": "VAT 0 (price_without_tax), c/kWh",
+   "hours": {
+    "FI": 720,
+    "SE1": 720,
+    "SE3": 720,
+    "EE": 720,
+    "DE-LU": 720
+   },
+   "mean_c_kwh_vat0": {
+    "FI": 5.7,
+    "SE1": 4.09,
+    "SE3": 7.78,
+    "EE": 7.5,
+    "DE-LU": 14.48
+   },
+   "hours_fi_equal_se1_pct": 3.5,
+   "hours_fi_equal_ee_pct": 32.6,
+   "hours_fi_equal_se3_pct": 1.8,
+   "quarters_fi_equal_se1_pct": 4.8,
+   "quarters_fi_equal_ee_pct": 31.8,
+   "equal_tolerance_c_kwh": 0.001
+  }
+ },
+ "nordic_hydro_norway": {
+  "2026-10": {
+   "iso_year": 2026,
+   "iso_week": 43,
+   "week_end_date": "2026-10-25",
+   "filling_pct": 69.5,
+   "filling_twh": 60.8,
+   "reference_years": "2006-2025",
+   "reference_min_pct": 64.2,
+   "reference_median_pct": 82.6,
+   "reference_max_pct": 92.9,
+   "vs_median_pct_points": -13.0
+  },
+  "2025-10": {
+   "iso_year": 2025,
+   "iso_week": 43,
+   "week_end_date": "2025-10-26",
+   "filling_pct": 80.9,
+   "filling_twh": 70.7,
+   "reference_years": "2006-2025",
+   "reference_min_pct": 64.2,
+   "reference_median_pct": 82.6,
+   "reference_max_pct": 92.9,
+   "vs_median_pct_points": -1.7
+  },
+  "2026-09": {
+   "iso_year": 2026,
+   "iso_week": 39,
+   "week_end_date": "2026-09-27",
+   "filling_pct": 67.9,
+   "filling_twh": 59.3,
+   "reference_years": "2006-2025",
+   "reference_min_pct": 62.3,
+   "reference_median_pct": 82.8,
+   "reference_max_pct": 94.1,
+   "vs_median_pct_points": -14.9
+  }
+ },
+ "gas_storage": {
+  "2026-10": {
+   "gas_day": "2026-10-31",
+   "eu_full_pct": 74.6,
+   "eu_storage_twh": 845.4,
+   "de_full_pct": 61.0,
+   "de_storage_twh": 150.9
+  },
+  "2025-10": {
+   "gas_day": "2025-10-31",
+   "eu_full_pct": 82.8,
+   "eu_storage_twh": 945.8,
+   "de_full_pct": 74.9,
+   "de_storage_twh": 188.2
+  },
+  "2026-09": {
+   "gas_day": "2026-09-30",
+   "eu_full_pct": 71.6,
+   "eu_storage_twh": 810.7,
+   "de_full_pct": 58.0,
+   "de_storage_twh": 143.6
+  }
+ },
+ "datahub_weighted_spot": {
+  "2026-10": {
+   "plain_mean_c_kwh_vat": 4.77,
+   "vat_basis": "incl. VAT 25.5 %, also on negative hours",
+   "preliminary": true,
+   "BE01": {
+    "label": "apartment in an apartment block",
+    "hours": 745,
+    "hours_expected": 745,
+    "kwh_per_accounting_point": 175.0,
+    "weighted_c_kwh_vat": 5.08,
+    "ratio_to_plain_mean": 1.066,
+    "energy_cost_eur_at_spot_vat": 8.92
+   },
+   "BE02": {
+    "label": "electrically heated small house",
+    "hours": 745,
+    "hours_expected": 745,
+    "kwh_per_accounting_point": 805.0,
+    "weighted_c_kwh_vat": 4.81,
+    "ratio_to_plain_mean": 1.009,
+    "energy_cost_eur_at_spot_vat": 38.74
+   },
+   "BE03": {
+    "label": "small house without electric heating",
+    "hours": 745,
+    "hours_expected": 745,
+    "kwh_per_accounting_point": 525.0,
+    "weighted_c_kwh_vat": 4.97,
+    "ratio_to_plain_mean": 1.043,
+    "energy_cost_eur_at_spot_vat": 26.1
+   }
+  },
+  "2025-10": {
+   "plain_mean_c_kwh_vat": 6.14,
+   "vat_basis": "incl. VAT 25.5 %, also on negative hours",
+   "preliminary": false,
+   "BE01": {
+    "label": "apartment in an apartment block",
+    "hours": 745,
+    "hours_expected": 745,
+    "kwh_per_accounting_point": 176.0,
+    "weighted_c_kwh_vat": 6.46,
+    "ratio_to_plain_mean": 1.052,
+    "energy_cost_eur_at_spot_vat": 11.35
+   },
+   "BE02": {
+    "label": "electrically heated small house",
+    "hours": 745,
+    "hours_expected": 745,
+    "kwh_per_accounting_point": 831.0,
+    "weighted_c_kwh_vat": 5.97,
+    "ratio_to_plain_mean": 0.972,
+    "energy_cost_eur_at_spot_vat": 49.6
+   },
+   "BE03": {
+    "label": "small house without electric heating",
+    "hours": 745,
+    "hours_expected": 745,
+    "kwh_per_accounting_point": 520.0,
+    "weighted_c_kwh_vat": 6.23,
+    "ratio_to_plain_mean": 1.014,
+    "energy_cost_eur_at_spot_vat": 32.39
+   }
+  },
+  "2026-09": {
+   "plain_mean_c_kwh_vat": 7.15,
+   "vat_basis": "incl. VAT 25.5 %, also on negative hours",
+   "preliminary": false,
+   "BE01": {
+    "label": "apartment in an apartment block",
+    "hours": 720,
+    "hours_expected": 720,
+    "kwh_per_accounting_point": 155.0,
+    "weighted_c_kwh_vat": 7.46,
+    "ratio_to_plain_mean": 1.043,
+    "energy_cost_eur_at_spot_vat": 11.56
+   },
+   "BE02": {
+    "label": "electrically heated small house",
+    "hours": 720,
+    "hours_expected": 720,
+    "kwh_per_accounting_point": 595.0,
+    "weighted_c_kwh_vat": 7.11,
+    "ratio_to_plain_mean": 0.994,
+    "energy_cost_eur_at_spot_vat": 42.29
+   },
+   "BE03": {
+    "label": "small house without electric heating",
+    "hours": 720,
+    "hours_expected": 720,
+    "kwh_per_accounting_point": 414.0,
+    "weighted_c_kwh_vat": 7.33,
+    "ratio_to_plain_mean": 1.024,
+    "energy_cost_eur_at_spot_vat": 30.32
+   }
+  }
+ },
+ "upcoming_outages": {
+  "window_local": [
+   "2026-11-02",
+   "2026-12-15"
+  ],
+  "known_by_utc": "2026-11-02 22:00:00",
+  "rule": "Latest revision per document_mrid + time_series_mrid created by the end of the publication day; cancelled versions dropped. Do not add A77 and A80 capacity of the same plant.",
+  "generation_fi": [
+   {
+    "type": "planned",
+    "document_type": "A80",
+    "start_local": "2026-09-10T01:00:00+03:00",
+    "end_local": "2026-11-11T12:00:00+02:00",
+    "revision": 8,
+    "revision_created_utc": "2026-11-02 11:26:47",
+    "later_revision_in_db_after_publication": null,
+    "zone": "FI",
+    "unit": "Olkiluoto 3 B3",
+    "psr_type": "B14",
+    "nuclear": true,
+    "nominal_mw": 1600.0,
+    "available_mw_min_in_window": 0,
+    "unavailable_mw_max_in_window": 1600.0
+   },
+   {
+    "type": "planned",
+    "document_type": "A77",
+    "start_local": "2026-10-07T03:00:00+03:00",
+    "end_local": "2026-11-30T07:00:00+02:00",
+    "revision": 3,
+    "revision_created_utc": "2026-10-06 06:47:38",
+    "later_revision_in_db_after_publication": null,
+    "zone": "FI",
+    "unit": "Metsä Fibre Kemi",
+    "psr_type": "B01",
+    "nuclear": false,
+    "nominal_mw": 250.0,
+    "available_mw_min_in_window": 0,
+    "unavailable_mw_max_in_window": 250.0
+   },
+   {
+    "type": "planned",
+    "document_type": "A80",
+    "start_local": "2026-10-15T14:15:00+03:00",
+    "end_local": "2027-04-18T18:00:00+03:00",
+    "revision": 1,
+    "revision_created_utc": "2026-10-13 10:18:51",
+    "later_revision_in_db_after_publication": null,
+    "zone": "FI",
+    "unit": "Olkiluoto 2 B2",
+    "psr_type": "B14",
+    "nuclear": true,
+    "nominal_mw": 890.0,
+    "available_mw_min_in_window": 735,
+    "unavailable_mw_max_in_window": 155.0
+   },
+   {
+    "type": "planned",
+    "document_type": "A77",
+    "start_local": "2026-11-11T09:00:00+02:00",
+    "end_local": "2026-11-11T14:00:00+02:00",
+    "revision": 1,
+    "revision_created_utc": "2026-10-23 10:23:56",
+    "later_revision_in_db_after_publication": null,
+    "zone": "FI",
+    "unit": "Kosolankankaan tuulivoimapuisto",
+    "psr_type": "B19",
+    "nuclear": false,
+    "nominal_mw": 430.0,
+    "available_mw_min_in_window": 0,
+    "unavailable_mw_max_in_window": 430.0
+   },
+   {
+    "type": "planned",
+    "document_type": "A80",
+    "start_local": "2026-11-16T01:00:00+02:00",
+    "end_local": "2026-12-12T01:00:00+02:00",
+    "revision": 3,
+    "revision_created_utc": "2026-10-29 11:55:32",
+    "later_revision_in_db_after_publication": null,
+    "zone": "FI",
+    "unit": "Vuosaari VuB4",
+    "psr_type": "B04",
+    "nuclear": false,
+    "nominal_mw": 160.0,
+    "available_mw_min_in_window": 0,
+    "unavailable_mw_max_in_window": 160.0
+   }
+  ],
+  "transmission_fi_borders": [
+   {
+    "type": "planned",
+    "document_type": "A78",
+    "start_local": "2026-02-25T01:00:00+02:00",
+    "end_local": "2026-11-28T00:59:00+02:00",
+    "revision": 13,
+    "revision_created_utc": "2026-10-30 15:58:27",
+    "later_revision_in_db_after_publication": null,
+    "border": "FI_SE3",
+    "asset": "Operational Security SE3",
+    "available_mw_min_in_window": 200,
+    "note": "A78 gives only the remaining capacity; ENTSO-E sends no nominal value."
+   },
+   {
+    "type": "planned",
+    "document_type": "A78",
+    "start_local": "2026-10-12T07:00:00+03:00",
+    "end_local": "2026-11-03T19:00:00+02:00",
+    "revision": 6,
+    "revision_created_utc": "2026-10-05 14:12:02",
+    "later_revision_in_db_after_publication": null,
+    "border": "FI_SE3",
+    "asset": "Ramsele-Midskog",
+    "available_mw_min_in_window": 400,
+    "note": "A78 gives only the remaining capacity; ENTSO-E sends no nominal value."
+   },
+   {
+    "type": "planned",
+    "document_type": "A78",
+    "start_local": "2026-11-02T07:00:00+02:00",
+    "end_local": "2026-11-15T18:00:00+02:00",
+    "revision": 2,
+    "revision_created_utc": "2026-09-03 06:15:18",
+    "later_revision_in_db_after_publication": null,
+    "border": "FI_SE3",
+    "asset": "Nysäter-Ängsberg",
+    "available_mw_min_in_window": 800,
+    "note": "A78 gives only the remaining capacity; ENTSO-E sends no nominal value."
+   },
+   {
+    "type": "planned",
+    "document_type": "A78",
+    "start_local": "2026-11-02T07:00:00+02:00",
+    "end_local": "2026-11-15T18:00:00+02:00",
+    "revision": 3,
+    "revision_created_utc": "2026-09-18 14:56:37",
+    "later_revision_in_db_after_publication": null,
+    "border": "FI_SE3",
+    "asset": "Hall-Hedenlunda",
+    "available_mw_min_in_window": 0,
+    "note": "A78 gives only the remaining capacity; ENTSO-E sends no nominal value."
+   },
+   {
+    "type": "planned",
+    "document_type": "A78",
+    "start_local": "2026-11-02T08:00:00+02:00",
+    "end_local": "2026-11-07T16:00:00+02:00",
+    "revision": 6,
+    "revision_created_utc": "2026-09-16 14:08:20",
+    "later_revision_in_db_after_publication": null,
+    "border": "SE3_FI",
+    "asset": "Fenno-Skan 2",
+    "available_mw_min_in_window": 400,
+    "note": "A78 gives only the remaining capacity; ENTSO-E sends no nominal value."
+   },
+   {
+    "type": "planned",
+    "document_type": "A78",
+    "start_local": "2026-11-02T08:00:00+02:00",
+    "end_local": "2026-11-03T19:00:00+02:00",
+    "revision": 1,
+    "revision_created_utc": "2026-10-13 08:06:49",
+    "later_revision_in_db_after_publication": null,
+    "border": "FI_SE3",
+    "asset": "Midskog",
+    "available_mw_min_in_window": 300,
+    "note": "A78 gives only the remaining capacity; ENTSO-E sends no nominal value."
+   },
+   {
+    "type": "planned",
+    "document_type": "A78",
+    "start_local": "2026-11-02T08:00:00+02:00",
+    "end_local": "2026-11-07T16:00:00+02:00",
+    "revision": 6,
+    "revision_created_utc": "2026-09-16 14:08:21",
+    "later_revision_in_db_after_publication": null,
+    "border": "FI_SE3",
+    "asset": "Fenno-Skan 2",
+    "available_mw_min_in_window": 400,
+    "note": "A78 gives only the remaining capacity; ENTSO-E sends no nominal value."
+   },
+   {
+    "type": "planned",
+    "document_type": "A78",
+    "start_local": "2026-11-10T08:00:00+02:00",
+    "end_local": "2026-11-10T18:00:00+02:00",
+    "revision": 4,
+    "revision_created_utc": "2026-10-26 12:12:28",
+    "later_revision_in_db_after_publication": null,
+    "border": "SE1_FI",
+    "asset": "Messaure-Viitajärvi",
+    "available_mw_min_in_window": 1100,
+    "note": "A78 gives only the remaining capacity; ENTSO-E sends no nominal value."
+   },
+   {
+    "type": "planned",
+    "document_type": "A78",
+    "start_local": "2026-11-10T08:00:00+02:00",
+    "end_local": "2026-11-10T18:00:00+02:00",
+    "revision": 4,
+    "revision_created_utc": "2026-10-26 12:12:31",
+    "later_revision_in_db_after_publication": null,
+    "border": "FI_SE1",
+    "asset": "Messaure-Viitajärvi",
+    "available_mw_min_in_window": 1000,
+    "note": "A78 gives only the remaining capacity; ENTSO-E sends no nominal value."
+   },
+   {
+    "type": "planned",
+    "document_type": "A78",
+    "start_local": "2026-12-01T07:00:00+02:00",
+    "end_local": "2026-12-01T17:00:00+02:00",
+    "revision": 1,
+    "revision_created_utc": "2026-10-28 11:05:35",
+    "later_revision_in_db_after_publication": null,
+    "border": "SE1_FI",
+    "asset": "Letsi-Petäjäskoski",
+    "available_mw_min_in_window": 1100,
+    "note": "A78 gives only the remaining capacity; ENTSO-E sends no nominal value."
+   },
+   {
+    "type": "planned",
+    "document_type": "A78",
+    "start_local": "2026-12-01T07:00:00+02:00",
+    "end_local": "2026-12-01T17:00:00+02:00",
+    "revision": 1,
+    "revision_created_utc": "2026-10-28 11:05:35",
+    "later_revision_in_db_after_publication": null,
+    "border": "FI_SE1",
+    "asset": "Letsi-Petäjäskoski",
+    "available_mw_min_in_window": 1000,
+    "note": "A78 gives only the remaining capacity; ENTSO-E sends no nominal value."
+   }
+  ]
+ },
+ "weather_outlook": {
+  "ecmwf_ens": {
+   "product": "ecmwf_ens",
+   "model_run_at": [
+    "2026-11-01 18:00:00"
+   ],
+   "fetched_at": [
+    "2026-11-02 08:40:23",
+    "2026-11-02 08:40:24",
+    "2026-11-02 08:40:25",
+    "2026-11-02 08:40:26",
+    "2026-11-02 08:40:27",
+    "2026-11-02 08:40:28"
+   ],
+   "first_date": "2026-11-02",
+   "members": 51,
+   "weeks": {
+    "week_1": {
+     "from": "2026-11-02",
+     "to": "2026-11-08",
+     "temperature": {
+      "normal_c": 1.8,
+      "members_used": 51,
+      "prob_above_normal_pct": 100.0,
+      "ensemble_median_anomaly_c": 2.2,
+      "ensemble_p10_anomaly_c": 1.7,
+      "ensemble_p90_anomaly_c": 2.5
+     },
+     "wind_100m": {
+      "normal_ms": 6.6,
+      "members_used": 51,
+      "prob_above_normal_pct": 96.0,
+      "ensemble_median_anomaly_ms": 1.0,
+      "ensemble_p10_anomaly_ms": 0.2,
+      "ensemble_p90_anomaly_ms": 1.6
+     }
+    },
+    "week_2": {
+     "from": "2026-11-09",
+     "to": "2026-11-15",
+     "temperature": {
+      "normal_c": 0.7,
+      "members_used": 51,
+      "prob_above_normal_pct": 92.0,
+      "ensemble_median_anomaly_c": 1.4,
+      "ensemble_p10_anomaly_c": 0.1,
+      "ensemble_p90_anomaly_c": 3.2
+     },
+     "wind_100m": {
+      "normal_ms": 6.5,
+      "members_used": 51,
+      "prob_above_normal_pct": 41.0,
+      "ensemble_median_anomaly_ms": -0.3,
+      "ensemble_p10_anomaly_ms": -1.4,
+      "ensemble_p90_anomaly_ms": 1.4
+     }
+    }
+   },
+   "method": "Share of members (control + perturbed) whose 7-day mean over the 6 Finnish points is above the ERA5 1991-2020 normal of the same calendar days. No model bias correction."
+  },
+  "ecmwf_ec46": {
+   "product": "ecmwf_ec46",
+   "model_run_at": [
+    "2026-11-01 00:00:00"
+   ],
+   "fetched_at": [
+    "2026-11-02 08:51:53",
+    "2026-11-02 08:51:54",
+    "2026-11-02 08:51:55",
+    "2026-11-02 08:51:56",
+    "2026-11-02 08:51:57",
+    "2026-11-02 08:51:58"
+   ],
+   "first_date": "2026-11-02",
+   "members": 51,
+   "weeks": {
+    "week_1": {
+     "from": "2026-11-02",
+     "to": "2026-11-08",
+     "temperature": {
+      "normal_c": 1.8,
+      "members_used": 51,
+      "prob_above_normal_pct": 100.0,
+      "ensemble_median_anomaly_c": 2.2,
+      "ensemble_p10_anomaly_c": 1.5,
+      "ensemble_p90_anomaly_c": 2.6
+     },
+     "wind_100m": {
+      "normal_ms": 6.6,
+      "members_used": 51,
+      "prob_above_normal_pct": 90.0,
+      "ensemble_median_anomaly_ms": 0.7,
+      "ensemble_p10_anomaly_ms": 0.0,
+      "ensemble_p90_anomaly_ms": 1.5
+     }
+    },
+    "week_2": {
+     "from": "2026-11-09",
+     "to": "2026-11-15",
+     "temperature": {
+      "normal_c": 0.7,
+      "members_used": 51,
+      "prob_above_normal_pct": 82.0,
+      "ensemble_median_anomaly_c": 1.3,
+      "ensemble_p10_anomaly_c": 0.0,
+      "ensemble_p90_anomaly_c": 2.8
+     },
+     "wind_100m": {
+      "normal_ms": 6.5,
+      "members_used": 51,
+      "prob_above_normal_pct": 59.0,
+      "ensemble_median_anomaly_ms": 0.4,
+      "ensemble_p10_anomaly_ms": -0.9,
+      "ensemble_p90_anomaly_ms": 1.8
+     }
+    },
+    "week_3": {
+     "from": "2026-11-16",
+     "to": "2026-11-22",
+     "temperature": {
+      "normal_c": -0.7,
+      "members_used": 51,
+      "prob_above_normal_pct": 67.0,
+      "ensemble_median_anomaly_c": 1.1,
+      "ensemble_p10_anomaly_c": -2.4,
+      "ensemble_p90_anomaly_c": 3.8
+     },
+     "wind_100m": {
+      "normal_ms": 6.2,
+      "members_used": 51,
+      "prob_above_normal_pct": 53.0,
+      "ensemble_median_anomaly_ms": 0.2,
+      "ensemble_p10_anomaly_ms": -1.1,
+      "ensemble_p90_anomaly_ms": 2.1
+     }
+    },
+    "week_4": {
+     "from": "2026-11-23",
+     "to": "2026-11-29",
+     "temperature": {
+      "normal_c": -1.0,
+      "members_used": 51,
+      "prob_above_normal_pct": 45.0,
+      "ensemble_median_anomaly_c": -0.5,
+      "ensemble_p10_anomaly_c": -4.3,
+      "ensemble_p90_anomaly_c": 3.9
+     },
+     "wind_100m": {
+      "normal_ms": 6.8,
+      "members_used": 51,
+      "prob_above_normal_pct": 37.0,
+      "ensemble_median_anomaly_ms": -0.6,
+      "ensemble_p10_anomaly_ms": -1.7,
+      "ensemble_p90_anomaly_ms": 1.3
+     }
+    }
+   },
+   "method": "Share of members (control + perturbed) whose 7-day mean over the 6 Finnish points is above the ERA5 1991-2020 normal of the same calendar days. No model bias correction."
+  }
+ },
+ "fixed_term_forecast": {
+  "model_version": "fixed_term_futures_only_v1",
+  "forecast_date": "2026-11-02",
+  "terms": {
+   "6_months": {
+    "horizon_days": 30,
+    "target_date": "2026-12-02",
+    "current_median_c_kwh_vat": 14.9,
+    "forecast_median_c_kwh_vat": 14.98,
+    "expected_change_c_kwh": 0.079,
+    "direction": "slightly_rising",
+    "confidence": "low",
+    "forecast_p20_c_kwh_vat": 14.57,
+    "forecast_p80_c_kwh_vat": 15.98
+   },
+   "12_months": {
+    "horizon_days": 30,
+    "target_date": "2026-12-02",
+    "current_median_c_kwh_vat": 12.0,
+    "forecast_median_c_kwh_vat": 12.01,
+    "expected_change_c_kwh": 0.013,
+    "direction": "slightly_rising",
+    "confidence": "low",
+    "forecast_p20_c_kwh_vat": 11.53,
+    "forecast_p80_c_kwh_vat": 12.67
+   },
+   "24_months": {
+    "horizon_days": 30,
+    "target_date": "2026-12-02",
+    "current_median_c_kwh_vat": 10.9,
+    "forecast_median_c_kwh_vat": 10.9,
+    "expected_change_c_kwh": 0.0,
+    "direction": "slightly_falling",
+    "confidence": "low",
+    "forecast_p20_c_kwh_vat": 10.49,
+    "forecast_p80_c_kwh_vat": 11.37
+   }
+  },
+  "note": "Median of offered fixed-term energy prices, incl. VAT. Directions with 'slightly_' are about unchanged on the public page. p20/p80 are separate quantile forecasts, not uncertainty bounds."
+ },
+ "last_outlook_vs_result": {
+  "future": "EEX FI Base month future (FNBM) 2026-10",
+  "trade_date": "2026-09-30",
+  "future_c_kwh_vat": 10.29,
+  "realised_mean_c_kwh_vat": 4.77,
+  "difference_c_kwh": -5.52,
+  "difference_pct": -53.6,
+  "note": "One single EEX value, quoted with source and date; never output EEX series."
+ },
+ "assumptions": [
+  "Temperature and outlook use the plain mean of the 6 Finnish points (no population weights).",
+  "Heating degree days: base 17 C per point and day, FMI rule (Aug-Dec days above +12 C and Jan-Jul days above +10 C count 0), then the mean over points.",
+  "Nuclear availability = mean MW of Fingrid 188 / 4394 MW (OL1 890, OL2 890, OL3 1,600, LO1 507, LO2 507).",
+  "Wind capacity factor = sum of hourly production (75) / sum of hourly capacity (268).",
+  "Spot prices incl. VAT multiply every hour by 1.255, also negative hours (site convention).",
+  "Datahub 364 weighting uses the hourly kWh of one average accounting point of the group.",
+  "Outlook probabilities compare raw ensemble values with the ERA5 normal; model bias is not corrected.",
+  "Reservoir reference: NVE 20-year reference (2006-2025) is used for every year shown."
+ ],
+ "sources": {
+  "fingrid": "Fingrid open data (CC BY 4.0): 55, 60, 61, 74, 75, 124, 188, 194, 268, 364",
+  "entsoe": "ENTSO-E Transparency Platform: day-ahead prices, outages A77/A78/A80",
+  "weather": "Weather data by Open-Meteo.com (ERA5; ECMWF ENS and EC46)",
+  "nve": "NVE magasinstatistikk",
+  "gas": "GIE AGSI",
+  "eex": "EEX (single quoted values only)",
+  "voltikka": "Voltikka fixed-term forecast"
+ }
+}

@@ -365,3 +365,168 @@ Replaces the shape decision above where they conflict ("Review shape", same date
   house. Energy only; the electricity tax adds 2.918 c/kWh (verify on vero.fi).
 - Engine fact for later: the period Spot cost floors each hour at 0 (`max(0, spot + margin)`), so
   negative hours give no credit. More weight in negative hours makes the floor matter more.
+
+## 2026-11-06 – First complete review: October 2026 (user decisions)
+
+- User: the September draft had the pre-reshape structure. User chose **October 2026** (edition
+  2.11.2026) for the first complete review, because the consumer forward run, the first stored
+  ECMWF outlook and the current forecast model match that edition. Draft:
+  `prototype/2026-10-katsaus.md`; the September draft stays as the old-shape prototype.
+- Inputs: local sync 2026-11-06; futures trade date 2026-10-30; contracts on sale on 2.11. with
+  their exact terms of that day (`CONSUMER_FORWARD_DATE`, 271 of 284); past month October
+  (245 of 279 with exact day-1 terms). ERA5 ends 30.10., Datahub October is preliminary.
+- Electricity tax verified on vero.fi: class I 2.325 c/kWh VAT 0 (energy tax 2.24 + security of
+  supply fee 0.085) for 1.4.–31.12.2026; 2.918 incl. VAT. 2027 assumed unchanged.
+- Monthly bill outlook, bad case and cheap hours: `prototype/consumer_outlook.py`, with one
+  typical spot (median margin and fee) and one typical 12-month fixed contract (median price and
+  fee) on the same hourly paths. The engine run gives the 12-month rankings. Python 12-month
+  totals agree with the engine medians within about 2 %.
+- Fix: the analog paths map days by day of month, so their weekdays are not real. Cheap hours
+  use the real source months (2023–2025 Novembers) shifted to the futures level.
+- User approved three items for heavy users (from the agent's list of reader questions): a
+  January reset estimate for quarterly and monthly contracts (site method, beta 1.0, pricing
+  vintage reference: quarterly about +3.8 c/kWh to about 16.9; monthly January about +4.4 c/kWh
+  from November), one line per contract type on each card (spot, reset, fixed term ending), and a
+  flexible-user line on the electrically heated house card (1 kWh from each of the 4 dearest to
+  the 4 cheapest hours a day, at most half an hour's use: about 900 kWh a year, about 77 € a
+  year saved on spot).
+- The draft is about 2,100 words with markdown (consumer layer about 1,000). Longer than the old
+  800–1,200 target, which was for one layer.
+
+
+## 2026-11-06 – October draft shortened (user feedback)
+
+- Spot vs fixed: the typical 12-month comparison showed that the median spot contract is cheaper
+  than the median 12-month fixed contract for every home type; the contracts that beat spot are
+  24–36-month contracts, whose flat price includes the cheaper later years (FI year futures
+  2027 8.41, 2028 7.14 c/kWh incl. VAT on 30.10.). User rule: comparing spot with longer contracts
+  is fine, but the text must talk about the price over the coming winter and say that fixed costs
+  more over the summer and other periods. `consumer_outlook.py` now gives winter (Nov–Mar) and
+  rest-of-year sums; the bill chart shows 12 months for the two house types.
+- Consumer layer: focus on the two house types; the apartment case is three sentences. Dropped
+  the cheap-hours section (self-evident) and the per-card detail lines. The bad-case section is
+  now "Miltä tuleva talvi nyt näyttää".
+- Journalist layer: no extremes or counts for their own sake (cheapest/dearest day, max hour and
+  quarter, negative hours, hours below 1 c). A price anomaly appears only with its explanation
+  (30.10.: low wind and Olkiluoto 1 off line). Dropped the heat map, offer counts, fee details and
+  the long events list.
+- (same day, user comments) Journalist layer: "Mikä vaikutti sähkön hintaan" table has factor,
+  effect (nosti/laski/vähäinen) and explanation. Key figures hold outcome figures only (spot mean,
+  weighted price, October bill spot vs fixed, 12-month fixed median, coming-winter comparison); a
+  figure is not repeated in a later section of the layer. "Sopimusmarkkina" reports what happened;
+  predictions (futures and last outlook vs result, weather, Voltikka fixed-price forecast, reset
+  estimates, events) are in their own section "Ennusteet".
+- (same day, user decisions) Keep the October bill key figure (a statement of what happened);
+  edition date 5.11.2026; six EEX values and two ranges are acceptable; the forecasts talk about
+  quarterly contracts only (monthly-reset sentence removed).
+- User rule for the text: take clear expert stances. State expected causes ("winter will be
+  expensive because …"), give one recommendation per home type, and keep assumptions in the method
+  note instead of caveats in each sentence. Stakes are low (consumer advice, journalists).
+  Recommendations now: electrically heated house – a 24-month fixed price now (spot only with load
+  shifting); house without electric heating – spot or the cheapest 24–36-month fixed, not a median
+  12-month fixed; apartment – stay on spot; quarterly customers – change to fixed before 1.1.
+  (quarterly median rough 12-month estimate about 1,450 € energy vs 1,176 € for the cheapest
+  24–36-month fixed for an electrically heated house).
+- Edition 5.11. can use 1.–4.11.: on Monday 2.11. wind was about a third of the October daily
+  mean (29.8 vs 91 GWh) with Olkiluoto 3 still in maintenance; the day mean was about 26 c/kWh and
+  the evening peak 51 c/kWh (incl. VAT). Used as the proof of the winter risk.
+- (same day, user comments) The method note moved to the end of the page ("Näin laskimme", in
+  plain steps) with the sources. The Voltikka seller-set energy price index
+  (`seller_set_energy_price_index_v1`, overall and the fixed-term, open-ended and market-reset
+  families) is the centre of "Sopimusmarkkina", with its own chart (`prototype/index_chart.py`):
+  October +3.7 % (12.79 → 13.27 c/kWh), +17.5 % since 1.9., +36 % from the May low 9.78. The
+  market-reset family (14.54) is not the quarterly median (13.12), so the text names it
+  "kvartaali- ja kuukausihintaiset sopimukset".
+- (same day, user) The second layer is named "Tarkemmat tiedot: <kuukausi>" on the public page, not
+  "Toimittajille". It still serves journalists first, but the page does not name an audience.
+- (same day, user) **The recommendation is cost against certainty, not "choose 24 kk".** Over the
+  full contract period spot is cheaper (futures 30.10.2026 to Q3 2028 and Y2028/Y2029; year-2/3
+  spot = each month's year-1 consumption-weighted premium over its future, applied to the later
+  future): electrically heated house, cheapest 24 kk (Pohjois-Karjalan Optimi takuu 24, normal
+  price) 1,502 €/yr against Herrfors Spot+ 1,564 € in year 1 and about 1,325 € in year 2, so spot
+  is about 115 € cheaper over 24 months; Cheap 36 kk is about 290 € dearer over 36 months. House
+  without electric heating: cheapest 24 kk 948 € vs spot about 969/830 €. The text now says: spot
+  is cheaper in the long run; spot costs about 150 € (cold winter 190 €) more in Nov–Mar; fixed
+  gives winter certainty but costs about 225 € more in Apr–Oct; if you want fixed, take 24 kk.
+  Quarterly customers: switch to spot (or 24 kk for BE02) before 1.1. Rule added to root AGENTS.md
+  ("Spot vs fixed"). Script: `prototype/contract_term.py`.
+- (same day, user request) **First Paper mockup of the review page:** Paper file "Voltikka", page
+  "Markkinakatsaus · sivu", desktop board built from the long-read article board (hero, contents
+  column with an archive list, footer). Order: hero ("Halpa lokakuu, kallis talvi") → price strip
+  (October 4.77 c, winter 11–16 c, summer 4–10 c) → winter outlook → three homes, each with a
+  "Neuvomme" stance (house types get a winter/summer/year ledger) → calculator link → interlude →
+  "Tarkemmat tiedot" (key figures + CSV action, factor ledger, contract market with the index
+  chart and family changes, forecasts, coming events) → "Näin laskimme" and sources. Open items
+  are on the "00 · Notes for review" board.
+- (same day, user) **URLs.** `/markkinakatsaus` always renders the latest published review in full
+  (200, not a redirect) and is **self-canonical**: one stable URL collects the ranking (user: Google
+  may not follow a canonical whose target changes every month). Each review also has its own
+  `/markkinakatsaus/YYYY-MM` (route constraint `\d{4}-\d{2}`; top level, not under `/sahkosopimus/`,
+  which has a `{city}` catch-all). Every dated URL is self-canonical too, also while it is the
+  latest; the user accepts the one-month duplicate text. The sitemap lists `/markkinakatsaus` and
+  every dated URL. A draft or a future month returns 404. Each
+  review reads its own frozen snapshot; a correction shows its date. An old review has one line at
+  the top that links to the latest review. CSV per review: `/markkinakatsaus/YYYY-MM.csv`; chart
+  and OG images per review. The "Aiemmat katsaukset" list is the archive until it gets long.
+- (same day, user request "implement the mockup on the Voltikka dev site") **First site build,
+  local only.** Routes, the review list (`laravel/config/market_reviews.php`), the page shell and
+  the frozen October body (`resources/views/market-reviews/2026-10.blade.php`), charts and CSV in
+  `resources/market-reviews/2026-10/`. The October review stays `draft => true`: production
+  returns 404 for it until the user publishes it (⟦TARKISTA⟧ points in the draft are still
+  open). Drafts show only with `APP_ENV=local`. The prototype chart scripts now draw with site
+  tokens (spot aurora, fixed granite, index families fox/lake/granite, wind granite,
+  warm fox / cold lake) and Figtree; the page embeds the SVG inline. The CSV holds the page's
+  outcome and factor figures and no EEX futures values. Remaining from the notes board: a phone
+  board (the build stacks the ledgers by CSS judgement), the archive page (the side list is the
+  archive for now), and hero art of its own (the fireside fox is reused).
+- (same day, user) **Charts must be interactive like the rest of the site, and the index must
+  look like the one on /sahkosopimus/tilastot.** The first build embedded static SVGs; the index
+  SVG was daily and broke at the three missing collection days (12.2., 23.7., 1.10.), while the
+  statistics page shows weekly means by default. Now: Chart.js bars with tooltips (bill outlook,
+  daily price/wind/temperature) and the shared uPlot index chart with weekly means, the same
+  labels-to-colours rule and the "nyt" label; frozen JSON from `prototype/site_payloads.py`; every
+  chart also has a data table. The figures in the text are daily values from the same rows and
+  stay correct (31.10. 13,27; May low 9,78).
+- (same day, user) **The review index chart shows only the review month, day by day; gaps are
+  fine.** Kuva 3 is now the 31 days of October 2026 (1.10. has no value, so the line starts on
+  2.10.: 12,79 → 13,27 c/kWh). The family figures under it (+5,7 / +5,5 / +1,4 %) are the same
+  daily rows. The chart data is frozen: the page never reads the database, and
+  `site_payloads.py` does not overwrite existing files without `--force`.
+- (same day, user) **SEO: the H1 is the keyword heading, the look stays.** H1 = "Sähkömarkkinakatsaus
+  lokakuu 2026", drawn exactly as the old kicker line; "Halpa lokakuu, kallis talvi" is now a
+  paragraph with the same display style. No hidden text. "Voltikan" is not in the H1, because the
+  visible kicker does not say it (the `<title>` ends with "| Voltikka").
+- (same day, correction from the video session) **Kvartaali- ja kuukausihintaiset is +5,6 %, not
+  +5,5 %.** 13,7764 (2.10.) → 14,5442 (31.10.) = +5,573 %; +5,5 % came from the rounded values
+  13,78 → 14,54. Corrected in the page and the draft (earlier entries above keep the old figure).
+  Rule: calculate a change from the stored values, round only the result.
+- (same day, user) **A monthly index change runs from the last day of the previous month to the
+  last day of the month (30.9.–31.10.), so it includes the 1.10. resets.** The earlier figures were
+  2.10.–31.10. (1.10. has no value) and left the resets out. October: index +12,0 % (11,84 →
+  13,27), Toistaiseksi voimassa +10,5 %, Kvartaali- ja kuukausihintaiset +45,4 % (10,00 → 13,78
+  on 1.10.), Määräaikaiset +1,2 %. The text now says that most of the rise came at the turn of the
+  month, when the new quarterly and monthly prices started on 1.10. Kuva 3 starts on 30.9. (a lone
+  marked point before the 1.10. gap). Changed in the page, the draft and the CSV. The Paper
+  mockup still has the old figures.
+- (same day, user) **The review video goes at full width directly under the Preferred Sources
+  strip** (not in the 860 article column: too narrow for the 1280 video; not above the strip: the
+  strip stays directly after the hero on every page). Poster = the video's YouTube thumbnail; the
+  YouTube player loads only after a click (youtube-nocookie); VideoObject structured data when the
+  YouTube ID and upload date are set in `config/market_reviews.php`. Paper board updated.
+- (same day, user) **Published 6.11.2026 with the video** (YouTube i7ZopmWpqco, 5:25, "Sähkön
+  hinta talvella: pörssisähkö vai kiinteä? Sähkömarkkinakatsaus lokakuu 2026"). Final checks of
+  the ⟦TARKISTA⟧ points: (1) the named contracts (Pohjois-Karjalan Optimi takuu 24 kk, Herrfors
+  Spot+, Nordic Green Energy Pörssisähkö) are household contracts available nationally and on
+  sale on 5.11. Optimi takuu is a time-of-day tariff, so the text now says "aikasähkö". The
+  cheaper "perusmaksu 0 € ensimmäiset 12 kk" spot offers (Hehku Flex, Aalto Luotsi) have no known
+  normal price, so Nordic Green Energy stays the apartment winner at normal prices. The cheapest
+  national fully fixed 24 kk for the house without electric heating is Korpela Kesto Kiinteä 24 kk
+  (953 € incl. tax; the earlier 948 € contract is not national); the unnamed sentence stays true.
+  (2) ECMWF 1.11. raw ensemble: week 1 100 % and week 2 92 % of members warmer than normal; the
+  windier-week claim is removed, because 2.11. had only 30 GWh of wind. Added the fact that
+  1.–6.11. spot averaged 8,8 c/kWh (future 11,33). Figures frozen 6.11.2026.
+- (same day, user) **The review has its own top-level folder `market-review/`**, because it repeats
+  every month and cannot live in `tasks/`. Layout: documents at the top, scripts in `tools/`,
+  one folder per edition in `editions/<YYYY-MM>/`. `compute.py`, `drivers.py`, `charts.py` and
+  `site_payloads.py` now read and write `editions/<month>/`. Paths above this entry that say
+  `prototype/` mean `tools/` (scripts) or `editions/<month>/` (figures and drafts).

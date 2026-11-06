@@ -113,7 +113,11 @@ def stat(db, day, segment, metric):
 
 
 def contract_metrics(db, first_day, last_day):
-    out = {}
+    # A day can lack statistics (2026-10-01 has none), so use the first/last day of the month with data.
+    first_day, last_day = db.execute(
+        "select min(stat_date), max(stat_date) from contract_price_daily_statistics "
+        "where pricing_basis='canonical_calculation' and stat_date between ? and ?", (first_day, last_day)).fetchone()
+    out = {"start_date": first_day, "end_date": last_day}
     for seg in ["fixed_term_6", "fixed_term_12", "fixed_term_24", "open_ended", "quarterly", "market_reset", "spot"]:
         for metric in ["energy_price", "monthly_fee"] + (["spot_margin"] if seg == "spot" else []):
             a, b = stat(db, first_day, seg, metric), stat(db, last_day, seg, metric)
@@ -213,7 +217,8 @@ def main():
             "next_year_at_month_end": futures(db, "FI", "FNBY", f"{year + 1}01", nxt.isoformat()),
         },
     }
-    out = Path(__file__).with_name(f"metrics-{month}.json")
+    out = Path(__file__).resolve().parents[1] / "editions" / month / f"metrics-{month}.json"  # market-review/editions/<month>/
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(metrics, ensure_ascii=False, indent=1) + "\n")
     print(out)
 

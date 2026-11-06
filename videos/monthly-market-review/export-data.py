@@ -1,7 +1,7 @@
 """Collects the figures of one review edition into data/<month>.js for the scenes (read-only).
 
 Usage (from videos/monthly-market-review): python3 -I export-data.py 2026-10
-Sources: tasks/monthly-market-review/prototype/*.json (the frozen draft figures) and the local
+Sources: market-review/editions/<month>/*.json (the frozen draft figures) and the local
 SQLite snapshot (only the Voltikka price index series), plus the frozen chart data of the site page
 (laravel/resources/market-reviews/<month>/kuva-*.json, read only) so that the video charts show the same data.
 """
@@ -11,7 +11,7 @@ import sys
 
 month = sys.argv[1]
 root = "../../"
-proto = root + "tasks/monthly-market-review/prototype/"
+proto = root + f"market-review/editions/{month}/"
 m = json.load(open(proto + f"metrics-{month}.json"))
 d = json.load(open(proto + f"drivers-{month}.json"))
 o = json.load(open(proto + "consumer-outlook-2026-11.json"))

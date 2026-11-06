@@ -6,7 +6,7 @@
   third-party forecasts that are not unique to the site. Not urgent. This task covers only the
   missing short-term input data; the model is a later task.
 - Origin: comparison of the nordpool-predict-fi inputs with the market-review collectors built on
-  2026-11-01 (see `tasks/monthly-market-review/decisions.md`). That comparison found the gaps
+  2026-11-01 (see `market-review/decisions.md`). That comparison found the gaps
   listed in spec.md: hourly weather history and 8-day forecasts, neighbour wind speed points,
   solar irradiance, Fingrid 245, Syke hydrology and holidays.
 - Already collected and usable as model inputs (production since 2026-11-01, deploy-000013):

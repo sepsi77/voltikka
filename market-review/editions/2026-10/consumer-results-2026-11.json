@@ -4,9 +4,9 @@
   "BE01": {
    "label": "kerrostaloasunto",
    "past": {
-    "n": 216,
-    "kwh": 155.0,
-    "tax_eur": 4.52,
+    "n": 212,
+    "kwh": 175.4,
+    "tax_eur": 5.12,
     "overall": [
      {
       "contract_id": "xlclt2-sahkotytot-oy-porssisahko-tarjous-ilmainen-perusmaksu-ensimmaiset-3kk",
@@ -16,19 +16,19 @@
       "contract_type": "OpenEnded",
       "fixed_time_range": "",
       "pricing_model": "Spot",
-      "normal": 14.12,
-      "actual": 12.17
+      "normal": 11.62,
+      "actual": 9.6
      },
      {
-      "contract_id": "zp2qud-korpelan-energia-oy-korpela-kvartaali",
-      "company": "Korpelan Energia Oy",
-      "name": "Korpela Kvartaali",
-      "bucket": "market_reset",
+      "contract_id": "v5lqzx-herrfors-oy-ab-spot",
+      "company": "Herrfors Oy Ab",
+      "name": "Spot+",
+      "bucket": "spot",
       "contract_type": "OpenEnded",
       "fixed_time_range": "",
-      "pricing_model": "Hybrid",
-      "normal": 14.72,
-      "actual": 14.72
+      "pricing_model": "Spot",
+      "normal": 12.48,
+      "actual": 12.48
      },
      {
       "contract_id": "s86fyc-kokkolan-energia-oy-surffari",
@@ -38,13 +38,13 @@
       "contract_type": "OpenEnded",
       "fixed_time_range": "",
       "pricing_model": "Spot",
-      "normal": 15.02,
-      "actual": 15.02
+      "normal": 12.59,
+      "actual": 12.59
      }
     ],
     "categories": {
      "spot": {
-      "n": 43,
+      "n": 47,
       "best": {
        "contract_id": "xlclt2-sahkotytot-oy-porssisahko-tarjous-ilmainen-perusmaksu-ensimmaiset-3kk",
        "company": "Sähkötytöt Oy",
@@ -53,85 +53,84 @@
        "contract_type": "OpenEnded",
        "fixed_time_range": "",
        "pricing_model": "Spot",
-       "normal": 14.12,
-       "actual": 12.17
+       "normal": 11.62,
+       "actual": 9.6
       },
-      "median": 17.21,
+      "median": 14.77,
       "in_overall": true
      },
      "fixed_term": {
-      "n": 90,
+      "n": 82,
       "best": {
-       "contract_id": "xuco5y-pohjois-karjalan-sahko-oy-optimi-takuu-24-kuukautta",
-       "company": "Pohjois-Karjalan Sähkö Oy",
-       "name": "Optimi takuu 24 kuukautta",
+       "contract_id": "cnj27g-nurmijarven-sahko-oy-kausisahko-2-vuotta",
+       "company": "Nurmijärven Sähkö Oy",
+       "name": "Kausisähkö 2 vuotta",
        "bucket": "fixed_term",
        "contract_type": "FixedTerm",
        "fixed_time_range": "Fixed24",
        "pricing_model": "FixedPrice",
-       "normal": 18.2,
-       "actual": 18.2
+       "normal": 21.06,
+       "actual": 21.06
       },
-      "median": 21.62,
+      "median": 25.27,
       "in_overall": true
      },
      "fixed_open_ended": {
       "n": 32,
       "best": {
-       "contract_id": "akhbwv-parikkalan-valo-oy-q-valo",
-       "company": "Parikkalan Valo Oy",
-       "name": "Q-Valo",
+       "contract_id": "v7juwr-aanekosken-energia-oy-kausisahko",
+       "company": "Äänekosken Energia Oy",
+       "name": "Kausisähkö",
        "bucket": "fixed_open_ended",
        "contract_type": "OpenEnded",
        "fixed_time_range": "",
        "pricing_model": "FixedPrice",
-       "normal": 16.32,
-       "actual": 16.32
+       "normal": 21.72,
+       "actual": 21.72
       },
-      "median": 26.31,
+      "median": 29.73,
       "in_overall": true
      },
      "market_reset": {
-      "n": 20,
+      "n": 19,
       "best": {
-       "contract_id": "zp2qud-korpelan-energia-oy-korpela-kvartaali",
-       "company": "Korpelan Energia Oy",
-       "name": "Korpela Kvartaali",
+       "contract_id": "next4d-aalto-energia-oyj-aalto-kuukausihinta",
+       "company": "Aalto energia Oyj",
+       "name": "Aalto Kuukausihinta",
        "bucket": "market_reset",
        "contract_type": "OpenEnded",
        "fixed_time_range": "",
-       "pricing_model": "Hybrid",
-       "normal": 14.72,
-       "actual": 14.72
+       "pricing_model": "FixedPrice",
+       "normal": 21.9,
+       "actual": 15.75
       },
-      "median": 20.16,
+      "median": 29.46,
       "in_overall": true
      },
      "consumption_effect": {
-      "n": 31,
+      "n": 32,
       "best": {
-       "contract_id": "h4bean-kokkolan-energia-oy-aalto-24-kk",
-       "company": "Kokkolan Energia Oy",
-       "name": "Aalto 24 kk",
+       "contract_id": "bewn6x-koillis-satakunnan-sahko-oy-joustowirta-24-kk",
+       "company": "Koillis-Satakunnan Sähkö Oy",
+       "name": "JoustoWirta 24 kk",
        "bucket": "consumption_effect",
        "contract_type": "FixedTerm",
        "fixed_time_range": "Fixed24",
        "pricing_model": "Hybrid",
-       "normal": 18.57,
-       "actual": 18.57
+       "normal": 21.62,
+       "actual": 21.62
       },
-      "median": 20.66,
+      "median": 24.2,
       "in_overall": false
      }
     },
     "flagged_skipped": [
-     "Vihreä Älyenergia Oy – Vire Tuuli – Opiskelija",
-     "Aalto energia Oyj – Luotsi pörssisähkö (Tarjous! Perusmaksu 0,99€ ensimmäiset 12KK!)"
+     "Aalto energia Oyj – Luotsi pörssisähkö (Tarjous! Perusmaksu 0€ ensimmäiset 12KK!)"
     ]
    },
    "forward": {
     "n": 221,
-    "kwh": 2159.9333333333334,
+    "kwh": 2160.0666666666666,
     "tax_eur": 63.03,
     "overall": [
      {
@@ -142,8 +141,8 @@
       "contract_type": "OpenEnded",
       "fixed_time_range": "",
       "pricing_model": "Spot",
-      "normal": 248.09,
-      "actual": 248.09
+      "normal": 248.11,
+      "actual": 248.11
      },
      {
       "contract_id": "xlclt2-sahkotytot-oy-porssisahko-tarjous-ilmainen-perusmaksu-ensimmaiset-3kk",
@@ -153,8 +152,8 @@
       "contract_type": "OpenEnded",
       "fixed_time_range": "",
       "pricing_model": "Spot",
-      "normal": 248.79,
-      "actual": 242.81
+      "normal": 248.8,
+      "actual": 242.82
      },
      {
       "contract_id": "v5lqzx-herrfors-oy-ab-spot",
@@ -164,13 +163,13 @@
       "contract_type": "OpenEnded",
       "fixed_time_range": "",
       "pricing_model": "Spot",
-      "normal": 258.95,
-      "actual": 258.95
+      "normal": 258.97,
+      "actual": 258.97
      }
     ],
     "categories": {
      "spot": {
-      "n": 51,
+      "n": 56,
       "best": {
        "contract_id": "ilytue-nordic-green-energy-porssisahko",
        "company": "Nordic Green Energy",
@@ -179,14 +178,14 @@
        "contract_type": "OpenEnded",
        "fixed_time_range": "",
        "pricing_model": "Spot",
-       "normal": 248.09,
-       "actual": 248.09
+       "normal": 248.11,
+       "actual": 248.11
       },
-      "median": 285.91,
+      "median": 286.56,
       "in_overall": true
      },
      "fixed_term": {
-      "n": 78,
+      "n": 79,
       "best": {
        "contract_id": "hpqxsx-korpelan-energia-oy-korpela-kesto-kiintea-24-kk",
        "company": "Korpelan Energia Oy",
@@ -195,14 +194,14 @@
        "contract_type": "FixedTerm",
        "fixed_time_range": "Fixed24",
        "pricing_model": "FixedPrice",
-       "normal": 278.3,
-       "actual": 278.3
+       "normal": 278.31,
+       "actual": 278.31
       },
-      "median": 310.44,
+      "median": 310.63,
       "in_overall": true
      },
      "fixed_open_ended": {
-      "n": 35,
+      "n": 32,
       "best": {
        "contract_id": "yzrni3-aanekosken-energia-oy-yleissahko",
        "company": "Äänekosken Energia Oy",
@@ -211,30 +210,30 @@
        "contract_type": "OpenEnded",
        "fixed_time_range": "",
        "pricing_model": "FixedPrice",
-       "normal": 292.92,
-       "actual": 292.92
+       "normal": 292.94,
+       "actual": 292.94
       },
-      "median": 379.32,
+      "median": 363.08,
       "in_overall": true
      },
      "market_reset": {
       "n": 18,
       "best": {
-       "contract_id": "dju08j-aalto-energia-oyj-huoleton",
-       "company": "Aalto energia Oyj",
-       "name": "Huoleton",
+       "contract_id": "j8cne8-kokkolan-energia-oy-tyyni",
+       "company": "Kokkolan Energia Oy",
+       "name": "Tyyni",
        "bucket": "market_reset",
        "contract_type": "OpenEnded",
        "fixed_time_range": "",
        "pricing_model": "FixedPrice",
-       "normal": 277.37,
-       "actual": 271.42
+       "normal": 266.23,
+       "actual": 266.23
       },
-      "median": 335.6,
+      "median": 335.61,
       "in_overall": false
      },
      "consumption_effect": {
-      "n": 39,
+      "n": 36,
       "best": {
        "contract_id": "bewn6x-koillis-satakunnan-sahko-oy-joustowirta-24-kk",
        "company": "Koillis-Satakunnan Sähkö Oy",
@@ -243,23 +242,26 @@
        "contract_type": "FixedTerm",
        "fixed_time_range": "Fixed24",
        "pricing_model": "Hybrid",
-       "normal": 263.64,
-       "actual": 263.64
+       "normal": 263.65,
+       "actual": 263.65
       },
-      "median": 302.46,
+      "median": 302.42,
       "in_overall": false
      }
     },
-    "flagged_skipped": [],
+    "flagged_skipped": [
+     "Hehku Energia Oy – Hehku Flex Pörssisähkö - Tarjous! Perusmaksu 0€ ensimmäiset 12KK!",
+     "Aalto energia Oyj – Luotsi pörssisähkö (Tarjous! Perusmaksu 0€ ensimmäiset 12KK!)"
+    ],
     "kwh_by_scenario": {
      "forward_analog_3": 2258.9,
      "forward_analog_2": 2089.8,
-     "forward_analog_1": 2131.1
+     "forward_analog_1": 2131.5
     },
     "certainty": {
      "forward_analog_3": {
-      "median_spot": 305.0,
-      "median_fixed_term": 322.0,
+      "median_spot": 306.0,
+      "median_fixed_term": 323.0,
       "fixed_minus_spot": 17.0
      },
      "forward_analog_2": {
@@ -268,7 +270,7 @@
       "fixed_minus_spot": 29.0
      },
      "forward_analog_1": {
-      "median_spot": 280.0,
+      "median_spot": 281.0,
       "median_fixed_term": 307.0,
       "fixed_minus_spot": 27.0
      }
@@ -278,21 +280,10 @@
   "BE03": {
    "label": "pientalo, ei sähkölämmitystä",
    "past": {
-    "n": 208,
-    "kwh": 413.9,
-    "tax_eur": 12.08,
+    "n": 204,
+    "kwh": 524.7,
+    "tax_eur": 15.31,
     "overall": [
-     {
-      "contract_id": "zp2qud-korpelan-energia-oy-korpela-kvartaali",
-      "company": "Korpelan Energia Oy",
-      "name": "Korpela Kvartaali",
-      "bucket": "market_reset",
-      "contract_type": "OpenEnded",
-      "fixed_time_range": "",
-      "pricing_model": "Hybrid",
-      "normal": 32.71,
-      "actual": 32.71
-     },
      {
       "contract_id": "xlclt2-sahkotytot-oy-porssisahko-tarjous-ilmainen-perusmaksu-ensimmaiset-3kk",
       "company": "Sähkötytöt Oy",
@@ -301,24 +292,35 @@
       "contract_type": "OpenEnded",
       "fixed_time_range": "",
       "pricing_model": "Spot",
-      "normal": 33.89,
-      "actual": 31.94
+      "normal": 30.16,
+      "actual": 28.15
      },
      {
-      "contract_id": "s86fyc-kokkolan-energia-oy-surffari",
-      "company": "Kokkolan Energia Oy",
-      "name": "Surffari",
+      "contract_id": "v5lqzx-herrfors-oy-ab-spot",
+      "company": "Herrfors Oy Ab",
+      "name": "Spot+",
       "bucket": "spot",
       "contract_type": "OpenEnded",
       "fixed_time_range": "",
       "pricing_model": "Spot",
-      "normal": 35.33,
-      "actual": 35.33
+      "normal": 30.5,
+      "actual": 30.5
+     },
+     {
+      "contract_id": "qylep7-herrfors-oy-ab-spot-sahko-100-uusiutuva-sahko",
+      "company": "Herrfors Oy Ab",
+      "name": "Spot-sähkö 100% uusiutuva sähkö",
+      "bucket": "spot",
+      "contract_type": "OpenEnded",
+      "fixed_time_range": "",
+      "pricing_model": "Spot",
+      "normal": 31.81,
+      "actual": 31.81
      }
     ],
     "categories": {
      "spot": {
-      "n": 41,
+      "n": 45,
       "best": {
        "contract_id": "xlclt2-sahkotytot-oy-porssisahko-tarjous-ilmainen-perusmaksu-ensimmaiset-3kk",
        "company": "Sähkötytöt Oy",
@@ -327,83 +329,83 @@
        "contract_type": "OpenEnded",
        "fixed_time_range": "",
        "pricing_model": "Spot",
-       "normal": 33.89,
-       "actual": 31.94
+       "normal": 30.16,
+       "actual": 28.15
       },
-      "median": 37.31,
+      "median": 33.74,
       "in_overall": true
      },
      "fixed_term": {
-      "n": 90,
+      "n": 82,
       "best": {
-       "contract_id": "2hq0f2-nurmijarven-sahko-oy-kausisahko-2-vuotta",
+       "contract_id": "cnj27g-nurmijarven-sahko-oy-kausisahko-2-vuotta",
        "company": "Nurmijärven Sähkö Oy",
        "name": "Kausisähkö 2 vuotta",
        "bucket": "fixed_term",
        "contract_type": "FixedTerm",
        "fixed_time_range": "Fixed24",
        "pricing_model": "FixedPrice",
-       "normal": 40.56,
-       "actual": 40.56
+       "normal": 51.41,
+       "actual": 51.41
       },
-      "median": 49.81,
+      "median": 65.4,
       "in_overall": true
      },
      "fixed_open_ended": {
       "n": 28,
       "best": {
-       "contract_id": "akhbwv-parikkalan-valo-oy-q-valo",
-       "company": "Parikkalan Valo Oy",
-       "name": "Q-Valo",
+       "contract_id": "v7juwr-aanekosken-energia-oy-kausisahko",
+       "company": "Äänekosken Energia Oy",
+       "name": "Kausisähkö",
        "bucket": "fixed_open_ended",
        "contract_type": "OpenEnded",
        "fixed_time_range": "",
        "pricing_model": "FixedPrice",
-       "normal": 35.81,
-       "actual": 35.81
+       "normal": 57.34,
+       "actual": 57.34
       },
-      "median": 60.84,
+      "median": 78.03,
       "in_overall": true
      },
      "market_reset": {
-      "n": 22,
+      "n": 21,
       "best": {
-       "contract_id": "zp2qud-korpelan-energia-oy-korpela-kvartaali",
-       "company": "Korpelan Energia Oy",
-       "name": "Korpela Kvartaali",
+       "contract_id": "next4d-aalto-energia-oyj-aalto-kuukausihinta",
+       "company": "Aalto energia Oyj",
+       "name": "Aalto Kuukausihinta",
        "bucket": "market_reset",
        "contract_type": "OpenEnded",
        "fixed_time_range": "",
-       "pricing_model": "Hybrid",
-       "normal": 32.71,
-       "actual": 32.71
+       "pricing_model": "FixedPrice",
+       "normal": 53.27,
+       "actual": 47.12
       },
-      "median": 44.7,
+      "median": 79.95,
       "in_overall": true
      },
      "consumption_effect": {
-      "n": 27,
+      "n": 28,
       "best": {
-       "contract_id": "lg2lxo-keravan-energia-oy-joustosahko-24-kk",
-       "company": "Keravan Energia Oy",
-       "name": "Joustosähkö 24 kk",
+       "contract_id": "amqcwm-oomi-oy-oomi-jousto-24-kk",
+       "company": "Oomi Oy",
+       "name": "Oomi Jousto 24 kk",
        "bucket": "consumption_effect",
        "contract_type": "FixedTerm",
        "fixed_time_range": "Fixed24",
        "pricing_model": "Hybrid",
-       "normal": 42.04,
-       "actual": 42.04
+       "normal": 53.27,
+       "actual": 47.17
       },
-      "median": 45.82,
+      "median": 61.51,
       "in_overall": false
      }
     },
     "flagged_skipped": []
    },
    "forward": {
-    "n": 215,
-    "kwh": 6750.066666666667,
-    "tax_eur": 196.97,
+    "n": 214,
+    "kwh": 6750.8,
+    "tax_eur": 196.99,
     "overall": [
      {
       "contract_id": "zzcnce-cheap-energy-finland-oy-cheap-maaraaikainen-36-kk-0-kuukausimaksu-ensimmaiset-3-kk",
@@ -413,8 +415,8 @@
       "contract_type": "FixedTerm",
       "fixed_time_range": "Over24",
       "pricing_model": "FixedPrice",
-      "normal": 751.16,
-      "actual": 736.9
+      "normal": 751.23,
+      "actual": 736.97
      },
      {
       "contract_id": "hpqxsx-korpelan-energia-oy-korpela-kesto-kiintea-24-kk",
@@ -424,8 +426,8 @@
       "contract_type": "FixedTerm",
       "fixed_time_range": "Fixed24",
       "pricing_model": "FixedPrice",
-      "normal": 753.38,
-      "actual": 753.38
+      "normal": 753.45,
+      "actual": 753.45
      },
      {
       "contract_id": "zxrhlo-cheap-energy-finland-oy-cheap-maaraaikainen-24-kk-0-kuukausimaksu-ensimmaiset-4-kk",
@@ -435,13 +437,13 @@
       "contract_type": "FixedTerm",
       "fixed_time_range": "Fixed24",
       "pricing_model": "FixedPrice",
-      "normal": 754.8,
-      "actual": 737.0
+      "normal": 754.87,
+      "actual": 737.07
      }
     ],
     "categories": {
      "spot": {
-      "n": 50,
+      "n": 54,
       "best": {
        "contract_id": "xlclt2-sahkotytot-oy-porssisahko-tarjous-ilmainen-perusmaksu-ensimmaiset-3kk",
        "company": "Sähkötytöt Oy",
@@ -450,14 +452,14 @@
        "contract_type": "OpenEnded",
        "fixed_time_range": "",
        "pricing_model": "Spot",
-       "normal": 769.17,
-       "actual": 763.19
+       "normal": 769.21,
+       "actual": 763.23
       },
-      "median": 811.69,
+      "median": 812.93,
       "in_overall": true
      },
      "fixed_term": {
-      "n": 78,
+      "n": 79,
       "best": {
        "contract_id": "zzcnce-cheap-energy-finland-oy-cheap-maaraaikainen-36-kk-0-kuukausimaksu-ensimmaiset-3-kk",
        "company": "Cheap Energy Finland Oy",
@@ -466,14 +468,14 @@
        "contract_type": "FixedTerm",
        "fixed_time_range": "Over24",
        "pricing_model": "FixedPrice",
-       "normal": 751.16,
-       "actual": 736.9
+       "normal": 751.23,
+       "actual": 736.97
       },
-      "median": 839.2,
+      "median": 842.03,
       "in_overall": true
      },
      "fixed_open_ended": {
-      "n": 32,
+      "n": 29,
       "best": {
        "contract_id": "gywy8t-aanekosken-energia-oy-aikasahko",
        "company": "Äänekosken Energia Oy",
@@ -482,10 +484,10 @@
        "contract_type": "OpenEnded",
        "fixed_time_range": "",
        "pricing_model": "FixedPrice",
-       "normal": 816.42,
-       "actual": 816.42
+       "normal": 816.51,
+       "actual": 816.51
       },
-      "median": 1057.35,
+      "median": 1012.8,
       "in_overall": true
      },
      "market_reset": {
@@ -498,14 +500,14 @@
        "contract_type": "OpenEnded",
        "fixed_time_range": "",
        "pricing_model": "FixedPrice",
-       "normal": 712.97,
-       "actual": 707.02
+       "normal": 713.04,
+       "actual": 707.09
       },
-      "median": 933.58,
+      "median": 933.68,
       "in_overall": false
      },
      "consumption_effect": {
-      "n": 35,
+      "n": 32,
       "best": {
        "contract_id": "bewn6x-koillis-satakunnan-sahko-oy-joustowirta-24-kk",
        "company": "Koillis-Satakunnan Sähkö Oy",
@@ -514,10 +516,10 @@
        "contract_type": "FixedTerm",
        "fixed_time_range": "Fixed24",
        "pricing_model": "Hybrid",
-       "normal": 707.05,
-       "actual": 707.05
+       "normal": 707.12,
+       "actual": 707.12
       },
-      "median": 813.62,
+      "median": 801.74,
       "in_overall": false
      }
     },
@@ -527,23 +529,23 @@
     "kwh_by_scenario": {
      "forward_analog_3": 6884.4,
      "forward_analog_2": 6520.4,
-     "forward_analog_1": 6845.4
+     "forward_analog_1": 6847.6
     },
     "certainty": {
      "forward_analog_3": {
-      "median_spot": 853.0,
-      "median_fixed_term": 855.0,
-      "fixed_minus_spot": 2.0
+      "median_spot": 854.0,
+      "median_fixed_term": 858.0,
+      "fixed_minus_spot": 4.0
      },
      "forward_analog_2": {
-      "median_spot": 763.0,
-      "median_fixed_term": 813.0,
-      "fixed_minus_spot": 50.0
+      "median_spot": 764.0,
+      "median_fixed_term": 815.0,
+      "fixed_minus_spot": 51.0
      },
      "forward_analog_1": {
-      "median_spot": 820.0,
-      "median_fixed_term": 850.0,
-      "fixed_minus_spot": 30.0
+      "median_spot": 821.0,
+      "median_fixed_term": 853.0,
+      "fixed_minus_spot": 32.0
      }
     }
    }
@@ -551,20 +553,20 @@
   "BE02": {
    "label": "sähkölämmitteinen pientalo",
    "past": {
-    "n": 205,
-    "kwh": 594.7,
-    "tax_eur": 17.35,
+    "n": 201,
+    "kwh": 804.7,
+    "tax_eur": 23.48,
     "overall": [
      {
-      "contract_id": "zp2qud-korpelan-energia-oy-korpela-kvartaali",
-      "company": "Korpelan Energia Oy",
-      "name": "Korpela Kvartaali",
-      "bucket": "market_reset",
+      "contract_id": "v5lqzx-herrfors-oy-ab-spot",
+      "company": "Herrfors Oy Ab",
+      "name": "Spot+",
+      "bucket": "spot",
       "contract_type": "OpenEnded",
       "fixed_time_range": "",
-      "pricing_model": "Hybrid",
-      "normal": 45.28,
-      "actual": 45.28
+      "pricing_model": "Spot",
+      "normal": 43.81,
+      "actual": 43.81
      },
      {
       "contract_id": "xlclt2-sahkotytot-oy-porssisahko-tarjous-ilmainen-perusmaksu-ensimmaiset-3kk",
@@ -574,8 +576,8 @@
       "contract_type": "OpenEnded",
       "fixed_time_range": "",
       "pricing_model": "Spot",
-      "normal": 46.56,
-      "actual": 44.61
+      "normal": 43.89,
+      "actual": 41.88
      },
      {
       "contract_id": "xvnarv-porvoon-energia-oy-spot-porssisahko",
@@ -585,98 +587,98 @@
       "contract_type": "OpenEnded",
       "fixed_time_range": "",
       "pricing_model": "Spot",
-      "normal": 48.33,
-      "actual": 48.33
+      "normal": 45.76,
+      "actual": 45.76
      }
     ],
     "categories": {
      "spot": {
-      "n": 41,
+      "n": 45,
       "best": {
-       "contract_id": "xlclt2-sahkotytot-oy-porssisahko-tarjous-ilmainen-perusmaksu-ensimmaiset-3kk",
-       "company": "Sähkötytöt Oy",
-       "name": "Pörssisähkö (Tarjous: ilmainen perusmaksu ensimmäiset 3kk!)",
+       "contract_id": "v5lqzx-herrfors-oy-ab-spot",
+       "company": "Herrfors Oy Ab",
+       "name": "Spot+",
        "bucket": "spot",
        "contract_type": "OpenEnded",
        "fixed_time_range": "",
        "pricing_model": "Spot",
-       "normal": 46.56,
-       "actual": 44.61
+       "normal": 43.81,
+       "actual": 43.81
       },
-      "median": 50.29,
+      "median": 47.95,
       "in_overall": true
      },
      "fixed_term": {
-      "n": 87,
+      "n": 79,
       "best": {
-       "contract_id": "2hq0f2-nurmijarven-sahko-oy-kausisahko-2-vuotta",
+       "contract_id": "cnj27g-nurmijarven-sahko-oy-kausisahko-2-vuotta",
        "company": "Nurmijärven Sähkö Oy",
        "name": "Kausisähkö 2 vuotta",
        "bucket": "fixed_term",
        "contract_type": "FixedTerm",
        "fixed_time_range": "Fixed24",
        "pricing_model": "FixedPrice",
-       "normal": 55.84,
-       "actual": 55.84
+       "normal": 75.75,
+       "actual": 75.75
       },
-      "median": 69.07,
+      "median": 97.6,
       "in_overall": true
      },
      "fixed_open_ended": {
       "n": 28,
       "best": {
-       "contract_id": "akhbwv-parikkalan-valo-oy-q-valo",
-       "company": "Parikkalan Valo Oy",
-       "name": "Q-Valo",
+       "contract_id": "lazesb-keuruun-sahko-oy-kausisahko",
+       "company": "Keuruun Sähkö Oy",
+       "name": "Kausisähkö",
        "bucket": "fixed_open_ended",
        "contract_type": "OpenEnded",
        "fixed_time_range": "",
        "pricing_model": "FixedPrice",
-       "normal": 49.43,
-       "actual": 49.43
+       "normal": 85.82,
+       "actual": 85.82
       },
-      "median": 87.06,
+      "median": 119.47,
       "in_overall": true
      },
      "market_reset": {
-      "n": 22,
+      "n": 21,
       "best": {
-       "contract_id": "zp2qud-korpelan-energia-oy-korpela-kvartaali",
-       "company": "Korpelan Energia Oy",
-       "name": "Korpela Kvartaali",
+       "contract_id": "next4d-aalto-energia-oyj-aalto-kuukausihinta",
+       "company": "Aalto energia Oyj",
+       "name": "Aalto Kuukausihinta",
        "bucket": "market_reset",
        "contract_type": "OpenEnded",
        "fixed_time_range": "",
-       "pricing_model": "Hybrid",
-       "normal": 45.28,
-       "actual": 45.28
+       "pricing_model": "FixedPrice",
+       "normal": 78.41,
+       "actual": 72.26
       },
-      "median": 61.86,
+      "median": 120.11,
       "in_overall": true
      },
      "consumption_effect": {
-      "n": 27,
+      "n": 28,
       "best": {
-       "contract_id": "lg2lxo-keravan-energia-oy-joustosahko-24-kk",
-       "company": "Keravan Energia Oy",
-       "name": "Joustosähkö 24 kk",
+       "contract_id": "amqcwm-oomi-oy-oomi-jousto-24-kk",
+       "company": "Oomi Oy",
+       "name": "Oomi Jousto 24 kk",
        "bucket": "consumption_effect",
        "contract_type": "FixedTerm",
        "fixed_time_range": "Fixed24",
        "pricing_model": "Hybrid",
-       "normal": 58.01,
-       "actual": 58.01
+       "normal": 78.44,
+       "actual": 72.34
       },
-      "median": 63.87,
+      "median": 91.27,
       "in_overall": false
      }
     },
     "flagged_skipped": []
    },
    "forward": {
-    "n": 212,
-    "kwh": 10875.1,
-    "tax_eur": 317.34,
+    "n": 210,
+    "kwh": 10875.966666666667,
+    "tax_eur": 317.36,
     "overall": [
      {
       "contract_id": "zzcnce-cheap-energy-finland-oy-cheap-maaraaikainen-36-kk-0-kuukausimaksu-ensimmaiset-3-kk",
@@ -686,8 +688,8 @@
       "contract_type": "FixedTerm",
       "fixed_time_range": "Over24",
       "pricing_model": "FixedPrice",
-      "normal": 1175.62,
-      "actual": 1161.36
+      "normal": 1175.71,
+      "actual": 1161.45
      },
      {
       "contract_id": "1aaghi-pohjois-karjalan-sahko-oy-optimi-takuu-24-kuukautta",
@@ -697,8 +699,8 @@
       "contract_type": "FixedTerm",
       "fixed_time_range": "Fixed24",
       "pricing_model": "FixedPrice",
-      "normal": 1178.25,
-      "actual": 1122.77
+      "normal": 1178.35,
+      "actual": 1122.87
      },
      {
       "contract_id": "hpqxsx-korpelan-energia-oy-korpela-kesto-kiintea-24-kk",
@@ -708,13 +710,13 @@
       "contract_type": "FixedTerm",
       "fixed_time_range": "Fixed24",
       "pricing_model": "FixedPrice",
-      "normal": 1180.33,
-      "actual": 1180.33
+      "normal": 1180.42,
+      "actual": 1180.42
      }
     ],
     "categories": {
      "spot": {
-      "n": 50,
+      "n": 54,
       "best": {
        "contract_id": "v5lqzx-herrfors-oy-ab-spot",
        "company": "Herrfors Oy Ab",
@@ -723,10 +725,10 @@
        "contract_type": "OpenEnded",
        "fixed_time_range": "",
        "pricing_model": "Spot",
-       "normal": 1247.46,
-       "actual": 1247.46
+       "normal": 1247.44,
+       "actual": 1247.44
       },
-      "median": 1297.92,
+      "median": 1303.82,
       "in_overall": true
      },
      "fixed_term": {
@@ -739,14 +741,14 @@
        "contract_type": "FixedTerm",
        "fixed_time_range": "Over24",
        "pricing_model": "FixedPrice",
-       "normal": 1175.62,
-       "actual": 1161.36
+       "normal": 1175.71,
+       "actual": 1161.45
       },
-      "median": 1317.53,
+      "median": 1317.64,
       "in_overall": true
      },
      "fixed_open_ended": {
-      "n": 31,
+      "n": 28,
       "best": {
        "contract_id": "gywy8t-aanekosken-energia-oy-aikasahko",
        "company": "Äänekosken Energia Oy",
@@ -755,10 +757,10 @@
        "contract_type": "OpenEnded",
        "fixed_time_range": "",
        "pricing_model": "FixedPrice",
-       "normal": 1275.29,
-       "actual": 1275.29
+       "normal": 1275.39,
+       "actual": 1275.39
       },
-      "median": 1696.07,
+      "median": 1632.15,
       "in_overall": true
      },
      "market_reset": {
@@ -771,14 +773,14 @@
        "contract_type": "OpenEnded",
        "fixed_time_range": "",
        "pricing_model": "FixedPrice",
-       "normal": 1104.44,
-       "actual": 1098.49
+       "normal": 1104.52,
+       "actual": 1098.57
       },
-      "median": 1462.53,
+      "median": 1462.64,
       "in_overall": false
      },
      "consumption_effect": {
-      "n": 35,
+      "n": 32,
       "best": {
        "contract_id": "bewn6x-koillis-satakunnan-sahko-oy-joustowirta-24-kk",
        "company": "Koillis-Satakunnan Sähkö Oy",
@@ -787,10 +789,10 @@
        "contract_type": "FixedTerm",
        "fixed_time_range": "Fixed24",
        "pricing_model": "Hybrid",
-       "normal": 1105.53,
-       "actual": 1105.53
+       "normal": 1105.61,
+       "actual": 1105.61
       },
-      "median": 1266.96,
+      "median": 1254.47,
       "in_overall": false
      }
     },
@@ -800,23 +802,23 @@
     "kwh_by_scenario": {
      "forward_analog_3": 11093.5,
      "forward_analog_2": 10449.5,
-     "forward_analog_1": 11082.3
+     "forward_analog_1": 11084.9
     },
     "certainty": {
      "forward_analog_3": {
-      "median_spot": 1370.0,
+      "median_spot": 1377.0,
       "median_fixed_term": 1343.0,
-      "fixed_minus_spot": -27.0
+      "fixed_minus_spot": -33.0
      },
      "forward_analog_2": {
-      "median_spot": 1201.0,
+      "median_spot": 1207.0,
       "median_fixed_term": 1268.0,
-      "fixed_minus_spot": 67.0
+      "fixed_minus_spot": 61.0
      },
      "forward_analog_1": {
-      "median_spot": 1322.0,
+      "median_spot": 1328.0,
       "median_fixed_term": 1342.0,
-      "fixed_minus_spot": 19.0
+      "fixed_minus_spot": 14.0
      }
     }
    }

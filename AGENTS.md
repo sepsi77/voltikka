@@ -21,6 +21,17 @@ Voltikka is a Finnish electricity contract comparison platform built with **Lara
 
 Every real public HTML page renders the shared Preferred Sources action strip directly after its hero or primary editorial header. The Blade page templates own this explicit placement. The component owns the Google action, fallbacks, one-time script load, and the global `post_hero` analytics placement. Since round 3 (2026-10-16) it is the first element after the painted hero on every page (contract and company pages included): a low strip (about 84px): a small notice-board picture (season art `noticeboard`, desktop only), a display title with the reason, and an inked fox-deep text action, with no boxed button (`laravel/resources/views/components/page-action-strip.blade.php`). User decision 2026-10-23 (round 4, Paper page "Round 4 · Listing, calm top", strip option A): the strip and its placement stay; it must not compete with the page's main content but keeps some brand impact.
 
+## Writing rules for public copy
+
+User decisions 2026-11-06; they apply to all writing on the site (pages, articles, reviews, media material), not only the monthly market review.
+
+- **Take clear expert stances.** State the expected cause ("winter will be expensive because X, Y and Z") and give a clear recommendation where the reader has a choice. Keep assumptions and method in one method note, not as caveats in every sentence. Do not drop a useful causal explanation only because it is not formally proved. The stakes are low (consumer advice, journalists, no large investment decisions), and the site has to be opinionated to be useful. Sound like a credible expert, not a consultant who hedges every statement.
+- **Facts stay exact.** Figures, dates and sources must be correct. Mark a real data problem for the user (⟦TARKISTA⟧ in drafts), not with a disclaimer in the public text.
+- **Short and focused.** Give the most space to the readers with the most at stake. Leave out self-evident items and detail for its own sake (lists of extremes or counts). Show a price anomaly only with its explanation. Do not repeat the same figure in two places of one piece.
+- **Spot vs fixed:** frame the choice as cost against certainty. While futures expect spot to stay below fixed prices, say that spot is cheaper over the long run; give how much more spot costs over the coming winter (and in a cold winter), and say that fixed gives certainty over the winter but costs more over the summer and other periods. Compare a long fixed contract with spot over its full contract period, not only over the winter or its first 12 months: a 24–36-month contract looks cheap over its first 12 months because its flat price includes the cheaper later years (user decision 2026-11-06).
+- **Words:** say quarterly contracts (kvartaalisopimukset), not "periodically changing" contracts, when quarterly resets are meant.
+- Specific documented copy rules still apply, for example the fixed-term forecast page wording (rise/fall/unchanged, never lock/wait), no Energiavirasto mention in public copy, and the Finnish grammar checks.
+
 ## Production site
 
 - Production site URL https://voltikka.fi/
@@ -155,6 +166,7 @@ voltikka/
 │   ├── database/migrations/ # Database migrations
 │   └── data-investigation/  # API structure documentation
 ├── design/                  # Visual redesign: brand guide, design spec, art, Paper link; see design/AGENTS.md
+├── market-review/           # Monthly electricity market review: tools and one folder per edition; see market-review/AGENTS.md
 ├── media/                   # Dated media story pitches and press material built from Voltikka data
 ├── videos/                  # Code-rendered marketing video (HTML scenes → Playwright → ffmpeg); see videos/AGENTS.md
 ├── legacy/                  # Deprecated code (not in active use)
@@ -369,10 +381,14 @@ Retail collection and forecast generation use independent five-minute background
   - CSV export
 
 ### Monthly market review data (local, 2026-11-01)
-- Planning and data inventory: `tasks/monthly-market-review/` (`data-inventory.md` lists every needed source, its frequency and its gap)
+- The review is a monthly product with its own top-level folder `market-review/` (user decision 2026-11-06; see `market-review/AGENTS.md`): spec, `data-inventory.md` (every needed source, its frequency and its gap), decisions, `tools/` (scripts) and `editions/<YYYY-MM>/` (one folder per month)
 - Collected for the review, not yet read by any public page: neighbour-zone day-ahead prices (`spot:fetch-neighbours`, in the spot tables with their own region), Fingrid hourly system data (`fingrid:fetch`, `fingrid_hourly_values`, see `laravel/app/Services/Fingrid/AGENTS.md`), and append-only third-party spot-forecast vintages (`spot_price_forecast_runs`)
 - ENTSO-E A03 curves are expanded since 2026-11-01. Stored FI spot history before that date has missing hours, some hourly means from 3 of 4 quarters, and in 2022–2024 every second month holds only one day. `php artisan spot:repair-history --from=YYYY-MM --to=YYYY-MM [--apply]` repairs it (dry run by default); a production apply needs explicit approval (see `laravel/app/Services/SpotPriceImport/AGENTS.md`)
 - A published monthly figure must be frozen in its own snapshot; live Fingrid rows are corrected later
+- First edition: October 2026, published 6.11.2026 with its YouTube video (draft and figures: `market-review/editions/2026-10/`). Two layers on one page: consumers on top, "Tarkemmat tiedot" (mainly for journalists; the public heading does not name them) below
+- Public page (2026-11-06): `/markkinakatsaus` always shows the latest review and `/markkinakatsaus/YYYY-MM` one review; both are self-canonical (user decision). Each review is a frozen Blade view with its own charts and CSV; a review with `draft => true` in `laravel/config/market_reviews.php` returns 404 outside local. See `laravel/AGENTS.md` ("Monthly market review page")
+
+- Writing: the site-wide rules in `## Writing rules for public copy` apply. Review-specific structure: the consumer layer gives the most space to the two house types (Datahub BE02 electrically heated, BE03 without electric heating) and a few sentences to the apartment (BE01). In the journalist layer the key-figures table holds outcome figures only, the factor table has factor, effect (raised/lowered/small) and explanation, and predictions have their own section after the contract market. Details and reasons: `market-review/decisions.md` (2026-11-06 sections)
 
 ### Own spot price forecast models (local, 2026-11-01)
 - Task: `tasks/own-forecast-model-data/` (spec, decisions). Two models: short term (hourly D+1..D+7) and medium term (2–3 months, weekly/monthly with ranges). They are not a copy of nordpool-predict-fi; it is a baseline to beat. No public UI in this task
@@ -507,6 +523,7 @@ unknown values instead of dropping the component.
 | `/sahkosopimus/yritykselle` | SeoContractsList | Business contracts |
 | `/spot-price` | SpotPrice | Spot price analytics |
 | `/aurinkopaneelit/laskuri` | SolarCalculator | Solar calculator |
+| `/markkinakatsaus`, `/markkinakatsaus/{YYYY-MM}` | MarketReview | Monthly market review: latest and one review, both self-canonical; drafts 404 outside local |
 
 ### SEO Routes
 | Route Pattern | Type |

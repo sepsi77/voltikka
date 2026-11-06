@@ -1,0 +1,31 @@
+﻿"# Voltikka — Sähkömarkkinakatsaus, lokakuu 2026"
+# Lähde: https://voltikka.fi/markkinakatsaus/2026-10
+# Lisenssi: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/deed.fi). Lähde mainittava: Voltikka.
+"# Luvut on jäädytetty 6.11.2026. Hinnat sisältävät arvonlisäveron 25,5 %, ellei toisin mainita. Laskut: energia ja sähkövero, ei siirtoa."
+# Lokakuun Datahub-kulutus on alustava noin 11.11.2026 asti.
+tunnus,kuvaus,arvo,yksikko,lisatieto
+spot_mean,Pörssisähkön keskihinta lokakuussa,4.77,c/kWh,ENTSO-E
+spot_change_from_september,Muutos syyskuusta,-33,%,
+spot_change_from_october_2025,Muutos vuodentakaisesta,-22,%,
+weighted_price_apartment,"Kulutuksella painotettu hinta, kerrostaloasunto",5.08,c/kWh,Syyskuussa 7.46. Alustava.
+weighted_price_electric_house,"Kulutuksella painotettu hinta, sähkölämmitteinen pientalo",4.81,c/kWh,Syyskuussa 7.11. Alustava.
+bill_electric_house_spot,"Sähkölämmitteisen pientalon lokakuun energialasku, pörssisähkö",71,EUR,"Mediaanisopimus, sähkövero mukana"
+bill_electric_house_fixed,"Sähkölämmitteisen pientalon lokakuun energialasku, määräaikainen",121,EUR,"Mediaanisopimus, sähkövero mukana"
+seller_set_price_index,Voltikan hintaindeksi 31.10.,13.27,c/kWh,Myyjien asettamat energiahinnat
+seller_set_price_index_change_october,Hintaindeksin muutos lokakuussa (30.9.–31.10.),12.0,%,
+seller_set_price_index_change_since_september,Hintaindeksin muutos 1.9. alkaen,17.5,%,
+fixed_12_month_median,12 kuukauden kiinteän hinnan mediaani 2.11.,12.00,c/kWh,Ennallaan lokakuussa
+winter_spot_extra_electric_house,Sähkölämmitteinen pientalo: pörssisähkö kalliimpi marras–maaliskuussa,150,EUR,Mediaanisopimukset
+year_spot_saving_electric_house,Sähkölämmitteinen pientalo: pörssisähkö halvempi koko vuonna,75,EUR,"Mediaanisopimukset, marraskuu 2026 – lokakuu 2027"
+wind_production,Tuulivoiman tuotanto lokakuussa,2.83,TWh,Fingrid. 23 % enemmän kuin vuotta aiemmin
+wind_capacity,Tuulivoiman kapasiteetti,9553,MW,Fingrid
+temperature_anomaly,Lämpötila normaaliin (1991–2020) verrattuna,2.9,°C,Open-Meteo (ERA5)
+heating_need,Lämmitystarve normaalista,75,%,
+nuclear_availability,Ydinvoiman käytettävyys,46.5,%,ENTSO-E
+net_import,Nettotuonti,0.39,TWh,ENTSO-E
+export_to_estonia,Vienti Viroon,0.64,TWh,ENTSO-E
+zone_price_fi_vat0,Suomen keskihinta ilman veroa,3.80,c/kWh,ENTSO-E
+zone_price_se1_vat0,SE1:n keskihinta ilman veroa,2.72,c/kWh,ENTSO-E
+zone_price_se3_vat0,SE3:n keskihinta ilman veroa,7.35,c/kWh,ENTSO-E
+zone_price_ee_vat0,Viron keskihinta ilman veroa,8.21,c/kWh,ENTSO-E
+highest_daily_mean,Kuun kallein päivä 30.10.,18.6,c/kWh,ENTSO-E

@@ -1,7 +1,7 @@
 # Open-Meteo weather
 
 Collects weather for the monthly market review (data inventory G6 and G22 in
-`../../../../tasks/monthly-market-review/`): observed daily weather from the ERA5 archive, and
+`../../../../market-review/`): observed daily weather from the ERA5 archive, and
 append-only outlook vintages from the ECMWF ensemble, EC46 and SEAS5. It also collects two inputs
 for own spot price models (`../../../../tasks/own-forecast-model-data/`): hourly ERA5 wind at 9
 neighbour wind-power points, and append-only hourly solar (GHI) forecast vintages at the 7 FMI

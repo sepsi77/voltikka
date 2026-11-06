@@ -1,0 +1,787 @@
+{
+ "typical_contracts": {
+  "date": "2026-11-02",
+  "spot_margin_c_kwh": 0.5,
+  "spot_monthly_fee_eur": 4.12,
+  "spot_offers": 56,
+  "fixed12_energy_c_kwh": 12,
+  "fixed12_monthly_fee_eur": 4.89,
+  "fixed12_offers": 43,
+  "tax_c_kwh": 2.918
+ },
+ "months": [
+  "2026-11",
+  "2026-12",
+  "2027-01",
+  "2027-02",
+  "2027-03",
+  "2027-04",
+  "2027-05",
+  "2027-06",
+  "2027-07",
+  "2027-08",
+  "2027-09",
+  "2027-10"
+ ],
+ "groups": {
+  "BE01": {
+   "monthly": {
+    "2026-11": {
+     "kwh_mean": 200,
+     "spot_eur_mean": 35,
+     "spot_eur_min": 32,
+     "spot_eur_max": 40,
+     "fixed_eur_mean": 35,
+     "fixed_eur_min": 33,
+     "fixed_eur_max": 38
+    },
+    "2026-12": {
+     "kwh_mean": 224,
+     "spot_eur_mean": 38,
+     "spot_eur_min": 35,
+     "spot_eur_max": 43,
+     "fixed_eur_mean": 38,
+     "fixed_eur_min": 35,
+     "fixed_eur_max": 43
+    },
+    "2027-01": {
+     "kwh_mean": 241,
+     "spot_eur_mean": 52,
+     "spot_eur_min": 45,
+     "spot_eur_max": 61,
+     "fixed_eur_mean": 41,
+     "fixed_eur_min": 36,
+     "fixed_eur_max": 46
+    },
+    "2027-02": {
+     "kwh_mean": 209,
+     "spot_eur_mean": 44,
+     "spot_eur_min": 40,
+     "spot_eur_max": 47,
+     "fixed_eur_mean": 36,
+     "fixed_eur_min": 33,
+     "fixed_eur_max": 39
+    },
+    "2027-03": {
+     "kwh_mean": 192,
+     "spot_eur_mean": 36,
+     "spot_eur_min": 36,
+     "spot_eur_max": 36,
+     "fixed_eur_mean": 34,
+     "fixed_eur_min": 33,
+     "fixed_eur_max": 34
+    },
+    "2027-04": {
+     "kwh_mean": 171,
+     "spot_eur_mean": 27,
+     "spot_eur_min": 27,
+     "spot_eur_max": 28,
+     "fixed_eur_mean": 30,
+     "fixed_eur_min": 30,
+     "fixed_eur_max": 31
+    },
+    "2027-05": {
+     "kwh_mean": 158,
+     "spot_eur_mean": 16,
+     "spot_eur_min": 16,
+     "spot_eur_max": 17,
+     "fixed_eur_mean": 28,
+     "fixed_eur_min": 28,
+     "fixed_eur_max": 29
+    },
+    "2027-06": {
+     "kwh_mean": 141,
+     "spot_eur_mean": 15,
+     "spot_eur_min": 15,
+     "spot_eur_max": 15,
+     "fixed_eur_mean": 26,
+     "fixed_eur_min": 26,
+     "fixed_eur_max": 26
+    },
+    "2027-07": {
+     "kwh_mean": 148,
+     "spot_eur_mean": 17,
+     "spot_eur_min": 16,
+     "spot_eur_max": 17,
+     "fixed_eur_mean": 27,
+     "fixed_eur_min": 26,
+     "fixed_eur_max": 28
+    },
+    "2027-08": {
+     "kwh_mean": 150,
+     "spot_eur_mean": 17,
+     "spot_eur_min": 16,
+     "spot_eur_max": 18,
+     "fixed_eur_mean": 27,
+     "fixed_eur_min": 27,
+     "fixed_eur_max": 28
+    },
+    "2027-09": {
+     "kwh_mean": 151,
+     "spot_eur_mean": 18,
+     "spot_eur_min": 17,
+     "spot_eur_max": 18,
+     "fixed_eur_mean": 27,
+     "fixed_eur_min": 27,
+     "fixed_eur_max": 28
+    },
+    "2027-10": {
+     "kwh_mean": 174,
+     "spot_eur_mean": 25,
+     "spot_eur_min": 25,
+     "spot_eur_max": 25,
+     "fixed_eur_mean": 31,
+     "fixed_eur_min": 31,
+     "fixed_eur_max": 31
+    }
+   },
+   "twelve_months": {
+    "3": {
+     "kwh": 2259,
+     "spot_eur": 362,
+     "fixed_eur": 396
+    },
+    "2": {
+     "kwh": 2090,
+     "spot_eur": 325,
+     "fixed_eur": 370
+    },
+    "1": {
+     "kwh": 2131,
+     "spot_eur": 333,
+     "fixed_eur": 377
+    }
+   },
+   "seasons": {
+    "winter": {
+     "spot_eur_mean": 205,
+     "fixed_eur_mean": 184,
+     "kwh_mean": 1066,
+     "by_analog": {
+      "3": {
+       "spot_eur": 228,
+       "fixed_eur": 201,
+       "kwh": 1180
+      },
+      "2": {
+       "spot_eur": 189,
+       "fixed_eur": 172,
+       "kwh": 987
+      },
+      "1": {
+       "spot_eur": 198,
+       "fixed_eur": 178,
+       "kwh": 1031
+      }
+     }
+    },
+    "rest": {
+     "spot_eur_mean": 135,
+     "fixed_eur_mean": 197,
+     "kwh_mean": 1094,
+     "by_analog": {
+      "3": {
+       "spot_eur": 134,
+       "fixed_eur": 195,
+       "kwh": 1078
+      },
+      "2": {
+       "spot_eur": 136,
+       "fixed_eur": 199,
+       "kwh": 1102
+      },
+      "1": {
+       "spot_eur": 135,
+       "fixed_eur": 198,
+       "kwh": 1100
+      }
+     }
+    }
+   },
+   "bad_january": {
+    "month": "2027-01",
+    "analog": "3",
+    "label": "weather of winter 2023-24",
+    "spot_eur": 61,
+    "fixed_eur": 46,
+    "spot_eur_mean_of_analogs": 52
+   },
+   "worst_week": {
+    "analog": "3",
+    "label": "weather of winter 2023-24",
+    "from": "2027-01-02",
+    "to": "2027-01-08",
+    "kwh": 72,
+    "spot_energy_eur": 26,
+    "spot_eur": 29,
+    "fixed_eur": 12,
+    "mean_c_kwh_spot_incl_margin": 35.66
+   },
+   "flexible_spot": {
+    "rule": "1.0 kWh from each of the 4 dearest to the 4 cheapest hours of every day",
+    "by_analog": {
+     "3": {
+      "moved_kwh": 211,
+      "saving_eur": 18
+     },
+     "2": {
+      "moved_kwh": 200,
+      "saving_eur": 18
+     },
+     "1": {
+      "moved_kwh": 201,
+      "saving_eur": 15
+     }
+    },
+    "saving_eur_mean": 17,
+    "moved_kwh_mean": 204
+   }
+  },
+  "BE03": {
+   "monthly": {
+    "2026-11": {
+     "kwh_mean": 660,
+     "spot_eur_mean": 106,
+     "spot_eur_min": 97,
+     "spot_eur_max": 119,
+     "fixed_eur_mean": 103,
+     "fixed_eur_min": 98,
+     "fixed_eur_max": 112
+    },
+    "2026-12": {
+     "kwh_mean": 781,
+     "spot_eur_mean": 121,
+     "spot_eur_min": 112,
+     "spot_eur_max": 133,
+     "fixed_eur_mean": 121,
+     "fixed_eur_min": 113,
+     "fixed_eur_max": 132
+    },
+    "2027-01": {
+     "kwh_mean": 913,
+     "spot_eur_mean": 187,
+     "spot_eur_min": 158,
+     "spot_eur_max": 209,
+     "fixed_eur_mean": 141,
+     "fixed_eur_min": 123,
+     "fixed_eur_max": 152
+    },
+    "2027-02": {
+     "kwh_mean": 782,
+     "spot_eur_mean": 153,
+     "spot_eur_min": 136,
+     "spot_eur_max": 173,
+     "fixed_eur_mean": 122,
+     "fixed_eur_min": 109,
+     "fixed_eur_max": 137
+    },
+    "2027-03": {
+     "kwh_mean": 654,
+     "spot_eur_mean": 112,
+     "spot_eur_min": 109,
+     "spot_eur_max": 115,
+     "fixed_eur_mean": 102,
+     "fixed_eur_min": 99,
+     "fixed_eur_max": 105
+    },
+    "2027-04": {
+     "kwh_mean": 546,
+     "spot_eur_mean": 78,
+     "spot_eur_min": 75,
+     "spot_eur_max": 83,
+     "fixed_eur_mean": 86,
+     "fixed_eur_min": 84,
+     "fixed_eur_max": 92
+    },
+    "2027-05": {
+     "kwh_mean": 433,
+     "spot_eur_mean": 38,
+     "spot_eur_min": 36,
+     "spot_eur_max": 39,
+     "fixed_eur_mean": 69,
+     "fixed_eur_min": 67,
+     "fixed_eur_max": 73
+    },
+    "2027-06": {
+     "kwh_mean": 350,
+     "spot_eur_mean": 31,
+     "spot_eur_min": 30,
+     "spot_eur_max": 31,
+     "fixed_eur_mean": 57,
+     "fixed_eur_min": 55,
+     "fixed_eur_max": 59
+    },
+    "2027-07": {
+     "kwh_mean": 351,
+     "spot_eur_mean": 33,
+     "spot_eur_min": 32,
+     "spot_eur_max": 34,
+     "fixed_eur_mean": 57,
+     "fixed_eur_min": 56,
+     "fixed_eur_max": 58
+    },
+    "2027-08": {
+     "kwh_mean": 367,
+     "spot_eur_mean": 36,
+     "spot_eur_min": 34,
+     "spot_eur_max": 38,
+     "fixed_eur_mean": 60,
+     "fixed_eur_min": 58,
+     "fixed_eur_max": 61
+    },
+    "2027-09": {
+     "kwh_mean": 395,
+     "spot_eur_mean": 39,
+     "spot_eur_min": 38,
+     "spot_eur_max": 40,
+     "fixed_eur_mean": 64,
+     "fixed_eur_min": 61,
+     "fixed_eur_max": 67
+    },
+    "2027-10": {
+     "kwh_mean": 519,
+     "spot_eur_mean": 66,
+     "spot_eur_min": 65,
+     "spot_eur_max": 67,
+     "fixed_eur_mean": 82,
+     "fixed_eur_min": 81,
+     "fixed_eur_max": 83
+    }
+   },
+   "twelve_months": {
+    "3": {
+     "kwh": 6884,
+     "spot_eur": 1044,
+     "fixed_eur": 1086
+    },
+    "2": {
+     "kwh": 6520,
+     "spot_eur": 943,
+     "fixed_eur": 1031
+    },
+    "1": {
+     "kwh": 6848,
+     "spot_eur": 1010,
+     "fixed_eur": 1080
+    }
+   },
+   "seasons": {
+    "winter": {
+     "spot_eur_mean": 679,
+     "fixed_eur_mean": 590,
+     "kwh_mean": 3789,
+     "by_analog": {
+      "3": {
+       "spot_eur": 726,
+       "fixed_eur": 616,
+       "kwh": 3968
+      },
+      "2": {
+       "spot_eur": 622,
+       "fixed_eur": 551,
+       "kwh": 3532
+      },
+      "1": {
+       "spot_eur": 689,
+       "fixed_eur": 601,
+       "kwh": 3868
+      }
+     }
+    },
+    "rest": {
+     "spot_eur_mean": 320,
+     "fixed_eur_mean": 476,
+     "kwh_mean": 2961,
+     "by_analog": {
+      "3": {
+       "spot_eur": 318,
+       "fixed_eur": 469,
+       "kwh": 2917
+      },
+      "2": {
+       "spot_eur": 321,
+       "fixed_eur": 480,
+       "kwh": 2988
+      },
+      "1": {
+       "spot_eur": 321,
+       "fixed_eur": 479,
+       "kwh": 2979
+      }
+     }
+    }
+   },
+   "bad_january": {
+    "month": "2027-01",
+    "analog": "3",
+    "label": "weather of winter 2023-24",
+    "spot_eur": 209,
+    "fixed_eur": 149,
+    "spot_eur_mean_of_analogs": 187
+   },
+   "worst_week": {
+    "analog": "3",
+    "label": "weather of winter 2023-24",
+    "from": "2027-01-02",
+    "to": "2027-01-08",
+    "kwh": 277,
+    "spot_energy_eur": 98,
+    "spot_eur": 107,
+    "fixed_eur": 42,
+    "mean_c_kwh_spot_incl_margin": 35.4
+   },
+   "flexible_spot": {
+    "rule": "1.0 kWh from each of the 4 dearest to the 4 cheapest hours of every day",
+    "by_analog": {
+     "3": {
+      "moved_kwh": 613,
+      "saving_eur": 55
+     },
+     "2": {
+      "moved_kwh": 590,
+      "saving_eur": 54
+     },
+     "1": {
+      "moved_kwh": 611,
+      "saving_eur": 49
+     }
+    },
+    "saving_eur_mean": 53,
+    "moved_kwh_mean": 605
+   }
+  },
+  "BE02": {
+   "monthly": {
+    "2026-11": {
+     "kwh_mean": 1088,
+     "spot_eur_mean": 170,
+     "spot_eur_min": 155,
+     "spot_eur_max": 193,
+     "fixed_eur_mean": 167,
+     "fixed_eur_min": 158,
+     "fixed_eur_max": 183
+    },
+    "2026-12": {
+     "kwh_mean": 1334,
+     "spot_eur_mean": 202,
+     "spot_eur_min": 184,
+     "spot_eur_max": 227,
+     "fixed_eur_mean": 204,
+     "fixed_eur_min": 187,
+     "fixed_eur_max": 226
+    },
+    "2027-01": {
+     "kwh_mean": 1607,
+     "spot_eur_mean": 323,
+     "spot_eur_min": 264,
+     "spot_eur_max": 364,
+     "fixed_eur_mean": 245,
+     "fixed_eur_min": 206,
+     "fixed_eur_max": 268
+    },
+    "2027-02": {
+     "kwh_mean": 1382,
+     "spot_eur_mean": 266,
+     "spot_eur_min": 232,
+     "spot_eur_max": 308,
+     "fixed_eur_mean": 211,
+     "fixed_eur_min": 187,
+     "fixed_eur_max": 245
+    },
+    "2027-03": {
+     "kwh_mean": 1098,
+     "spot_eur_mean": 184,
+     "spot_eur_min": 178,
+     "spot_eur_max": 192,
+     "fixed_eur_mean": 169,
+     "fixed_eur_min": 163,
+     "fixed_eur_max": 175
+    },
+    "2027-04": {
+     "kwh_mean": 891,
+     "spot_eur_mean": 124,
+     "spot_eur_min": 117,
+     "spot_eur_max": 134,
+     "fixed_eur_mean": 138,
+     "fixed_eur_min": 132,
+     "fixed_eur_max": 148
+    },
+    "2027-05": {
+     "kwh_mean": 644,
+     "spot_eur_mean": 54,
+     "spot_eur_min": 50,
+     "spot_eur_max": 59,
+     "fixed_eur_mean": 101,
+     "fixed_eur_min": 93,
+     "fixed_eur_max": 110
+    },
+    "2027-06": {
+     "kwh_mean": 485,
+     "spot_eur_mean": 41,
+     "spot_eur_min": 38,
+     "spot_eur_max": 43,
+     "fixed_eur_mean": 77,
+     "fixed_eur_min": 72,
+     "fixed_eur_max": 82
+    },
+    "2027-07": {
+     "kwh_mean": 472,
+     "spot_eur_mean": 43,
+     "spot_eur_min": 41,
+     "spot_eur_max": 45,
+     "fixed_eur_mean": 75,
+     "fixed_eur_min": 72,
+     "fixed_eur_max": 78
+    },
+    "2027-08": {
+     "kwh_mean": 502,
+     "spot_eur_mean": 47,
+     "spot_eur_min": 43,
+     "spot_eur_max": 51,
+     "fixed_eur_mean": 80,
+     "fixed_eur_min": 75,
+     "fixed_eur_max": 82
+    },
+    "2027-09": {
+     "kwh_mean": 562,
+     "spot_eur_mean": 52,
+     "spot_eur_min": 50,
+     "spot_eur_max": 54,
+     "fixed_eur_mean": 89,
+     "fixed_eur_min": 83,
+     "fixed_eur_max": 94
+    },
+    "2027-10": {
+     "kwh_mean": 811,
+     "spot_eur_mean": 98,
+     "spot_eur_min": 96,
+     "spot_eur_max": 100,
+     "fixed_eur_mean": 126,
+     "fixed_eur_min": 124,
+     "fixed_eur_max": 129
+    }
+   },
+   "twelve_months": {
+    "3": {
+     "kwh": 11093,
+     "spot_eur": 1684,
+     "fixed_eur": 1714
+    },
+    "2": {
+     "kwh": 10450,
+     "spot_eur": 1496,
+     "fixed_eur": 1618
+    },
+    "1": {
+     "kwh": 11085,
+     "spot_eur": 1635,
+     "fixed_eur": 1712
+    }
+   },
+   "seasons": {
+    "winter": {
+     "spot_eur_mean": 1145,
+     "fixed_eur_mean": 995,
+     "kwh_mean": 6509,
+     "by_analog": {
+      "3": {
+       "spot_eur": 1232,
+       "fixed_eur": 1046,
+       "kwh": 6845
+      },
+      "2": {
+       "spot_eur": 1031,
+       "fixed_eur": 918,
+       "kwh": 5988
+      },
+      "1": {
+       "spot_eur": 1173,
+       "fixed_eur": 1023,
+       "kwh": 6693
+      }
+     }
+    },
+    "rest": {
+     "spot_eur_mean": 460,
+     "fixed_eur_mean": 686,
+     "kwh_mean": 4367,
+     "by_analog": {
+      "3": {
+       "spot_eur": 452,
+       "fixed_eur": 668,
+       "kwh": 4248
+      },
+      "2": {
+       "spot_eur": 465,
+       "fixed_eur": 700,
+       "kwh": 4461
+      },
+      "1": {
+       "spot_eur": 462,
+       "fixed_eur": 689,
+       "kwh": 4392
+      }
+     }
+    }
+   },
+   "bad_january": {
+    "month": "2027-01",
+    "analog": "3",
+    "label": "weather of winter 2023-24",
+    "spot_eur": 364,
+    "fixed_eur": 261,
+    "spot_eur_mean_of_analogs": 323
+   },
+   "worst_week": {
+    "analog": "3",
+    "label": "weather of winter 2023-24",
+    "from": "2027-01-02",
+    "to": "2027-01-08",
+    "kwh": 506,
+    "spot_energy_eur": 173,
+    "spot_eur": 188,
+    "fixed_eur": 77,
+    "mean_c_kwh_spot_incl_margin": 34.18
+   },
+   "flexible_spot": {
+    "rule": "1.0 kWh from each of the 4 dearest to the 4 cheapest hours of every day",
+    "by_analog": {
+     "3": {
+      "moved_kwh": 892,
+      "saving_eur": 77
+     },
+     "2": {
+      "moved_kwh": 897,
+      "saving_eur": 82
+     },
+     "1": {
+      "moved_kwh": 907,
+      "saving_eur": 71
+     }
+    },
+    "saving_eur_mean": 77,
+    "moved_kwh_mean": 899
+   }
+  }
+ },
+ "analog_labels": {
+  "3": "weather of winter 2023-24",
+  "2": "weather of winter 2024-25",
+  "1": "weather of winter 2025-26"
+ },
+ "reset_estimate": {
+  "beta": 1.0,
+  "trade_date": "2026-10-30",
+  "quarterly": {
+   "median_now_c_kwh": 13.12,
+   "offers": 19,
+   "q4_reference_eur_mwh": 85.63,
+   "q1_future_eur_mwh": 115.87,
+   "change_c_kwh": 3.79,
+   "q1_estimate_c_kwh": 16.91
+  },
+  "monthly_change_from_november_c_kwh": {
+   "2026-12": -0.14,
+   "2027-01": 4.36,
+   "2027-02": 3.71,
+   "2027-03": 1.61
+  },
+  "groups": {
+   "BE01": {
+    "q1_kwh": 642,
+    "quarterly_q1_extra_eur": 24,
+    "monthly_q1_extra_eur": 21
+   },
+   "BE03": {
+    "q1_kwh": 2349,
+    "quarterly_q1_extra_eur": 89,
+    "monthly_q1_extra_eur": 79
+   },
+   "BE02": {
+    "q1_kwh": 4087,
+    "quarterly_q1_extra_eur": 155,
+    "monthly_q1_extra_eur": 139
+   }
+  }
+ },
+ "cheap_hours": {
+  "month": "2026-11",
+  "source_months": [
+   "2023-11",
+   "2024-11",
+   "2025-11"
+  ],
+  "c_kwh_by_local_hour": {
+   "weekday": {
+    "0": 9.21,
+    "1": 9.16,
+    "2": 8.73,
+    "3": 8.5,
+    "4": 8.43,
+    "5": 8.7,
+    "6": 10.02,
+    "7": 13.57,
+    "8": 15.63,
+    "9": 16.6,
+    "10": 15.75,
+    "11": 15.2,
+    "12": 15.03,
+    "13": 14.76,
+    "14": 14.24,
+    "15": 13.52,
+    "16": 14.64,
+    "17": 14.32,
+    "18": 14.7,
+    "19": 13.84,
+    "20": 12.29,
+    "21": 10.64,
+    "22": 10.12,
+    "23": 9.23
+   },
+   "weekend": {
+    "0": 5.63,
+    "1": 7.76,
+    "2": 7.4,
+    "3": 7.3,
+    "4": 7.21,
+    "5": 7.26,
+    "6": 7.59,
+    "7": 7.9,
+    "8": 8.09,
+    "9": 8.67,
+    "10": 9.39,
+    "11": 9.39,
+    "12": 9.38,
+    "13": 9.29,
+    "14": 9.24,
+    "15": 9.69,
+    "16": 10.4,
+    "17": 11.1,
+    "18": 11.37,
+    "19": 11.06,
+    "20": 10.43,
+    "21": 9.66,
+    "22": 9.45,
+    "23": 8.98
+   }
+  },
+  "weekday_cheapest_hours": [
+   2,
+   3,
+   4,
+   5
+  ],
+  "weekday_dearest_hours": [
+   8,
+   9,
+   10,
+   11
+  ],
+  "weekday_gap_c_kwh": 7.21,
+  "saving_eur_per_100_kwh": 7.21,
+  "weekend_vs_weekday_c_kwh": [
+   8.9,
+   12.37
+  ]
+ }
+}

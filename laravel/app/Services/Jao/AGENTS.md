@@ -2,7 +2,7 @@
 
 Collects the day-ahead `maxBorderFlow` of the Finnish borders from the JAO Nordic flow-based
 publication tool for the monthly market review. Nothing public reads these rows yet. Task context:
-`../../../../tasks/monthly-market-review/` (data inventory G7).
+`../../../../market-review/` (data inventory G7).
 
 ## Why JAO
 

@@ -41,7 +41,7 @@
   },
   {
     "name": "Prototype the September 2026 review as a draft document from production data (validate the shape and the metric set); fill the open points after the backfills",
-    "status": "in_progress"
+    "status": "done"
   },
   {
     "name": "Prototype layer 1 for September/October 2026: profile cost factors per house type (Datahub 364), bill outlook, cost of certainty, cheap hours and shifting savings, tentative recommendations",
@@ -69,7 +69,7 @@
   },
   {
     "name": "Winner terms check: eligibility (new customers, national, household) and unknown normal prices",
-    "status": "pending"
+    "status": "done"
   },
   {
     "name": "User decision: winner rules (excluded categories, 12-month forward, analog mean)",
@@ -192,11 +192,27 @@
     "status": "pending"
   },
   {
-    "name": "Video template (60-90 s) from the key figures, month chart and outlook",
-    "status": "pending"
+    "name": "Video template: 3-5 min review video, four concept variations for October 2026 (video.md, videos/monthly-market-review/); user review and choice of concept",
+    "status": "in_progress"
   },
   {
     "name": "Later: own short- and medium-term spot price forecast models; data part is tasks/own-forecast-model-data/",
+    "status": "pending"
+  },
+  {
+    "name": "First complete review in the two-layer shape: October 2026 (prototype/2026-10-katsaus.md); user review of text, winners' terms and the ⟦TARKISTA⟧ points",
+    "status": "done"
+  },
+  {
+    "name": "Site build of the review page (local): /markkinakatsaus and /markkinakatsaus/YYYY-MM, frozen October body, inline token charts, key-figure CSV, tests",
+    "status": "done"
+  },
+  {
+    "name": "Publish the October 2026 review (set draft false after the TARKISTA checks; deploy needs approval)",
+    "status": "done"
+  },
+  {
+    "name": "Phone board for the review page in Paper, then align the CSS",
     "status": "pending"
   }
 ]

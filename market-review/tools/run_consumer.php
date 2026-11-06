@@ -5,7 +5,7 @@
  * bill-comparison period engine (hourly profile option). Local SQLite copy only; no writes.
  *
  * Run from laravel/:
- *   CONSUMER_INPUTS=<consumer-inputs.json> CONSUMER_OUT=<rows.csv> php artisan tinker ../tasks/monthly-market-review/prototype/run_consumer.php
+ *   CONSUMER_INPUTS=<consumer-inputs.json> CONSUMER_OUT=<rows.csv> php artisan tinker ../market-review/tools/run_consumer.php
  *
  * Past month: household contracts on sale on day 1 whose current source episode is the episode
  * that covered day 1 (exact terms of that date); priced against the real hourly spot.
@@ -92,19 +92,22 @@ $run = function (string $scenario, string $group, $contracts, CanonicalPeriodPri
 // Past month.
 $p = $in['past']['BE01'];
 $dayOne = CarbonImmutable::parse($p['start'], 'Europe/Helsinki');
-$d1Start = $dayOne->utc()->format('Y-m-d H:i:s');
-$d1End = $dayOne->addDay()->utc()->format('Y-m-d H:i:s');
-$pastIds = DB::table('contract_source_observations as o')
-    ->join('electricity_contracts as c', 'c.id', '=', 'o.contract_id')
-    ->whereIn('c.target_group', ['Household', 'Both'])
-    ->where('o.first_observed_at', '<', $d1End)->where('o.last_observed_at', '>=', $d1Start)
-    ->whereColumn('c.current_source_observation_id', 'o.id')
-    ->distinct()->pluck('o.contract_id');
-$onSaleDayOne = DB::table('contract_source_observations as o')
-    ->join('electricity_contracts as c', 'c.id', '=', 'o.contract_id')
-    ->whereIn('c.target_group', ['Household', 'Both'])
-    ->where('o.first_observed_at', '<', $d1End)->where('o.last_observed_at', '>=', $d1Start)
-    ->distinct()->count('o.contract_id');
+// Contracts on sale on a Helsinki day whose current source episode covered that day, so the
+// stored terms are the exact terms of that day.
+$exactTermsOn = function (CarbonImmutable $day): array {
+    $from = $day->startOfDay()->utc()->format('Y-m-d H:i:s');
+    $to = $day->startOfDay()->addDay()->utc()->format('Y-m-d H:i:s');
+    $base = fn () => DB::table('contract_source_observations as o')
+        ->join('electricity_contracts as c', 'c.id', '=', 'o.contract_id')
+        ->whereIn('c.target_group', ['Household', 'Both'])
+        ->where('o.first_observed_at', '<', $to)->where('o.last_observed_at', '>=', $from);
+
+    return [
+        $base()->whereColumn('c.current_source_observation_id', 'o.id')->distinct()->pluck('o.contract_id')->all(),
+        $base()->distinct()->count('o.contract_id'),
+    ];
+};
+[$pastIds, $onSaleDayOne] = $exactTermsOn($dayOne);
 $pastContracts = ElectricityContract::query()->whereIn('id', $pastIds)->with('company')->get();
 $pastEnd = CarbonImmutable::parse($p['end'], 'Europe/Helsinki');
 $spotHistory = SpotPriceHour::query()->where('region', 'FI')
@@ -134,7 +137,16 @@ foreach (['BE01', 'BE02', 'BE03'] as $g) {
 }
 
 // Coming months.
-$active = ElectricityContract::query()->active()->whereIn('target_group', ['Household', 'Both'])->with('company')->get();
+// CONSUMER_FORWARD_DATE (Helsinki day): the contracts on sale on the edition date with their exact
+// terms of that date. Without it: the currently active contracts.
+$forwardDate = getenv('CONSUMER_FORWARD_DATE') ?: null;
+$onSaleForward = null;
+if ($forwardDate !== null) {
+    [$forwardIds, $onSaleForward] = $exactTermsOn(CarbonImmutable::parse($forwardDate, 'Europe/Helsinki'));
+    $active = ElectricityContract::query()->whereIn('id', $forwardIds)->with('company')->get();
+} else {
+    $active = ElectricityContract::query()->active()->whereIn('target_group', ['Household', 'Both'])->with('company')->get();
+}
 $fStart = CarbonImmutable::parse($in['forward_period']['start'], 'Europe/Helsinki');
 $fEnd = CarbonImmutable::parse($in['forward_period']['end'], 'Europe/Helsinki');
 foreach ($in['forward'] as $back => $scen) {
@@ -173,6 +185,8 @@ echo json_encode([
     'annual_kwh' => $annualKwh,
     'past_on_sale_day_one' => $onSaleDayOne,
     'past_exact_terms' => $pastContracts->count(),
-    'active_now' => $active->count(),
+    'forward_date' => $forwardDate,
+    'forward_on_sale' => $onSaleForward,
+    'forward_exact_terms' => $active->count(),
     'rows' => count($rows),
 ]), PHP_EOL;

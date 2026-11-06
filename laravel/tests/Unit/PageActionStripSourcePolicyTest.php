@@ -28,6 +28,7 @@ class PageActionStripSourcePolicyTest extends TestCase
             'company-detail',
             'article-spot-electricity',
             'article-fixed-term-contract',
+            'market-review',
         ];
 
         foreach ($templates as $template) {

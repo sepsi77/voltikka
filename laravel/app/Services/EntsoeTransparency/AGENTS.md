@@ -1,7 +1,7 @@
 # ENTSO-E Transparency datasets (market review)
 
 Collects three ENTSO-E Transparency Platform datasets for the monthly market review. Nothing public
-reads these rows yet. Task context: `../../../../tasks/monthly-market-review/` (inventory G8, G11,
+reads these rows yet. Task context: `../../../../market-review/` (inventory G8, G11,
 G23). Day-ahead prices are not here: they stay in `../EntsoeService.php` and `../SpotPriceImport/`.
 
 ## Files

@@ -2,7 +2,7 @@
 
 Collects Fingrid open-data series (https://data.fingrid.fi, CC BY 4.0) as hourly values for the
 monthly market review, and vintages of rolling Fingrid forecasts for own spot price models.
-Nothing public reads these rows yet. Task context: `../../../../tasks/monthly-market-review/`
+Nothing public reads these rows yet. Task context: `../../../../market-review/`
 (data inventory G3–G5b) and `../../../../tasks/own-forecast-model-data/`.
 
 ## Files

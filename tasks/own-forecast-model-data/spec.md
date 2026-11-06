@@ -2,7 +2,7 @@
 
 Status: phase 1 (data) in progress. Created 2026-11-01; scope extended the same day by user
 decisions (model included; medium-term model included; no plain replication). Read
-`tasks/AGENTS.md`, the root `AGENTS.md` and `tasks/monthly-market-review/` (decisions.md,
+`tasks/AGENTS.md`, the root `AGENTS.md` and `market-review/` (decisions.md,
 data-inventory.md) first.
 
 ## Goal
@@ -62,7 +62,7 @@ this task; phase 5 only records the recommendation.
   weekly refit, scoring) are decided and built there. This task delivers the model and the code
   that the workflow calls.
 - **Restricted inputs** (EEX, JAO) may be used internally; publication follows
-  `tasks/monthly-market-review/decisions.md` ("Rule for restricted data").
+  `market-review/decisions.md` ("Rule for restricted data").
 
 ## Short-term model (S)
 
@@ -243,7 +243,7 @@ incl. VAT (c/kWh). Horizon: next hour to end of D+7. It retrains on every run on
   (no deploy 04:00–09:00 Helsinki until the morning checkpoints are ready).
 - Production storage: estimate the yearly row count and size of each new table before a backfill
   (an hourly table for 29 stations × 2 variables is about 0.5 M rows per year).
-- Restricted data rule for later publication: `tasks/monthly-market-review/decisions.md`
+- Restricted data rule for later publication: `market-review/decisions.md`
   ("Rule for restricted data in the reviews").
 
 ## Out of scope (later tasks)

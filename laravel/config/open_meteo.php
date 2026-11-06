@@ -3,7 +3,7 @@
 /*
  * Open-Meteo weather data (https://open-meteo.com), CC BY 4.0, for monthly market reviews.
  * Free API: non-commercial use only (user decision 2026-11-01, see
- * tasks/monthly-market-review/decisions.md). Limits: fewer than 10,000 calls per day, 5,000 per
+ * market-review/decisions.md). Limits: fewer than 10,000 calls per day, 5,000 per
  * hour and 600 per minute. A request with more than 10 variables or more than 2 weeks of data
  * counts as several calls, so the backfill pauses longer. See app/Services/OpenMeteo/AGENTS.md.
  *

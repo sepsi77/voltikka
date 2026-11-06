@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ContractPriceStatisticsCsvController;
+use App\Http\Controllers\MarketReviewCsvController;
 use App\Http\Controllers\SpotPriceCsvController;
 use App\Livewire\AboutPage;
 use App\Livewire\CheapestContracts;
@@ -12,6 +13,7 @@ use App\Livewire\ContractPriceStatistics;
 use App\Livewire\FixedContractPriceForecast;
 use App\Livewire\HomePage;
 use App\Livewire\LocationsList;
+use App\Livewire\MarketReview;
 use App\Livewire\PrivacyPolicy;
 use App\Livewire\SahkosopimusIndex;
 use App\Livewire\SeoContractsList;
@@ -243,6 +245,17 @@ Route::get('/sahkosopimus/kannattaako-porssisahko', \App\Livewire\ArticleSpotEle
 // SEO Article: Kannattaako määräaikainen sähkösopimus
 Route::get('/sahkosopimus/kannattaako-maaraaikainen', \App\Livewire\ArticleFixedTermContract::class)
     ->name('article.fixed-term-contract');
+
+// Monthly market review: the stable URL shows the latest review, and each review has its own
+// URL. Both are self-canonical (config/market_reviews.php, App\Support\MarketReviews).
+Route::get('/markkinakatsaus', MarketReview::class)
+    ->name('market-review.latest');
+Route::get('/markkinakatsaus/{month}.csv', MarketReviewCsvController::class)
+    ->where('month', '\d{4}-\d{2}')
+    ->name('market-review.csv');
+Route::get('/markkinakatsaus/{month}', MarketReview::class)
+    ->where('month', '\d{4}-\d{2}')
+    ->name('market-review.show');
 
 // Main comparison index page (must come BEFORE city catch-all)
 Route::get('/sahkosopimus', SahkosopimusIndex::class)

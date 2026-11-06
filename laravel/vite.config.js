@@ -21,6 +21,7 @@ export default defineConfig({
                 'resources/css/app.css',
                 'resources/js/app.js',
                 'resources/js/contract-price-statistics.js',
+                'resources/js/market-review-charts.js',
             ],
             refresh: true,
         }),
