@@ -1,9 +1,11 @@
 # Own spot price forecast models (Python package `voltikka-forecast`)
 
 The production code of Voltikka's own spot price forecasts. Task, decisions and status:
-`../tasks/own-forecast-model-data/` (read `s-model-freeze.md` first). Status 2026-11-07: local
-only; no production service runs it yet. The Temporal worker (`../orchestration/`) starts its
-commands as child processes (`S_MODEL_MODULE=voltikka_forecast.s`); the command line is the
+`../tasks/own-forecast-model-data/` (read `s-model-freeze.md` first). Status 2026-11-07: no
+production service runs it yet. Production has its tables and weather (deploy-000020) and the
+empty archive bucket `voltikka-forecast`; the one-time `seed-misses` and `upload-archive` wait
+for the worker service (`coordination-temporal.md` section 10). The Temporal worker
+(`../orchestration/`) starts its commands as child processes (`S_MODEL_MODULE=voltikka_forecast.s`); the command line is the
 contract (`../tasks/temporal-orchestration/s-workflow-interface.md`).
 
 ## S model `s_v1` (`src/voltikka_forecast/s/`)

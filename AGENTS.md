@@ -49,6 +49,7 @@ Voltikka runs on Railway in the **Breezily** workspace.
 | App service | voltikka | `700d0624-fa96-4266-876c-e37640d220ea` |
 | Database service | MySQL | `beb2ba12-4a7b-416b-b4b1-596434dc3215` |
 | Backup bucket | voltikka-backups | `460e1b25-73fc-45e3-a43a-0473d2d2b86d` |
+| Forecast archive bucket (own S model files; private) | voltikka-forecast | `c03e6eed-e49a-4a73-a4e6-00e7a8d44818` |
 
 Use explicit Railway IDs instead of relying on whichever project is currently linked in the local shell. Prefer Railway MCP for read-only platform inspection when available, and use the Railway CLI for workflows such as `railway run`, SSH, or database shells that need local repository state.
 

@@ -834,3 +834,22 @@ Answers in `../temporal-orchestration/s-workflow-interface.md` ("Answers to the 
   imported history rows (one row per point and year from 1 January) and refused
   (`temp_south_7`). Training reads everything and was not affected. The reader now selects every
   row whose hours overlap the window (unit test `tests/test_data.py` fails on the old reader).
+
+## 2026-11-07 (evening): deploy-000020 and the production imports (user approved)
+
+- Deployed `deploy-000020-49d2de853ae0` (17:49 Helsinki; built from a clean worktree at 49d2de8,
+  because the Temporal session's uncommitted `Dockerfile` and context files make the build script
+  refuse in the shared tree). PHP 8.4.27. `/up` 200; the migration ran; `ecmwf_prev_day1` is
+  scheduled. Full Laravel suite before the deploy: 3,205 passed, 4 failed; the same 4 tests
+  (AnnualMethodReaderStagingTest, PublicPagePriceCachePolicyTest, SharedPriceCacheReadBoundaryTest)
+  fail at the production commit bb95482, so they are not from this change.
+- Imports: the research cache files were sent through `railway ssh` standard input as two tar
+  archives into the container's `/tmp` (not the volume), SHA-256 checked on both sides. Dry runs
+  showed the planned counts (36,556 payloads from 962 files; 15). Applied: `ecmwf_prev_day1`
+  15 rows; `ecmwf_00z` 36,556 new rows, 0 failed (38 -> 36,594; 13.5 min on production MySQL).
+  The files were deleted from the container afterwards.
+- Bucket `voltikka-forecast` created (ams). Its keys were not read; the worker gets variable
+  references (`coordination-temporal.md` section 10).
+- `seed-misses` and `upload-archive` wait for the worker service: the app image has no
+  `forecast` package, and the database is reachable only inside Railway, so running them from a
+  local computer would need the production secrets.

@@ -66,6 +66,8 @@
   {"name": "S phase 4: replay proof: E32R identical, E30R identical on all part columns (E30 s_best k=2..4 is the old l_lear_k blend); hashes in s-model-freeze.md section 6", "status": "done"},
   {"name": "S phase 4: production replay (3 issues, max 3.4e-13) and end-to-end CLI test on the local test database (issue 2026-10-21 = backtest); fixed the clock-change live check and the prev_day1 history reader", "status": "done"},
   {"name": "S phase 4: rebuild check on the local test database (equal except the 14 Fingrid hours of 2026-11-01 stored after the export)", "status": "done"},
-  {"name": "S phase 4: deploy the ecmwf_prev_day1 collector, the model table migration and the import command (needs user approval)", "status": "pending"},
-  {"name": "S phase 4: production imports after the deploy: ecmwf_00z history (36,556 rows), ecmwf_prev_day1 history (15 rows), seed-misses (E30/E32), each shown first (user approval)", "status": "pending"}
+  {"name": "S phase 4: deploy the ecmwf_prev_day1 collector, the model table migration and the import command (deploy-000020, 2026-11-07)", "status": "done"},
+  {"name": "S phase 4: production weather imports: ecmwf_00z history (36,556 rows), ecmwf_prev_day1 history (15 rows) (2026-11-07)", "status": "done"},
+  {"name": "S phase 4: archive bucket voltikka-forecast created (ams, keys not read; worker uses variable references)", "status": "done"},
+  {"name": "S phase 4: in the worker service once, before the first train: seed-misses (271,392 rows) and upload-archive into voltikka-forecast (user approved 2026-11-07; waits for the worker)", "status": "pending"}
 ]

@@ -152,3 +152,24 @@ code supplies", with these details:
 - Full backtest reruns on the moved code: E32 is identical; E30 is identical on every part column.
   The E30 file's `s_best*` columns at k = 2..4 are an older blend (`l_lear_k`) and are not
   `s_v1` (`s-model-freeze.md` section 6). This does not change the interface.
+
+## 10. Production state after deploy-000020 (2026-11-07, user approved)
+
+- `deploy-000020-49d2de853ae0` is live: the `ecmwf_prev_day1` collector runs at 09:40 and 13:40
+  Helsinki, the five forecast tables exist (migration `2026_11_07_100001`), and the history of
+  `ecmwf_00z` (962 runs, 2024-03-14..2026-10-31) and `ecmwf_prev_day1` (15 year rows) is imported.
+- The private archive bucket exists: `voltikka-forecast` (Railway bucket ID
+  `c03e6eed-e49a-4a73-a4e6-00e7a8d44818`, region `ams`, production). Its keys were not read. Give
+  the worker variable references, not copied values (they survive a key reset):
+  `FORECAST_BUCKET=${{voltikka-forecast.BUCKET}}`,
+  `FORECAST_BUCKET_ENDPOINT=${{voltikka-forecast.ENDPOINT}}`,
+  `FORECAST_BUCKET_REGION=${{voltikka-forecast.REGION}}`,
+  `FORECAST_BUCKET_ACCESS_KEY_ID=${{voltikka-forecast.ACCESS_KEY_ID}}`,
+  `FORECAST_BUCKET_SECRET_ACCESS_KEY=${{voltikka-forecast.SECRET_ACCESS_KEY}}`.
+  Setting worker variables is a production change for the user to approve.
+- Not done yet, because only the worker image has the `forecast` package and the database is
+  reachable only inside Railway: the one-time `seed-misses` (271,392 rows from the E30/E32 files)
+  and `upload-archive` (the pinned archive folder). Both must run once in the worker before the
+  first `train`; the own-model session will run them when the worker exists (the user approved
+  both on 2026-11-07). Until then `train` fails (`refit_invalid` or a missing archive) and
+  `predict` returns `no_active_version`.
