@@ -56,6 +56,19 @@ WORKDIR /app/remotion
 RUN npm ci
 WORKDIR /app
 
+# Temporal worker (tasks/temporal-orchestration/, service voltikka-worker). uv installs the pinned
+# Python and the locked dependencies of orchestration/uv.lock; the web service never starts it.
+COPY --from=ghcr.io/astral-sh/uv:0.13.6 /uv /usr/local/bin/uv
+ENV UV_PYTHON_INSTALL_DIR=/opt/python \
+    UV_PROJECT_ENVIRONMENT=/opt/orchestration/.venv \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
+COPY orchestration/pyproject.toml orchestration/uv.lock /opt/orchestration/
+COPY orchestration/src /opt/orchestration/src
+RUN cd /opt/orchestration && uv sync --frozen --no-dev --python 3.13 && rm -rf /root/.cache/uv
+COPY docker-worker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-worker-entrypoint.sh
+
 # Create storage directories and set permissions
 RUN mkdir -p storage/logs storage/framework/{cache,sessions,views} bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache \

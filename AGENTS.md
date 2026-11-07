@@ -166,6 +166,7 @@ voltikka/
 │   ├── database/migrations/ # Database migrations
 │   └── data-investigation/  # API structure documentation
 ├── design/                  # Visual redesign: brand guide, design spec, art, Paper link; see design/AGENTS.md
+├── orchestration/           # Temporal workflows and Python worker (local, phase 1); see orchestration/AGENTS.md
 ├── forecast/                # Own spot price forecast models (S model s_v1, Python package); see forecast/AGENTS.md
 ├── market-review/           # Monthly electricity market review: tools and one folder per edition; see market-review/AGENTS.md
 ├── media/                   # Dated media story pitches and press material built from Voltikka data
@@ -390,6 +391,9 @@ Retail collection and forecast generation use independent five-minute background
 - Public page (2026-11-06): `/markkinakatsaus` always shows the latest review and `/markkinakatsaus/YYYY-MM` one review; both are self-canonical (user decision). Each review is a frozen Blade view with its own charts and CSV; a review with `draft => true` in `laravel/config/market_reviews.php` returns 404 outside local. See `laravel/AGENTS.md` ("Monthly market review page")
 
 - Writing: the site-wide rules in `## Writing rules for public copy` apply. Review-specific structure: the consumer layer gives the most space to the two house types (Datahub BE02 electrically heated, BE03 without electric heating) and a few sentences to the apartment (BE01). In the journalist layer the key-figures table holds outcome figures only, the factor table has factor, effect (raised/lowered/small) and explanation, and predictions have their own section after the contract market. Details and reasons: `market-review/decisions.md` (2026-11-06 sections)
+
+### Temporal orchestration (local, phase 1, 2026-11-07)
+- Task `tasks/temporal-orchestration/` (phase 0 approved 2026-11-07: Temporal Cloud, Python as the only Temporal SDK, PHP work as `php artisan` activities, one image with a separate `voltikka-worker` service). Pilot: the own S forecast (`SDailyForecast`, `SWeeklyRefit`). Code: `orchestration/` (see its AGENTS.md); readiness facts: `php artisan orchestration:readiness` (`laravel/app/Services/Orchestration/`). No production service, namespace or schedule exists yet; the deploy-window rules above stay in force until phase 4.
 
 ### Own spot price forecast models (local, 2026-11-01)
 - Task: `tasks/own-forecast-model-data/` (spec, decisions). Two models: short term (hourly D+1..D+7) and medium term (2–3 months, weekly/monthly with ranges). They are not a copy of nordpool-predict-fi; it is a baseline to beat. No public UI in this task

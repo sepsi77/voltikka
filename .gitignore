@@ -30,6 +30,8 @@ wheels/
 .installed.cfg
 *.egg
 venv/
+.venv/
+.pytest_cache/
 .env.local
 
 # Node

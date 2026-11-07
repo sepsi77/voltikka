@@ -1,0 +1,28 @@
+[project]
+name = "voltikka-orchestration"
+version = "0.1.0"
+description = "Temporal workers and workflows for Voltikka data pipelines (tasks/temporal-orchestration/)"
+requires-python = ">=3.11"
+dependencies = [
+    "temporalio==1.35.0",
+    "sentry-sdk==2.74.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/voltikka_orchestration"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+testpaths = ["tests"]

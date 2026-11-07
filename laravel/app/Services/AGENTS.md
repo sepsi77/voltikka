@@ -156,6 +156,16 @@ Important pricing guardrails:
 - the public `/api/video/weekly-offers` payload carries `pricing_basis`; canonical offers use `consumptions`, while the explicit feature-off branch keeps the old `discount` / `costs` / `savings` shape
 - legacy mode still reads `price_components.price` as API `OriginalPayment.Price`; use the discounted component's unit/type and do not assume an absolute discount is always `c/kWh`
 
+### Orchestration readiness
+Directory:
+- `Orchestration/`
+
+Purpose:
+- read-only input readiness facts for the Temporal workflows (`orchestration:readiness`); the S forecast runs only when every input is ready
+
+Read first:
+- `Orchestration/AGENTS.md`
+
 ### Morning scheduled-job freshness
 Directory:
 - `MorningFreshness/`

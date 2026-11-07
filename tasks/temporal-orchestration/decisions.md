@@ -54,3 +54,81 @@
   that the workflow calls, the append-only vintage storage and the score calculation. This task
   owns the workflows, the readiness facts, the deadlines, the runtime and the worker.
 - The morning chain moves to phase 2 (shadow first, then cut over).
+
+## 2026-11-07 – Phase 0 decision record drafted
+
+- Draft: `phase0-decision-record.md`. It waits for user approval; nothing changed in production.
+- New fact: the price cache is the file store on the web service volume, and a Railway volume
+  belongs to one service. So cache-writing jobs (contract import, warm-cache) cannot move to a
+  separate service without a shared cache store. This affects the minimal alternative and
+  Temporal in the same way; the decision is deferred to the start of phase 2, because the S
+  pilot writes only to MySQL.
+- Proposals: Temporal over the minimal alternative; Temporal Cloud Developer plan (no base fee,
+  $50 per million Actions, estimate under $5 per month) in AWS eu-central-1; Python as the only
+  Temporal SDK, with PHP work as `php artisan` subprocess activities and readiness facts as one
+  read-only artisan command; one image and a new `voltikka-worker` service; patching plus replay
+  tests instead of Worker Deployment versioning; keep `data_freshness_checkpoints` as the truth.
+- S pilot draft: a 13:30 Schedule opens the wait, five-minute readiness polls, no model run
+  before 14:30, deadline proposal D 18:00, weekly refit Monday 03:00 with a validation gate.
+
+## 2026-11-07 – Phase 0 approved
+
+- User: "Approved". All proposals of `phase0-decision-record.md` apply: Temporal, Temporal Cloud
+  Developer plan, Python as the only SDK with artisan-subprocess activities, one image with a
+  `voltikka-worker` service, patching plus replay tests, checkpoints stay, S deadline D 18:00.
+- The user creates the Temporal Cloud account and namespace. A Railway storage bucket is
+  permitted if phase 2 needs shared storage for the price cache.
+- Another agent session finalises the frozen S model (`tasks/own-forecast-model-data/` phase 3).
+  This task builds the worker, readiness command and workflows meanwhile, with a stub model
+  activity, and does not edit that task's files.
+- Open: the refit gate margin.
+
+## 2026-11-07 – Phase 1 local work and the model freeze
+
+- Built locally (not committed, not deployed): `php artisan orchestration:readiness`
+  (`laravel/app/Services/Orchestration/`, `laravel/config/orchestration.php`), the Python package
+  `orchestration/` (worker, `SDailyForecast`, `SWeeklyRefit`, schedules CLI, tests), a Python layer
+  in `Dockerfile` and `docker-worker-entrypoint.sh`.
+- The model session froze `s_v1` (`../own-forecast-model-data/s-model-freeze.md`) and sent
+  corrections. Applied: removed FMI ECMWF, solar GHI, Fingrid 245 and the third-party vintage from
+  the run readiness (not model inputs; the third-party vintage belongs to scoring); added the
+  Open-Meteo `ecmwf_00z` run of D at all 38 points (exact `issued_at` = D 00:00 UTC), SE1/SE3/EE/
+  DE-LU day-ahead through D+1, JAO capacity through the end of D and D+1 (six borders the model
+  uses), Fingrid 267/268 capacity; the ENTSO-E outage fetch before each cut stays a workflow step.
+- The refit is train → activate: the frozen method has no validation gate. The earlier open item
+  "refit gate margin" is closed.
+- Weather readiness has no fetch cut and is checked in the afternoon poll: both views use the same
+  00 UTC run, and its fetch time was not part of the training data.
+- The workflow starts at 10:55, not 13:30: it must run the morning outage fetch itself before the
+  11:30 cut, because a successful fetch is not a database fact (outage rows are versioned, not
+  stamped per fetch). A late manual start can skip both outage-fetch proofs only explicitly
+  (`require_cut_fetches=false`).
+- The Temporal Python sandbox proxies `zoneinfo`; a proxied ZoneInfo is not a tzinfo. The workflow
+  uses the EU summer-time rule as pure arithmetic, tested against zoneinfo for every hour of
+  2024–2030.
+- Checkpoint readiness uses `updated_at`, not `recorded_at`: producers pass a Helsinki Carbon value
+  to `recorded_at`, and Eloquent stores its wall-clock time, so the column is Helsinki time in a
+  UTC application.
+- Verified: PHP tests (6) in both app time zones, Python tests (13), one end-to-end run on a local
+  Temporal dev server with the real readiness command (result: no forecast, missing
+  `eex_futures`, because the local database has no checkpoint), and the Python layer built on the
+  production base image (Python 3.13.18, about +180 MB before the model dependencies).
+
+## 2026-11-07: Coordination note from the own-model session answered
+
+- The note (`../own-forecast-model-data/coordination-temporal.md`, written 2026-11-06) matches the
+  readiness list already applied, with one change: the outage fetch now asks only for the outages
+  that `s_v1` reads (FI and SE3 A77/A80, A78 SE1_FI/SE3_FI/EE_FI). Before, it fetched every
+  configured zone, so a failed SE1/SE2 unit (not a model input) would have stopped the run.
+- Answers to its three questions are in `s-workflow-interface.md` ("Answers to the own-model
+  session"): model processes use MySQL directly with the Laravel credentials and write only their
+  own tables (Laravel migrations); fitted versions in the private archive bucket with a
+  `model_versions` row; a separate package `forecast/` (`voltikka_forecast.s`), started as a child
+  process and pinned through a uv path dependency in `orchestration/uv.lock`.
+- Python tests: 13 pass.
+- The own-model session accepted the answers (2026-11-07, section 5 of its note) and confirmed the
+  late D+1 price rule with conditions (all five zones; `afternoon_cut` always 14:30; the vintage
+  records its real start; no prices by 18:00 = no vintage). The workflow already meets them: no
+  code change. The `ecmwf_00z` morning availability time is not measured yet (first live tick
+  2026-11-07 09:15; research assumption about 09:00 Helsinki); the workflow checks the weather only
+  in the afternoon poll, so the 18:00 deadline does not depend on it today.
