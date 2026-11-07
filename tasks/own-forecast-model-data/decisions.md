@@ -776,3 +776,33 @@ Answers in `../temporal-orchestration/s-workflow-interface.md` ("Answers to the 
   same import as `ecmwf_00z`; the API also serves past dates, so no gap is lost.
 - Local and tested; deployment needs a user approval. The readiness list of the Temporal
   session needs this input too.
+
+## 2026-11-07 – The production package `forecast/` (voltikka_forecast.s)
+
+- The backtest functions moved verbatim into `forecast/src/voltikka_forecast/s/core.py`; the
+  backtest imports them. Production changes inside the move, each with a byte-identical check on
+  the first six weekly blocks of both views (and the full E32/E30 reruns): `predict_block` =
+  `fit_block` + `apply_block` (the weekly refit must store a fitted model); `build_table`
+  options `first_issue` and `targets_known_before` (a live issue has no target prices; a refit
+  must keep the rows before the Monday of issues whose later targets are not known yet, as the
+  backtest had them); holidays through 2100 (the research range ended in 2027, so a 2028 issue
+  would have lost its holidays without an error).
+- `predict` fails on an empty live input. `core.build_table` leaves a missing input as an empty
+  feature and the trees still predict; the freeze requires a failure instead.
+- A version fitted with other model code (`core.py`, `v1.py`, `data.py`, `weather.py`) is refused:
+  a code change is a new model version. A failed Monday refit leaves the older active version in
+  use (the vintage records it); a newer version never serves an older issue.
+- The refit must run after the Monday Fingrid fetch: Sunday's Fingrid hours are stage-1 training
+  targets, and the backtest block had them.
+- Rebuild check on a local test database (local snapshot tables + the research weather imported
+  with the new artisan command + the pinned archive): both views have the same 231,672 rows; every
+  value is equal except 14 target hours of 2026-11-01 that Fingrid data had only after the export
+  (stored 2026-11-04). It found one reader bug first: PHP stores 6.0 as the JSON integer 6, and
+  Python `sum()` adds a mixed int/float list in another order, which changed 375 rounded
+  neighbour wind means. The reader now reads every value as a float.
+- Runtime: the package pins the research runtime (also scipy, joblib, threadpoolctl, tzdata).
+  `python-dateutil` stays below 3 because of boto3 (research 4.0.0); the production replay runs in
+  the package environment to prove that it does not change a value.
+- Closed error keys in the last JSON line (the Temporal activity passes only the key on).
+- The migration in the shared working tree makes `scripts/sync-production-database.sh` fail on its
+  schema drift rule until production has the tables, so it should be deployed soon after commit.

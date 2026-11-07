@@ -166,6 +166,7 @@ voltikka/
 │   ├── database/migrations/ # Database migrations
 │   └── data-investigation/  # API structure documentation
 ├── design/                  # Visual redesign: brand guide, design spec, art, Paper link; see design/AGENTS.md
+├── forecast/                # Own spot price forecast models (S model s_v1, Python package); see forecast/AGENTS.md
 ├── market-review/           # Monthly electricity market review: tools and one folder per edition; see market-review/AGENTS.md
 ├── media/                   # Dated media story pitches and press material built from Voltikka data
 ├── videos/                  # Code-rendered marketing video (HTML scenes → Playwright → ffmpeg); see videos/AGENTS.md
@@ -392,7 +393,7 @@ Retail collection and forecast generation use independent five-minute background
 
 ### Own spot price forecast models (local, 2026-11-01)
 - Task: `tasks/own-forecast-model-data/` (spec, decisions). Two models: short term (hourly D+1..D+7) and medium term (2–3 months, weekly/monthly with ranges). They are not a copy of nordpool-predict-fi; it is a baseline to beat. No public UI in this task
-- Phase 1 inputs: FMI (`fmi:fetch`, `app/Services/Fmi/`), Syke (`syke:fetch`), Fingrid 245 vintages, Open-Meteo hourly neighbour wind and solar forecast (only where FMI/Syke/Fingrid have no data; user rule), `App\Support\FinnishHolidays`. Exception (user decision 2026-11-06): the frozen S model `s_v1` reads all its weather from the Open-Meteo sources it was trained on: the Single Runs API (`weather:fetch --only=ecmwf_00z`) and, for its 7-day southern temperature, Previous Runs lead-1 values (`--only=ecmwf_prev_day1`); FMI's ECMWF copy stays collected for a comparison. Contract with the Temporal pilot: `tasks/own-forecast-model-data/s-model-freeze.md` Forecast vintages are append-only in `hourly_forecast_runs`; a model must use only the vintage that existed at its issue time
+- Phase 1 inputs: FMI (`fmi:fetch`, `app/Services/Fmi/`), Syke (`syke:fetch`), Fingrid 245 vintages, Open-Meteo hourly neighbour wind and solar forecast (only where FMI/Syke/Fingrid have no data; user rule), `App\Support\FinnishHolidays`. Exception (user decision 2026-11-06): the frozen S model `s_v1` reads all its weather from the Open-Meteo sources it was trained on: the Single Runs API (`weather:fetch --only=ecmwf_00z`) and, for its 7-day southern temperature, Previous Runs lead-1 values (`--only=ecmwf_prev_day1`); FMI's ECMWF copy stays collected for a comparison. Contract with the Temporal pilot: `tasks/own-forecast-model-data/s-model-freeze.md`; production code in `forecast/` (package `voltikka_forecast.s`, local). Forecast vintages are append-only in `hourly_forecast_runs`; a model must use only the vintage that existed at its issue time
 
 ### Daily spot social publication
 - `spot:fetch` has no social side effects. It only persists Spot data, calculates averages, and warms caches.

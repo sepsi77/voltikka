@@ -61,6 +61,17 @@ Run this command from the repository root. Stop all local Laravel, queue, SQLite
 
 Authentication and operational runtime tables remain empty. If production temporarily lacks the local-derived `contract_source_observations` table, the fresh target reconstructs observations and current pointers with migration `2026_07_30_000002`; all other application-table drift fails closed. Detailed implementation rules are in `../app/Services/DevelopmentDatabase/AGENTS.md` and `../../scripts/AGENTS.md`. Never run the internal Artisan adapter directly against `database.sqlite`, print Railway database variables, or change this workflow into a production write.
 
+## Own forecast model tables (`2026_11_07_100001`)
+
+`forecast_model_versions`, `forecast_vintages`, `forecast_vintage_values`, `forecast_part_predictions`
+and `forecast_scores` belong to the Python model code in `../../forecast/` (S model `s_v1`). Only
+its commands write them; the migration lives here because the web service owns migrations. One
+vintage per (model, issue day), never rewritten; only one active version per model.
+`forecast_part_predictions` with `y` is the miss store of the range calibration (seeded rows have
+source `E30`/`E32`). Nothing public reads these tables yet. Datetimes are UTC text, `target_date`
+is the Helsinki day. Until production has these tables, `scripts/sync-production-database.sh`
+fails on the schema drift rule, so deploy the migration soon after it is committed.
+
 ## `spot_social_publications`
 
 Stores one durable daily Spot social publication identity per Helsinki `content_date`.

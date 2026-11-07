@@ -29,6 +29,9 @@ long HTTP 503 "overloaded" periods on 2026-11-02 (archive and previous-runs abou
 - `OpenMeteoWeatherImporter.php` – upserts observed days and hours; stores one outlook row and
   one hourly forecast row per distinct payload; checks every response unit.
 - `../../Console/Commands/FetchWeather.php` – `php artisan weather:fetch`.
+- `../../Console/Commands/ImportResearchWeatherRuns.php` – one-time import of the S model training
+  weather (`ecmwf_00z` runs, `ecmwf_prev_day1` southern temperature) from the git-ignored research
+  cache through the same importer; dry run by default (user approval of the import 2026-11-06).
 - `../../../config/open_meteo.php` – points, weights, variables, units, products and limits.
 
 ## Tables
@@ -186,6 +189,7 @@ php artisan weather:fetch --from=1991-01-01 --point=helsinki --point=oulu  # obs
 php artisan weather:fetch --only=solar_ghi                  # solar GHI forecast vintage (own schedule)
 php artisan weather:fetch --only=ecmwf_00z                  # S model weather: 00 UTC run of today (hourly 09:15-14:15)
 php artisan weather:fetch --only=ecmwf_prev_day1            # S model 7-day southern temperature (09:40, 13:40)
+php artisan weather:import-research-runs ecmwf_00z <dir> [--apply]  # one-time: S training runs from the research cache (dry run first)
 php artisan weather:fetch --from=2023-01-01 --only=observed_hourly  # hourly wind backfill (UTC days)
 ```
 

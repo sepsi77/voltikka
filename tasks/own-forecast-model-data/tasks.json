@@ -62,5 +62,10 @@
   {"name": "M phase 2: backtest, baselines and experiments M0–M27: m_best (research/experiments.md)", "status": "done"},
   {"name": "S E8: issue-time ECMWF HRES single runs (fetch over ~4 days, then reduce and rerun s_best with them)", "status": "done"},
   {"name": "S phase 4: agree data access, model versions, package location and the late-price rule with the Temporal session", "status": "done"},
-  {"name": "S phase 4: forecast/ package (voltikka_forecast.s predict/score/train/activate) with the E32 replay proof, and Laravel migrations for the model tables", "status": "pending"}
+  {"name": "S phase 4: forecast/ package (voltikka_forecast.s predict/score/train/activate), Laravel migration for the model tables, research weather import command (local; reruns E32R/E30R running)", "status": "in_progress"},
+  {"name": "S phase 4: replay proof: full E32/E30 reruns on the package core byte-identical to the frozen files; then record the new hashes in s-model-freeze.md section 6", "status": "pending"},
+  {"name": "S phase 4: production replay (train + predict from the test database = E30/E32 rows) in the forecast/ environment", "status": "pending"},
+  {"name": "S phase 4: rebuild check on the local test database (equal except the 14 Fingrid hours of 2026-11-01 stored after the export)", "status": "done"},
+  {"name": "S phase 4: deploy the ecmwf_prev_day1 collector, the model table migration and the import command (needs user approval)", "status": "pending"},
+  {"name": "S phase 4: production imports after the deploy: ecmwf_00z history (36,556 rows), ecmwf_prev_day1 history (15 rows), seed-misses (E30/E32), each shown first (user approval)", "status": "pending"}
 ]

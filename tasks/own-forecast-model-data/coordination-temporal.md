@@ -106,3 +106,39 @@ Previous Runs API. Collector product `ecmwf_prev_day1` (`hourly_forecast_runs`, 
 09:40 and 13:40 Helsinki; local, not deployed yet. Readiness: each of the 5 points has a row with
 `fetched_at` before the Fingrid cut of the view (D 10:00 morning, D 14:00 afternoon) that covers
 the 168 hours before that cut. The model reads it by valid hour.
+
+## 8. The package is ready locally (2026-11-07)
+
+`forecast/` (distribution `voltikka-forecast`, module `voltikka_forecast.s`, `uv sync` makes
+`forecast/.venv`; read `forecast/AGENTS.md`). The command line follows "Commands that the model
+code supplies", with these details:
+
+- `predict` accepts only the frozen cuts (D 11:30 and D 14:30 Helsinki as UTC); other cuts →
+  `cuts_differ`. Idempotent: `{"status": "exists", ...}` for a stored issue day.
+- Failure: exit 1, last line `{"status": "failed", "command": ..., "error": <closed key>}` with
+  the keys `input_missing`, `cuts_differ`, `no_active_version`, `artifact_mismatch`,
+  `version_mismatch`, `prices_incomplete`, `refit_invalid`, `bad_argument`, `internal_error`. The
+  detail is on the line before it (container log only). `prices_incomplete` from `score` means that
+  the target day does not have all FI prices yet.
+- `score --target-date=T` scores every own vintage with values on T (also the third-party value
+  of the latest vintage before D 14:30) and writes the prices into the miss store.
+- `train` reads the full history and the archive (about 10 s of reads, about 1 min of fits in
+  each view with 2 threads). **Please move `SWeeklyRefit` to Monday after the 10:20
+  `fingrid:fetch`** (for example 10:45, deadline before 14:30): Sunday's Fingrid hours are training
+  targets of the stage-1 models, and at 03:00 they are not stored yet, so a 03:00 refit is not
+  the backtest's refit. If the refit fails, the older active version serves the week.
+- A deploy that changes `core.py`, `v1.py`, `data.py` or `weather.py` makes the active version
+  invalid (`artifact_mismatch`): a code change is a new model version, so a refit and activate
+  must follow before the next `predict`.
+- Worker environment: `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`;
+  `FORECAST_BUCKET`, `FORECAST_BUCKET_ENDPOINT`, `FORECAST_BUCKET_REGION`,
+  `FORECAST_BUCKET_ACCESS_KEY_ID`, `FORECAST_BUCKET_SECRET_ACCESS_KEY` (the new private archive
+  bucket; not created yet, needs the user's approval); optional `FORECAST_CACHE_DIR` (default
+  temp dir). `OMP_NUM_THREADS` defaults to 2 in the process.
+- Runtime pins in `forecast/pyproject.toml` (Python 3.13, numpy 2.5.4, pandas 3.1.0,
+  scikit-learn 1.9.1, scipy 1.18.1, joblib 1.6.0, threadpoolctl 3.7.0, tzdata 2026.6, PyMySQL,
+  boto3). Your path dependency and `orchestration/uv.lock` must keep the same versions.
+- Readiness (section 7): `ecmwf_prev_day1` with the 5 southern points, a row fetched before each
+  Fingrid cut. Its collector is local and not deployed yet.
+- Laravel migration `2026_11_07_100001_create_forecast_model_tables` (5 tables) is in the working
+  tree, not committed yet.
