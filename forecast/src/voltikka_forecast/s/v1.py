@@ -106,6 +106,17 @@ LIVE_REQUIRED = ("p_last_week", "p_same_hour_d", "p_same_hour_d1", "fi_mean_d", 
                  "om_ee_wind", "om_dkde_wind", "om_ghi_fi", "om_lead")
 
 
+SAME_HOUR = ("p_last_week", "p_same_hour_d", "p_same_hour_d1")
+
+
+def _near_clock_change(issue, days=8):
+    """A Helsinki day with 23 or 25 hours lies within days of the issue day (the same-hour
+    lookups reach back 7 days from the target, and targets end at D+7)."""
+    days_ = pd.date_range(pd.Timestamp(issue) - pd.Timedelta(days=days), periods=2 * days + 2, freq="D",
+                          tz="Europe/Helsinki")
+    return bool((pd.Series(days_).diff().dropna() != pd.Timedelta(days=1)).any())
+
+
 def _check_table(table, name, live=False):
     # The parts need these columns; without them core silently drops a part or a feature group
     # (the backtest main() only registered best_d1 when om_ghi_fi existed).
@@ -117,6 +128,13 @@ def _check_table(table, name, live=False):
         if len(ws100) != 29:
             raise InputMissing(f"{name} view: {len(ws100)} of 29 station 100 m wind columns")
         empty = [c for c in (*LIVE_REQUIRED, *ws100) if table[c].isna().any()]
+        if _near_clock_change(table["issue"].iloc[0]):
+            # The same-hour lookups key on (Helsinki day, hour, dup): the second 03:00 of the
+            # 25-hour day and the absent 03:00 of the 23-hour day have no match on a normal day.
+            # The backtest trained with these values empty (found by the production replay of
+            # 2026-10-21); only local hour 3 is affected.
+            other = table["hour"] != 3
+            empty = [c for c in empty if c not in SAME_HOUR or table.loc[other, c].isna().any()]
         if empty:
             raise InputMissing(f"{name} view: missing input for issue {table['issue'].iloc[0]}: {', '.join(empty)}")
 

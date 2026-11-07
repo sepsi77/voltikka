@@ -185,10 +185,13 @@ def _single_runs(db, first_day, last_day):
 
 
 def _previous_south(db, since, until_ts):
+    # Every stored row whose hours overlap the window: the imported history rows each hold one
+    # calendar year from 1 January, the live rows 8 past days (an e2e test of 2026-10-21 found
+    # that a filter on the first hour alone missed the history rows).
     rows = db.rows("select point, fetched_at, first_timestamp, `values` from hourly_forecast_runs "
                    f"where source = 'open_meteo' and product = %s and point in ({_in(W.SOUTH_WEIGHTS)}) "
-                   "and first_timestamp >= %s and first_timestamp < %s order by fetched_at, id",
-                   (W.PREV_PRODUCT, *W.SOUTH_WEIGHTS, since - 9 * 86400, until_ts))
+                   "and first_timestamp < %s and first_timestamp + 3600 * hour_count > %s order by fetched_at, id",
+                   (W.PREV_PRODUCT, *W.SOUTH_WEIGHTS, until_ts, since - 9 * 86400))
     return W.previous_south_frame(rows)
 
 

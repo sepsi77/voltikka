@@ -202,3 +202,39 @@ Backtest runs: E30 (`--tag E30`, weekly refit; its file also holds `l_lear_k`, w
 not use) and E32 (`s_backtest.py 20261102 --candidates best_d1,best_d24,best_d57,l_lear_hour
 --tag E32 --issue-after-prices`). Defaults of both: `--weather single`, `--netload-wind stage1`,
 `--refit-days 7`.
+
+**Warning about the E30 file:** its `s_best*` columns are not `s_v1` for k = 2..4. E30 was run
+before `compose_best` changed from `l_lear_k` (E27) to `l_lear_hour`, so those rows hold the
+`l_lear_k` blend. The frozen score (section 1) does not use these columns: `s_compare.py` composed
+it from the parts (`best_d24|l_lear_hour|0.5|shift`). Compose `s_v1` from the parts, or call
+`compose_best` again on the frozen frame (as `research/s_production_replay.py` does).
+
+### Production code (2026-11-07)
+
+The backtest functions moved to `forecast/src/voltikka_forecast/s/core.py`, and
+`research/s_backtest.py` now imports them (see `forecast/AGENTS.md`). Proof: full reruns with the
+frozen arguments and tags `E32R` and `E30R` (the core.py below, about 2 h each):
+
+- E32R: the decompressed prediction file is identical to E32 (SHA-256 of the CSV content
+  `fc91006794e7bab6289ba6d5ecd7aa50d70423dd1883d5a0f5e4af4b3a77a1a1`).
+- E30R: all 80 columns other than `s_best*` are identical to E30 (SHA-256 of those columns as
+  CSV `3411e8b74d3fe419335a391174d82eda333d18d3b8b9f83c8ccb63ac68abe67f`). The `s_best*` columns
+  differ only at k = 2..4, where E30R holds the `l_lear_hour` blend (the warning above).
+
+| File | SHA-256 |
+|---|---|
+| `forecast/src/voltikka_forecast/s/core.py` | `11ec4d9934e931bfcc1f52890d50522db45d7fd6a0486088809863a75dc328b5` |
+| `forecast/src/voltikka_forecast/s/v1.py` | `8c27bb1aa4ee512dc5c3543d6671c86566733541f3e499a9f2820130272c6f11` |
+| `forecast/src/voltikka_forecast/s/data.py` | `8cfe3b45b1c9c6dadf5ac5612d31b1a9cb4e5ee13bf926a2d19ae9451c19d9e5` |
+| `forecast/src/voltikka_forecast/s/weather.py` | `d1a813ae0196d9d8dabc8476617e077aa1144bc6788957d5ceb7b1c3aa1432e7` |
+| `research/s_backtest.py` (imports core.py) | `9b72c5ce3003b5522c4bdddd336bb0b44f027076b1d7aee79838a6be85290f14` |
+
+`v1.py` and `data.py` above include two fixes from the same day, found by the production
+replay and the end-to-end command-line test; neither changes a backtest value (decisions.md,
+2026-11-07 afternoon). The production replay (`v1.train` + `v1.predict`) equals the backtest for
+issues 2025-01-08, 2026-04-15 and 2026-10-21 (largest difference 3.4e-13 EUR/MWh), and the
+command-line test on a local test database stored the vintage of 2026-10-21 (145 hours, with the
+25-hour day) equal to the backtest (1.4e-14).
+
+A change to `core.py`, `v1.py`, `data.py` or `weather.py` changes the model code hash, and
+`predict` then refuses the active version until a refit (section 5: a new version).

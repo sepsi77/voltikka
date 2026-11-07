@@ -3,9 +3,12 @@
 
 For each given issue day D: train s_v1 on the research export as the weekly refit of D's Monday
 would (v1.train), predict D (v1.predict), and compare the D+2..D+7 output with the frozen
-backtest rows: D+2 = E32 s_best (k=1), D+3..D+7 = E30 s_best (k=3..7); p50 = s_best_p50,
-p10/p90 = s_best_scal_p10/p90. The range calibration uses the misses of the same backtest files
-(best_d1 from E32, best_d24/best_d57 from E30), which is what seasonal_calibration used.
+backtest rows: D+2 = E32 s_best (k=1), D+3..D+7 = the E30 parts composed with l_lear_hour
+(k=3..7); p50 = s_best_p50, p10/p90 = s_best_scal_p10/p90. The E30 file's own s_best columns are
+not used: for k=2..4 they were composed with l_lear_k (E27) before that blend was removed, so they
+are not s_v1 (the frozen score was composed from the parts by s_compare.py). The range calibration
+uses the misses of the same backtest files (best_d1 from E32, best_d24/best_d57 from E30), which is
+what seasonal_calibration used.
 
 Exit 1 when a value differs by more than --tol (default 1e-9 EUR/MWh).
 
@@ -32,6 +35,21 @@ from voltikka_forecast.s import v1  # noqa: E402
 import s_backtest as sb  # noqa: E402  (export reader only)
 
 
+def _report_only(check):
+    """v1.predict refuses a live issue with an empty input. History has empty inputs by design
+    (no FI futures before 2026-04-08), and the backtest predicted them, so the replay reports the
+    refusal and continues."""
+    def wrapped(table, name, live=False):
+        try:
+            check(table, name, live=live)
+        except v1.InputMissing as exc:
+            print(f"  (a live run would refuse: {exc})", flush=True)
+    return wrapped
+
+
+v1._check_table = _report_only(v1._check_table)
+
+
 def misses(e30, e32):
     out = []
     for frame, part, ks in ((e32, "best_d1", (1,)), (e30, "best_d24", (2, 3, 4)), (e30, "best_d57", tuple(range(1, 8)))):
@@ -53,6 +71,7 @@ def main():
                                    parse_dates=False).assign(issue=lambda f: f["issue"].map(date.fromisoformat),
                                                              tdate=lambda f: f["tdate"].map(date.fromisoformat))
     e30, e32 = read("E30"), read("E32")
+    sb.compose_best(e30)  # s_v1 blend (l_lear_hour) from the frozen E30 parts; see the docstring
     miss = misses(e30, e32)
     worst = 0.0
     models = {}

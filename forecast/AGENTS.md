@@ -26,7 +26,9 @@ version and a new pre-declared live count (freeze section 5).
   D+2 from the afternoon view and D+3..D+7 from the morning view, as the combined design) and
   `validate` (technical validity only; the frozen method has no accuracy gate). `predict` fails
   (`InputMissing`) when a live input is empty: `core.build_table` would quietly leave a feature
-  empty and the trees would still predict.
+  empty and the trees would still predict. Exception: near a clock change, the same-hour price
+  lookups (`p_last_week`, `p_same_hour_d`, `p_same_hour_d1`) are empty at local hour 3 by design
+  (the key is Helsinki day, hour, dup), and the backtest trained with them empty.
 - `data.py`: the input dict in the shape of the research export, from MySQL (PyMySQL, Laravel
   `DB_*` variables) or SQLite (tests). The same SQL, units and dtypes as `research/s_export.py`
   (MySQL `maturity` is text, `settlement_price` decimal: both converted). Frozen history comes
@@ -55,7 +57,11 @@ Rules:
   fitted with other model code (`code_sha256` over `core.py`, `v1.py`, `data.py`, `weather.py`):
   a deploy that changes these files needs a refit before the next run.
 - Weather is selected by `issued_at` (`ecmwf_00z`) or by valid hour (`ecmwf_prev_day1`), never by
-  `fetched_at`: imported history rows have a 2026 `fetched_at`.
+  `fetched_at`: imported history rows have a 2026 `fetched_at`. A stored `ecmwf_prev_day1` row is
+  read when its hours overlap the window: an imported history row holds a whole year.
+- The miss store's unique key (model, part, view, issue day, target hour) refuses a live vintage
+  for an issue day that the seeded backtest rows already hold (through 2026-10-24): the insert
+  rolls back (`internal_error`). Live issues start after that day, so this happens only in tests.
 - The refit must run after the Monday Fingrid fetch (Sunday's hours are training targets).
 
 ## Runtime
@@ -73,4 +79,6 @@ cd forecast && uv sync && .venv/bin/python -m pytest -q            # unit tests 
 OMP_NUM_THREADS=2 nice .venv/bin/python -I s_backtest.py 20261102 ... --tag E32R   # byte-identical to E32
 nice .venv/bin/python -I s_rebuild_check.py 20261102 --archive <dir> --sqlite <db>  # tables from the database
 OMP_NUM_THREADS=2 nice .venv/bin/python -I s_production_replay.py 20261102 <issue days>  # train + predict = backtest
+# End-to-end: FORECAST_SQLITE=<test db> FORECAST_STORE_DIR=<folder with archive/s> and the commands
+# seed-misses, train, activate, predict, score (2026-11-07: issue 2026-10-21 = backtest).
 ```

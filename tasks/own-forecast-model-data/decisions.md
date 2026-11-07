@@ -806,3 +806,31 @@ Answers in `../temporal-orchestration/s-workflow-interface.md` ("Answers to the 
 - Closed error keys in the last JSON line (the Temporal activity passes only the key on).
 - The migration in the shared working tree makes `scripts/sync-production-database.sh` fail on its
   schema drift rule until production has the tables, so it should be deployed soon after commit.
+
+## 2026-11-07 (afternoon): replay proof, and the clock-change fix of the live check
+
+- Full reruns on the moved code (E32R, E30R, about 2 h each): E32 identical; E30 identical on
+  all 80 part columns. The frozen E30 file's `s_best*` columns at k = 2..4 hold the `l_lear_k`
+  blend: E30 ran before `compose_best` changed to `l_lear_hour` (E27 removed). The frozen score
+  was composed from the parts by `s_compare.py` (`best_d24|l_lear_hour|0.5|shift`), so `s_v1` is
+  unchanged. Warning and hashes: `s-model-freeze.md` section 6. `s_production_replay.py` now
+  composes the E30 reference from the parts.
+- Production replay (`v1.train` + `v1.predict` from the export, package environment with
+  python-dateutil 2.9): issues 2025-01-08, 2026-04-15 and 2026-10-21 equal the backtest rows
+  (largest difference 3.4e-13 EUR/MWh; the order of the float sums differs from the block run).
+- It found a live-check bug: for 2026-10-21, `predict` would refuse (`input_missing`) because
+  `p_last_week`, `p_same_hour_d` and `p_same_hour_d1` are empty at one hour. These lookups key on
+  (Helsinki day, hour, dup); the second 03:00 of the 25-hour day and the absent 03:00 of the
+  23-hour day have no match, and the backtest trained with them empty. The check would have
+  refused about 12 issue days a year. Fix: near a clock change (a 23/25-hour day within 8 days
+  of the issue), these three inputs may be empty at local hour 3 only. All other hours and inputs
+  stay required. The replay reports a refusal and continues for history (no FI futures before
+  2026-04-08), which a live run correctly refuses.
+- Production read-only: the 2026-11-07 00 UTC `ecmwf_00z` run was stored at 09:15 Helsinki,
+  2 h 15 min before the morning cut (record only; `coordination-temporal.md` section 9).
+- The end-to-end command-line test on the local test database (seed-misses, train, activate,
+  predict, score for issue 2026-10-21) found a reader bug: `_previous_south` selected
+  `ecmwf_prev_day1` rows by their first hour, so `predict` (which reads 40 days) did not see the
+  imported history rows (one row per point and year from 1 January) and refused
+  (`temp_south_7`). Training reads everything and was not affected. The reader now selects every
+  row whose hours overlap the window (unit test `tests/test_data.py` fails on the old reader).

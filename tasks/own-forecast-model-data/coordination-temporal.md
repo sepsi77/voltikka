@@ -140,5 +140,15 @@ code supplies", with these details:
   boto3). Your path dependency and `orchestration/uv.lock` must keep the same versions.
 - Readiness (section 7): `ecmwf_prev_day1` with the 5 southern points, a row fetched before each
   Fingrid cut. Its collector is local and not deployed yet.
-- Laravel migration `2026_11_07_100001_create_forecast_model_tables` (5 tables) is in the working
-  tree, not committed yet.
+- Laravel migration `2026_11_07_100001_create_forecast_model_tables` (5 tables) is committed
+  (652af09), not deployed yet.
+
+## 9. Records (2026-11-07, no action needed)
+
+- `ecmwf_00z` morning availability in production (read-only query): the run issued 2026-11-07
+  00 UTC was stored with all 38 points at 07:15 UTC (09:15 Helsinki), at the first scheduled
+  tick. That is 2 h 15 min before the morning cut (D 11:30). The weather readiness check after
+  14:30 stays correct: the run is selected by `issued_at`, not by `fetched_at`.
+- Full backtest reruns on the moved code: E32 is identical; E30 is identical on every part column.
+  The E30 file's `s_best*` columns at k = 2..4 are an older blend (`l_lear_k`) and are not
+  `s_v1` (`s-model-freeze.md` section 6). This does not change the interface.
