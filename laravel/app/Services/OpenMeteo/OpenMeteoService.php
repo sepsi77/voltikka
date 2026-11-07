@@ -109,6 +109,9 @@ class OpenMeteoService
             'timeformat' => 'unixtime',
             'wind_speed_unit' => 'ms',
         ];
+        if (isset($product['past_days'])) {
+            $query['past_days'] = $product['past_days']; // Previous Runs API: past valid hours
+        }
         if ($run !== null) {
             $query['run'] = $run; // Single Runs API: one model run, e.g. 2026-11-06T00:00
         }

@@ -5,8 +5,9 @@ Collects weather for the monthly market review (data inventory G6 and G22 in
 append-only outlook vintages from the ECMWF ensemble, EC46 and SEAS5. It also collects two inputs
 for own spot price models (`../../../../tasks/own-forecast-model-data/`): hourly ERA5 wind at 9
 neighbour wind-power points, append-only hourly solar (GHI) forecast vintages at the 7 FMI
-radiation stations, and the 00 UTC ECMWF run of each day at 38 points (`ecmwf_00z`, the S model
-weather). Nothing public reads these rows yet.
+radiation stations, the 00 UTC ECMWF run of each day at 38 points (`ecmwf_00z`, the S model
+weather), and Previous Runs lead-1 temperature at 5 southern stations (`ecmwf_prev_day1`, the
+S model's 7-day southern temperature). Nothing public reads these rows yet.
 
 Licence and terms: Open-Meteo data is CC BY 4.0. A published figure must credit
 "Weather data by Open-Meteo.com" with a link to https://open-meteo.com/ (ERA5 is also
@@ -128,6 +129,18 @@ long HTTP 503 "overloaded" periods on 2026-11-02 (archive and previous-runs abou
   - User decision 2026-11-06 (option A): all four variables come from here, an exception to the
     rule "Open-Meteo only where FMI has no data"; FMI's ECMWF copy stays collected for the planned
     comparison. Production had no 100 m wind and no radiation at these points before.
+- `ecmwf_prev_day1` (2026-11-07) is the second weather input of `s_v1`: `temp_south_7`, the
+  population-weighted temperature of the five `SOUTH_WEIGHTS` stations (101004, 101118, 101065,
+  101191, 101237; `point_keys` filters the FMI station set) over the 7 days before the Fingrid
+  cut, which enters the stage-1 net load. Training read it from the **Previous Runs API**
+  (`https://previous-runs-api.open-meteo.com/v1/forecast`, `models=ecmwf_ifs025`,
+  `temperature_2m_previous_day1`; `research/s_weather_previous_runs.py`), so production does
+  too. Checked 2026-11-07: the live answer equals the research cache (216 of 216 hours at
+  101004). The request has `past_days=8` and `forecast_days=1`; there is no metadata file, so
+  `issued_at` is null (one series mixes many runs). Values of past hours do not change, so a
+  reader selects by valid hour; the readiness check needs a row fetched before the cut. Twice a
+  day (09:40 and 13:40 Helsinki), before both Fingrid cuts. Do not change the model, variable,
+  points or weights without a new model version.
 
 ## API budget (free tier: < 10,000 calls/day, 5,000/hour, 600/minute)
 
@@ -150,6 +163,7 @@ A request with more than 10 variables or more than 2 weeks of data counts as sev
   counted (https://open-meteo.com/en/docs/model-updates).
 - `ecmwf_00z`: 4 variables, 9 days = 1 call per point, 38 per stored run (once a day; ticks
   after the run is stored send nothing).
+- `ecmwf_prev_day1`: 1 variable, 9 days = 1 call per point, 5 per fetch, 10 per day.
 - Call weight (https://open-meteo.com/en/pricing): more than 10 variables or more than 2 weeks
   per location counts fractionally, e.g. 2 weeks with 15 variables = 1.5 calls.
 - Ensemble and seasonal requests count members and variables; the Open-Meteo docs only show the
@@ -171,6 +185,7 @@ php artisan weather:fetch --only=ecmwf_seas5                # monthly, after the
 php artisan weather:fetch --from=1991-01-01 --point=helsinki --point=oulu  # observed backfill
 php artisan weather:fetch --only=solar_ghi                  # solar GHI forecast vintage (own schedule)
 php artisan weather:fetch --only=ecmwf_00z                  # S model weather: 00 UTC run of today (hourly 09:15-14:15)
+php artisan weather:fetch --only=ecmwf_prev_day1            # S model 7-day southern temperature (09:40, 13:40)
 php artisan weather:fetch --from=2023-01-01 --only=observed_hourly  # hourly wind backfill (UTC days)
 ```
 

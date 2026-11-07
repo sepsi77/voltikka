@@ -78,6 +78,22 @@ return [
             // The 29 FMI stations (point key = FMISID string) and the 9 neighbour wind points.
             'points' => ['fmi.weather_stations', 'open_meteo.neighbour_wind_points'],
         ],
+        // The other weather input of s_v1: temp_south_7, the population-weighted southern Finland
+        // temperature of the 7 days before each issue (stage-1 net load). Training took it from
+        // the Previous Runs API lead-1 forecasts (research/s_weather_previous_runs.py: model
+        // ecmwf_ifs025, the five SOUTH_WEIGHTS stations), so production does too. Checked
+        // 2026-11-07: the live API equals the research cache (216 of 216 hours). One series mixes
+        // many runs, so issued_at stays null; values of past hours do not change.
+        'ecmwf_prev_day1' => [
+            'url' => 'https://previous-runs-api.open-meteo.com/v1/forecast',
+            'model' => 'ecmwf_ifs025',
+            'past_days' => 8,
+            'forecast_days' => 1,
+            'variables' => ['temperature_2m_previous_day1'],
+            'points' => ['fmi.weather_stations'],
+            // Helsinki Kumpula, Tampere-Pirkkala, Turku, Utti, Lappeenranta (FMISID).
+            'point_keys' => ['101004', '101118', '101065', '101191', '101237'],
+        ],
     ],
 
     // Expected response units (wind is requested in m/s; the API default is km/h).
@@ -86,6 +102,7 @@ return [
         'wind_speed_100m' => 'm/s',
         'shortwave_radiation' => 'W/m²',
         'temperature_2m' => '°C',
+        'temperature_2m_previous_day1' => '°C',
         'temperature_2m_mean' => '°C',
         'temperature_2m_min' => '°C',
         'temperature_2m_max' => '°C',

@@ -326,4 +326,36 @@ class FetchWeatherHourlyCommandTest extends TestCase
         $options = implode(' ', array_map(fn ($point) => "--point={$point}", $points));
         $this->artisan("weather:fetch --only=ecmwf_00z {$options}")->assertExitCode(0);
     }
+
+    public function test_previous_runs_product_stores_the_five_southern_stations_without_a_run_time(): void
+    {
+        $times = $this->hours('2026-10-24 00:00', 216);
+        $series = ['temperature_2m_previous_day1' => array_fill(0, 216, 4.2)];
+        Http::fake(['previous-runs-api.open-meteo.com/*' => Http::response($this->hourlyPayload($times, $series))]);
+
+        $this->artisan('weather:fetch --only=ecmwf_prev_day1')->assertExitCode(0);
+
+        $rows = DB::table('hourly_forecast_runs')->orderBy('point')->get();
+        // Only the SOUTH_WEIGHTS stations of the research reducer, not all 29.
+        $this->assertSame(['101004', '101065', '101118', '101191', '101237'], $rows->pluck('point')->all());
+        $this->assertSame(['ecmwf_prev_day1'], $rows->pluck('product')->unique()->values()->all());
+        $this->assertNull($rows[0]->issued_at);
+        $this->assertSame($times[0], (int) $rows[0]->first_timestamp);
+        $this->assertSame(['temperature_2m_previous_day1'], array_keys(json_decode($rows[0]->values, true)));
+
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'previous-runs-api.open-meteo.com')
+            && str_contains($request->url(), 'models=ecmwf_ifs025')
+            && str_contains($request->url(), 'past_days=8')
+            && str_contains($request->url(), 'forecast_days=1')
+            && str_contains($request->url(), 'timezone=GMT'));
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'meta.json'));
+        Http::assertSentCount(5);
+
+        // The same payload again is not a new vintage.
+        $this->artisan('weather:fetch --only=ecmwf_prev_day1')->assertExitCode(0);
+        $this->assertSame(5, DB::table('hourly_forecast_runs')->count());
+
+        // A station outside the five is not a point of this part.
+        $this->artisan('weather:fetch --only=ecmwf_prev_day1 --point=101986')->assertExitCode(1);
+    }
 }

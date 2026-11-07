@@ -240,6 +240,15 @@ Schedule::command('weather:fetch --only=ecmwf_00z')
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/weather-fetch.log'));
 
+// Own S model (s_v1): Previous Runs lead-1 temperature at the five southern stations for the 7 days
+// before each issue (5 calls). Twice, so that both cuts (Fingrid 10:00 and 14:00) have a fetch.
+Schedule::command('weather:fetch --only=ecmwf_prev_day1')
+    ->twiceDailyAt(9, 13, 40)
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping(30)
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/weather-fetch.log'));
+
 Schedule::command('fingrid:fetch-forecast-vintages')
     ->hourlyAt(45)
     ->timezone('Europe/Helsinki')

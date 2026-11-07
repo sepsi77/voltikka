@@ -761,3 +761,18 @@ Answers in `../temporal-orchestration/s-workflow-interface.md` ("Answers to the 
   The workflow checks `ecmwf_00z` only after 14:30. Correct for `s_v1`: both views use the
   immutable 00 UTC run of D selected by `issued_at`, and the vintage is issued at 14:30, so the
   morning availability time is a record only.
+
+## 2026-11-07 – Gap 3: the 7-day southern temperature (missing from the freeze table)
+
+- While planning the `forecast/` package, the code showed one input that the freeze table did
+  not list: `temp_south_7` (`build_table`), the population-weighted lead-1 Previous Runs
+  temperature of the five `SOUTH_WEIGHTS` stations over the 168 hours before the Fingrid cut. It
+  enters `dtemp` of the stage-1 net load, so every `s_v1` part depends on it. Without it the net
+  load features are empty and the model runs degraded without an error.
+- Same rule as option A (the trained source): new collector product `ecmwf_prev_day1`
+  (Previous Runs API, `ecmwf_ifs025`, `temperature_2m_previous_day1`, 5 stations, past 8 days,
+  09:40 and 13:40 Helsinki, 10 calls a day). Checked live: equal to the research cache (216 of
+  216 hours). Its 2024-01..2026-11-01 history comes from the research cache into MySQL with the
+  same import as `ecmwf_00z`; the API also serves past dates, so no gap is lost.
+- Local and tested; deployment needs a user approval. The readiness list of the Temporal
+  session needs this input too.

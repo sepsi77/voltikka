@@ -26,7 +26,7 @@ class FetchWeather extends Command
                             {--from= : Observed backfill start date (YYYY-MM-DD, Europe/Helsinki local day)}
                             {--to= : Observed backfill end date, inclusive (default yesterday)}
                             {--point=* : Only these point keys (default: all configured points of each part)}
-                            {--only=* : Only these parts: observed, observed_hourly, ecmwf_ens, ecmwf_ec46, ecmwf_seas5, solar_ghi, ecmwf_00z}';
+                            {--only=* : Only these parts: observed, observed_hourly, ecmwf_ens, ecmwf_ec46, ecmwf_seas5, solar_ghi, ecmwf_00z, ecmwf_prev_day1}';
 
     protected $description = 'Fetch Open-Meteo observed weather and forecast/outlook vintages for market reviews and models';
 
@@ -60,6 +60,10 @@ class FetchWeather extends Command
                 }
             } else {
                 $pointSets[$key] = (array) config('open_meteo.'.$product['points'], []);
+            }
+            if (isset($product['point_keys'])) {
+                // Only these points of the set (the five southern stations of ecmwf_prev_day1).
+                $pointSets[$key] = array_intersect_key($pointSets[$key], array_flip($product['point_keys']));
             }
         }
 
@@ -219,7 +223,9 @@ class FetchWeather extends Command
         }
 
         $failed = 0;
-        $runBefore = $this->client->fetchModelRunAt((string) $product['meta_url'], $delay);
+        // Without a metadata file (Previous Runs: one series mixes many runs) issued_at stays null.
+        $metaUrl = isset($product['meta_url']) ? (string) $product['meta_url'] : null;
+        $runBefore = $metaUrl === null ? null : $this->client->fetchModelRunAt($metaUrl, $delay);
         $payloads = [];
 
         foreach ($pointKeys as $point) {
@@ -231,7 +237,7 @@ class FetchWeather extends Command
             }
         }
 
-        $runAfter = $payloads === [] ? null : $this->client->fetchModelRunAt((string) $product['meta_url'], $delay);
+        $runAfter = $payloads === [] || $metaUrl === null ? null : $this->client->fetchModelRunAt($metaUrl, $delay);
         $issuedAt = $runBefore !== null && $runBefore === $runAfter ? $runBefore : null;
 
         foreach ($payloads as $point => [$payload, $fetchedAt]) {

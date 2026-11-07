@@ -96,3 +96,13 @@ side. The workflow checks `ecmwf_00z` only in the afternoon poll; this is correc
 views use the 00 UTC run of D selected by `issued_at`, the run is immutable, and the vintage is
 issued at 14:30, so a run stored after 11:30 gives the same morning-view values as the backtest.
 The measured morning time is therefore a record, not a deadline input.
+
+## 7. New input for the readiness list (2026-11-07)
+
+The freeze table missed one input (now in `s-model-freeze.md` section 2): `temp_south_7`, the
+southern Finland lead-1 temperature of the 7 days before the Fingrid cut, from the Open-Meteo
+Previous Runs API. Collector product `ecmwf_prev_day1` (`hourly_forecast_runs`, source
+`open_meteo`, points `101004`, `101118`, `101065`, `101191`, `101237`, `issued_at` null), fetched
+09:40 and 13:40 Helsinki; local, not deployed yet. Readiness: each of the 5 points has a row with
+`fetched_at` before the Fingrid cut of the view (D 10:00 morning, D 14:00 afternoon) that covers
+the 168 hours before that cut. The model reads it by valid hour.

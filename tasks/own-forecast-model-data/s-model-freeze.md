@@ -71,6 +71,7 @@ vintages, not newer ones**, because its parts were trained and scored on them.
 | ENTSO-E outages: FI nuclear (B14 A77/A80), SE3 nuclear (B14 A77/A80), A78 for SE1_FI, SE3_FI, EE_FI | planned MW per target hour, from the revisions created before the issue time | before D 11:30 | before D 14:30 |
 | Border capacity (JAO `maxBorderFlow` since 2024-10-30) | median of the last 7 known days per border | delivery through the end of D | delivery through the end of D+1 |
 | ECMWF IFS HRES 00 UTC run of D, 38 points (29 FI stations, 9 neighbour points) | 2 m temperature, 10 m wind, 100 m wind (FI stations), shortwave radiation (FI stations) | the same run | the same run |
+| Southern Finland temperature of the last 7 days (`temp_south_7`; added 2026-11-07, it was missing from this table) | Open-Meteo Previous Runs lead-1 (`ecmwf_ifs025`, `temperature_2m_previous_day1`) at the 5 `SOUTH_WEIGHTS` stations, weighted; mean of the 168 hours before the Fingrid cut, needs ≥ 120 hours; enters the stage-1 net load (`dtemp`), so all four parts use it | 7 days before D 10:00 | 7 days before D 14:00 |
 | FI futures, EEX FI Base month | settlement of each target month, trade date ≤ D−1 | same | same |
 | Finnish holidays | calendar | code | code |
 
@@ -92,7 +93,8 @@ load) and 75 / 268 (wind capacity factor) for the stage-1 models.
 | JAO capacity | `jao:fetch` 12:40 (today − 2 to tomorrow) | ready; D+1 is published about 11–12 Helsinki |
 | FI futures | `futures:fetch-eex` 04:00 | ready |
 | (FMI ECMWF copy, `fmi:fetch` 11:05) | not a model input; collected for the comparison | – |
-| Weather: all four variables at the 38 points | `weather:fetch --only=ecmwf_00z` (Single Runs API, hourly 09:15–14:15; local, not deployed). Ready when every one of the 38 points has a row with product `ecmwf_00z` and `issued_at` = D 00:00 UTC | gap 1 closed (option A) |
+| Weather: all four variables at the 38 points | `weather:fetch --only=ecmwf_00z` (Single Runs API, hourly 09:15–14:15; deployed in deploy-000019). Ready when every one of the 38 points has a row with product `ecmwf_00z` and `issued_at` = D 00:00 UTC | gap 1 closed (option A) |
+| Southern temperature, last 7 days | `weather:fetch --only=ecmwf_prev_day1` (Previous Runs API, 5 stations, 09:40 and 13:40; local, not deployed). Ready when each of the 5 stations has a row fetched before the Fingrid cut. The reader selects by valid hour (past values do not change) | gap 3 (found 2026-11-07); the live API equals the research cache |
 
 **Gap 1: the weather source. Decided 2026-11-06: option A** (user decision; collector `weather:fetch --only=ecmwf_00z`, product `ecmwf_00z` in `hourly_forecast_runs`, source `open_meteo`, `issued_at` = D 00:00 UTC, values at the API time; local, not deployed). Background: The model was trained on the Open-Meteo
 Single Runs API (`ecmwf_ifs`, run D 00 UTC, 38 points, 4 variables, one request). All parts need
@@ -118,7 +120,8 @@ local (`research/data/`, git-ignored). Three paths:
 | ECMWF 00 UTC runs 2024-03-14..2026-10-31 (962 raw Single Runs answers, `data/om-single-runs/ecmwf_ifs/`) | 273 MB | S training and live run | production MySQL, `hourly_forecast_runs` product `ecmwf_00z` |
 | ECMWF 00 UTC runs 2026-11-01..the first live day | small | same | `ecmwf_00z` API backfill (a `--date` option, about 38 calls per day) |
 | Out-of-sample misses of E30 (morning parts) and E32 (`best_d1`) | 106 MB files, only the needed columns | S range (`*_scal`) | production MySQL, the phase 4 miss table (the live scoring appends to it) |
-| Open-Meteo Previous Runs (only issues before 2024-03-14 depend on it) | 153 MB | S training | archive bucket |
+| Open-Meteo Previous Runs lead-1 temperature at the 5 southern stations, 2024-01-01..2026-11-01 (`temp_south_7` of every issue) | small | S training and live run | production MySQL, `hourly_forecast_runs` product `ecmwf_prev_day1` |
+| Open-Meteo Previous Runs, all other values (the weather of issues before 2024-03-14) | 153 MB | S training | archive bucket |
 | Fingrid NTC 24–27, 112, 115, 2023-01-01..2024-10-29 (`data/fingrid-ntc/`, part of `border_capacity.csv`) | 10 MB | S training | archive bucket |
 | ENTSO-E A44 prices 2015–2022 (FI, SE1, SE3, DE) for M | 66 MB | M training | archive bucket |
 | Third-party history, SEAS5, other experiment files | about 400 MB | research only | not pushed |
