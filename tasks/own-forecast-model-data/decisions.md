@@ -720,3 +720,44 @@
   Hourly 09:15–14:15 Helsinki. Local and tested; deployment is a separate approval.
 - User approval: the one-time import of the training history into production (gap 2). It runs
   only when the production tables and the import exist; the exact action is shown first.
+
+## 2026-11-06 – How the research data reaches production (plan approved)
+
+- User approval of the plan in `s-model-freeze.md` (gap 2). Most inputs are already in production,
+  because the research exports came from a production snapshot.
+- Series that continue live go into production MySQL in the live shape: the 962 cached ECMWF
+  00 UTC runs into `hourly_forecast_runs` (`ecmwf_00z`) through the collector's own importer, and
+  the E30/E32 misses into the phase 4 miss table. A new download would cost about 36,000 API
+  calls (about 4 days of the free quota); the files are the exact training bytes.
+- Frozen research-only history (Previous Runs, Fingrid NTC before flow-based trading, ENTSO-E
+  prices 2015–2022 for M) goes into a new private archive bucket with SHA-256 pins. Not the backup
+  bucket, not the web volume, and not the public spot tables.
+- A rebuild of past input tables from production must equal the research tables before the first
+  live run. The bucket needs its own approval; the order follows the Temporal phase 0 decision.
+
+## 2026-11-07 – Agreement with the Temporal session (phase 0 approved)
+
+Answers in `../temporal-orchestration/s-workflow-interface.md` ("Answers to the own-model session").
+
+- Data access: the model commands run in the worker container as their own process and use
+  MySQL directly (`DB_*`). The model code writes only its own tables (vintages, vintage values,
+  `model_versions`, scores, miss store). This task writes their Laravel migrations (the web
+  service owns migrations). The ecmwf_00z history import stays an artisan command.
+- Model versions: fitted files in the private archive bucket plus one `model_versions` row
+  (key, SHA-256, scikit-learn version, fit facts, active flag). `predict` checks the hash and the
+  scikit-learn version before it loads a file. The worker has no volume (temp dir = cache only).
+- Package: top-level `forecast/`, distribution `voltikka-forecast`, module `voltikka_forecast.s`;
+  the command line in the interface file is the contract. The reused `s_backtest.py` functions
+  move into the package. Condition: `research/s_backtest.py` at commit 237a9e4 stays the
+  reference, and the package-based backtest must reproduce the E32 predictions file
+  (`c35388e8…`, or equal values within 1e-9) in the same change; new hashes go into freeze §6.
+- Late D+1 prices (confirmed): the afternoon run waits until 18:00 for the D+1 day-ahead prices
+  of all five zones (FI, SE1, SE3, EE, DE-LU; one SDAC result). Every other input stays at the
+  14:30 cut, and `afternoon_cut` is always D 14:30, because the backtest used complete D+1 prices
+  with the 14:30 view. The vintage stores the cut and the real start time; scoring keeps the
+  pre-declared third-party 14:30 rule and the report counts late days. No prices by 18:00: no
+  vintage, no fill, and the day is not in the 56-day count.
+- Closed the same day: the Temporal session recorded the agreement (no change on either side).
+  The workflow checks `ecmwf_00z` only after 14:30. Correct for `s_v1`: both views use the
+  immutable 00 UTC run of D selected by `issued_at`, and the vintage is issued at 14:30, so the
+  morning availability time is a record only.

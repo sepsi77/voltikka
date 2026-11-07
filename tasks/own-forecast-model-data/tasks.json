@@ -34,8 +34,13 @@
   {"name": "S phase 3: freeze the production model (E32 combined design: 14:30 run, D+2 best_d1 afternoon view, D+3..D+7 E30 parts morning view, weekly refit) and the live decision rule; record hashes (s-model-freeze.md, s_v1, 2026-11-06)", "status": "done"},
   {"name": "S: production weather source for s_v1 decided: option A, Open-Meteo Single Runs for all four variables (user 2026-11-06)", "status": "done"},
   {"name": "S: collector weather:fetch --only=ecmwf_00z (Single Runs 00 UTC run, 38 points, 4 variables), tests; local", "status": "done"},
-  {"name": "S: deploy the ecmwf_00z collector (production mutation, needs explicit approval), then record the run's morning availability time", "status": "pending"},
-  {"name": "S phase 4: one-time import of the training history into production (weather vintages, border capacity before 2024-10-30, backtest misses; s-model-freeze.md gap 2; production write, approved by the user 2026-11-06)", "status": "pending"},
+  {"name": "S: ecmwf_00z collector deployed in deploy-000019-bb954822206b (2026-11-06 19:27 Helsinki; /up 200, schedule entry live)", "status": "done"},
+  {"name": "S: record the morning availability time of the 00 UTC run from the first ecmwf_00z rows (fetched_at); a record only, not a deadline input (agreed 2026-11-07)", "status": "pending"},
+  {"name": "S phase 4: history import, approved 2026-11-06: ecmwf_00z history (962 raw runs) into hourly_forecast_runs with a one-time import command, after the Temporal phase 0 data-access decision", "status": "pending"},
+  {"name": "S phase 4: ecmwf_00z --date backfill for 2026-11-01..the first live day", "status": "pending"},
+  {"name": "S phase 4: seed the miss table with the E30/E32 out-of-sample misses (needed columns only)", "status": "pending"},
+  {"name": "S/M phase 4: private archive bucket with SHA-256 pins for Previous Runs, Fingrid NTC before 2024-10-30 and ENTSO-E prices 2015-2022 (bucket creation needs its own approval)", "status": "pending"},
+  {"name": "S phase 4: rebuild check: the production training table for past issues equals the research table", "status": "pending"},
   {"name": "S phase 3: score on real forecast vintages after the holdout window; report to the user", "status": "pending"},
   {"name": "Phase 4: runtime decision moved to tasks/temporal-orchestration phase 0 (S is its pilot workflow; user decision 2026-11-06)", "status": "done"},
   {"name": "S phase 4: forecast and training code that the Temporal S workflow calls, append-only own forecast vintages and the score calculation (no public UI); the workflows themselves are in tasks/temporal-orchestration", "status": "pending"},
@@ -55,5 +60,7 @@
   {"name": "S: reduce the D+1 backtest handicap (latest run at issue time: Open-Meteo Single Runs API or live FMI shadow scoring)", "status": "done"},
   {"name": "S iterative experiments E1–E23: s_best consolidated (research/experiments.md)", "status": "done"},
   {"name": "M phase 2: backtest, baselines and experiments M0–M27: m_best (research/experiments.md)", "status": "done"},
-  {"name": "S E8: issue-time ECMWF HRES single runs (fetch over ~4 days, then reduce and rerun s_best with them)", "status": "done"}
+  {"name": "S E8: issue-time ECMWF HRES single runs (fetch over ~4 days, then reduce and rerun s_best with them)", "status": "done"},
+  {"name": "S phase 4: agree data access, model versions, package location and the late-price rule with the Temporal session", "status": "done"},
+  {"name": "S phase 4: forecast/ package (voltikka_forecast.s predict/score/train/activate) with the E32 replay proof, and Laravel migrations for the model tables", "status": "pending"}
 ]

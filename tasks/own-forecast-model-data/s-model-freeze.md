@@ -108,15 +108,43 @@ yet). Options:
   the rule, but the model then gets FMI's copy of the run for two variables that it was trained
   on from Open-Meteo, and the effect is not measured.
 
-**Gap 2: training history in production.** The weekly refit needs the full history, and three
-parts of it exist only in `research/data/s-export-20261102/` (git-ignored, local):
-- issue-day weather (`weather_single_runs.csv`, 2024-03-14..2026-10-31, and the Previous Runs
-  files before it);
-- border capacity before 2024-10-30 (Fingrid NTC datasets 24–27, 112, 115; not in
-  `config/fingrid.php`) and JAO history if production has no backfill;
-- the backtest out-of-sample misses for the range (section 1).
+**Gap 2: training history in production. Plan approved by the user 2026-11-06.** The research
+exports came from a production snapshot, so most inputs are already in production (spot, Fingrid,
+outages, futures, JAO since 2024-10-29). Only data downloaded directly from outside sources is
+local (`research/data/`, git-ignored). Three paths:
 
-A one-time import into production tables is a production write. The user approved it on 2026-11-06 (phase 4); the exact import (tables, row counts) is shown again before it runs.
+| Data | Size | Used by | Path |
+|---|---|---|---|
+| ECMWF 00 UTC runs 2024-03-14..2026-10-31 (962 raw Single Runs answers, `data/om-single-runs/ecmwf_ifs/`) | 273 MB | S training and live run | production MySQL, `hourly_forecast_runs` product `ecmwf_00z` |
+| ECMWF 00 UTC runs 2026-11-01..the first live day | small | same | `ecmwf_00z` API backfill (a `--date` option, about 38 calls per day) |
+| Out-of-sample misses of E30 (morning parts) and E32 (`best_d1`) | 106 MB files, only the needed columns | S range (`*_scal`) | production MySQL, the phase 4 miss table (the live scoring appends to it) |
+| Open-Meteo Previous Runs (only issues before 2024-03-14 depend on it) | 153 MB | S training | archive bucket |
+| Fingrid NTC 24–27, 112, 115, 2023-01-01..2024-10-29 (`data/fingrid-ntc/`, part of `border_capacity.csv`) | 10 MB | S training | archive bucket |
+| ENTSO-E A44 prices 2015–2022 (FI, SE1, SE3, DE) for M | 66 MB | M training | archive bucket |
+| Third-party history, SEAS5, other experiment files | about 400 MB | research only | not pushed |
+
+1. **Production MySQL for series that continue live.** A one-time artisan import command (committed
+   and tested first) reads the raw files through the existing importer
+   (`OpenMeteoWeatherImporter::storeHourlyForecastRun`, so the same unit and time checks apply)
+   and inserts with the payload-hash rule, so a second run adds nothing. It runs once from the
+   local repository with `railway run` (the connection that `scripts/sync-production-database.sh`
+   uses, here writing), at the deployed commit. Row counts are shown to the user before and after.
+   Rule for these rows: their `fetched_at` is the import time, so the model selects `ecmwf_00z` by
+   `issued_at` (the run time; public about 7 h later, `WEATHER_PUBLISH_LAG`), never by
+   `fetched_at`. The Single Runs archive returns the values of the run itself, so the as-of rule
+   holds.
+2. **A new private archive bucket for history that never changes**, read only by the weekly
+   refit. Each file is uploaded once with a SHA-256 pin, the pattern of
+   `research/s-inputs-20261102.json`; the refit checks every pin. Not the backup bucket (the worker
+   must not reach the database backups); not the web volume (it belongs to one service). The M
+   prices do not go into `spot_prices_hour`, because public `/spot-price` history and averages
+   read that table. Creating the bucket is a new production resource and needs its own approval.
+3. **Proof:** before the first live run, the production training rebuilds the input table for
+   past issues from the production sources; it must equal the research table (hash per issue
+   day), with every difference explained.
+
+Order: after `tasks/temporal-orchestration/` phase 0 decides where the worker runs and how it
+reads data (the bucket credentials go to the worker service); then bucket, imports, rebuild check.
 
 ## 4. Interface for the workflow (proposal for phase 4)
 
