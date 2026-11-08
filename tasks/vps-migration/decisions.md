@@ -11,3 +11,17 @@
 - Two risks to settle in phase 0 (agent note): a VPS test that shares the production database
   while Railway still runs the scheduler would double-write; a VPS worker on the same Temporal
   namespace and task queue as Railway `voltikka-worker` would take production tasks.
+
+## 2026-11-09 – PR #10 review, round 1
+
+Head 99a6787. CodeRabbit review 5818910412 (Greptile not requested: user decision for this small
+PR). Findings, all valid and fixed:
+
+| Finding | Kind | Action |
+|---|---|---|
+| `WebSchedulerTest` checks `backup:run` by name, so the weekly files backup hides a missing daily database backup | inline 4507148843 (👍) | exact command strings |
+| The same name-only check hides a lost `weather:fetch` / `fmi:fetch` `--only` variant | nitpick | every collector variant listed as an exact string |
+| The "Fingrid 245 wind power forecast vintages" comment sat above the `ecmwf_00z` block (old misplacement restored from `543c342`) | additional comment | moved above `fingrid:fetch-forecast-vintages` |
+
+Codification: none, because no spec review ran for this small PR; the fixes are local to one test
+and one comment.
