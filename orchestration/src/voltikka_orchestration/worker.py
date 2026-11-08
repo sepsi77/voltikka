@@ -17,8 +17,10 @@ from .jobs import ArtisanJob, ContractImport, EexFutures, MorningChain
 from .s_forecast import SDailyForecast, SWeeklyRefit
 from .settings import Settings
 
-# Longest claim-based step: contracts:complete-import (35 min activity timeout).
-GRACEFUL_SHUTDOWN = timedelta(minutes=38)
+# Longer than every claim-based step (interruptible=False): the morning consumers and the weekly
+# social video have 60-minute timeouts (tests/test_jobs.py checks this). Railway's
+# RAILWAY_DEPLOYMENT_DRAINING_SECONDS on the worker must be longer still (4000 s).
+GRACEFUL_SHUTDOWN = timedelta(minutes=65)
 
 WORKFLOWS = [SDailyForecast, SWeeklyRefit, ArtisanJob, MorningChain, EexFutures, ContractImport]
 
@@ -47,7 +49,7 @@ def build_worker(client: Client, settings: Settings) -> Worker:
         max_concurrent_activities=8,
         # Deploy drain: interruptible commands stop at once and are retried on the new worker;
         # claim-based commands (CommandRequest.interruptible=False) can finish. The Railway service
-        # variable RAILWAY_DEPLOYMENT_DRAINING_SECONDS must be longer than this (2400 s).
+        # variable RAILWAY_DEPLOYMENT_DRAINING_SECONDS must be longer than this (4000 s).
         graceful_shutdown_timeout=GRACEFUL_SHUTDOWN,
     )
 

@@ -11,7 +11,8 @@ prints one JSON line. Exit 0 = the check ran (ready or not); exit 1 = invalid ar
   the `eex_futures`, `contract_import`, `morning_retail` and `morning_forecast` checkpoints of
   Helsinki date D (null = no row), plus `scheduled_complete` per consumer: true only for `ready`
   with metadata `scheduled_complete=true`. A manual subset run is `ready` but not the scheduled
-  scope. The Temporal `MorningChain` uses it only to stop polling (`pending_completion` → keep
+  scope. `deadline_alerted` per consumer is true when the noon alert was reserved
+  (`deadline_alerted_at`), also for a scheduled run that completed after noon. The Temporal `MorningChain` uses it only to stop polling (`pending_completion` → keep
   running `contracts:complete-import`; `scheduled_complete` → consumer lane done). The commands
   keep their own gates. Test: `OrchestrationMorningReadinessTest`.
 - `../../../config/orchestration.php`: the input list and the cuts. It follows

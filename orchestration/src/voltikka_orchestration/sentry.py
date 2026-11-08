@@ -21,7 +21,8 @@ with workflow.unsafe.imports_passed_through():
     from sentry_sdk.integrations.logging import LoggingIntegration
 
 
-def init(dsn: str | None, environment: str) -> None:
+def init(dsn: str | None, environment: str, transport: object | None = None) -> None:
+    """`transport` replaces only the network transport (tests)."""
     if not dsn:
         return
     # event_level=None: a log line is never an Issue; only the explicit captures are (report_issue
@@ -31,6 +32,7 @@ def init(dsn: str | None, environment: str) -> None:
         environment=environment,
         traces_sample_rate=0.0,
         integrations=[LoggingIntegration(event_level=None)],
+        transport=transport,
     )
 
 

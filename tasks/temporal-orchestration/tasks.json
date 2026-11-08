@@ -85,26 +85,30 @@
   },
   {
     "name": "Phase 2: local code: jobs.py (ArtisanJob, MorningChain, EexFutures, ContractImport), schedules table, readiness morning, phpredis, queue entrypoint, supervisord, console.php, tests, docs",
-    "status": "done (local, not committed)"
+    "status": "done (branch temporal-orchestration)"
   },
   {
-    "name": "Phase 2 R0: Railway Redis service and voltikka-queue service; worker/queue variable references (production, approval)",
+    "name": "Phase 2 R1: worker variables (all application variables, RAILWAY_DEPLOYMENT_DRAINING_SECONDS), image, collectors cut-over (production, approval)",
     "status": "pending"
   },
   {
-    "name": "Phase 2 R1: image + collectors group cut-over (production, approval)",
+    "name": "Phase 2: spec review round 2026-11-08T12-53 (Pi reviewers via T3), fixes and verification",
+    "status": "done (ACCEPT for R1)"
+  },
+  {
+    "name": "Phase 2: pi-pr-review and external-pr-review on the PR",
     "status": "pending"
   },
   {
-    "name": "Phase 2 R2: CACHE_STORE=redis on all services (production, approval)",
+    "name": "Phase 2 R2: Railway Redis service and CACHE_STORE=redis on web and worker (production, approval)",
     "status": "pending"
   },
   {
-    "name": "Phase 2 R3: maintenance + spot groups cut-over (production, approval)",
+    "name": "Phase 2 R3 (own PR): voltikka-queue service, queue out of supervisord, maintenance + spot cut-over; check the Railway drain maximum first",
     "status": "pending"
   },
   {
-    "name": "Phase 2 R4: morning chain cut-over and next-morning check (production, approval)",
+    "name": "Phase 2 R4 (own PR): morning chain cut-over, logos:download on web; real PHP + Temporal + DB acceptance test first; next-morning check",
     "status": "pending"
   },
   {

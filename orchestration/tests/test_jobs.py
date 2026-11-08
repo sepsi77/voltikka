@@ -10,7 +10,6 @@ from zoneinfo import ZoneInfo
 
 import pytest
 import sentry_sdk
-from sentry_sdk.integrations.logging import LoggingIntegration
 from temporalio import activity
 from temporalio.client import Schedule, ScheduleOverlapPolicy, WorkflowFailureError
 from temporalio.exceptions import ApplicationError
@@ -29,6 +28,7 @@ from voltikka_orchestration.jobs import (
 )
 from voltikka_orchestration.schedules import GROUPS, schedules
 from voltikka_orchestration.settings import Settings
+from voltikka_orchestration.worker import GRACEFUL_SHUTDOWN
 from voltikka_orchestration.worker import WORKFLOWS as PRODUCTION_WORKFLOWS
 
 QUEUE = "jobs-test-queue"
@@ -42,7 +42,9 @@ class FakeArtisan:
     """Simulates the commands and the checkpoints that they write. Consumer behaviour per command:
     ("ready_after", n) completes the scheduled scope on tick n; ("never",) keeps waiting;
     ("fail",) stores a failed claim on the first tick; ("manual_ready",) starts as a manual-subset
-    `ready` row that is not the scheduled scope."""
+    `ready` row that is not the scheduled scope; ("late",) completes only after noon. Like
+    MorningConsumerExecution, a tick at or after 12:00 reserves the deadline alert of an incomplete
+    consumer."""
 
     def __init__(self, *, failing=(), retail=("ready_after", 2), forecast=("ready_after", 1),
                  completion_ticks=2, consumer_seconds=0.0):
@@ -54,6 +56,7 @@ class FakeArtisan:
             "eex_futures": None, "contract_import": None, "morning_retail": None, "morning_forecast": None,
         }
         self.complete = {"morning_retail": False, "morning_forecast": False}
+        self.alerted = {"morning_retail": False, "morning_forecast": False}
         self.behaviour = {RETAIL: ("morning_retail", retail), FORECAST: ("morning_forecast", forecast)}
         self.ticks = {RETAIL: 0, FORECAST: 0}
         self.completion_ticks = completion_ticks
@@ -69,7 +72,8 @@ class FakeArtisan:
         name = " ".join(request.args)
         if request.args[0] == "orchestration:readiness":
             return CommandResult(0, {"date": "x", "checkpoints": dict(self.checkpoints),
-                                     "scheduled_complete": dict(self.complete)}, 0.1)
+                                     "scheduled_complete": dict(self.complete),
+                                     "deadline_alerted": dict(self.alerted)}, 0.1)
         at = activity.info().current_attempt_scheduled_time.astimezone(HELSINKI).strftime("%H:%M")
         self.calls.append((name, at))
         self.attempts[name] = self.attempts.get(name, 0) + 1
@@ -86,12 +90,17 @@ class FakeArtisan:
             if self.completion_ticks <= 0:
                 self.checkpoints["contract_import"] = "ready"
         elif name in self.behaviour:
-            await self._consumer(name)
+            await self._consumer(name, at)
         return CommandResult(0, None, 0.1)
 
-    async def _consumer(self, name: str) -> None:
+    async def _consumer(self, name: str, at: str) -> None:
         key, rule = self.behaviour[name]
         self.ticks[name] += 1
+        if at >= "12:00" and not self.complete[key]:
+            self.alerted[key] = True
+            if rule[0] == "late":  # a writer that was admitted before noon finishes late
+                self.checkpoints[key], self.complete[key] = "ready", True
+            return
         self.active_consumers += 1
         self.max_active_consumers = max(self.max_active_consumers, self.active_consumers)
         try:
@@ -238,7 +247,8 @@ async def test_a_failed_claim_gets_only_the_noon_tick_and_the_morning_fails_with
         await execute(env, fake, MorningChain.run, MorningInput(await tomorrow(env)))
 
     assert failure.value.cause.type == "ReportedFailure"
-    assert fake.times(FORECAST) == ["06:02", "12:00"]
+    forecast = fake.times(FORECAST)
+    assert forecast[0] == "06:02" and forecast[1:] and set(forecast[1:]) == {"12:00"}
     assert fake.times(RETAIL) == ["06:02", "06:07"]
     assert [(r.workflow, r.reason) for r in fake.reports] == [("MorningChain", "morning_incomplete")]
     assert fake.reports[0].facts["consumers"] == {"morning_retail": "complete", "morning_forecast": "failed"}
@@ -268,9 +278,21 @@ async def test_the_noon_tick_does_not_wait_for_a_producer_that_still_runs(env, m
         await execute(env, fake, MorningChain.run, MorningInput(await tomorrow(env)),
                       workflow_runner=UnsandboxedWorkflowRunner())
 
-    assert fake.times(RETAIL) == ["05:00"]
-    assert fake.times(FORECAST) == ["05:00"]
+    assert set(fake.times(RETAIL)) == {"05:00"}
+    assert set(fake.times(FORECAST)) == {"05:00"}
     assert fake.names().index(RETAIL) < fake.names().index("contracts:fetch --skip-logos")
+
+
+async def test_a_scheduled_run_that_finishes_after_noon_is_a_late_morning(env):
+    fake = FakeArtisan(forecast=("late",), retail=("ready_after", 1))
+
+    with pytest.raises(WorkflowFailureError):
+        await execute(env, fake, MorningChain.run, MorningInput(await tomorrow(env)))
+
+    assert fake.complete["morning_forecast"] and fake.alerted["morning_forecast"]
+    assert [r.reason for r in fake.reports] == ["morning_incomplete"]
+    assert fake.reports[0].facts["consumers"] == {"morning_retail": "complete",
+                                                  "morning_forecast": "complete_after_deadline"}
 
 
 # Schedules (independent of the JOBS table: the approved plan and the old Helsinki times)
@@ -344,6 +366,10 @@ def test_claim_based_steps_finish_during_a_deploy_drain():
         assert steps[argv].interruptible is False, argv
     assert jobs.COMPLETION_STEP.interruptible is False and jobs.COMPLETION_STEP.self_reports is True
     assert steps[("spot:fetch",)].interruptible is True
+    # Every claim-based step ends within the drain, or the end of the drain still kills it.
+    protected = [step for step in steps.values() if not step.interruptible] + [jobs.COMPLETION_STEP]
+    limits = [timedelta(minutes=step.timeout_minutes) for step in protected] + [timedelta(minutes=jobs.CONSUMER_TIMEOUT_MINUTES)]
+    assert max(limits) < GRACEFUL_SHUTDOWN
 
 
 # Real activity boundary (a local fake `artisan` script; no Laravel, no network)
@@ -463,9 +489,9 @@ class Collect(sentry_sdk.transport.Transport):
 
 @pytest.fixture
 def transport():
+    # Production initialisation; only the network transport is replaced.
     collect = Collect()
-    sentry_sdk.init(dsn="https://key@sentry.invalid/1", transport=collect,
-                    integrations=[LoggingIntegration(event_level=None)])
+    sentry.init("https://key@sentry.invalid/1", "test", transport=collect)
     yield collect
     sentry_sdk.init(dsn=None)
 

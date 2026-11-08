@@ -58,8 +58,8 @@ different value would write wrong or orphaned prices into the shared cache.
 the scheduler today). Only a lost attempt (worker restart, heartbeat timeout) is retried. Deploy
 safety: on a worker deploy, interruptible commands stop and repeat on the new worker; commands with
 a durable claim or lease (deferred import completion, morning consumers, social posts, the
-price-cache warm) finish within the drain (`GRACEFUL_SHUTDOWN` 38 min, Railway draining seconds
-2400), because a killed claim cannot be resumed.
+price-cache warm) finish within the drain (`GRACEFUL_SHUTDOWN` 65 min, longer than every
+claim-based step timeout; Railway draining seconds 4000), because a killed claim cannot be resumed.
 
 ## Groups and order of cut-over
 
@@ -79,8 +79,9 @@ spot, morning) leaves the web container before every service uses the shared Red
 - **R1 (this branch): image + collectors.** The image has phpredis, the workflows, the queue
   entrypoint mode (not used yet) and `console.php` without the collector group only; the web still
   runs the queue worker and every other schedule. Worker variables: add references to every
-  application variable of `voltikka` and `RAILWAY_DEPLOYMENT_DRAINING_SECONDS=2400` (check the
-  Railway maximum). Deploy worker, then web; then `schedules --apply --group collectors`.
+  application variable of `voltikka` and `RAILWAY_DEPLOYMENT_DRAINING_SECONDS=4000` (longer than
+  the 65-minute worker drain; check the Railway maximum before R3, when the first claim-based jobs
+  move; if it is lower, keep a deploy guard for live claims until then). Deploy worker, then web; then `schedules --apply --group collectors`.
   Collectors write no cache.
 - **R2 Redis.** Railway Redis service in europe-west4 with a volume (a restart must not empty the
   shared price cache: web GET reads are cache-only and return 503 until the next warm), `maxmemory`
@@ -102,7 +103,9 @@ spot, morning) leaves the web container before every service uses the shared Red
 - **R5 Phase 4.** After two good mornings, remove the deploy window from `scripts/deploy-image.sh`
   and root `AGENTS.md`.
 
-Rollback of a group: pause its Schedules, then deploy the previous web image (its scheduler
-entries return). Rollback of R2 after R3: first return the cache writers to the web (deploy the
-R2-era web image, pause the maintenance/spot/morning Schedules, stop `voltikka-queue`), then set
-`CACHE_STORE=file`. A file store with writers outside the web container would keep stale prices.
+Rollback of a group: pause its Schedules and let their running workflows end, then deploy the
+previous web image (its scheduler entries return). Rollback of R2 after R3, in this order: pause
+the maintenance/spot/morning Schedules, let their running workflows end, deploy the R2-era web
+image (scheduler and queue worker return), stop `voltikka-queue`, and only then set
+`CACHE_STORE=file`. A paused group never runs in both schedulers, and a file store with writers
+outside the web container would keep stale prices.

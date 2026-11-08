@@ -15,6 +15,9 @@ use InvalidArgumentException;
  * `scheduled_complete` tells for each consumer whether the scheduled default scope completed. A
  * successful manual subset run also leaves `ready`, but it does not certify the full daily scope
  * (MorningConsumerExecution::finish()), so `ready` alone is not completion.
+ *
+ * `deadline_alerted` tells whether the noon deadline alert was reserved for the consumer (also for
+ * a scheduled run that completed after noon), so the workflow can report a late morning.
  */
 class MorningReadiness
 {
@@ -27,7 +30,7 @@ class MorningReadiness
     ];
 
     /**
-     * @return array{date: string, checkpoints: array<string, string|null>, scheduled_complete: array<string, bool>}
+     * @return array{date: string, checkpoints: array<string, string|null>, scheduled_complete: array<string, bool>, deadline_alerted: array<string, bool>}
      */
     public function check(string $date): array
     {
@@ -48,13 +51,16 @@ class MorningReadiness
         }
 
         $scheduledComplete = [];
+        $deadlineAlerted = [];
         foreach (self::CONSUMER_KEYS as $key) {
             $row = $rows[$key] ?? null;
             $scheduledComplete[$key] = $row !== null
                 && $row->status === DataFreshnessCheckpoint::STATUS_READY
                 && ($row->metadata['scheduled_complete'] ?? false) === true;
+            $deadlineAlerted[$key] = isset($row?->metadata['deadline_alerted_at']);
         }
 
-        return ['date' => $date, 'checkpoints' => $checkpoints, 'scheduled_complete' => $scheduledComplete];
+        return ['date' => $date, 'checkpoints' => $checkpoints, 'scheduled_complete' => $scheduledComplete,
+            'deadline_alerted' => $deadlineAlerted];
     }
 }

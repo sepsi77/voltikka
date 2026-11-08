@@ -256,3 +256,31 @@
   pass), Python tests (23), schedule times on a dev server (UTC future actions match Helsinki
   times), an `ArtisanJob` run with real `php artisan` (success, failure with skip/always, one
   Issue), and lost-attempt retries after SIGKILL and SIGTERM. Nothing deployed, nothing committed.
+
+## 2026-11-08 – Spec review round 2026-11-08T12-53 (Pi reviewers in T3)
+
+- Five Pi reviewers (platform, test, laravel, pricing, refactor) ran as T3 child tasks on the Pi
+  provider (`openai-codex/gpt-6.1-sol`, thinking high) instead of `pi-run.sh`. A T3 child has no
+  tool limit, so `git status` was checked after the round: only reports were written.
+- 21 first-round findings; the fixes (f6452f2 and later local changes) changed the plan:
+  - **Staged cut-over in code** (PLT-001, PRC-001): this branch moves only the collectors group.
+    The queue worker and the maintenance, spot and morning schedules stay in the web container
+    until the shared Redis store is live (R2), because they write the cache. Each later group is
+    its own PR (R3 queue+maintenance+spot, R4 morning). This replaces "one release removes all".
+  - **Consumer lanes**: one lane per consumer; done only on `scheduled_complete` (a manual subset
+    run is not the daily scope); a separate noon check ticks every incomplete consumer at 12:00
+    even while producers or its own command run; a late completion (`deadline_alerted`) counts as
+    incomplete; an incomplete morning sends one Issue and fails. The PHP 07:15/07:30 lower clock
+    bound is removed (the Laravel cron windows keep the start until R4).
+  - **Deploy drain** (PLT-006, PLT-V01): interruptible commands stop and repeat on the new worker;
+    claim-based commands (completion, consumers, social posts, price-cache warm) finish within a
+    65-minute drain; every claim-based timeout is at most 60 minutes (test); Railway draining
+    seconds 4000 on the worker (check the maximum before R3).
+  - Completion self-reports; lost/timed-out attempts of self-reporting steps are reported by the
+    workflow; `gas-storage:fetch --if-configured` keeps the optional-key skip.
+- Found while testing: the Temporal time-skipping test server does not move a workflow task from a
+  stopped worker's sticky queue (Temporal Cloud does after a short timeout). Tests that stop a worker
+  use `max_cached_workflows=0`.
+- Deferred (agent decision): a real heartbeat-loss test and a real PHP + Temporal + database morning
+  test; the second is a required acceptance check before the R4 PR. Verdict: ACCEPT for R1.
+  Reports: `reviews/2026-11-08T12-53/` (`summary.md`, `actions.md`).

@@ -22,6 +22,7 @@ class OrchestrationMorningReadinessTest extends TestCase
             'date' => '2026-11-09',
             'checkpoints' => ['eex_futures' => 'ready', 'contract_import' => 'pending_completion', 'morning_retail' => null, 'morning_forecast' => null],
             'scheduled_complete' => ['morning_retail' => false, 'morning_forecast' => false],
+            'deadline_alerted' => ['morning_retail' => false, 'morning_forecast' => false],
         ], json_decode(trim(Artisan::output()), true));
     }
 
@@ -49,6 +50,17 @@ class OrchestrationMorningReadinessTest extends TestCase
 
         $this->assertSame(0, Artisan::call('orchestration:readiness', ['pipeline' => 'morning', '--date' => '2026-11-09']));
         $this->assertSame(['morning_retail' => false, 'morning_forecast' => false], json_decode(trim(Artisan::output()), true)['scheduled_complete']);
+    }
+
+    public function test_a_reserved_noon_alert_is_reported_also_for_a_late_completed_run(): void
+    {
+        DataFreshnessCheckpoint::query()->create(['key' => 'morning_forecast', 'effective_date' => '2026-11-09', 'status' => 'ready',
+            'metadata' => ['scheduled_complete' => true, 'deadline_alerted_at' => '2026-11-09T12:00:04+02:00'], 'recorded_at' => now()]);
+
+        $this->assertSame(0, Artisan::call('orchestration:readiness', ['pipeline' => 'morning', '--date' => '2026-11-09']));
+        $result = json_decode(trim(Artisan::output()), true);
+        $this->assertTrue($result['scheduled_complete']['morning_forecast']);
+        $this->assertSame(['morning_retail' => false, 'morning_forecast' => true], $result['deadline_alerted']);
     }
 
     public function test_an_invalid_date_fails_with_a_closed_error_key(): void

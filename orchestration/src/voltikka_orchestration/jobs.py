@@ -39,6 +39,9 @@ CONSUMER_POLL = timedelta(minutes=5)
 COMPLETION_POLL = timedelta(minutes=1)
 # ContractImportCompletion bounds its own claims to 60 checks / two hours.
 COMPLETION_LIMIT = timedelta(hours=2, minutes=10)
+# A claim-based step must end within the worker's graceful drain (worker.GRACEFUL_SHUTDOWN), or a
+# deploy still kills it at the end of the drain and its claim stays locked.
+CONSUMER_TIMEOUT_MINUTES = 60
 CONSUMERS = {
     "morning_retail": ["retail-premiums:collect", "--scheduled"],
     "morning_forecast": ["forecasting:run-fixed-contracts", "--scheduled"],
@@ -180,7 +183,7 @@ async def morning_facts(day: str) -> dict:
         **READINESS_OPTIONS,
     )
     facts = result.result or {}
-    if "checkpoints" not in facts or "scheduled_complete" not in facts:
+    if not {"checkpoints", "scheduled_complete", "deadline_alerted"} <= facts.keys():
         raise ApplicationError("orchestration:readiness returned no JSON result", non_retryable=True)
     return facts
 
@@ -265,13 +268,19 @@ class MorningChain:
             return outcome
 
         producer_task = asyncio.ensure_future(producers())
+        noon_task = asyncio.ensure_future(self._noon_check(iso, noon))
         self._stage = "consumers"
         lanes = await asyncio.gather(*(self._lane(key, iso, noon) for key in CONSUMERS))
         consumers = dict(zip(CONSUMERS, lanes))
         # Children close with the parent, so wait for a producer that still runs after noon.
         eex_status, contracts_status = await producer_task
+        await noon_task
         self._stage = "done"
 
+        # A scheduled run that finished after noon is complete but late: PHP reserved its deadline alert.
+        alerted = (await morning_facts(iso))["deadline_alerted"]
+        consumers = {key: ("complete_after_deadline" if state == "complete" and alerted.get(key) else state)
+                     for key, state in consumers.items()}
         incomplete = {key: state for key, state in consumers.items() if state != "complete"}
         if incomplete:
             await report(IssueReport(
@@ -282,6 +291,17 @@ class MorningChain:
             raise reported_failure(f"Morning chain {iso}: incomplete {sorted(incomplete)}", sorted(incomplete))
         return MorningResult(iso, eex_status, contracts_status, consumers)
 
+    async def _noon_check(self, iso: str, noon: datetime) -> None:
+        """One tick at 12:00 for every consumer that is not complete, independent of the lanes: a lane
+        can still wait for a producer or for its own running command. A noon tick on a running or
+        failed claim only reserves the deadline alert (MorningConsumerExecution), so a second tick
+        from the lane is harmless."""
+        await sleep_until(noon)
+        facts = await morning_facts(iso)
+        open_keys = [key for key in CONSUMERS if not facts["scheduled_complete"].get(key)]
+        await asyncio.gather(*(run_steps("MorningChain", [Step(CONSUMERS[key], timeout_minutes=5, max_attempts=1,
+                                                                 interruptible=False)]) for key in open_keys))
+
     async def _lane(self, key: str, iso: str, noon: datetime) -> str:
         self._lanes[key] = "waiting_for_producers"
         remaining = noon - workflow.now()
@@ -290,7 +310,7 @@ class MorningChain:
                 await workflow.wait_condition(lambda: self._producers_done, timeout=remaining)
             except asyncio.TimeoutError:
                 pass  # noon: tick anyway, so the deadline alert is not lost behind a slow producer
-        step = Step(CONSUMERS[key], timeout_minutes=120, max_attempts=1, interruptible=False)
+        step = Step(CONSUMERS[key], timeout_minutes=CONSUMER_TIMEOUT_MINUTES, max_attempts=1, interruptible=False)
         while True:
             facts = await morning_facts(iso)
             if facts["scheduled_complete"].get(key):

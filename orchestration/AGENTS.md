@@ -85,9 +85,11 @@ implemented locally, not in production; only the collectors group is cut over in
   stops polling. An interruptible command (`Step.interruptible`, default true) is killed at once and
   repeats on the new worker after about 30 s. A claim-based command (`interruptible=False`:
   `contracts:complete-import`, both morning consumers, social posts, `contracts:warm-cache
-  --pending` with its 30-minute producer lease) runs to its end within `GRACEFUL_SHUTDOWN` (38 min;
-  `worker.py`), because a killed claim cannot be resumed and stays locked for inspection. The worker
-  service needs `RAILWAY_DEPLOYMENT_DRAINING_SECONDS` above that (2400). A crash (SIGKILL) still
+  --pending` with its 30-minute producer lease) runs to its end within `GRACEFUL_SHUTDOWN` (65 min;
+  `worker.py`), because a killed claim cannot be resumed and stays locked for inspection. Every
+  claim-based step timeout must stay below that drain (consumers and the weekly video 60 min; a test
+  checks it). The worker service needs `RAILWAY_DEPLOYMENT_DRAINING_SECONDS` above that (4000;
+  check the Railway maximum before R3, else keep a deploy guard for live claims). A crash (SIGKILL) still
   waits for the 2-minute heartbeat timeout. Tests: `test_a_deploy_*` in `tests/test_jobs.py`.
 - **One Issue per failure.** A failed step sends one `report_issue` (`command_failed`), because the
   Laravel scheduler failure listener does not run here. `spot:fetch`, `futures:fetch-eex`,
@@ -104,10 +106,12 @@ implemented locally, not in production; only the collectors group is cut over in
   `pending_completion` (at most 2 h 10 min), then `forecasting:evaluate-fixed-contracts`. Each
   consumer has its own lane: it waits until both children have ended (or noon), then ticks its
   `--scheduled` command every five minutes until `scheduled_complete` is true. A manual subset
-  `ready` row is not done. A `failed` claim gets no tick before noon. At or after 12:00 every
-  incomplete lane runs one tick (also while a producer still runs), so `MorningConsumerExecution`
-  reserves the deadline alert. The lanes never wait for each other. An incomplete morning sends one
-  `morning_incomplete` Issue and fails. The PHP commands keep their gates, claims and alerts;
+  `ready` row is not done. A `failed` claim gets no tick before noon. A separate noon check runs one
+  tick at 12:00 for every consumer that is not complete, also while its producers or its own command
+  still run, so `MorningConsumerExecution` reserves the deadline alert on time (a second noon tick
+  from the lane is harmless). The lanes never wait for each other. An incomplete morning, or a
+  scheduled run that finished after noon (`deadline_alerted`), sends one `morning_incomplete` Issue
+  and fails. The PHP commands keep their gates, claims and alerts;
   their lower clock bound was removed, so the start is the producers' end.
 - **Cut-over order** (`../tasks/temporal-orchestration/phase2-plan.md`): only the collectors
   group is out of `laravel/routes/console.php` in this branch. Maintenance and spot move only
