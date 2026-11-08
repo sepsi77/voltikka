@@ -53,16 +53,23 @@ result acceptable: report the result and cite the decision.
    `workflow.sleep()`, no system clock, no `zoneinfo` objects (use the `helsinki_offset` helpers).
    Activities do the I/O. PHP work runs as `php artisan` activities through `run_command`.
    Workflow IDs are deterministic (one per job and Helsinki date where the rule says so).
+   A workflow date input must agree with the date that its commands write: when the commands use
+   the current Helsinki date, a run for another date (a past date, a write after midnight) is
+   refused, not run (example: `MorningChain` read yesterday's checkpoints but wrote today's facts).
 2. **Retries.** A failed command (`CommandFailed`) is never retried automatically; it is
    non-retryable in every retry policy. Only a lost attempt (worker deploy, crash, heartbeat
    timeout) is retried. Social posting and morning consumers use `max_attempts=1`.
 3. **One Issue per failure.** Each failed step sends exactly one Sentry Issue. Self-reporting
    commands (`spot:fetch`, `futures:fetch-eex`, `contracts:fetch`) get none from the workflow. The
-   Sentry interceptor does not report `ReportedFailure` again.
+   Sentry interceptor does not report `ReportedFailure` again. A workflow outcome comes from the
+   checkpoint, not only from the exit code: a command that exits 0 with a non-`ready` checkpoint
+   is not a success (example: a partial contract acquisition exits 0 and stores `incomplete`).
 4. **Cut-over.** A job group never runs both as a Temporal Schedule (`schedules.py`, `jobs.py`)
    and as a `routes/console.php` entry. Check both files for every changed job. The web scheduler
    keeps only web-volume jobs. Times are Europe/Helsinki and match the documented order (EEX at
-   04:00, contract import from 06:00, consumers until 12:00).
+   04:00, contract import from 06:00, consumers until 12:00). The operator tool must not be able
+   to start a group that has not moved: no default of "all groups" on apply (example: a bare
+   `schedules --apply` started maintenance, spot and morning beside the web scheduler).
 5. **Shared state.** Worker and queue services reference every application variable of the
    `voltikka` service, above all the pricing flags (they are part of cache keys) and
    `CACHE_STORE=redis`. A job that writes cache without the shared store writes a private cache.
@@ -78,7 +85,9 @@ result acceptable: report the result and cite the decision.
 7. **Deploy scripts.** `scripts/deploy-image.sh` refuses `latest`, unknown tags and the
    04:00–09:00 Helsinki window for the web service (`--morning-checks-passed` overrides only the
    window). Every Railway call uses explicit project, environment and service IDs and
-   `RAILWAY_CALLER=skill:use-railway@1.2.2`. No script prints secrets or variable values.
+   `RAILWAY_CALLER=skill:use-railway@1.2.2`. No script prints secrets or variable values. The
+   effect that a script states before the approval matches the real deploy behavior (drain,
+   retry); a wrong statement misleads the approval.
 8. **Own forecast model.** `s_v1` is frozen: no change to its features, settings or training data
    without a new model version. Each input uses only the forecast vintage that existed at issue
    time (`hourly_forecast_runs`). A failed input fetch ends the run with "no forecast" and one Issue.

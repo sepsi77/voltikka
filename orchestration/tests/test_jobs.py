@@ -26,7 +26,7 @@ from voltikka_orchestration.jobs import (
     MorningInput,
     Step,
 )
-from voltikka_orchestration.schedules import GROUPS, schedules
+from voltikka_orchestration.schedules import GROUPS, parse_args, schedules, select
 from voltikka_orchestration.settings import Settings
 from voltikka_orchestration.worker import GRACEFUL_SHUTDOWN
 from voltikka_orchestration.worker import WORKFLOWS as PRODUCTION_WORKFLOWS
@@ -47,7 +47,7 @@ class FakeArtisan:
     consumer."""
 
     def __init__(self, *, failing=(), retail=("ready_after", 2), forecast=("ready_after", 1),
-                 completion_ticks=2, consumer_seconds=0.0):
+                 completion_ticks=2, consumer_seconds=0.0, import_state="pending_completion"):
         self.calls: list[tuple[str, str]] = []
         self.attempts: dict[str, int] = {}
         self.reports: list[IssueReport] = []
@@ -60,6 +60,7 @@ class FakeArtisan:
         self.behaviour = {RETAIL: ("morning_retail", retail), FORECAST: ("morning_forecast", forecast)}
         self.ticks = {RETAIL: 0, FORECAST: 0}
         self.completion_ticks = completion_ticks
+        self.import_state = import_state
         self.consumer_seconds = consumer_seconds
         self.active_consumers = 0
         self.max_active_consumers = 0
@@ -84,7 +85,7 @@ class FakeArtisan:
         if command == "futures:fetch-eex":
             self.checkpoints["eex_futures"] = "ready"
         elif command == "contracts:fetch":
-            self.checkpoints["contract_import"] = "pending_completion"
+            self.checkpoints["contract_import"] = self.import_state
         elif command == "contracts:complete-import":
             self.completion_ticks -= 1
             if self.completion_ticks <= 0:
@@ -295,6 +296,33 @@ async def test_a_scheduled_run_that_finishes_after_noon_is_a_late_morning(env):
                                                   "morning_forecast": "complete_after_deadline"}
 
 
+async def test_a_morning_for_a_past_date_is_refused_before_any_command(env):
+    now = await env.get_current_time()
+    yesterday = (now.astimezone(HELSINKI).date() - timedelta(days=1)).isoformat()
+    fake = FakeArtisan()
+
+    with pytest.raises(WorkflowFailureError) as failure:
+        await execute(env, fake, MorningChain.run, MorningInput(yesterday))
+
+    assert "the date has passed" in str(failure.value.cause)
+    assert fake.calls == [] and fake.reports == []
+
+
+@pytest.mark.parametrize("state, reports", [("incomplete", []), (None, ["import_not_ready"])])
+async def test_an_import_that_exits_0_without_a_ready_checkpoint_fails(env, state, reports):
+    """A partial acquisition exits 0 with `incomplete` (contracts:fetch sent its own Issue)."""
+    fake = FakeArtisan(import_state=state)
+
+    with pytest.raises(WorkflowFailureError) as failure:
+        await execute(env, fake, ContractImport.run, MorningInput(await tomorrow(env)))
+
+    assert failure.value.cause.type == "ReportedFailure"
+    assert f"import_{state or 'missing'}" in str(failure.value.cause)
+    assert "contracts:complete-import" not in fake.names()
+    assert fake.names()[-1] == "forecasting:evaluate-fixed-contracts"
+    assert [r.reason for r in fake.reports] == reports
+
+
 # Schedules (independent of the JOBS table: the approved plan and the old Helsinki times)
 
 EXPECTED_SCHEDULES = {
@@ -356,6 +384,16 @@ def test_schedules_match_the_approved_plan_and_old_helsinki_times():
     morning = wanted["morning-chain"]
     assert morning.action.workflow == "MorningChain" and "morning-chain" in GROUPS["morning"]
     assert (expand(morning.spec.calendars[0].hour), expand(morning.spec.calendars[0].minute)) == ([4], [0])
+
+
+def test_apply_needs_an_explicit_group_and_selects_only_that_group():
+    with pytest.raises(SystemExit):
+        parse_args(["--apply"])
+    assert parse_args([]).apply is False  # the read-only plan of every schedule stays available
+    args = parse_args(["--apply", "--group", "collectors"])
+    wanted = schedules(Settings.from_env())
+    assert set(select(wanted, args.only, args.group)) == GROUPS["collectors"]
+    assert set(select(wanted, None, None)) == set(wanted)
 
 
 def test_claim_based_steps_finish_during_a_deploy_drain():

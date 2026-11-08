@@ -173,20 +173,32 @@ async def apply(client: Client, wanted: dict[str, Schedule]) -> None:
             print(f"updated {schedule_id}")
 
 
-async def main() -> None:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--apply", action="store_true", help="create or update the schedules")
-    parser.add_argument("--only", action="append", help="schedule ID(s) to apply (default: all)")
-    parser.add_argument("--group", action="append", choices=sorted(GROUPS), help="schedule group(s) to apply")
-    args = parser.parse_args()
+    parser.add_argument("--apply", action="store_true", help="create or update the selected schedules")
+    parser.add_argument("--only", action="append", help="schedule ID(s) to select (without a selector: plan of all)")
+    parser.add_argument("--group", action="append", choices=sorted(GROUPS), help="schedule group(s) to select")
+    args = parser.parse_args(argv)
+    if args.apply and not (args.only or args.group):
+        # Groups move one release at a time; a bare apply would start groups that still run in
+        # laravel/routes/console.php.
+        parser.error("--apply needs --group or --only")
+    return args
 
+
+def select(wanted: dict[str, Schedule], only: list[str] | None, groups: list[str] | None) -> dict[str, Schedule]:
+    if not (only or groups):
+        return wanted
+    selected = set(only or [])
+    for group in groups or []:
+        selected |= GROUPS[group]
+    return {key: value for key, value in wanted.items() if key in selected}
+
+
+async def main() -> None:
+    args = parse_args()
     settings = Settings.from_env()
-    wanted = schedules(settings)
-    if args.only or args.group:
-        selected = set(args.only or [])
-        for group in args.group or []:
-            selected |= GROUPS[group]
-        wanted = {key: value for key, value in wanted.items() if key in selected}
+    wanted = select(schedules(settings), args.only, args.group)
     for schedule_id in wanted:
         print(f"{schedule_id} -> namespace {settings.namespace}, task queue {settings.task_queue}")
     if args.apply:

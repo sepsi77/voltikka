@@ -47,7 +47,8 @@ implemented locally, not in production; only the collectors group is cut over in
   outside workflow code (it fails the workflow, visible only in the Temporal UI).
 - `schedules.py`: creates or updates the Temporal Schedules; prints the plan without `--apply`.
   `JOBS` is the table of every phase 2 job (Helsinki times, steps, group); `--group
-  collectors|maintenance|spot|morning|s-forecast` or `--only <id>` selects schedules. Overlap
+  collectors|maintenance|spot|morning|s-forecast` or `--only <id>` selects schedules; `--apply`
+  refuses to run without a selector (groups move one release at a time). Overlap
   policy SKIP replaces `withoutOverlapping`; one schedule start replaces `onOneServer`. Applying a
   production schedule is a production change and needs user approval. A group's Schedules and its
   `laravel/routes/console.php` entries must never both run (cut-over in one release).
@@ -100,10 +101,12 @@ implemented locally, not in production; only the collectors group is cut over in
   interceptor does not report that type again.
 - A failed step skips the later steps of the job, except `always` steps (backup clean/monitor after
   the backup, price-cache cleanup after the warm, daily spot social post after `spot:fetch`).
-- `MorningChain` (Schedule 04:00, one per Helsinki date): `EexFutures` starts at once;
+- `MorningChain` (Schedule 04:00, one per Helsinki date): it refuses a past date (the commands
+  write the current Helsinki date) and waits until 04:00 of a later one. `EexFutures` starts at once;
   `ContractImport` waits until 06:00, runs `contracts:fetch --skip-logos`, then
   `contracts:complete-import` every minute while `orchestration:readiness morning` says
-  `pending_completion` (at most 2 h 10 min), then `forecasting:evaluate-fixed-contracts`. Each
+  `pending_completion` (at most 2 h 10 min), then `forecasting:evaluate-fixed-contracts`. Exit 0
+  with a checkpoint other than `ready` (a partial acquisition stores `incomplete`) fails the child. Each
   consumer has its own lane: it waits until both children have ended (or noon), then ticks its
   `--scheduled` command every five minutes until `scheduled_complete` is true. A manual subset
   `ready` row is not done. A `failed` claim gets no tick before noon. A separate noon check runs one

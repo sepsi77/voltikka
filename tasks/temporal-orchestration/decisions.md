@@ -284,3 +284,15 @@
 - Deferred (agent decision): a real heartbeat-loss test and a real PHP + Temporal + database morning
   test; the second is a required acceptance check before the R4 PR. Verdict: ACCEPT for R1.
   Reports: `reviews/2026-11-08T12-53/` (`summary.md`, `actions.md`).
+
+## 2026-11-08 – Pi PR review 2026-11-08T17-53
+
+- `pi-pr-review` over the branch (base local `main`): no critical findings, four important ones.
+  Fixed: `schedules --apply` needs `--group` or `--only` (a bare apply would start groups that
+  still run in `console.php`); `MorningChain` refuses a past date and waits until 04:00 of a later
+  date (the commands write the current Helsinki date); `ContractImport` reads the checkpoint after
+  exit 0 (`incomplete` from a partial acquisition fails without a second Issue; another non-`ready`
+  state fails with one `import_not_ready` Issue). Deploy-script effect texts corrected.
+- Deferred: process-level recovery test (same as the spec-review deferral) and a consumer activity
+  across noon (R4 acceptance test). Lessons codified in `.pi/agents/platform-reviewer.md` items 1,
+  3, 4 and 7. Details: `reviews/2026-11-08T17-53/actions.md`.

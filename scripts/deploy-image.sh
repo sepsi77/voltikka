@@ -71,10 +71,10 @@ case "$SERVICE" in
   web) SERVICE_ID="$WEB_SERVICE_ID"; SERVICE_NAME="voltikka"
     EFFECT="Railway stops the current container and starts this image (short outage)." ;;
   worker) SERVICE_ID="$WORKER_SERVICE_ID"; SERVICE_NAME="voltikka-worker"
-    EFFECT="Railway restarts the Temporal worker on this image; running activities are retried." ;;
+    EFFECT="Railway starts the Temporal worker on this image; on the old worker, interruptible commands stop and repeat on the new one, and claim-based commands finish within the drain." ;;
   queue) SERVICE_ID="$QUEUE_SERVICE_ID"; SERVICE_NAME="voltikka-queue"
     if [[ -z "$SERVICE_ID" ]]; then echo "voltikka-queue does not exist yet: set QUEUE_SERVICE_ID first." >&2; exit 2; fi
-    EFFECT="Railway restarts the queue worker on this image; a running job is retried after DB_QUEUE_RETRY_AFTER." ;;
+    EFFECT="Railway restarts the queue worker on this image; a running job can finish during shutdown, and an interrupted job follows the queue retry rules." ;;
   *) echo "Unknown service '${SERVICE}': use web, worker or queue." >&2; exit 2 ;;
 esac
 

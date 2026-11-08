@@ -33,6 +33,7 @@ READINESS_OPTIONS = dict(
     retry_policy=RetryPolicy(maximum_attempts=3, initial_interval=timedelta(seconds=20)),
 )
 
+MORNING_START = time(4, 0)  # the Schedule start; a run for a later date waits until then
 CONTRACT_IMPORT_START = time(6, 0)
 CONSUMER_DEADLINE = time(12, 0)  # MorningConsumerExecution deadline (first tick at or after noon alerts)
 CONSUMER_POLL = timedelta(minutes=5)
@@ -59,7 +60,7 @@ class Step:
     # listener, which does not run here, so the workflow reports them. A lost or timed-out attempt
     # never reached the command's reporter, so the workflow reports it for every step.
     self_reports: bool = False
-    # Extra attempts after a lost attempt. A failed command is never retried.
+    # Total attempts, including the first; only a lost attempt is repeated. A failed command is never retried.
     max_attempts: int = 3
     # False for commands with a durable claim or lease: they finish during the deploy drain instead
     # of being killed (see CommandRequest.interruptible).
@@ -214,7 +215,7 @@ class ContractImport:
 
         if status == "succeeded":
             limit = workflow.now() + COMPLETION_LIMIT
-            while (await morning_facts(day.isoformat()))["checkpoints"].get("contract_import") == "pending_completion":
+            while (state := (await morning_facts(day.isoformat()))["checkpoints"].get("contract_import")) == "pending_completion":
                 if workflow.now() >= limit:
                     status = "pending_completion"
                     await report(IssueReport(
@@ -227,6 +228,17 @@ class ContractImport:
                 if (await run_steps("ContractImport", [COMPLETION_STEP]))[0].status == "failed":
                     status = "completion_failed"
                     break
+            else:
+                # Exit 0 is not a full import: a partial acquisition stores `incomplete` (the command
+                # already sent its Issue for the failed postcodes); any other state is unexpected.
+                if state != "ready":
+                    status = f"import_{state or 'missing'}"
+                    if state != "incomplete":
+                        await report(IssueReport(
+                            "ContractImport", "import_not_ready",
+                            f"Contract import {day}: contracts:fetch exited 0 with checkpoint {state or 'missing'}",
+                            {"date": day.isoformat(), "checkpoint": state},
+                        ))
 
         evaluation = (await run_steps("ContractImport", [EVALUATION_STEP]))[0].status
         if status != "succeeded" or evaluation == "failed":
@@ -256,6 +268,12 @@ class MorningChain:
     @workflow.run
     async def run(self, params: MorningInput) -> MorningResult:
         day = date.fromisoformat(params.date) if params.date else local_date(workflow.now())
+        if day < local_date(workflow.now()):
+            # The commands write the current Helsinki date, so a run for a past date would read old
+            # checkpoints while it writes today's facts. A run that starts on its own date ends the
+            # same day (producer timeouts, consumers end at noon), so no write crosses midnight.
+            raise ApplicationError(f"Morning chain {day}: the date has passed", non_retryable=True)
+        await sleep_until(local_instant(day, MORNING_START))
         iso = day.isoformat()
         noon = local_instant(day, CONSUMER_DEADLINE)
         child = MorningInput(iso)
