@@ -72,6 +72,12 @@ claim-based step timeout; Railway draining seconds 4000), because a killed claim
 
 ## Production runbook (each step needs explicit user approval)
 
+**Target changed (user decision 2026-11-09):** phase 2 goes live only on the planned VPS
+(`tasks/vps-migration/`), never on Railway. PR #9 merged the code with the collectors already out
+of `console.php`; the follow-up PR restored them, so `main` matches Railway production and a Railway
+deploy stays safe. The steps below stay valid as the order of the cut-over, with Railway service
+names replaced by their VPS counterparts in the VPS plan. R1 (collectors) is the first VPS cut-over.
+
 Revised after the spec review of 2026-11-08 (PLT-001, PRC-001, PLT-006): each group leaves
 `laravel/routes/console.php` in its own release, and no cache-writing job (queue, maintenance,
 spot, morning) leaves the web container before every service uses the shared Redis store.

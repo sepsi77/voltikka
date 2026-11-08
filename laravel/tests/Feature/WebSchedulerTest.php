@@ -6,10 +6,10 @@ use Illuminate\Console\Scheduling\Schedule;
 use Tests\TestCase;
 
 /**
- * The collectors group runs as Temporal Schedules in voltikka-worker
- * (orchestration/src/voltikka_orchestration/schedules.py, tested in orchestration/tests). The other
- * groups (maintenance, spot, morning) stay in the web scheduler until each moves in its own release
- * (tasks/temporal-orchestration/phase2-plan.md). A group must never run in both schedulers.
+ * Every group (collectors, maintenance, spot, morning) stays in the web scheduler on Railway. The
+ * Temporal Schedules (orchestration/src/voltikka_orchestration/schedules.py) go live only on the VPS
+ * (tasks/vps-migration/), and each group leaves this scheduler in its cut-over release. A group must
+ * never run in both schedulers.
  */
 class WebSchedulerTest extends TestCase
 {
@@ -26,25 +26,18 @@ class WebSchedulerTest extends TestCase
         'syke:fetch',
     ];
 
-    public function test_the_collectors_group_is_not_in_the_web_scheduler(): void
+    public function test_every_group_stays_in_the_web_scheduler_until_its_vps_cut_over(): void
     {
-        $commands = $this->scheduledCommands();
+        $names = array_map(fn (string $command) => strtok($command, ' '), $this->scheduledCommands());
 
-        foreach ($commands as $command) {
-            $name = strtok($command, ' ');
-            $this->assertNotContains($name, self::COLLECTORS, "{$command} runs in Temporal (collectors group).");
+        foreach (self::COLLECTORS as $collector) {
+            $this->assertContains($collector, $names, "{$collector} must run until the VPS cut-over.");
         }
-    }
-
-    public function test_the_groups_that_have_not_moved_stay_in_the_web_scheduler(): void
-    {
-        $commands = $this->scheduledCommands();
-
-        foreach (['contracts:fetch', 'spot:fetch', 'backup:run --only-db', 'retail-premiums:collect --scheduled'] as $command) {
-            $this->assertContains($command, $commands);
+        foreach (['contracts:fetch', 'spot:fetch', 'backup:run', 'retail-premiums:collect'] as $command) {
+            $this->assertContains($command, $names);
         }
         // Logos move to the web scheduler only when the morning import moves to the worker.
-        $this->assertNotContains('logos:download', $commands);
+        $this->assertNotContains('logos:download', $names);
     }
 
     /** @return list<string> */

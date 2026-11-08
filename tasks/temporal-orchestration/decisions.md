@@ -384,3 +384,13 @@ lost:
 | 4: no "all groups" default; the gap between schedulers | 6 Cut-over (one scheduler at every moment) |
 | 7: the stated deploy effect matches reality | 9 Deploy scripts (unchanged) |
 | PR round 1 review-helper findings (`|| true` hid a failed `gh api`) | 11 Shell safety |
+
+## 2026-11-09 – Phase 2 goes live only on the VPS
+
+- User decision: hosting moves from Railway to a VPS (`tasks/vps-migration/`), and phase 2 is
+  deployed only there. This tests the Temporal setup without a change to Railway production.
+- PR #9 (merged 2026-11-09, `3717d60`) had removed the collector entries from
+  `laravel/routes/console.php`. A Railway deploy of `main` would then have stopped the collectors,
+  because their Temporal Schedules are not applied on Railway. The follow-up PR restores the
+  entries (identical to `543c342`, plus a header comment) and changes `WebSchedulerTest` to require
+  every group in the web scheduler. The Temporal code stays on `main`; only the cut-over waits.

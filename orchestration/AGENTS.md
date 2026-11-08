@@ -3,7 +3,9 @@
 Temporal workflows and the worker for Voltikka data pipelines. Task, decisions and status:
 `../tasks/temporal-orchestration/` (read `phase0-decision-record.md`, then `phase2-plan.md`).
 Status 2026-11-08: phase 1 live (S pilot); phase 2 (every scheduled job as a Temporal Schedule)
-implemented locally, not in production; only the collectors group is cut over in code. Production: Temporal Cloud namespace `voltikka-prod`
+merged on `main` (PR #9), not in production. User decision 2026-11-09: phase 2 goes live only
+on the planned VPS (`../tasks/vps-migration/`), never on Railway; every group stays in
+`laravel/routes/console.php` until its VPS cut-over. Production: Temporal Cloud namespace `voltikka-prod`
 (AWS eu-central-1) and the Railway service `voltikka-worker`; see "Image and service" below.
 
 ## Decisions that this code follows (approved 2026-11-07)
@@ -123,8 +125,8 @@ implemented locally, not in production; only the collectors group is cut over in
   scheduled run that finished after noon (`deadline_alerted`), sends one `morning_incomplete` Issue
   and fails. The PHP commands keep their gates, claims and alerts;
   their lower clock bound was removed, so the start is the producers' end.
-- **Cut-over order** (`../tasks/temporal-orchestration/phase2-plan.md`): only the collectors
-  group is out of `laravel/routes/console.php` in this branch. Maintenance and spot move only
+- **Cut-over order** (`../tasks/temporal-orchestration/phase2-plan.md`): on the VPS only; every
+  group is still in `laravel/routes/console.php` (Railway). Collectors move first. Maintenance and spot move only
   after every service uses the shared Redis cache and the queue runs in `voltikka-queue`, because
   they write the cache; a worker job on a private file cache would keep stale prices on the web.
   The morning chain also moves `logos:download` to the web scheduler (the worker import uses
