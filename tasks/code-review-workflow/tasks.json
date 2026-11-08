@@ -1,0 +1,42 @@
+[
+  {
+    "name": "Read the ecom-buddy review workflows",
+    "status": "done"
+  },
+  {
+    "name": "Port pi-pr-review skill and run its offline tests",
+    "status": "done"
+  },
+  {
+    "name": "Write the seven reviewer agents (.pi/agents + .claude/agents copies)",
+    "status": "done"
+  },
+  {
+    "name": "Write spec-review skill and missed-findings.md",
+    "status": "done"
+  },
+  {
+    "name": "Write external-pr-review skill, helpers, .greptile and .coderabbit.yaml",
+    "status": "done"
+  },
+  {
+    "name": "Write evaluate-ai-code-review prompt and symlinks",
+    "status": "done"
+  },
+  {
+    "name": "Document the workflow in root AGENTS.md and tasks/AGENTS.md",
+    "status": "done"
+  },
+  {
+    "name": "User: install CodeRabbit and Greptile GitHub apps on sepsi77/voltikka",
+    "status": "done"
+  },
+  {
+    "name": "User: decide when work goes through a branch and PR",
+    "status": "done"
+  },
+  {
+    "name": "Root AGENTS.md: branch and PR workflow; review skills assume task branches",
+    "status": "done"
+  }
+]

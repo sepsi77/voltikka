@@ -130,8 +130,8 @@ validation and older absent donors remain unsupported (dated replacement lineage
 one `nice -n 15` worker per date, sequentially. The 144.5 MiB measured allocated peak does not prove
 128 MiB worker safety or safety for an unbounded multi-date command.
 
-Release requires separate explicit Git push approval, a current verified full production backup,
-production apply approval, and active-method switch approval. A push to main deploys code; it does
+Release requires a merged PR and a separately approved image deploy, a current verified full
+production backup, production apply approval, and active-method switch approval. A code deploy does
 not authorize or automatically run a history rebuild. Code defaults remain unchanged; production
 explicitly selects v3.
 

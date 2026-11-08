@@ -1,0 +1,75 @@
+{
+  "effort": "base",
+  "autoReview": [],
+  "strictness": 2,
+  "commentTypes": ["logic", "syntax"],
+  "ignorePatterns": "tasks/**\nlegacy/**\n.impeccable/**\nlaravel/public/images/**\nlaravel/public/build/**\n**/package-lock.json\n**/composer.lock\n**/uv.lock",
+  "rules": [
+    {
+      "id": "canonical-pricing-source-of-truth",
+      "rule": "When canonical pricing is enabled, every published price (cards, contract detail, rankings, company pages, offers, API, JSON-LD) comes from typed canonical outcomes (`ContractPricingViewData`, `CanonicalContractMetric`). Never fall back to relational `price_components` rows, and never drop a contract only because it has no relational rows. An excluded or missing canonical outcome is unavailable, never zero.",
+      "scope": ["laravel/app/**/*.php", "laravel/resources/views/**"],
+      "severity": "high"
+    },
+    {
+      "id": "vat-basis",
+      "rule": "Household, Both and null target groups use prices that include VAT (25.5%); Company prices exclude VAT. Convert a shared inclusive value once for Company, never twice, and never mix bases in one comparison.",
+      "scope": ["laravel/app/**/*.php"],
+      "severity": "high"
+    },
+    {
+      "id": "missing-is-not-zero",
+      "rule": "A missing, unknown or excluded price, statistic, spot hour or futures value is never counted as zero and never carried forward from an older date unless the documented rule says so. Hide, null or mark the result instead. Legitimate zero and negative spot prices are valid values.",
+      "scope": ["laravel/app/**/*.php", "market-review/tools/**", "forecast/**", "orchestration/**"],
+      "severity": "high"
+    },
+    {
+      "id": "history-is-as-of",
+      "rule": "Historical (as-of) calculations use only evidence that existed on the target date: no later seller facts, current peers, current pointers or future futures vintages. Stored observed evidence, snapshots and retained earlier method rows are never rewritten. A change of the annual-cost method needs a planned history rebuild; it never runs automatically on deploy.",
+      "scope": ["laravel/app/Services/ContractStatistics/**", "laravel/app/Services/CanonicalPricing/**", "laravel/app/Services/RetailPremium/**", "laravel/database/migrations/**"],
+      "severity": "high"
+    },
+    {
+      "id": "cache-identity-follows-semantics",
+      "rule": "A change to calculated-price semantics bumps `CalculatedCostPayloadSchema::VERSION` or the relevant cache key version, and pricing flags that change results are part of the cache key (`PricingMode`). Public GET/HEAD requests read cached annual metrics only and never build missing market prices.",
+      "scope": ["laravel/app/**/*.php"],
+      "severity": "high"
+    },
+    {
+      "id": "safe-commands",
+      "rule": "An Artisan command that writes or deletes data, rebuilds history or repairs stored rows is a dry run by default and writes only with `--apply` (or an exact plan hash where the command uses one). No command retries a failed write automatically. No code path starts a production writer, deploy or Railway change by itself.",
+      "scope": ["laravel/app/Console/**", "laravel/routes/console.php", "orchestration/**", "scripts/**"],
+      "severity": "high"
+    },
+    {
+      "id": "temporal-retry-and-cutover",
+      "rule": "Temporal workflows do no I/O; PHP work runs as `php artisan` activities. A failed command is never retried automatically; only a lost attempt (worker restart or crash) is retried. A job runs from exactly one scheduler: a Temporal Schedule and a `routes/console.php` entry for the same job never both run.",
+      "scope": ["orchestration/**", "laravel/routes/console.php"],
+      "severity": "high"
+    },
+    {
+      "id": "import-failure-reporting",
+      "rule": "`spot:fetch`, `futures:fetch-eex` and `contracts:fetch` report one Sentry Issue and one safe aggregate log for a failed or incomplete run. Recovered retries and normal empty results do not alert. Log and Sentry context never contains secrets, full URLs with keys, or visitor data.",
+      "scope": ["laravel/app/**/*.php"],
+      "severity": "medium"
+    },
+    {
+      "id": "form-blur-policy",
+      "rule": "A text, number, date or textarea input syncs to Livewire with `wire:model.live.blur`, not live/input/change processing. Search inputs are the exception, marked `data-search-input` with a debounce. Numeric inputs have a non-negative `min` unless marked `data-allow-negative`, and the component normalizes or rejects invalid values server-side.",
+      "scope": ["laravel/resources/views/**", "laravel/app/Livewire/**"],
+      "severity": "medium"
+    },
+    {
+      "id": "no-visitor-data-in-shared-cache",
+      "rule": "Shared cached HTML and prepared-page caches contain no visitor-specific data (postcode, consumption, bill inputs). Visitor state comes from the request or the browser after render.",
+      "scope": ["laravel/app/**/*.php", "laravel/resources/views/**"],
+      "severity": "high"
+    },
+    {
+      "id": "public-copy-rules",
+      "rule": "Public Finnish text follows root AGENTS.md 'Writing rules for public copy': exact facts, no Energiavirasto mention, quarterly resets are 'kvartaalisopimukset', the fixed-term forecast says rise/fall/unchanged (never lock/wait), and retail premium is never called margin or profit. Draft markers (⟦TARKISTA⟧) never reach public text.",
+      "scope": ["laravel/resources/views/**", "laravel/app/**/*.php", "market-review/**", "media/**"],
+      "severity": "medium"
+    }
+  ]
+}
