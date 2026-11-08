@@ -3,7 +3,7 @@
   "autoReview": [],
   "strictness": 2,
   "commentTypes": ["logic", "syntax"],
-  "ignorePatterns": "tasks/**\nlegacy/**\n.impeccable/**\nlaravel/public/images/**\nlaravel/public/build/**\n**/package-lock.json\n**/composer.lock\n**/uv.lock",
+  "ignorePatterns": "tasks/**\nlegacy/**\n.impeccable/**\n.autoclaude/**\ndesign/**\nvideos/**\nremotion/**\nmedia/**\nresearch/**\nmarket-review/editions/**\nlaravel/public/images/**\nlaravel/public/build/**\n**/package-lock.json\n**/composer.lock\n**/uv.lock",
   "rules": [
     {
       "id": "canonical-pricing-source-of-truth",
@@ -68,7 +68,7 @@
     {
       "id": "public-copy-rules",
       "rule": "Public Finnish text follows root AGENTS.md 'Writing rules for public copy': exact facts, no Energiavirasto mention, quarterly resets are 'kvartaalisopimukset', the fixed-term forecast says rise/fall/unchanged (never lock/wait), and retail premium is never called margin or profit. Draft markers (⟦TARKISTA⟧) never reach public text.",
-      "scope": ["laravel/resources/views/**", "laravel/app/**/*.php", "market-review/**", "media/**"],
+      "scope": ["laravel/resources/views/**", "laravel/app/**/*.php", "market-review/tools/**"],
       "severity": "medium"
     }
   ]

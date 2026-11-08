@@ -51,6 +51,14 @@ CodeRabbit commands (https://docs.coderabbit.ai/reference/review-commands) used 
 `@coderabbitai resolve` (resolves **all** its threads; only after every one is fixed or answered),
 `@coderabbitai rate limit`.
 
+## Content-only PRs
+
+The external reviewers skip non-code content: `tasks/`, `media/`, `research/`,
+`market-review/editions/`, `design/`, `videos/`, `remotion/`, `.autoclaude/`, built images and
+lockfiles (the ignore lists above). When `greptile.sh size <pr>` reports 0 reviewable files, do not
+request Greptile and do not run `spec-review` or `pi-pr-review` for it. Open the PR, check that
+CodeRabbit reports the files as skipped, and report the PR as ready to merge on user request.
+
 ## Batch the pushes
 
 Every push to the PR branch starts a CodeRabbit review and uses one review from the allowance. So:

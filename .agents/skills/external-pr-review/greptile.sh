@@ -19,7 +19,7 @@ repo=$(gh repo view --json nameWithOwner -q .nameWithOwner)
 head=$(gh pr view "$pr" --json headRefOid -q .headRefOid)
 
 # Files Greptile does not review (mirror of ignorePatterns in .greptile/config.json).
-ignored='^(tasks/|legacy/|\.impeccable/|laravel/public/images/|laravel/public/build/)|(package-lock\.json|composer\.lock|uv\.lock)$'
+ignored='^(tasks/|legacy/|\.impeccable/|\.autoclaude/|design/|videos/|remotion/|media/|research/|market-review/editions/|laravel/public/images/|laravel/public/build/)|(package-lock\.json|composer\.lock|uv\.lock)$'
 # Paths where a mistake changes published prices, stored history or production: a first review there is worth Plus.
 risky='^(laravel/database/migrations/|laravel/app/Services/(CanonicalPricing|ContractStatistics|ContractImport|ContractInterpretation|Caching|PriceForecasting)/|laravel/routes/console\.php|laravel/config/|orchestration/src/|Dockerfile|docker-[a-z-]+\.sh|supervisord\.conf|scripts/(deploy-image|build-and-push-image|sync-production-database)\.sh)'
 
@@ -31,7 +31,7 @@ size)
   count=$(printf '%s\n' "$files" | grep -c . || true)
   lines=$(printf '%s\n' "$files" | awk '{s += $1} END {print s + 0}')
   risk=$(printf '%s\n' "$files" | awk '{print $2}' | grep -E "$risky" | grep -Ev '\.md$' | head -5 || true)
-  echo "reviewable: $count files, $lines changed lines (tasks, legacy, built images and lockfiles left out)"
+  echo "reviewable: $count files, $lines changed lines (task records, content, design, video, built images and lockfiles left out)"
   [ -n "$risk" ] && printf 'risky paths:\n%s\n' "$risk"
   if [ "$lines" -ge 800 ] || [ "$count" -ge 25 ] || [ -n "$risk" ]; then
     echo "first review: plus"

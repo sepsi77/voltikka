@@ -34,8 +34,12 @@ is the most expensive bug here.
 - **Formatting and lint style.** Pint, the PHP test suite and the Python linters cover it.
 - **Real database tests.** Laravel feature tests use a real test database on purpose; only external
   HTTP (`Http::fake`) and time are faked.
-- **Task records** in `tasks/`, built images in `laravel/public/images/` and `laravel/public/build/`,
-  and `legacy/` (deprecated code, not in use).
+- **Non-code content.** These paths are excluded from review: task records (`tasks/`), content and
+  material (`media/`, `research/`, `market-review/editions/`), design art and boards (`design/`),
+  video production (`videos/`, `remotion/`), agent session state (`.autoclaude/`), built images
+  (`laravel/public/images/`, `laravel/public/build/`) and `legacy/` (deprecated code, not in use).
+  The code that produces published figures (`market-review/tools/`) and the public pages in
+  `laravel/` are reviewed.
 - **`CLAUDE.md` and `AGENTS.md` pairs.** `CLAUDE.md` is a symlink to, or an exact copy of, the sibling
   `AGENTS.md`. Identical edits in both are required.
 - **Agent definition copies.** `.claude/agents/<name>.md` are required copies of
