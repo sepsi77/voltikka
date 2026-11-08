@@ -25,3 +25,16 @@ PR). Findings, all valid and fixed:
 
 Codification: none, because no spec review ran for this small PR; the fixes are local to one test
 and one comment.
+
+## 2026-11-09 – Temporal Cloud namespace for the VPS test copy
+
+- User action: a separate Temporal Cloud namespace `voltikka-prod-vps.lw6f1` (address
+  `voltikka-prod-vps.lw6f1.tmprl.cloud:7233`), so a VPS worker cannot take production tasks from
+  `voltikka-prod`. The VPS migration thread first proposed the name `voltikka-vps`; the user's name
+  is used.
+- API key: GCP Secret Manager, project `breezily-infra`, secret `voltikka-temporal-api-key`
+  (version 1, 2026-11-08 19:22 UTC). Kamal maps it to `TEMPORAL_API_KEY`. **The key expires on
+  2028-11-07** (rotation item in root `AGENTS.md`, "Dated follow-ups").
+- Verified 2026-11-09 (read-only, with the worker's own `connect()`): the key connects to the new
+  namespace (registered, 30-day retention, no workflows, no Schedules), and the production
+  namespace `voltikka-prod.lw6f1` refuses it with `Request unauthorized`.

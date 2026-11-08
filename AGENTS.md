@@ -156,6 +156,10 @@ Reviewer agents: `refactor-reviewer`, `laravel-reviewer`, `pricing-reviewer`, `t
 
 Time-triggered work that is not yet possible. Check this list when the date has passed. Each item says what unblocks it and where the detail lives. **Remove an item once it is done**, and do not add anything here that a scheduled command already surfaces on its own.
 
+### Before 2028-11-07 — rotate the VPS Temporal API key
+
+The Temporal Cloud API key of namespace `voltikka-prod-vps.lw6f1` (GCP Secret Manager project `breezily-infra`, secret `voltikka-temporal-api-key`) expires on 2028-11-07. After the expiry, the VPS worker cannot connect and no Temporal Schedule runs. About one month before, make a new key in Temporal Cloud, add it as a new secret version, redeploy the worker role, then delete the old key. If the namespace has changed after the cut-over, update this item. See `tasks/vps-migration/decisions.md`.
+
 ### After 2026-11-15 — score the falling-market forecast holdout
 
 The old fixed-term forecast (`fixed_term_futures_adjusted_v1`) said `rising` for every term on every day from 2026-09-14, while medians fell, because its expanding drift term dominated. On 2026-10-16 the drift-free model M2 (`fixed_term_futures_only_v1`) replaced it as an interim fix. A pre-declared study froze eight candidate models and a decision rule on 2026-10-16; its 30-day holdout targets end on 2026-11-14 and decide whether M2 stays or a refinement replaces it.
