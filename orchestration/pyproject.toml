@@ -2,11 +2,19 @@
 name = "voltikka-orchestration"
 version = "0.1.0"
 description = "Temporal workers and workflows for Voltikka data pipelines (tasks/temporal-orchestration/)"
-requires-python = ">=3.11"
+# 3.13 only: the S model package (../forecast) pins the frozen s_v1 runtime.
+requires-python = ">=3.13,<3.14"
 dependencies = [
     "temporalio==1.35.0",
     "sentry-sdk==2.74.0",
+    # The own S model (tasks/temporal-orchestration/s-workflow-interface.md). The activities start
+    # it as a child process (python -m voltikka_forecast.s); they never import it. Its exact pins
+    # (numpy, pandas, scikit-learn, ...) are locked in uv.lock here too.
+    "voltikka-forecast",
 ]
+
+[tool.uv.sources]
+voltikka-forecast = { path = "../forecast", editable = false }
 
 [dependency-groups]
 dev = [

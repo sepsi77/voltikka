@@ -27,4 +27,8 @@ prints one JSON line. Exit 0 = the check ran (ready or not); exit 1 = invalid ar
   `recorded_at`: producers pass a Helsinki Carbon value, and Eloquent stores its wall-clock time.
 - The weather points come from the collector's own configuration (`points_from`), so the check and
   the collector cannot drift apart.
+- `forecast_window` (Previous Runs `ecmwf_prev_day1`, `issued_at` null): every point needs a row
+  fetched at or before the view's Fingrid cut (D 10:00 / D 14:00) whose hours cover the 168 hours
+  before that cut. `hourly_forecast_runs` is append-only, so this fetch cut is exact. The points
+  come from the collector's `point_keys` (`point_keys_from`).
 - Read-only: this code never writes.

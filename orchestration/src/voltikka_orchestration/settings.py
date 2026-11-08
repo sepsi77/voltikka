@@ -23,8 +23,9 @@ class Settings:
     @classmethod
     def from_env(cls) -> "Settings":
         return cls(
-            # Temporal Cloud: <region>.<cloud>.api.temporal.io:7233 with an API key; local dev
-            # server: localhost:7233 without a key.
+            # Temporal Cloud: the namespace endpoint <namespace>.<account>.tmprl.cloud:7233 with an
+            # API key (TEMPORAL_NAMESPACE is the full <namespace>.<account>); local dev server:
+            # localhost:7233 without a key.
             temporal_address=os.environ.get("TEMPORAL_ADDRESS", "localhost:7233"),
             namespace=os.environ.get("TEMPORAL_NAMESPACE", "default"),
             api_key=os.environ.get("TEMPORAL_API_KEY") or None,

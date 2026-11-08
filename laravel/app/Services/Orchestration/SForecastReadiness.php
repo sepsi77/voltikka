@@ -66,6 +66,7 @@ class SForecastReadiness
             'day_complete' => $this->dayComplete($input, $date),
             'fingrid_through' => $this->fingridThrough($input, $date),
             'forecast_run' => $this->forecastRun($input, $date),
+            'forecast_window' => $this->forecastWindow($input, $date),
             'checkpoint_ready' => $this->checkpointReady($input, $date, $cut),
             default => throw new InvalidArgumentException("Unknown readiness type {$input['type']}."),
         };
@@ -160,6 +161,42 @@ class SForecastReadiness
         return $missing === []
             ? [true, "{$run} at ".count($points).' points']
             : [false, "{$run}: ".count($missing).' of '.count($points).' points missing: '.implode(', ', array_slice($missing, 0, 5))];
+    }
+
+    /**
+     * Every point has a stored vintage fetched at or before the local cut time of D (UTC text in
+     * `fetched_at`) whose hours cover the `hours_before` hours that end at that cut. For series
+     * without one run time (`issued_at` null), such as Previous Runs lead-1 values: the model reads
+     * them by valid hour. The points come from the collector's own list (`point_keys_from`).
+     */
+    private function forecastWindow(array $input, CarbonImmutable $date): array
+    {
+        $points = array_map('strval', (array) config((string) $input['point_keys_from']));
+        if ($points === []) {
+            throw new InvalidArgumentException("No configured points for {$input['key']}.");
+        }
+
+        $cut = $this->localTime($date, (string) $input['cut_local'])->utc();
+        $windowStart = $cut->getTimestamp() - 3600 * (int) $input['hours_before'];
+
+        $present = DB::table('hourly_forecast_runs')
+            ->where('source', $input['source'])
+            ->where('product', $input['product'])
+            ->whereIn('point', $points)
+            ->where('fetched_at', '<=', $cut->format('Y-m-d H:i:s'))
+            ->where('first_timestamp', '<=', $windowStart)
+            ->whereRaw('first_timestamp + 3600 * hour_count >= ?', [$cut->getTimestamp()])
+            ->distinct()
+            ->pluck('point')
+            ->map(fn ($point) => (string) $point)
+            ->all();
+
+        $missing = array_values(array_diff($points, $present));
+        $window = $input['hours_before'].' h before '.$input['cut_local'];
+
+        return $missing === []
+            ? [true, "{$window} at ".count($points).' points']
+            : [false, "{$window}: ".count($missing).' of '.count($points).' points missing: '.implode(', ', $missing)];
     }
 
     /**

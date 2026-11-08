@@ -63,9 +63,14 @@ ENV UV_PYTHON_INSTALL_DIR=/opt/python \
     UV_PROJECT_ENVIRONMENT=/opt/orchestration/.venv \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy
+# The own S model package (forecast/) is a path dependency of the worker (../forecast in uv.lock).
+COPY forecast/pyproject.toml /opt/forecast/
+COPY forecast/src /opt/forecast/src
 COPY orchestration/pyproject.toml orchestration/uv.lock /opt/orchestration/
 COPY orchestration/src /opt/orchestration/src
 RUN cd /opt/orchestration && uv sync --frozen --no-dev --python 3.13 && rm -rf /root/.cache/uv
+# The model activities run `python -m $S_MODEL_MODULE`; the image always contains the package.
+ENV S_MODEL_MODULE=voltikka_forecast.s
 COPY docker-worker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-worker-entrypoint.sh
 

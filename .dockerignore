@@ -15,6 +15,13 @@
 !supervisord.conf
 !laravel
 !remotion
+# Temporal worker and the own S model package (tasks/temporal-orchestration/).
+!docker-worker-entrypoint.sh
+!orchestration
+!forecast
+**/.venv
+**/__pycache__
+**/.pytest_cache
 
 # Mirrors laravel/.gitignore and the nested storage/.gitignore files.
 **/.DS_Store

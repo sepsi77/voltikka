@@ -27,7 +27,10 @@ class OrchestrationReadinessCommandTest extends TestCase
             ['key' => 'weather_ecmwf_00z', 'view' => 'afternoon', 'type' => 'forecast_run', 'source' => 'open_meteo',
                 'product' => 'ecmwf_00z', 'run_hour_utc' => 0, 'points_from' => ['test.stations', 'test.neighbours']],
             ['key' => 'eex_futures', 'view' => 'morning', 'type' => 'checkpoint_ready', 'checkpoint' => 'eex_futures'],
+            ['key' => 'weather_prev_day1_morning', 'view' => 'morning', 'type' => 'forecast_window', 'source' => 'open_meteo',
+                'product' => 'ecmwf_prev_day1', 'cut_local' => '10:00', 'hours_before' => 168, 'point_keys_from' => 'test.south'],
         ]]);
+        config(['test.south' => ['101004', '101118']]);
         config(['test.stations' => [101004 => ['name' => 'a']], 'test.neighbours' => ['se01' => ['latitude' => 1]]]);
     }
 
@@ -87,6 +90,23 @@ class OrchestrationReadinessCommandTest extends TestCase
         $this->assertTrue($this->input('2026-11-05', 'afternoon', 'weather_ecmwf_00z')['ready']);
     }
 
+    public function test_previous_runs_window_needs_a_row_fetched_before_the_cut_that_covers_168_hours(): void
+    {
+        // Cut 10:00 Helsinki on 2026-11-05 = 08:00 UTC; the window is the 168 hours before it.
+        $cut = CarbonImmutable::parse('2026-11-05 08:00', 'UTC')->getTimestamp();
+        $start = $cut - 168 * 3600;
+        $this->windowRun('101004', $start - 3600, 216, '2026-11-05 07:40:00');
+        $this->windowRun('101118', $start - 3600, 216, '2026-11-05 08:05:00'); // after the cut
+        $this->windowRun('101118', $start + 3600, 216, '2026-11-05 07:40:00'); // starts too late
+
+        $input = $this->input('2026-11-05', 'morning', 'weather_prev_day1_morning');
+        $this->assertFalse($input['ready']);
+        $this->assertSame('168 h before 10:00: 1 of 2 points missing: 101118', $input['detail']);
+
+        $this->windowRun('101118', $start, 168, '2026-11-05 07:41:00');
+        $this->assertTrue($this->input('2026-11-05', 'morning', 'weather_prev_day1_morning')['ready']);
+    }
+
     public function test_checkpoint_must_be_ready_before_the_cut(): void
     {
         // Morning cut 11:30 Helsinki = 09:30 UTC; Laravel writes updated_at in the app time zone.
@@ -117,7 +137,7 @@ class OrchestrationReadinessCommandTest extends TestCase
         $result = json_decode(trim(Artisan::output()), true);
         $this->assertFalse($result['ready']);
         $this->assertSame('2026-11-05T09:30:00Z', $result['cut_utc']);
-        $this->assertSame(['jao_capacity_d', 'fingrid_morning', 'eex_futures'], array_column($result['inputs'], 'key'));
+        $this->assertSame(['jao_capacity_d', 'fingrid_morning', 'eex_futures', 'weather_prev_day1_morning'], array_column($result['inputs'], 'key'));
 
         $this->assertSame(1, Artisan::call('orchestration:readiness', [
             'pipeline' => 's-forecast', '--issue-date' => '2026-11-05', '--view' => 'evening',
@@ -162,6 +182,17 @@ class OrchestrationReadinessCommandTest extends TestCase
             'dataset_id' => $datasetId, 'series_key' => '', 'timestamp' => $hour->getTimestamp(),
             'utc_datetime' => $hour->format('Y-m-d H:i:s'), 'value' => 1.0, 'sample_count' => 20,
             'fetched_at' => '2026-11-05 08:20:00', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+    }
+
+    private function windowRun(string $point, int $firstTimestamp, int $hours, string $fetchedAt): void
+    {
+        DB::table('hourly_forecast_runs')->insert([
+            'source' => 'open_meteo', 'product' => 'ecmwf_prev_day1', 'point' => $point,
+            'payload_hash' => hash('sha256', $point.$firstTimestamp.$hours.$fetchedAt), 'issued_at' => null,
+            'fetched_at' => $fetchedAt, 'first_timestamp' => $firstTimestamp,
+            'first_utc_datetime' => gmdate('Y-m-d H:i:s', $firstTimestamp),
+            'hour_count' => $hours, 'values' => '{}', 'created_at' => now(), 'updated_at' => now(),
         ]);
     }
 

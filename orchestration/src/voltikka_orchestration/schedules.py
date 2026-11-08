@@ -24,7 +24,7 @@ from temporalio.client import (
     ScheduleUpdateInput,
 )
 
-from .s_forecast import SDailyForecast, SForecastInput, SWeeklyRefit
+from .s_forecast import SDailyForecast, SForecastInput, SRefitInput, SWeeklyRefit
 from .settings import Settings
 from .worker import connect
 
@@ -45,11 +45,13 @@ def schedules(settings: Settings) -> dict[str, Schedule]:
             policy=policy,
         ),
         "s-refit-weekly": Schedule(
-            action=ScheduleActionStartWorkflow(SWeeklyRefit.run, id="s-refit", task_queue=settings.task_queue),
+            action=ScheduleActionStartWorkflow(
+                SWeeklyRefit.run, SRefitInput(), id="s-refit", task_queue=settings.task_queue
+            ),
             spec=ScheduleSpec(
                 calendars=[
                     ScheduleCalendarSpec(
-                        day_of_week=[ScheduleRange(1)], hour=[ScheduleRange(3)], minute=[ScheduleRange(0)]
+                        day_of_week=[ScheduleRange(1)], hour=[ScheduleRange(10)], minute=[ScheduleRange(45)]
                     )
                 ],
                 time_zone_name=TIMEZONE,

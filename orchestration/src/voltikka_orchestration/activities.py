@@ -114,6 +114,7 @@ class Activities:
             error_key = (result or {}).get("error", "no_json_error")
             raise ApplicationError(
                 f"{name} exited {exit_code} ({error_key})",
+                str(error_key),
                 type="CommandFailed",
             )
         return CommandResult(exit_code, result, duration)

@@ -132,3 +132,44 @@
   code change. The `ecmwf_00z` morning availability time is not measured yet (first live tick
   2026-11-07 09:15; research assumption about 09:00 Helsinki); the workflow checks the weather only
   in the afternoon poll, so the 18:00 deadline does not depend on it today.
+
+## 2026-11-07: Model package integrated; refit moved to Monday 10:45
+
+- From the own-model note (sections 7–9): the refit starts on Monday at 10:45 and runs
+  `fingrid:fetch` itself before `train`, because Sunday's Fingrid hours are training targets and a
+  03:00 refit is not the backtest's refit. Train and activate must finish before 14:15, so the
+  active version never changes under the 14:30 predict run; after that the run fails with
+  `refit_deadline_passed` and the old version stays.
+- New readiness type `forecast_window` for `ecmwf_prev_day1` (`temp_south_7`): each of the five
+  southern points needs a row fetched before the view's Fingrid cut that covers the 168 hours
+  before it. Its collector is not deployed yet, so the check fails in production until it is.
+- Model failures no longer fail the workflow: `predict` → "no forecast" + one Issue with the closed
+  error key (for example `artifact_mismatch` after a model-code deploy); `score` → one Issue, the
+  forecast stays. `run_command` passes the key in the failure details.
+- `forecast/` is a non-editable uv path dependency of the worker; `orchestration/uv.lock` has the
+  same version of every package that `forecast/uv.lock` has (checked). The image copies it and sets
+  `S_MODEL_MODULE=voltikka_forecast.s`. Condition of the agreement met: the model session reports
+  E32 identical on the package code (its note, section 9).
+- Found and fixed: `.dockerignore` is an allowlist and did not contain `orchestration`,
+  `forecast` or `docker-worker-entrypoint.sh`, so the committed Dockerfile (8047898) could not
+  build. A worker-layer build on the production base image (linux/amd64) with the real context now
+  passes; the image grows by about 570 MB (600 → 1,174 MB) with the model libraries.
+- Told the own-model session: without `DB_HOST` the model command ends with a traceback and no JSON
+  line, so the activity sees only `no_json_error`. Fixed by the model session in 9eef5e5: a missing
+  `DB_*` variable or a failed connection now gives `{"status":"failed",...,"error":"internal_error"}`
+  and exit 1 (checked from the worker environment). No activity change and no refit needed.
+
+## 2026-11-08 – Temporal Cloud namespace settings (proposal, docs read)
+
+- Docs read (docs.temporal.io/cloud: namespaces, regions, api-keys, service-accounts,
+  permissions-reference, billing). Proposal to the user: namespace `voltikka-prod` in AWS
+  eu-central-1, retention 7 days, authentication **API keys** (chosen at creation; a change needs
+  Support), no CA certificate, no codec server.
+- Key: a namespace-scoped service account (account role Read, namespace permission **Write**), not
+  the namespace page's "Generate API Key" (that gives Admin). Write covers worker polling, starting
+  workflows and Schedule create/update. Expiry at most 2 years; rotate by overlap.
+- Worker values: `TEMPORAL_ADDRESS=<ns>.<account>.tmprl.cloud:7233` (namespace endpoint),
+  `TEMPORAL_NAMESPACE=<ns>.<account>` (full ID). Temporal Cloud has no spending limit; at our
+  volume no alert is built. Add a payment method before the trial credit ends.
+- Checked read-only (names only): the web service has `DB_HOST`, `DB_PORT`, `DB_DATABASE`,
+  `DB_USERNAME`, `DB_PASSWORD`, so the worker can reference them for the model.

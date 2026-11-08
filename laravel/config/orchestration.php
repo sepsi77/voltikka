@@ -58,6 +58,18 @@ return [
                 'source' => 'open_meteo', 'product' => 'ecmwf_00z', 'run_hour_utc' => 0,
                 'points_from' => ['fmi.weather_stations', 'open_meteo.neighbour_wind_points']],
 
+            // temp_south_7 (freeze section 2): Previous Runs lead-1 temperature at the five southern
+            // stations (`weather:fetch --only=ecmwf_prev_day1`, 09:40 and 13:40). Each point needs a
+            // row fetched before the view's Fingrid cut (D 10:00 / D 14:00) that covers the 168
+            // hours before that cut. issued_at is null (one series mixes runs), so the fetch time
+            // is the cut.
+            ['key' => 'weather_prev_day1_morning', 'view' => 'morning', 'type' => 'forecast_window',
+                'source' => 'open_meteo', 'product' => 'ecmwf_prev_day1', 'cut_local' => '10:00', 'hours_before' => 168,
+                'point_keys_from' => 'open_meteo.hourly_forecasts.ecmwf_prev_day1.point_keys'],
+            ['key' => 'weather_prev_day1_afternoon', 'view' => 'afternoon', 'type' => 'forecast_window',
+                'source' => 'open_meteo', 'product' => 'ecmwf_prev_day1', 'cut_local' => '14:00', 'hours_before' => 168,
+                'point_keys_from' => 'open_meteo.hourly_forecasts.ecmwf_prev_day1.point_keys'],
+
             // FI futures (trade date <= D-1): the same-day eex_futures checkpoint is ready before
             // the morning cut.
             ['key' => 'eex_futures', 'view' => 'morning', 'type' => 'checkpoint_ready',

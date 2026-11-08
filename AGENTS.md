@@ -50,6 +50,7 @@ Voltikka runs on Railway in the **Breezily** workspace.
 | Database service | MySQL | `beb2ba12-4a7b-416b-b4b1-596434dc3215` |
 | Backup bucket | voltikka-backups | `460e1b25-73fc-45e3-a43a-0473d2d2b86d` |
 | Forecast archive bucket (own S model files; private) | voltikka-forecast | `c03e6eed-e49a-4a73-a4e6-00e7a8d44818` |
+| Temporal worker service (no volume, no domain) | voltikka-worker | `73a37ca9-6280-4695-856a-7674e548e74c` |
 
 Use explicit Railway IDs instead of relying on whichever project is currently linked in the local shell. Prefer Railway MCP for read-only platform inspection when available, and use the Railway CLI for workflows such as `railway run`, SSH, or database shells that need local repository state.
 
@@ -393,8 +394,8 @@ Retail collection and forecast generation use independent five-minute background
 
 - Writing: the site-wide rules in `## Writing rules for public copy` apply. Review-specific structure: the consumer layer gives the most space to the two house types (Datahub BE02 electrically heated, BE03 without electric heating) and a few sentences to the apartment (BE01). In the journalist layer the key-figures table holds outcome figures only, the factor table has factor, effect (raised/lowered/small) and explanation, and predictions have their own section after the contract market. Details and reasons: `market-review/decisions.md` (2026-11-06 sections)
 
-### Temporal orchestration (local, phase 1, 2026-11-07)
-- Task `tasks/temporal-orchestration/` (phase 0 approved 2026-11-07: Temporal Cloud, Python as the only Temporal SDK, PHP work as `php artisan` activities, one image with a separate `voltikka-worker` service). Pilot: the own S forecast (`SDailyForecast`, `SWeeklyRefit`). Code: `orchestration/` (see its AGENTS.md); readiness facts: `php artisan orchestration:readiness` (`laravel/app/Services/Orchestration/`). No production service, namespace or schedule exists yet; the deploy-window rules above stay in force until phase 4.
+### Temporal orchestration (phase 1, 2026-11-08)
+- Task `tasks/temporal-orchestration/` (phase 0 approved 2026-11-07: Temporal Cloud, Python as the only Temporal SDK, PHP work as `php artisan` activities, one image with a separate `voltikka-worker` service). Pilot: the own S forecast (`SDailyForecast`, `SWeeklyRefit`). Code: `orchestration/` (see its AGENTS.md); readiness facts: `php artisan orchestration:readiness` (`laravel/app/Services/Orchestration/`). Production (2026-11-08): Temporal Cloud namespace `voltikka-prod` (AWS eu-central-1, API-key auth) and the Railway service `voltikka-worker`, deployed with `scripts/deploy-image.sh --service worker <TAG>` (same image as the web service; the 04:00–09:00 refusal applies only to the web service). The S pilot is a live test with no public output. The deploy-window rules above stay in force for the web service until phase 4.
 
 ### Own spot price forecast models (local, 2026-11-01)
 - Task: `tasks/own-forecast-model-data/` (spec, decisions). Two models: short term (hourly D+1..D+7) and medium term (2–3 months, weekly/monthly with ranges). They are not a copy of nordpool-predict-fi; it is a baseline to beat. No public UI in this task

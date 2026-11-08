@@ -17,7 +17,9 @@ the two differ. Change either only together with both tasks.
 | 18:00 | Deadline. No run: one Sentry Issue that names the missing inputs. |
 | after the run | Scoring of target day D+1 (its prices are now complete). |
 
-`SWeeklyRefit`: Temporal Schedule Monday 03:00 → train → activate. The frozen method has no
+`SWeeklyRefit`: Temporal Schedule Monday 10:45 → `fingrid:fetch` → train → activate, all before
+14:15 (model session 2026-11-07: Sunday's Fingrid hours are training targets and arrive with the
+10:20 fetch; the active version must not change under the 14:30 predict run). The frozen method has no
 validation gate: `train` fails unless the refit is technically valid, and a trained candidate is
 activated. A failed refit keeps the active version and sends one Sentry Issue.
 
@@ -67,8 +69,9 @@ python -m <s_package> activate --candidate=s-2026w46
 `laravel/config/orchestration.php` lists the inputs of `s_v1` (freeze section 2): FI and neighbour
 day-ahead prices (D in the morning view, D+1 in the afternoon view), JAO capacity through the end
 of D and D+1, Fingrid 75/124/188/191/194/267/268 through the last hour before each cut, the
-Open-Meteo `ecmwf_00z` run of D at all 38 collector points, and the same-day `eex_futures`
-checkpoint. The ENTSO-E outage fetches before each cut are run by the workflow itself. The
+Open-Meteo `ecmwf_00z` run of D at all 38 collector points, the Previous Runs `ecmwf_prev_day1`
+southern temperature (5 points, a row fetched before each Fingrid cut that covers the 168 hours
+before it), and the same-day `eex_futures` checkpoint. The ENTSO-E outage fetches before each cut are run by the workflow itself. The
 third-party forecast, Fingrid 245/246 and the FMI forecasts are not run inputs.
 
 The `S_MODEL_MODULE` package must be installed in the worker's virtual environment
@@ -105,3 +108,9 @@ The own-model session accepted all three answers (its note, section 5). It owns 
 writes the Laravel migrations for its tables; the Temporal session owns the uv path dependency,
 `uv.lock` and the `Dockerfile` copy. Condition: the package-based backtest reproduces the E32
 predictions file (SHA-256 `c35388e8…`, or values within 1e-9) in the same change.
+
+Package integration (2026-11-07): `forecast/` is a non-editable uv path dependency in
+`orchestration/uv.lock` (every shared package has the same version as `forecast/uv.lock`), the
+image copies it to `/opt/forecast` and sets `S_MODEL_MODULE=voltikka_forecast.s`. A failed
+`predict` ends the day with one Issue that names the model's closed error key; a failed `score`
+keeps the stored forecast and sends one Issue.

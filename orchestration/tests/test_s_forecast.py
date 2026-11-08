@@ -17,6 +17,7 @@ from voltikka_orchestration.s_forecast import (
     helsinki_offset,
     local_instant,
     SForecastInput,
+    SRefitInput,
     SWeeklyRefit,
 )
 
@@ -42,7 +43,7 @@ class FakeCommands:
         self.calls.append((request.kind, request.args, now))
         name = request.args[0]
         if " ".join(request.args) in self.failing or name in self.failing:
-            raise ApplicationError(f"{name} failed", non_retryable=True)
+            raise ApplicationError(f"{name} failed", "test_error", non_retryable=True)
         if name == "orchestration:readiness":
             view = request.args[-1].removeprefix("--view=")
             if view == "morning":
@@ -173,24 +174,52 @@ async def test_manual_start_after_the_morning_cut_needs_explicit_skip(env):
     assert skipped.status == "forecast_stored"
 
 
-async def run_refit(env, fake: FakeCommands):
+async def test_model_failure_is_one_issue_with_its_error_key(env):
+    failed = FakeCommands(failing={"predict"})
+    result = await run_daily(env, failed, SForecastInput(await tomorrow(env)))
+    assert result.status == "no_forecast"
+    assert result.missing == ["predict:test_error"]
+    assert [r.reason for r in failed.reports] == ["predict_failed"]
+    assert not any(args[0] == "score" for _, args, _ in failed.calls)
+
+    unscored = FakeCommands(failing={"score"})
+    result = await run_daily(env, unscored, SForecastInput(await tomorrow(env)))
+    assert result.status == "forecast_stored" and result.score is None
+    assert [r.reason for r in unscored.reports] == ["score_failed"]
+    assert unscored.reports[0].facts["error"] == "test_error"
+
+
+async def run_refit(env, fake: FakeCommands, run_date: str):
     async with Worker(
         env.client, task_queue=QUEUE, workflows=[SWeeklyRefit],
         activities=[fake.run_command, fake.report_issue],
         workflow_failure_exception_types=[Exception],
     ):
-        return await env.client.execute_workflow(SWeeklyRefit.run, id=f"r-{uuid.uuid4()}", task_queue=QUEUE)
+        return await env.client.execute_workflow(
+            SWeeklyRefit.run, SRefitInput(run_date), id=f"r-{uuid.uuid4()}", task_queue=QUEUE
+        )
 
 
-async def test_refit_activates_a_trained_candidate_and_keeps_the_old_one_on_failure(env):
+async def test_refit_runs_after_the_fingrid_fetch_and_keeps_the_old_version_on_failure(env):
+    day = await tomorrow(env)
     fake = FakeCommands()
-    result = await run_refit(env, fake)
+    result = await run_refit(env, fake, day)
     assert result.status == "activated"
-    assert [args[0] for _, args, _ in fake.calls] == ["train", "activate"]
+    assert [args[0] for _, args, _ in fake.calls] == ["fingrid:fetch", "train", "activate"]
+    assert fake.calls[0][2] == "10:45"
     assert fake.names()[-1] == "activate --candidate=s-test"
 
     failed = FakeCommands(failing={"train"})
-    result = await run_refit(env, failed)
-    assert result.status == "failed"
+    result = await run_refit(env, failed, await tomorrow(env))
+    assert result.status == "failed" and result.error == "test_error"
     assert not any(args[0] == "activate" for _, args, _ in failed.calls)
     assert [r.reason for r in failed.reports] == ["refit_failed"]
+
+
+async def test_refit_never_activates_after_its_deadline(env):
+    now = await env.get_current_time()
+    yesterday = (now.astimezone(HELSINKI).date() - timedelta(days=1)).isoformat()
+    fake = FakeCommands()
+    result = await run_refit(env, fake, yesterday)
+    assert result.status == "failed" and result.error == "refit_deadline_passed"
+    assert fake.calls == []

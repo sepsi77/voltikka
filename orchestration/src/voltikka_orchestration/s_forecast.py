@@ -23,6 +23,11 @@ MORNING_CUT = time(11, 30)
 AFTERNOON_FETCH = time(14, 0)
 AFTERNOON_CUT = time(14, 30)
 DEADLINE = time(18, 0)  # user decision 2026-11-07
+# Weekly refit (Monday): after the 10:20 fingrid:fetch, because Sunday's Fingrid hours are training
+# targets (model session, 2026-11-07); activation only before 14:15, so a version never changes
+# under the 14:30 predict run.
+REFIT_START = time(10, 45)
+REFIT_DEADLINE = time(14, 15)
 POLL_INTERVAL = timedelta(minutes=5)
 # ENTSO-E outages that s_v1 reads (freeze section 2): FI and SE3 A77/A80, A78 into FI. Only these, so
 # a failure of a zone that the model does not use cannot stop the run.
@@ -117,6 +122,18 @@ async def run(kind: str, args: list[str], options: dict) -> CommandResult:
     )
 
 
+async def report(issue: IssueReport) -> None:
+    await workflow.execute_activity("report_issue", issue, **REPORT_OPTIONS)
+
+
+def error_key(error: BaseException) -> str:
+    """The closed error key of a failed command (run_command puts it in the failure details)."""
+    cause = getattr(error, "cause", None)
+    if isinstance(cause, ApplicationError) and cause.details:
+        return str(cause.details[0])
+    return type(cause or error).__name__
+
+
 @workflow.defn(name="SDailyForecast")
 class SDailyForecast:
     def __init__(self) -> None:
@@ -173,18 +190,32 @@ class SDailyForecast:
             await workflow.sleep(POLL_INTERVAL)
 
         # 5. Model run with explicit cuts, then scoring of D+1 (its prices are now complete).
+        # A model failure (for example artifact_mismatch after a deploy) is one Issue with its closed key.
         self._stage = "predict"
-        forecast = await run(
-            "model",
-            ["predict", f"--issue-date={issue}", f"--morning-cut={iso_utc(morning_cut)}",
-             f"--afternoon-cut={iso_utc(afternoon_cut)}"],
-            MODEL_OPTIONS,
-        )
+        try:
+            forecast = await run(
+                "model",
+                ["predict", f"--issue-date={issue}", f"--morning-cut={iso_utc(morning_cut)}",
+                 f"--afternoon-cut={iso_utc(afternoon_cut)}"],
+                MODEL_OPTIONS,
+            )
+        except ActivityError as error:
+            return await self._no_forecast(issue, [f"predict:{error_key(error)}"], "predict_failed")
+
         self._stage = "score"
-        score = await run("model", ["score", f"--target-date={(day + timedelta(days=1)).isoformat()}"], MODEL_OPTIONS)
+        target = (day + timedelta(days=1)).isoformat()
+        try:
+            score = (await run("model", ["score", f"--target-date={target}"], MODEL_OPTIONS)).result
+        except ActivityError as error:
+            score = None
+            await report(IssueReport(
+                "SDailyForecast", "score_failed",
+                f"S forecast {issue}: scoring of {target} failed ({error_key(error)})",
+                {"issue_date": issue, "target_date": target, "error": error_key(error)},
+            ))
 
         self._stage = "done"
-        return SForecastResult(issue, "forecast_stored", forecast=forecast.result, score=score.result)
+        return SForecastResult(issue, "forecast_stored", forecast=forecast.result, score=score)
 
     async def _fetch(self, args: list[str], until: datetime) -> bool:
         """Run one fetch command; it must succeed before `until`. A failure is a missing input, not a workflow error."""
@@ -214,48 +245,68 @@ class SDailyForecast:
 
     async def _no_forecast(self, issue: str, missing: list[str], reason: str) -> SForecastResult:
         self._stage = "no_forecast"
-        await workflow.execute_activity(
-            "report_issue",
-            IssueReport(
-                workflow="SDailyForecast",
-                reason=reason,
-                message=f"S forecast {issue}: no forecast ({reason}): " + ", ".join(missing),
-                facts={"issue_date": issue, "missing": missing},
-            ),
-            **REPORT_OPTIONS,
-        )
+        await report(IssueReport(
+            workflow="SDailyForecast",
+            reason=reason,
+            message=f"S forecast {issue}: no forecast ({reason}): " + ", ".join(missing),
+            facts={"issue_date": issue, "missing": missing},
+        ))
         return SForecastResult(issue, "no_forecast", missing=missing)
+
+
+@dataclass
+class SRefitInput:
+    # YYYY-MM-DD (Helsinki); None = today (Schedule starts). The run waits until 10:45 of that day.
+    run_date: str | None = None
 
 
 @dataclass
 class SRefitResult:
     status: str  # activated | failed
     candidate: str | None = None
+    error: str | None = None
 
 
 @workflow.defn(name="SWeeklyRefit")
 class SWeeklyRefit:
     """Monday refit (s-model-freeze.md section 1). The frozen method has no validation gate: `train`
     fails unless the refit is technically valid (every part fitted, finite p50 for the current
-    issue), and a successful candidate is activated. A failure keeps the active version."""
+    issue), and a successful candidate is activated. A failure keeps the active version.
+
+    It starts at 10:45, after the 10:20 Fingrid fetch, and runs `fingrid:fetch` once more itself:
+    Sunday's Fingrid hours are training targets. Train and activate must finish before 14:15, so the
+    active version never changes under the 14:30 predict run."""
 
     @workflow.run
-    async def run(self) -> SRefitResult:
-        as_of = iso_utc(workflow.now())
+    async def run(self, params: SRefitInput) -> SRefitResult:
+        day = date.fromisoformat(params.run_date) if params.run_date else local_date(workflow.now())
+        await sleep_until(local_instant(day, REFIT_START))
+        deadline = local_instant(day, REFIT_DEADLINE)
+
+        def budget(options: dict) -> dict:
+            remaining = deadline - workflow.now()
+            if remaining <= timedelta(0):
+                raise ApplicationError("refit_deadline_passed", "refit_deadline_passed")
+            return dict(options, schedule_to_close_timeout=remaining)
+
+        as_of = None
         try:
-            trained = await run("model", ["train", f"--as-of={as_of}"], TRAIN_OPTIONS)
+            await run("artisan", ["fingrid:fetch"], budget(FETCH_OPTIONS))
+            as_of = iso_utc(workflow.now())
+            trained = await run("model", ["train", f"--as-of={as_of}"], budget(TRAIN_OPTIONS))
             candidate = (trained.result or {}).get("candidate_version")
             if not candidate:
-                raise ApplicationError("train returned no candidate_version")
-            await run("model", ["activate", f"--candidate={candidate}"], MODEL_OPTIONS)
-        except (ActivityError, ApplicationError) as error:
-            await workflow.execute_activity(
-                "report_issue",
-                IssueReport(
-                    "SWeeklyRefit", "refit_failed",
-                    f"S weekly refit failed; active model kept ({type(error).__name__})", {"as_of": as_of},
-                ),
-                **REPORT_OPTIONS,
-            )
-            return SRefitResult("failed")
+                raise ApplicationError("train returned no candidate_version", "no_candidate")
+            await run("model", ["activate", f"--candidate={candidate}"], budget(MODEL_OPTIONS))
+        except ActivityError as error:
+            return await self._failed(error_key(error), as_of)
+        except ApplicationError as error:
+            return await self._failed(str(error.details[0]) if error.details else "refit_error", as_of)
         return SRefitResult("activated", candidate)
+
+    async def _failed(self, key: str, as_of: str | None) -> SRefitResult:
+        await report(IssueReport(
+            "SWeeklyRefit", "refit_failed",
+            f"S weekly refit failed ({key}); active model kept", {"as_of": as_of, "error": key},
+        ))
+        return SRefitResult("failed", error=key)
