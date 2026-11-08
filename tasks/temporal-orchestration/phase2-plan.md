@@ -82,7 +82,13 @@ spot, morning) leaves the web container before every service uses the shared Red
   application variable of `voltikka` and `RAILWAY_DEPLOYMENT_DRAINING_SECONDS=4000` (longer than
   the 65-minute worker drain; check the Railway maximum before R3, when the first claim-based jobs
   move; if it is lower, keep a deploy guard for live claims until then). Deploy worker, then web; then `schedules --apply --group collectors`.
-  Collectors write no cache.
+  Collectors write no cache. Timing (PR #9 review): the web deploy removes the collector entries,
+  so apply the Schedules at once after the web deployment is `SUCCESS`, never before it (the old
+  container would still run them). Do it between 16:00 and 16:40 Helsinki: after the hourly :45
+  Fingrid vintage fetch and outside the 09:15–15:30 collector times. Recovery: a trigger missed
+  in the gap runs once with `temporal schedule trigger --schedule-id <id>` (a missed hourly
+  vintage is lost; it is a forecast snapshot); if the apply fails and cannot be fixed at once,
+  deploy the previous web image (its collector entries return) and keep the Schedules unapplied.
 - **R2 Redis.** Railway Redis service in europe-west4 with a volume (a restart must not empty the
   shared price cache: web GET reads are cache-only and return 503 until the next warm), `maxmemory`
   about 1 GB, `maxmemory-policy volatile-lru`, private network only. `REDIS_URL` references and

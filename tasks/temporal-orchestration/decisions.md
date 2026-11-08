@@ -319,3 +319,13 @@ Codification (`.agents/skills/spec-review/missed-findings.md`):
 | Import lock on an interruptible step | platform-reviewer | (d) the drain rule is written; the checklist did not tell the reviewer to read each PHP command for locks and leases | `.pi/agents/platform-reviewer.md` item 2 (+ copy) |
 | Date check only at workflow start | platform-reviewer | (e) the Pi round found it; the manager's partial fix assumed a run cannot cross midnight | item 1 widened: check at the activity boundary |
 | Review helper scripts | none | (b) `code-review-workflow` tooling (ported), outside this task's spec-review range | none |
+
+## 2026-11-08 – PR #9 external review, round 2
+
+Head b7d0045. CodeRabbit review 5818634562: no inline finding; one comment outside the diff
+(`laravel/routes/console.php:11-15`): the R1 web deploy removes the collector entries before the
+Schedules are applied, so a delay misses triggers. Valid (runbook gap): R1 now applies the
+Schedules at once after the web deployment is `SUCCESS`, in a 16:00–16:40 window, with recovery
+for a missed trigger (`temporal schedule trigger`) and for a failed apply (previous web image).
+No code change. Codification: platform-reviewer, cause (d): checklist item 4 covers double runs,
+not the gap between the two schedulers; item 4 widened.

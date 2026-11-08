@@ -75,7 +75,9 @@ result acceptable: report the result and cite the decision.
    keeps only web-volume jobs. Times are Europe/Helsinki and match the documented order (EEX at
    04:00, contract import from 06:00, consumers until 12:00). The operator tool must not be able
    to start a group that has not moved: no default of "all groups" on apply (example: a bare
-   `schedules --apply` started maintenance, spot and morning beside the web scheduler).
+   `schedules --apply` started maintenance, spot and morning beside the web scheduler). The
+   runbook also covers the gap: no group is without a scheduler past a trigger time, and it names
+   the recovery for a missed trigger and a failed apply.
 5. **Shared state.** Worker and queue services reference every application variable of the
    `voltikka` service, above all the pricing flags (they are part of cache keys) and
    `CACHE_STORE=redis`. A job that writes cache without the shared store writes a private cache.
