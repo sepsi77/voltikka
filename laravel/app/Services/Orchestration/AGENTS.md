@@ -7,6 +7,11 @@ prints one JSON line. Exit 0 = the check ran (ready or not); exit 1 = invalid ar
 ## Files
 
 - `SForecastReadiness.php`: the input facts of the own S forecast (`s_v1`).
+- `MorningReadiness.php`: `orchestration:readiness morning --date=D` prints the latest status of
+  the `eex_futures`, `contract_import`, `morning_retail` and `morning_forecast` checkpoints of
+  Helsinki date D (null = no row). The Temporal `MorningChain` uses it only to stop polling
+  (`pending_completion` → keep running `contracts:complete-import`; `ready`/`failed` → consumer
+  done). The commands keep their own gates. Test: `OrchestrationMorningReadinessTest`.
 - `../../../config/orchestration.php`: the input list and the cuts. It follows
   `../../../../tasks/own-forecast-model-data/s-model-freeze.md` section 2. A change to the model's
   inputs is a change of both files.

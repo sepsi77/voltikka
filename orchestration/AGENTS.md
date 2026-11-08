@@ -1,9 +1,10 @@
 # Temporal orchestration (Python worker)
 
 Temporal workflows and the worker for Voltikka data pipelines. Task, decisions and status:
-`../tasks/temporal-orchestration/` (read `phase0-decision-record.md` first). Status 2026-11-08:
-phase 1. Production: Temporal Cloud namespace `voltikka-prod` (AWS eu-central-1) and the Railway
-service `voltikka-worker`; see "Image and service" below.
+`../tasks/temporal-orchestration/` (read `phase0-decision-record.md`, then `phase2-plan.md`).
+Status 2026-11-08: phase 1 live (S pilot); phase 2 (every scheduled job as a Temporal Schedule)
+implemented locally, not in production. Production: Temporal Cloud namespace `voltikka-prod`
+(AWS eu-central-1) and the Railway service `voltikka-worker`; see "Image and service" below.
 
 ## Decisions that this code follows (approved 2026-11-07)
 
@@ -33,6 +34,8 @@ service `voltikka-worker`; see "Image and service" below.
 - `s_forecast.py`: `SDailyForecast` and `SWeeklyRefit` (the S pilot). Timeline and model interface:
   `../tasks/temporal-orchestration/s-workflow-interface.md` and
   `../tasks/own-forecast-model-data/s-model-freeze.md`.
+- `jobs.py` (phase 2): `ArtisanJob` (a list of `php artisan` steps for one Schedule) and the morning
+  chain `MorningChain` → children `EexFutures` and `ContractImport`. Rules below.
 - `worker.py`: worker entrypoint (`python -m voltikka_orchestration.worker`). Logs go to stdout
   (Railway shows every stderr line as "error").
 - `sentry.py`: Sentry init and `SentryInterceptor`. Any exception that leaves workflow code (a bug,
@@ -43,7 +46,11 @@ service `voltikka-worker`; see "Image and service" below.
   `report_issue` sends exactly one event. Not covered: a nondeterminism error raised by the SDK
   outside workflow code (it fails the workflow, visible only in the Temporal UI).
 - `schedules.py`: creates or updates the Temporal Schedules; prints the plan without `--apply`.
-  Applying a production schedule is a production change and needs user approval.
+  `JOBS` is the table of every phase 2 job (Helsinki times, steps, group); `--group
+  collectors|maintenance|spot|morning|s-forecast` or `--only <id>` selects schedules. Overlap
+  policy SKIP replaces `withoutOverlapping`; one schedule start replaces `onOneServer`. Applying a
+  production schedule is a production change and needs user approval. A group's Schedules and its
+  `laravel/routes/console.php` entries must never both run (cut-over in one release).
 
 ## Rules for workflow code
 
@@ -67,6 +74,33 @@ service `voltikka-worker`; see "Image and service" below.
   `predict:<error key>`); a failed `score` keeps the stored forecast and sends one Issue
   (`score_failed`). `run_command` puts the model's closed `error` key in the failure details;
   `error_key()` reads it.
+
+## Rules for phase 2 jobs (`jobs.py`)
+
+- **No automatic retry of a failed command.** `run_command` raises `CommandFailed` for a non-zero
+  exit, and every job retry policy lists it as non-retryable (as with the Laravel scheduler). Only a
+  lost attempt is retried: a worker deploy (SIGTERM cancels the activity and kills the child; the
+  new worker repeats it after about 30 s) or a crash (heartbeat timeout 2 min). Verified locally
+  2026-11-08 with both SIGTERM and SIGKILL. Social posting and the morning consumers use
+  `max_attempts=1`: a lost consumer attempt leaves its claim `running` for inspection, as before.
+- **One Issue per failure.** A failed step sends one `report_issue` (`command_failed`), because the
+  Laravel scheduler failure listener does not run here. `spot:fetch`, `futures:fetch-eex` and
+  `contracts:fetch` report themselves (`self_reports=True`), so the workflow sends nothing for them.
+  The job then fails with `ReportedFailure` (red in the Temporal UI); the Sentry interceptor does
+  not report that type again.
+- A failed step skips the later steps of the job, except `always` steps (backup clean/monitor after
+  the backup, price-cache cleanup after the warm, daily spot social post after `spot:fetch`).
+- `MorningChain` (Schedule 04:00, one per Helsinki date): `EexFutures` starts at once;
+  `ContractImport` waits until 06:00, runs `contracts:fetch --skip-logos` (logos are on the web
+  volume; the web scheduler runs `logos:download`), then `contracts:complete-import` every minute
+  while `orchestration:readiness morning` says `pending_completion` (at most 2 h 10 min), then
+  `forecasting:evaluate-fixed-contracts`. When both children have ended (success or failure), the
+  chain ticks `retail-premiums:collect --scheduled` and `forecasting:run-fixed-contracts
+  --scheduled` every five minutes until their checkpoints are `ready` or `failed`, and once at or
+  after 12:00 so that `MorningConsumerExecution` sends its deadline alert. The commands keep their
+  gates, claims and alerts; the workflow only replaces the 07:15/07:30 cron ticks.
+- Every job runs on the shared Redis cache (`CACHE_STORE=redis`): price-cache warm/cleanup run in
+  the worker for all web instances. Without the shared store a worker job writes a private cache.
 
 ## S model command
 
@@ -103,7 +137,8 @@ The production image (`../Dockerfile`) installs Python 3.13 and `uv.lock` with u
 `/opt/orchestration/.venv`, with `../forecast` copied to `/opt/forecast` (about +570 MB on the
 base image with the model libraries). `../.dockerignore` is an allowlist: it must keep
 `orchestration`, `forecast` and `docker-worker-entrypoint.sh`. The worker service starts `../docker-worker-entrypoint.sh`: no
-migrations, no volume, no web server, no scheduler. The web service owns migrations, so deploy the
+migrations, no volume, no web server, no scheduler. With the argument `queue` the same script
+starts `php artisan queue:work` for the planned service `voltikka-queue` (phase 2). The web service owns migrations, so deploy the
 web service first when a release has a migration.
 
 Production service (created 2026-11-08): Railway `voltikka-worker`
@@ -118,3 +153,12 @@ permission Write); everything else is a Railway reference, never a copied value:
 `MySQL`, the Laravel and API-key variables the artisan activities need to `voltikka`
 (`APP_*`, `CACHE_STORE`, `LOG_*`, `ENTSOE_API_KEY`, `FINGRID_API_KEY`, `SENTRY_*`), and
 `FORECAST_BUCKET*` to `voltikka-forecast`.
+
+Phase 2 adds (production change, approval): `REDIS_URL` to the Redis service, `CACHE_STORE=redis`
+(reference to `voltikka`), and a reference to **every other application variable of `voltikka`**
+(not `PORT` or Railway-generated names), above all the pricing flags `CANONICAL_PRICING_ENABLED`,
+`RESET_FORWARD_SHIFT_ENABLED`, `CONTRACT_STATISTICS_ANNUAL_METHOD_VERSION` and
+`CONTRACT_INTERPRETATION_*`: they are part of the price calculation and the cache keys, and a
+different value writes wrong prices into the shared cache. Also the backup (`AWS_*`, `BACKUP_*`),
+`GIE_API_KEY`, `POSTFAST_API_KEY`, `OPENROUTER_API_KEY` and `DB_QUEUE_RETRY_AFTER`. The same set
+applies to `voltikka-queue`.

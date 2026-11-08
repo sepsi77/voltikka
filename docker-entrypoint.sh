@@ -36,5 +36,6 @@ if [ "${WARM_CONTRACT_CACHE_ON_START:-1}" = "1" ]; then
     php artisan contracts:warm-cache || echo "Warning: contract cache warming failed, continuing startup"
 fi
 
-# Start supervisord (FrankenPHP web server, Laravel scheduler, and queue worker)
+# Start supervisord (FrankenPHP web server and the Laravel scheduler for the volume jobs).
+# Data jobs run in voltikka-worker (Temporal) and queued jobs in voltikka-queue.
 exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf

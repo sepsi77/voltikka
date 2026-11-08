@@ -9,7 +9,6 @@ use App\Services\Caching\ContractPriceCacheUnavailable;
 use App\Services\CompanyListCacheService;
 use App\Services\ContractListCacheService;
 use App\Services\ContractPricing\ContractMetricSet;
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -214,12 +213,6 @@ class ContractPriceCacheLifecycleTest extends TestCase
         $this->assertTrue($this->physicalKeyExists('owned-active-payload'));
         $this->assertTrue($this->physicalKeyExists('unrelated-cleanup-payload'));
         $this->assertSame($active, $lifecycle->active());
-        $event = collect(app(Schedule::class)->events())
-            ->first(fn ($event) => str_contains($event->command ?? '', 'contracts:cleanup-price-cache'));
-        $this->assertNotNull($event);
-        $this->assertSame('*/5 * * * *', $event->expression);
-        $this->assertTrue($event->onOneServer);
-        $this->assertTrue($event->withoutOverlapping);
     }
 
     public function test_cleanup_is_bounded_and_late_cold_writes_are_rejected(): void
@@ -468,12 +461,6 @@ class ContractPriceCacheLifecycleTest extends TestCase
         $list->shouldNotReceive('buildCachedMetrics');
         $this->artisan('contracts:warm-cache --pending')->doesntExpectOutput()->assertSuccessful();
         $this->assertSame($active, app(ContractPriceCacheLifecycle::class)->active());
-        $event = collect(app(Schedule::class)->events())
-            ->first(fn ($event) => str_contains($event->command ?? '', 'contracts:warm-cache --pending'));
-        $this->assertSame('* * * * *', $event->expression);
-        $this->assertFalse($event->onOneServer);
-        $this->assertTrue($event->runInBackground);
-        $this->assertTrue($event->withoutOverlapping);
     }
 
     public function test_pending_warmer_failure_keeps_demand_and_active_pointer(): void

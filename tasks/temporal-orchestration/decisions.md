@@ -218,3 +218,41 @@
   model process for two checks): the worker has no volume, so a restart deletes `/tmp` files. Log
   lines now have level "info". No active model version yet: today's run gives `no_active_version`
   unless a version is activated before 14:30; the first refit is 2026-11-09 10:45.
+
+## 2026-11-08 – Phase 2 decisions and local implementation
+
+- User request: move all data fetch pipelines and their orchestration to Temporal, so fetching does
+  not depend on the main application and the no-deploy window goes away.
+- User decisions (all four recommended options): Railway Redis as the shared cache store; a separate
+  Railway service `voltikka-queue` for `queue:work`; all scheduled jobs to Temporal except jobs that
+  need the web volume (weekly file backup, logo download); direct cut-over one group at a time
+  instead of a shadow phase. Plan and runbook: `phase2-plan.md`.
+- Why Redis is necessary: fetch commands write the Laravel cache (price-cache demand and
+  generations, spot header, statistics warm, forecasts). The file store is on the web volume.
+  A worker without the shared store would write a private cache and the web would never see it.
+- Found: the worker and queue services must have the same pricing flags as the web service
+  (`CANONICAL_PRICING_ENABLED`, `RESET_FORWARD_SHIFT_ENABLED`, annual method, interpretation
+  settings). The current worker references only a subset; with the shared cache a different value
+  would write wrong prices. Rule: reference every application variable of `voltikka`.
+- Found: the Laravel scheduler failure listener alerted for every job without its own Issue. Outside
+  the scheduler this listener does not run, so `ArtisanJob` sends one Issue per failed step, except
+  for the three self-reporting imports (`spot:fetch`, `futures:fetch-eex`, `contracts:fetch`).
+- Retry rule: a non-zero exit (`CommandFailed`) is non-retryable in every job, as with the
+  scheduler; only lost attempts are retried. This keeps "no automatic retry" for imports, social
+  posting and morning writers, and still makes a worker deploy safe. The worker now shuts down on
+  SIGTERM (activities cancelled, child killed, retry about 30 s later on the new worker) instead of
+  waiting for the 2-minute heartbeat timeout. Both cases verified on a local dev server.
+- Morning chain: one `MorningChain` per date with two children (EEX at 04:00, import at 06:00). The
+  consumers start when both children have ended; the `--scheduled` commands keep their gates and
+  claims, so the workflow only replaces the cron ticks. Evaluation runs after import completion
+  (was 07:45). Signals were not used: the parent waits on its children, which is simpler.
+- `contracts:warm-cache --pending` + `contracts:cleanup-price-cache`: one Temporal job every five
+  minutes (was per instance every minute). Interpretation demand can wait up to five minutes;
+  imports and EEX still refresh synchronously. A one-minute schedule would cost about four times
+  more Temporal Actions for no user-visible gain.
+- Not done: splitting `futures:fetch-eex` into units. A worker deploy during the run repeats the
+  whole run (about 1.7 h) but loses no data; split only if this becomes a real problem.
+- Verified locally: PHP readiness tests (9) and the scheduler-related test files (101 tests
+  pass), Python tests (23), schedule times on a dev server (UTC future actions match Helsinki
+  times), an `ArtisanJob` run with real `php artisan` (success, failure with skip/always, one
+  Issue), and lost-attempt retries after SIGKILL and SIGTERM. Nothing deployed, nothing committed.

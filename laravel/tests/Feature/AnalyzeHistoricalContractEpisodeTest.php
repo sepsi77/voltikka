@@ -69,7 +69,8 @@ class AnalyzeHistoricalContractEpisodeTest extends TestCase
         $httpTimeout = config('contract_interpretation.historical.timeout');
         $modelCalls = 1 + config('contract_interpretation.max_repair_attempts');
         $retryAfter = config('queue.connections.database.retry_after');
-        $supervisorConfig = file_get_contents(base_path('../supervisord.conf'));
+        // The queue worker runs in the Railway service voltikka-queue (docker-worker-entrypoint.sh queue).
+        $entrypoint = file_get_contents(base_path('../docker-worker-entrypoint.sh'));
         $retryAfterWasDefined = array_key_exists('DB_QUEUE_RETRY_AFTER', $_SERVER);
         $originalRetryAfter = $_SERVER['DB_QUEUE_RETRY_AFTER'] ?? null;
 
@@ -84,11 +85,11 @@ class AnalyzeHistoricalContractEpisodeTest extends TestCase
             }
         }
 
-        $this->assertIsString($supervisorConfig);
-        $this->assertSame(1, preg_match('/\[program:queue-worker\]\Rcommand=(?<command>[^\r\n]+)/', $supervisorConfig, $matches));
+        $this->assertIsString($entrypoint);
+        $this->assertSame(1, preg_match('/^\s*exec (?<command>php artisan queue:work[^\r\n]+)/m', $entrypoint, $matches));
         $workerCommand = $matches['command'];
         $this->assertSame(
-            'php /app/artisan queue:work --queue=default,historical-interpretation --timeout=1020 --tries=3 --max-time=3600',
+            'php artisan queue:work --queue=default,historical-interpretation --timeout=1020 --tries=3 --max-time=3600',
             $workerCommand,
         );
         $this->assertSame(1, preg_match('/--timeout=(\d+)\b/', $workerCommand, $timeoutMatches));

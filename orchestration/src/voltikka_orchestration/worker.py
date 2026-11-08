@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import signal
 import sys
 
 from temporalio.client import Client
@@ -11,10 +12,11 @@ from temporalio.worker import Worker
 
 from . import sentry
 from .activities import Activities
+from .jobs import ArtisanJob, ContractImport, EexFutures, MorningChain
 from .s_forecast import SDailyForecast, SWeeklyRefit
 from .settings import Settings
 
-WORKFLOWS = [SDailyForecast, SWeeklyRefit]
+WORKFLOWS = [SDailyForecast, SWeeklyRefit, ArtisanJob, MorningChain, EexFutures, ContractImport]
 
 
 async def connect(settings: Settings) -> Client:
@@ -36,8 +38,9 @@ def build_worker(client: Client, settings: Settings) -> Worker:
         # interceptor) instead of retrying its workflow task forever.
         workflow_failure_exception_types=[Exception],
         interceptors=[sentry.SentryInterceptor()],
-        # One process per command: keep concurrency small (shared 32 vCPU host, MySQL, API limits).
-        max_concurrent_activities=4,
+        # One process per command. Long activities (EEX about 1.7 h, contract import, S training)
+        # hold a slot each, so the morning and 10:20-11:10 collector peaks need more than four.
+        max_concurrent_activities=8,
     )
 
 
@@ -52,7 +55,13 @@ async def main() -> None:
     logging.getLogger(__name__).info(
         "Worker started: namespace %s, task queue %s", settings.namespace, settings.task_queue
     )
-    await build_worker(client, settings).run()
+    worker = build_worker(client, settings)
+    # Railway stops a deployment with SIGTERM. Shut down at once: running activities are cancelled
+    # (run_command kills its child process) and fail as retryable, so the new worker repeats them
+    # without waiting for the heartbeat timeout.
+    loop = asyncio.get_running_loop()
+    loop.add_signal_handler(signal.SIGTERM, lambda: asyncio.ensure_future(worker.shutdown()))
+    await worker.run()
 
 
 if __name__ == "__main__":

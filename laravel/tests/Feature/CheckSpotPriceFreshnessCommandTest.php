@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\SpotPriceHour;
 use Carbon\Carbon;
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
@@ -71,23 +70,6 @@ class CheckSpotPriceFreshnessCommandTest extends TestCase
             ->assertExitCode(0);
 
         Log::shouldNotHaveReceived('error');
-    }
-
-    public function test_schedule_is_independent_and_has_no_overlap_mutex(): void
-    {
-        $events = collect(app(Schedule::class)->events())
-            ->filter(fn ($event) => str_contains((string) $event->command, 'spot:check-freshness'));
-
-        $this->assertCount(1, $events);
-
-        $event = $events->first();
-
-        $this->assertSame('10 * * * *', $event->expression);
-        $this->assertSame('Europe/Helsinki', $event->timezone);
-        $this->assertTrue($event->onOneServer);
-        $this->assertFalse($event->withoutOverlapping);
-        $this->assertTrue($event->shouldAppendOutput);
-        $this->assertStringEndsWith('storage/logs/spot-freshness-check.log', $event->output);
     }
 
     private function storeFiHour(Carbon $hour): void

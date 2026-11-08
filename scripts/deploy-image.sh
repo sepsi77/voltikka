@@ -3,11 +3,12 @@ set -euo pipefail
 
 usage() {
   cat <<'USAGE'
-Usage: scripts/deploy-image.sh [--yes] [--morning-checks-passed] [--service web|worker] TAG
+Usage: scripts/deploy-image.sh [--yes] [--morning-checks-passed] [--service web|worker|queue] TAG
 
 Point one Voltikka production service at one immutable GHCR image tag that
 scripts/build-and-push-image.sh has already pushed. --service web (default) is the app
-service `voltikka`; --service worker is the Temporal worker `voltikka-worker`
+service `voltikka`; --service worker is the Temporal worker `voltikka-worker`; --service queue
+is the Laravel queue worker `voltikka-queue`
 (tasks/temporal-orchestration/). Railway then starts a deployment of
 that image. This is a PRODUCTION MUTATION: get explicit user confirmation first.
 
@@ -37,6 +38,8 @@ PROJECT_ID="6d8cae01-1006-409f-8108-1d51f1abc676"
 ENVIRONMENT_ID="9245cef8-41d0-486e-862f-193726511dba"
 WEB_SERVICE_ID="700d0624-fa96-4266-876c-e37640d220ea"
 WORKER_SERVICE_ID="73a37ca9-6280-4695-856a-7674e548e74c"
+# Laravel queue worker (tasks/temporal-orchestration/phase2-plan.md). Set when the service exists.
+QUEUE_SERVICE_ID=""
 IMAGE_REPO="ghcr.io/sepsi77/voltikka"
 
 TAG=""
@@ -49,7 +52,7 @@ while [[ $# -gt 0 ]]; do
     --yes|-y) ASSUME_YES=1; shift ;;
     --morning-checks-passed) MORNING_CHECKS_PASSED=1; shift ;;
     --service)
-      if [[ $# -lt 2 ]]; then echo "--service needs web or worker." >&2; exit 2; fi
+      if [[ $# -lt 2 ]]; then echo "--service needs web, worker or queue." >&2; exit 2; fi
       SERVICE="$2"; shift 2 ;;
     --help|-h) usage; exit 0 ;;
     -*) echo "Unknown argument: $1" >&2; usage >&2; exit 2 ;;
@@ -69,7 +72,10 @@ case "$SERVICE" in
     EFFECT="Railway stops the current container and starts this image (short outage)." ;;
   worker) SERVICE_ID="$WORKER_SERVICE_ID"; SERVICE_NAME="voltikka-worker"
     EFFECT="Railway restarts the Temporal worker on this image; running activities are retried." ;;
-  *) echo "Unknown service '${SERVICE}': use web or worker." >&2; exit 2 ;;
+  queue) SERVICE_ID="$QUEUE_SERVICE_ID"; SERVICE_NAME="voltikka-queue"
+    if [[ -z "$SERVICE_ID" ]]; then echo "voltikka-queue does not exist yet: set QUEUE_SERVICE_ID first." >&2; exit 2; fi
+    EFFECT="Railway restarts the queue worker on this image; a running job is retried after DB_QUEUE_RETRY_AFTER." ;;
+  *) echo "Unknown service '${SERVICE}': use web, worker or queue." >&2; exit 2 ;;
 esac
 
 if [[ -z "$TAG" ]]; then

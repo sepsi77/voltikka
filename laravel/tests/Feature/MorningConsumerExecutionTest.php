@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\DataFreshnessCheckpoint;
 use App\Services\MorningFreshness\MorningConsumerExecution;
 use Carbon\CarbonImmutable;
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -197,33 +196,6 @@ class MorningConsumerExecutionTest extends TestCase
             $this->fail('Previous-day writer passed its fence.');
         });
         $this->assertSame('failed', DataFreshnessCheckpoint::sole()->status);
-    }
-
-    public function test_schedules_are_independent_background_windows_without_overlap_mutex(): void
-    {
-        foreach (['retail-premiums:collect' => '07:15', 'forecasting:run-fixed-contracts' => '07:30'] as $command => $start) {
-            $event = collect(app(Schedule::class)->events())
-                ->first(fn ($event) => str_contains($event->command ?? '', $command));
-            $this->assertNotNull($event);
-            $this->assertStringContainsString('--scheduled', $event->command);
-            $this->assertSame('*/5 * * * *', $event->expression);
-            $this->assertSame('Europe/Helsinki', $event->timezone);
-            $this->assertTrue($event->runInBackground);
-            $this->assertFalse($event->withoutOverlapping);
-            $this->assertTrue($event->onOneServer);
-            foreach (['07:10' => false, $start => true, '07:40' => true, '12:00' => true, '12:00:59' => true, '12:01' => false, '12:05' => false] as $time => $expected) {
-                CarbonImmutable::setTestNow("2026-10-25 {$time} Europe/Helsinki");
-                // Laravel captures between() times when each schedule:run registers its events.
-                $schedule = new Schedule;
-                \Illuminate\Support\Facades\Schedule::swap($schedule);
-                require base_path('routes/console.php');
-                $currentEvent = collect($schedule->events())->first(fn ($event) => str_contains($event->command ?? '', $command));
-                $this->assertSame($expected, $currentEvent->isDue($this->app) && $currentEvent->filtersPass($this->app), $command.' '.$time);
-            }
-        }
-        $evaluation = collect(app(Schedule::class)->events())
-            ->first(fn ($event) => str_contains($event->command ?? '', 'forecasting:evaluate-fixed-contracts'));
-        $this->assertSame('45 7 * * *', $evaluation->expression);
     }
 
     public function test_noon_alert_is_once_even_without_an_earlier_tick(): void

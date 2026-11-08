@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\Orchestration\MorningReadiness;
 use App\Services\Orchestration\SForecastReadiness;
 use Illuminate\Console\Command;
 use InvalidArgumentException;
@@ -14,22 +15,26 @@ use InvalidArgumentException;
 class OrchestrationReadiness extends Command
 {
     protected $signature = 'orchestration:readiness
-                            {pipeline : s-forecast}
+                            {pipeline : s-forecast or morning}
                             {--issue-date= : Issue date D (YYYY-MM-DD, Europe/Helsinki)}
-                            {--view= : morning or afternoon}';
+                            {--view= : morning or afternoon}
+                            {--date= : morning: Helsinki date (YYYY-MM-DD)}';
 
     protected $description = 'Read-only input readiness facts for Temporal workflows (JSON)';
 
-    public function handle(SForecastReadiness $sForecast): int
+    public function handle(SForecastReadiness $sForecast, MorningReadiness $morning): int
     {
-        if ($this->argument('pipeline') !== 's-forecast') {
+        $pipeline = $this->argument('pipeline');
+        if (! in_array($pipeline, ['s-forecast', 'morning'], true)) {
             $this->line(json_encode(['error' => 'unknown_pipeline']));
 
             return Command::FAILURE;
         }
 
         try {
-            $result = $sForecast->check((string) $this->option('issue-date'), (string) $this->option('view'));
+            $result = $pipeline === 'morning'
+                ? $morning->check((string) $this->option('date'))
+                : $sForecast->check((string) $this->option('issue-date'), (string) $this->option('view'));
         } catch (InvalidArgumentException $e) {
             $this->line(json_encode(['error' => 'invalid_arguments', 'message' => $e->getMessage()]));
 
