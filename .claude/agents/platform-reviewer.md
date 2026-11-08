@@ -66,7 +66,9 @@ result acceptable: report the result and cite the decision.
    read the PHP command for durable claims, leases and cache locks (`Cache::lock`, `*_LEASE_*`,
    claim rows): such a step is `interruptible=False` with a timeout below the worker drain, because
    a deploy kill leaves the lock and the retry fails on it (example: `contracts:fetch` holds the
-   30-minute import execution lock in its first post-import work).
+   30-minute import execution lock in its first post-import work). A read-only call that a long
+   run depends on (readiness polling) survives a short outage: an exhausted read must not end the
+   run (example: three failed readiness reads in one minute ended a whole `MorningChain`).
 3. **One Issue per failure.** Each failed step sends exactly one Sentry Issue. Self-reporting
    commands (`spot:fetch`, `futures:fetch-eex`, `contracts:fetch`) get none from the workflow. The
    Sentry interceptor does not report `ReportedFailure` again. A workflow outcome comes from the

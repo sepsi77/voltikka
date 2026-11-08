@@ -48,7 +48,7 @@ class FakeArtisan:
     consumer."""
 
     def __init__(self, *, failing=(), retail=("ready_after", 2), forecast=("ready_after", 1),
-                 completion_ticks=2, consumer_seconds=0.0, import_state="pending_completion"):
+                 completion_ticks=2, consumer_seconds=0.0, import_state="pending_completion", readiness_failures=0):
         self.calls: list[tuple[str, str]] = []
         self.attempts: dict[str, int] = {}
         self.reports: list[IssueReport] = []
@@ -62,6 +62,7 @@ class FakeArtisan:
         self.ticks = {RETAIL: 0, FORECAST: 0}
         self.completion_ticks = completion_ticks
         self.import_state = import_state
+        self.readiness_failures = readiness_failures
         self.consumer_seconds = consumer_seconds
         self.active_consumers = 0
         self.max_active_consumers = 0
@@ -73,6 +74,9 @@ class FakeArtisan:
     async def run_command(self, request: CommandRequest) -> CommandResult:
         name = " ".join(request.args)
         if request.args[0] == "orchestration:readiness":
+            if self.readiness_failures:
+                self.readiness_failures -= 1
+                raise ApplicationError("orchestration:readiness exited 1 (database)", "database", type="CommandFailed")
             return CommandResult(0, {"date": "x", "checkpoints": dict(self.checkpoints),
                                      "scheduled_complete": dict(self.complete),
                                      "deadline_alerted": dict(self.alerted)}, 0.1)
@@ -295,6 +299,18 @@ async def test_a_scheduled_run_that_finishes_after_noon_is_a_late_morning(env):
     assert [r.reason for r in fake.reports] == ["morning_incomplete"]
     assert fake.reports[0].facts["consumers"] == {"morning_retail": "complete",
                                                   "morning_forecast": "complete_after_deadline"}
+
+
+async def test_a_short_readiness_outage_does_not_end_the_morning(env):
+    """Readiness only reads, so a failed read repeats; a few failed reads in a row (a database
+    break) must not end the chain."""
+    fake = FakeArtisan(readiness_failures=8)
+
+    result = await execute(env, fake, MorningChain.run, MorningInput(await tomorrow(env)))
+
+    assert (result.eex, result.contracts) == ("succeeded", "succeeded")
+    assert result.consumers == {"morning_retail": "complete", "morning_forecast": "complete"}
+    assert fake.readiness_failures == 0 and fake.reports == []
 
 
 async def test_a_morning_for_a_past_date_is_refused_before_any_command(env):

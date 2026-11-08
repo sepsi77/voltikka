@@ -80,7 +80,8 @@ implemented locally, not in production; only the collectors group is cut over in
 
 - **No automatic retry of a failed command.** `run_command` raises `CommandFailed` for a non-zero
   exit, and every job retry policy lists it as non-retryable (as with the Laravel scheduler). Only a
-  lost attempt is retried. Read-only readiness calls may retry. Social posting and the morning
+  lost attempt is retried. Read-only readiness calls retry for up to 30 minutes (`READINESS_OPTIONS`), so a
+  short database break does not end a morning; a longer one fails the run with one Issue. Social posting and the morning
   consumers use `max_attempts=1`.
 - **Deploy drain.** Railway sends SIGTERM to the old worker after the new one is active. The worker
   stops polling. An interruptible command (`Step.interruptible`, default true) is killed at once and

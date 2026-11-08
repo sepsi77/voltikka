@@ -350,3 +350,16 @@ documentation gap: the exception was in `orchestration/AGENTS.md` only. Comment 
 `READINESS_OPTIONS`, and the exception added to the `temporal-retry-and-cutover` rule in
 `.greptile/config.json` so the comment does not return. No behavior change. Codification: none,
 because it is a missing comment on a documented exception, not a defect.
+
+## 2026-11-09 – PR #9 external review, round 5
+
+Head 2b9c947. CodeRabbit: no inline finding; two comments outside the diff (`jobs.py` noon check
+and lanes): an exhausted `orchestration:readiness` read (3 attempts in about one minute) ends the
+whole `MorningChain`, so a short database break stops the morning. Valid (R4 code). One fix for
+every caller (lanes, noon check, import loop): `READINESS_OPTIONS` retries without an attempt
+limit inside a 30-minute `schedule_to_close_timeout` (interval 20 s to 2 min); a longer outage still
+fails the run with one Issue (Sentry interceptor). Consumer writes keep `max_attempts=1`. Test
+`test_a_short_readiness_outage_does_not_end_the_morning` (8 failed reads in a row); it fails with
+the old policy. Found while testing: a stale `.pyc` (same source size and mtime second after a
+restore) made one check run old code; run such checks with `PYTHONDONTWRITEBYTECODE=1`.
+Codification: platform-reviewer item 2, cause (d).
