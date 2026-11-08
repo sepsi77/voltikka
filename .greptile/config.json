@@ -43,7 +43,7 @@
     },
     {
       "id": "temporal-retry-and-cutover",
-      "rule": "Temporal workflows do no I/O; PHP work runs as `php artisan` activities. A failed command is never retried automatically; only a lost attempt (worker restart or crash) is retried. A job runs from exactly one scheduler: a Temporal Schedule and a `routes/console.php` entry for the same job never both run.",
+      "rule": "Temporal workflows do no I/O; PHP work runs as `php artisan` activities. A failed command is never retried automatically; only a lost attempt (worker restart or crash) is retried. Exception: the read-only `orchestration:readiness` call may retry. A job runs from exactly one scheduler: a Temporal Schedule and a `routes/console.php` entry for the same job never both run.",
       "scope": ["orchestration/**", "laravel/routes/console.php"],
       "severity": "high"
     },

@@ -341,3 +341,12 @@ date has passed". Test `test_a_scheduled_morning_keeps_the_date_it_started_on_af
 (a `start_delay` stands in for the outage, because the test server does not skip time while a
 workflow task waits). Codification: platform-reviewer item 1 widened, cause (d) (third finding of
 the same date class; the checklist now names the default-date source).
+
+## 2026-11-08 – PR #9 external review, round 4
+
+Head a593060. CodeRabbit review 5818723528: no actionable comment; one trivial nitpick (the
+readiness retry policy looks like a conflict with "never retry a failed command"). Valid as a
+documentation gap: the exception was in `orchestration/AGENTS.md` only. Comment added next to
+`READINESS_OPTIONS`, and the exception added to the `temporal-retry-and-cutover` rule in
+`.greptile/config.json` so the comment does not return. No behavior change. Codification: none,
+because it is a missing comment on a documented exception, not a defect.

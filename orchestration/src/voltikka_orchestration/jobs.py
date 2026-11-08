@@ -28,6 +28,8 @@ with workflow.unsafe.imports_passed_through():
 REPORTED_FAILURE = "ReportedFailure"
 
 HEARTBEAT_TIMEOUT = timedelta(minutes=2)
+# The one exception to "a failed command is never retried": `orchestration:readiness` only reads
+# checkpoints, so a failed read may repeat (orchestration/AGENTS.md).
 READINESS_OPTIONS = dict(
     start_to_close_timeout=timedelta(minutes=2),
     retry_policy=RetryPolicy(maximum_attempts=3, initial_interval=timedelta(seconds=20)),
