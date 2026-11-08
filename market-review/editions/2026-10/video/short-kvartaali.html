@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<title>Short · Kvartaalisopimus kallistuu tammikuussa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:wght@400;500;600;700;800&display=block" rel="stylesheet">
+<link rel="stylesheet" href="../../../../videos/monthly-market-review/lib.css">
+<link rel="stylesheet" href="../../../../videos/monthly-market-review/short.css">
+</head>
+<body>
+
+<!-- Hook: the question, on screen from frame 0. -->
+<section class="scene paper" id="sc-hook">
+  <img class="band" id="hook-plate" src="../../../../design/scenes/home-hero-plate-v1.png" alt="" style="top:200px">
+  <div class="abs" style="left:64px; top:860px; width:940px">
+    <div class="h-hero" style="font-size:112px">Onko sinulla kvartaali&shy;sopimus?</div>
+    <div class="h-1" id="hook-l2" style="color:var(--color-lake); margin-top:22px">Hinta nousee 1.1.2027.</div>
+  </div>
+</section>
+
+<!-- The step at the turn of the year. -->
+<section class="scene paper" id="sc-step">
+  <div class="abs" style="left:64px; top:250px; width:940px">
+    <div class="kicker" style="color:var(--color-lake)">Kvartaalisopimukset, energian hinta c/kWh</div>
+    <div class="h-2" style="margin-top:14px">Hinta nousee vuodenvaihteessa</div>
+  </div>
+  <div class="abs" id="q-chart" style="left:64px; top:500px"></div>
+  <div class="abs" id="q-s1" style="left:64px; top:1090px"><span class="num" style="font-size:120px; color:var(--color-lake)">+3,8</span><span class="lead" style="margin-left:14px">c/kWh 1.1.2027 (mediaani)</span></div>
+</section>
+
+<!-- What it costs and the advice. -->
+<section class="scene paper" id="sc-adv">
+  <div class="abs" style="left:64px; top:270px; width:940px" id="q-s2">
+    <div class="kicker">Sähkölämmitteinen pientalo, tammi–maalis</div>
+    <div class="num up" style="font-size:200px; margin-top:10px">+155 €</div>
+    <div class="lead" style="margin-top:6px">enemmän kuin nyt</div>
+  </div>
+  <div class="abs" id="q-s3" style="left:64px; top:820px"><div class="stamp"><b>Neuvomme ennen vuodenvaihdetta</b><span style="font-size:64px">Vaihda pörssisähköön<br>tai 24 kk kiinteään</span></div></div>
+</section>
+
+<section class="scene" id="sc-out"></section>
+
+<script src="timeline/short-kvartaali.js"></script>
+<script src="data.js"></script>
+<script src="../../../../videos/monthly-market-review/lib.js"></script>
+<script src="../../../../videos/monthly-market-review/short.js"></script>
+<script>
+const END = TL.total;
+const T = { step: S('k_q1') - 0.2, adv: S('k_q2') - 0.2, out: S('k_out1') - 0.3 };
+scene('sc-hook', 0, T.step, { fadeIn: 0 });
+scene('sc-step', T.step, T.adv, { wipe: true, z: 2 });
+scene('sc-adv', T.adv, T.out, { wipe: true, z: 3 });
+scene('sc-out', T.out, END + 1, { z: 4 });
+shortMark(-1, T.out);
+captions({ skip: ['sh_q0', 'k_out1'], strong: ['neljä', '155', 'pörssisähköön', '24'] });
+
+// ---------- Hook ----------
+drift($('#hook-plate'), 0, T.step, { from: 1.0, to: 1.06 });
+show($('#hook-l2'), A('sh_q0', 0.5), { dy: 30, dur: 0.4 });
+
+// ---------- Step chart (Katsaus values: median 13,12 → about 16,9 c/kWh on 1.1.) ----------
+{
+    const w = 940, h = 540, pl = 60, pb = 60;
+    const y = (v) => 20 + (h - 20 - pb) * (1 - (v - 10) / 8);
+    const x1 = pl + 440;
+    let s = `<svg class="chart" width="${w}" height="${h}">`;
+    for (let v = 10; v <= 18; v += 2) s += `<line x1="${pl}" x2="${w}" y1="${y(v)}" y2="${y(v)}" stroke="#D9DFDC" stroke-width="2"/><text class="axis-label" x="${pl - 14}" y="${y(v) + 7}" text-anchor="end">${v}</text>`;
+    s += `<path id="q-step" d="M${pl} ${y(13.12)} H${x1} V${y(16.91)} H${w}" fill="none" stroke="#2B5F8C" stroke-width="8" stroke-linejoin="round"/>`;
+    s += `<path d="M${x1} ${y(10)} V${y(18)}" stroke="#16202E" stroke-width="2" stroke-dasharray="6 8"/>`;
+    s += `<text class="axis-label" x="${(pl + x1) / 2}" y="${h - 18}" text-anchor="middle">loka–joulu</text><text class="axis-label" x="${(x1 + w) / 2}" y="${h - 18}" text-anchor="middle">tammi–maalis</text>`;
+    s += `<line x1="${pl}" x2="${w}" y1="${h - pb}" y2="${h - pb}" stroke="#16202E" stroke-width="2.4"/></svg>`;
+    $('#q-chart').innerHTML = s
+        + `<div class="abs" style="left:${pl + 20}px; top:${y(13.12) - 90}px"><span class="num" style="font-size:60px">13,12</span></div>`
+        + `<div class="abs" id="q-new" style="left:${x1 + 30}px; top:${y(16.91) - 96}px"><span class="num" style="font-size:60px; color:var(--color-lake)">noin 16,9</span></div>`
+        + `<div class="abs label" style="left:${x1 - 24}px; top:${h - 52}px; font-size:22px; background:var(--color-ground)">1.1.</div>`;
+    draw($('#q-step'), S('k_q1') + 0.2, 1.8);
+    show($('#q-new'), S('k_q1') + 1.6, { dy: 20 });
+    show($('#q-s1'), A('k_q1', 0.6), { dy: 20 });
+}
+
+// ---------- Cost and advice ----------
+show($('#q-s2'), S('k_q2') + 0.2, { dy: 30 });
+stamp($('#q-s3'), A('k_q2', 0.6), -2);
+
+// ---------- End card ----------
+shortEnd('sc-out', T.out, END, {
+    plate: '../../../../design/scenes/winter-evening-village-v2.png',
+    head: 'Laske hinnat omalla kulutuksellasi',
+    sub: 'Koko katsaus: voltikka.fi/markkinakatsaus',
+});
+</script>
+</body>
+</html>

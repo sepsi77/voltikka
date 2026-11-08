@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<title>Short · Talvesta tulee kallis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:wght@400;500;600;700;800&display=block" rel="stylesheet">
+<link rel="stylesheet" href="../../../../videos/monthly-market-review/lib.css">
+<link rel="stylesheet" href="../../../../videos/monthly-market-review/short.css">
+<style>
+  .why-row { position: absolute; left: 64px; width: 900px; display: flex; gap: 40px; align-items: center; }
+  .why-row svg { width: 150px; height: 150px; flex-shrink: 0; }
+  .why-row .big { font: 800 112px/1 var(--font-display); letter-spacing: -0.04em; white-space: nowrap; }
+  .why-row .label { font-size: 30px; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<!-- Hook: the October plate turns to winter. The title is on screen from frame 0. -->
+<section class="scene paper" id="sc-hook">
+  <img class="band" id="hook-autumn" src="../../../../design/scenes/home-hero-plate-syksy-v1.png" alt="" style="top:200px">
+  <img class="band" id="hook-winter" src="../../../../design/scenes/home-hero-plate-v1.png" alt="" style="top:200px">
+  <div class="abs" style="left:64px; top:860px; width:940px">
+    <div class="h-hero" style="font-size:112px">Lokakuu oli halpa.</div>
+    <div class="h-hero" id="hook-l2" style="font-size:112px; color:var(--color-price-high); margin-top:16px">Talvesta tulee kallis.</div>
+  </div>
+</section>
+
+<!-- Futures and our expectation (three columns of the Katsaus chart; the summer band is left out). -->
+<section class="scene paper" id="sc-fut">
+  <div class="abs" style="left:64px; top:250px; width:940px">
+    <div class="kicker">Pörssisähkö, c/kWh, alv 25,5 %</div>
+    <div class="h-2" style="margin-top:14px" id="fut-head">Tammikuun sähkö maksaa yli kolme kertaa lokakuun hinnan</div>
+  </div>
+  <div class="abs" id="fut" style="left:64px; top:560px"></div>
+  <div class="source" style="left:64px; top:1240px">Futuuri: EEX, Finnish Power Base, 30.10.2026. Odotus: Voltikka.</div>
+</section>
+
+<!-- Three reasons, one row each. -->
+<section class="scene paper" id="sc-why">
+  <div class="abs" style="left:64px; top:250px">
+    <div class="kicker">Miksi talvesta tulee kallis</div>
+    <div class="h-1" style="margin-top:12px">Syitä on kolme.</div>
+  </div>
+  <div class="why-row" id="why1" style="top:470px">
+    <svg viewBox="0 0 120 120"><path d="M20 20 V100 H100 V20" fill="none" stroke="#16202E" stroke-width="5" stroke-linejoin="round"/><path d="M24 58 C 40 52, 60 64, 96 56 V96 H24 Z" fill="#2B5F8C" fill-opacity="0.85"/><path d="M14 40 H34" stroke="#C4501C" stroke-width="5" stroke-linecap="round" stroke-dasharray="6 6"/><path d="M86 40 H106" stroke="#C4501C" stroke-width="5" stroke-linecap="round" stroke-dasharray="6 6"/></svg>
+    <div><div class="big">−13 <span style="font-size:48px">%-yks.</span></div><div class="label">Norjan vesialtaat: 69,5 % (tavallisesti 82,6 %)</div></div>
+  </div>
+  <div class="why-row" id="why2" style="top:730px">
+    <svg viewBox="0 0 120 120"><rect x="30" y="16" width="60" height="88" rx="24" fill="none" stroke="#16202E" stroke-width="5"/><path d="M35 52 H85 V84 C85 96 75 100 60 100 C 45 100 35 96 35 84 Z" fill="#6A4C9C" fill-opacity="0.8"/></svg>
+    <div><div class="big">74,6 <span style="font-size:48px">%</span></div><div class="label">Euroopan kaasuvarastot (vuosi sitten 82,8 %)</div></div>
+  </div>
+  <div class="why-row" id="why3" style="top:990px">
+    <svg viewBox="0 0 120 120"><path d="M30 104 C 40 76, 40 46, 34 20 H86 C 80 46, 80 76, 90 104 Z" fill="none" stroke="#16202E" stroke-width="5" stroke-linejoin="round"/><path d="M50 14 C 46 6, 58 2, 60 8 C 64 0, 76 4, 72 12" fill="none" stroke="#5E6876" stroke-width="4" stroke-linecap="round"/><path d="M14 104 H106" stroke="#16202E" stroke-width="5" stroke-linecap="round"/></svg>
+    <div><div class="big">11.11.</div><div class="label">Olkiluoto 3 palaa vuosihuollosta</div></div>
+  </div>
+</section>
+
+<section class="scene" id="sc-out"></section>
+
+<script src="timeline/short-talvi.js"></script>
+<script src="data.js"></script>
+<script src="../../../../videos/monthly-market-review/lib.js"></script>
+<script src="../../../../videos/monthly-market-review/short.js"></script>
+<script>
+const END = TL.total;
+const T = { fut: S('k_win2') - 0.2, why: S('k_win4') - 0.2, out: S('sh_talvi_end') - 0.3 };
+scene('sc-hook', 0, T.fut, { fadeIn: 0 });
+scene('sc-fut', T.fut, T.why, { wipe: true, z: 2 });
+scene('sc-why', T.why, T.out, { wipe: true, z: 3 });
+scene('sc-out', T.out, END + 1, { z: 4 });
+shortMark(-1, T.out);
+captions({ skip: ['k_intro2', 'sh_talvi_end'], strong: ['16', 'kolme', 'yhdestätoista', 'kuuteentoista', '11–16', '13', 'vajaammat', '11.'] });
+
+// ---------- Hook ----------
+drift($('#hook-autumn'), 0, T.fut, { from: 1.0, to: 1.06 });
+drift($('#hook-winter'), 0, T.fut, { from: 1.0, to: 1.06 });
+tick((t) => { $('#hook-winter').style.opacity = P(t, A('k_intro2', 0.4), 0.8, 'io'); });
+show($('#hook-l2'), A('k_intro2', 0.45), { dy: 30, dur: 0.4 });
+
+// ---------- Futures ----------
+{
+    const w = 940, h = 640, pl = 60, pb = 70, top = 22;
+    const y = (v) => (h - pb) * (1 - v / top);
+    let s = `<svg class="chart" width="${w}" height="${h}">`;
+    for (let v = 0; v <= 20; v += 5) s += `<line x1="${pl}" x2="${w}" y1="${y(v)}" y2="${y(v)}" stroke="#D9DFDC" stroke-width="2"/><text class="axis-label" x="${pl - 14}" y="${y(v) + 7}" text-anchor="end">${v}</text>`;
+    const xs = [110, 400, 690], bw = 210;
+    const col = (x, v, color, id) => `<rect class="fbar" id="${id}" x="${x}" y="${y(v)}" width="${bw}" height="${y(0) - y(v)}" fill="${color}" rx="3"/>`;
+    s += col(xs[0], 4.77, '#1C7A5E', 'fb1') + col(xs[1], 15.7, '#B3261E', 'fb2');
+    s += `<g id="band1"><rect x="${xs[2]}" y="${y(16)}" width="${bw}" height="${y(11) - y(16)}" fill="#B3261E" fill-opacity="0.22"/><path d="M${xs[2]} ${y(16)} H${xs[2] + bw} M${xs[2]} ${y(11)} H${xs[2] + bw}" stroke="#B3261E" stroke-width="4" stroke-dasharray="10 8"/></g>`;
+    s += `<line x1="${pl}" x2="${w}" y1="${y(0)}" y2="${y(0)}" stroke="#16202E" stroke-width="2.4"/></svg>`;
+    const lab = (x, top, big, small, id, color = 'var(--color-ink)') => `<div class="abs" id="${id}" style="left:${x}px; top:${top}px; width:260px"><div class="num" style="font-size:72px; color:${color}">${big}</div><div class="label" style="font-size:26px">${small}</div></div>`;
+    const box = $('#fut');
+    box.innerHTML = s +
+        lab(xs[0], y(4.77) - 130, '4,77', 'lokakuu, toteutunut', 'fl1') +
+        lab(xs[1], y(15.7) - 130, '15,7', 'tammikuu, futuuri', 'fl2', 'var(--color-price-high)') +
+        lab(xs[2], y(16) - 170, '11–16', 'marras–maalis, odotus', 'fl3', 'var(--color-price-high)');
+    [['fb1', 'fl1', S('k_win2')], ['fb2', 'fl2', A('k_win2', 0.25)]].forEach(([b, l, t0]) => {
+        const r = $('#' + b, box), H = +r.getAttribute('height'), Y = +r.getAttribute('y');
+        tick((t) => { const p = P(t, t0, 0.8); r.setAttribute('y', Y + H * (1 - p)); r.setAttribute('height', H * p); });
+        show($('#' + l, box), t0 + 0.4, { dy: 20 });
+    });
+    show($('#band1', box), S('k_win3') + 0.2, { dy: 0 });
+    show($('#fl3', box), S('k_win3') + 0.4, { dy: 20 });
+    show($('#fut-head'), S('k_win2') + 0.1, { dy: 20 });
+}
+
+// ---------- Three reasons ----------
+show($('#why1'), S('k_win5'), { dy: 40 });
+show($('#why2'), S('k_win6'), { dy: 40 });
+show($('#why3'), S('k_win7'), { dy: 40 });
+
+// ---------- End card ----------
+shortEnd('sc-out', T.out, END, {
+    plate: '../../../../design/scenes/winter-evening-village-v2.png',
+    head: 'Mikä sopimus talveksi kannattaa?',
+    sub: 'Koko katsaus: voltikka.fi/markkinakatsaus',
+});
+</script>
+</body>
+</html>

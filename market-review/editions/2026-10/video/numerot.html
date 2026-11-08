@@ -5,7 +5,7 @@
 <title>Sähkömarkkinakatsaus · lokakuu 2026 · Numerot</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:wght@400;500;600;700;800&display=block" rel="stylesheet">
-<link rel="stylesheet" href="lib.css">
+<link rel="stylesheet" href="../../../../videos/monthly-market-review/lib.css">
 <style>
   .card { position: absolute; inset: 0; display: none; }
   .card .wrap { position: absolute; left: 150px; top: 270px; width: 1640px; }
@@ -29,7 +29,7 @@
 <body>
 
 <section class="scene night" id="sc-title">
-  <img class="plate" id="title-plate" src="../../design/scenes/night-sky-plate-v1.png" alt="" style="opacity:0.7">
+  <img class="plate" id="title-plate" src="../../../../design/scenes/night-sky-plate-v1.png" alt="" style="opacity:0.7">
   <div class="abs" style="left:150px; top:200px; width:1640px">
     <div class="wm" style="position:static; display:flex; align-items:center; gap:14px" id="title-logo"><span style="font:800 44px/1 var(--font-display); color:#fff">Voltikka</span></div>
     <div class="kicker" style="margin-top:70px; font-size:28px">Sähkömarkkinakatsaus · lokakuu 2026</div>
@@ -41,26 +41,26 @@
 
 <section class="scene paper" id="sc-sum">
   <div class="abs" style="left:150px; top:170px"><div class="kicker">Neuvomme</div><div class="h-1" style="margin-top:12px">Tänä talvena</div></div>
-  <div class="abs" id="sum1" style="left:150px; top:420px; display:flex; align-items:center; gap:50px"><img src="../../design/illustrations/home-house-v1.png" style="width:300px"><div class="stamp"><b>Sähkölämmitteinen pientalo</b><span>24 kk kiinteä hinta nyt</span></div></div>
-  <div class="abs" id="sum2" style="left:150px; top:720px; display:flex; align-items:center; gap:50px"><img src="../../design/illustrations/home-apartment-v1.png" style="width:300px"><div class="stamp"><b>Kerrostaloasunto</b><span>Pysy pörssisähkössä</span></div></div>
+  <div class="abs" id="sum1" style="left:150px; top:420px; display:flex; align-items:center; gap:50px"><img src="../../../../design/illustrations/home-house-v1.png" style="width:300px"><div class="stamp"><b>Sähkölämmitteinen pientalo</b><span>24 kk kiinteä hinta nyt</span></div></div>
+  <div class="abs" id="sum2" style="left:150px; top:720px; display:flex; align-items:center; gap:50px"><img src="../../../../design/illustrations/home-apartment-v1.png" style="width:300px"><div class="stamp"><b>Kerrostaloasunto</b><span>Pysy pörssisähkössä</span></div></div>
 </section>
 
 <section class="scene" id="sc-out">
-  <img class="plate" id="out-plate" src="../../design/scenes/winter-evening-village-v2.png" alt="">
+  <img class="plate" id="out-plate" src="../../../../design/scenes/winter-evening-village-v2.png" alt="">
   <div style="position:absolute; inset:0; background:rgb(20 33 58 / 0.35)"></div>
   <div class="abs" id="out-card" style="left:180px; top:200px; width:820px; padding:56px 64px 60px; background:var(--paper); clip-path:polygon(12% 0, 88% 0, 100% 8%, 100% 100%, 0 100%, 0 8%)">
     <div style="display:flex; align-items:center; gap:16px" id="out-logo"><span style="font:800 80px/1 var(--font-display); letter-spacing:-0.02em">Voltikka</span></div>
     <div class="h-2" style="margin-top:56px">Laske hinnat omalla kulutuksellasi</div>
     <div class="num" style="font-size:96px; color:var(--color-fox-deep); margin-top:26px">voltikka.fi</div>
   </div>
-  <img class="abs" id="out-fox" src="../../design/mascot/fox-sit-skyward-v1.png" alt="" style="left:1300px; top:560px; width:470px">
+  <img class="abs" id="out-fox" src="../../../../design/mascot/fox-sit-skyward-v1.png" alt="" style="left:1300px; top:560px; width:470px">
 </section>
 
 <div class="progress" id="progress"></div>
 
 <script src="timeline/numerot.js"></script>
-<script src="data/2026-10.js"></script>
-<script src="lib.js"></script>
+<script src="data.js"></script>
+<script src="../../../../videos/monthly-market-review/lib.js"></script>
 <script>
 const END = TL.total;
 $('#title-logo').insertAdjacentHTML('afterbegin', LOGO(52));

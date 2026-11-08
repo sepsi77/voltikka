@@ -1,7 +1,7 @@
 // Voice lines and the line order of each video variant.
 //
-// One line = one voice file (audio/vo/<voice>/<id>.wav). A line that two variants share is
-// generated once per voice. The scenes read the start times from timeline/<variant>.js, which
+// One line = one voice file (work/audio/vo/<voice>/<id>.wav). A line that two variants share is
+// generated once per voice. The scenes read the start times from video/timeline/<variant>.js, which
 // timeline.mjs makes from the measured voice durations. Figures: market-review/
 // editions/2026-10/2026-10-katsaus.md (published 6.11.2026) and its JSON files.
 //
@@ -72,6 +72,11 @@ export const LINES = {
     k_out1: 'Laske sopimusten hinnat omalla kulutuksellasi Voltikassa. Osoite on voltikka piste fi.',
     k_out2: 'Seuraava katsaus ilmestyy joulukuun alussa.',
 
+    // ---------- Shorts (2026-11-08): new hook and end lines; the rest are Katsaus lines ----------
+    sh_talvi_end: 'Mikä sopimus talveksi kannattaa? Katso koko katsaus.',
+    sh_be02_0: 'Sähkölämmitteinen talo: pörssisähkö vai kiinteä hinta tälle talvelle?',
+    sh_q0: 'Onko sinulla kvartaalisopimus? Tämä koskee sinua.',
+
     // ---------- Kolme kotia (consumer advice) ----------
     h_open1: 'Kiinteä hinta vai pörssisähkö? Tänä syksynä vastaus riippuu kodistasi.',
     h_open2: 'Tämä on Voltikan sähkömarkkinakatsaus lokakuulta 2026. Laskimme talven sähkölaskun kolmelle tavalliselle kodille.',
@@ -135,9 +140,24 @@ export const LINES = {
 };
 
 // Each segment: [line id, pause after in seconds]. A pause also gives the picture time to change.
+// Settings shared by the Shorts: the Katsaus voice (same takes), portrait size, voice from the first frame.
+const SHORT = {
+    model: 'google/gemini-3.8-flash-tts',
+    voice: 'Kore',
+    vo: 'gemini-kore',
+    format: 'pcm',
+    instructions: 'Speak Finnish like an energetic, confident news presenter on a consumer finance show: brisk tempo, clear and lively, friendly but authoritative. Not sleepy, not monotone.',
+    music: 'music/explainer.mp3',
+    musicDb: -4,
+    lead: 0.25,
+    size: '1080x1920',
+    final: 'shorts',
+};
+
 export const VARIANTS = {
     katsaus: {
         title: 'Sähkömarkkinakatsaus · lokakuu 2026',
+        final: true,
         // Voice: Gemini 3.8 Flash TTS Kore (user 2026-11-06: "more dynamic and interesting" than ElevenLabs v4
         // Sarah; MAI Harper was slow and read "24 kuukauden" in the nominative). Takes: audio/vo/gemini-kore/.
         model: 'google/gemini-3.8-flash-tts',
@@ -145,7 +165,7 @@ export const VARIANTS = {
         vo: 'gemini-kore',
         format: 'pcm',
         instructions: 'Speak Finnish like an energetic, confident news presenter on a consumer finance show: brisk tempo, clear and lively, friendly but authoritative. Not sleepy, not monotone.',
-        music: 'audio/music/explainer.mp3',
+        music: 'music/explainer.mp3',
         musicDb: -4,
         lead: 0.8,
         // Pauses (user 2026-11-06, v2 was rushed): about 0.7–0.9 s between points on one slide,
@@ -165,10 +185,33 @@ export const VARIANTS = {
             ['k_out1', 0.9], ['k_out2', 3.5],
         ],
     },
+    // Shorts (1080×1920): Katsaus lines with the Katsaus voice, short pauses, and a hook in the first
+    // seconds. Outputs: final/shorts/. Scene: video/<variant>.html.
+    'short-talvi': {
+        ...SHORT,
+        segments: [
+            ['k_intro2', 0.5], ['k_win2', 0.5], ['k_win3', 0.7], ['k_win4', 0.3], ['k_win5', 0.4], ['k_win6', 0.4], ['k_win7', 0.7],
+            ['sh_talvi_end', 2.6],
+        ],
+    },
+    'short-sahkolammitys': {
+        ...SHORT,
+        segments: [
+            ['sh_be02_0', 0.6], ['k_be02_2', 0.6], ['k_be02_3', 0.7], ['k_be02_4', 0.7], ['k_be02_5', 0.5], ['k_be02_6', 0.7],
+            ['k_out1', 2.4],
+        ],
+    },
+    'short-kvartaali': {
+        ...SHORT,
+        segments: [
+            ['sh_q0', 0.5], ['k_q1', 0.6], ['k_q2', 0.7],
+            ['k_out1', 2.4],
+        ],
+    },
     kotia: {
         title: 'Kolme kotia · talven sähkölasku',
         voice: 'fi-FI-Harper:MAI-Voice-2.1',
-        music: 'audio/music/homes-b.mp3',
+        music: 'music/homes-b.mp3',
         musicDb: -4,
         lead: 0.6,
         segments: [
@@ -184,7 +227,7 @@ export const VARIANTS = {
     numerot: {
         title: 'Lokakuu 18 numerossa',
         voice: 'fi-FI-Harper:MAI-Voice-2.1',
-        music: 'audio/music/numbers.mp3',
+        music: 'music/numbers.mp3',
         musicDb: -2,
         lead: 0.8,
         segments: [
@@ -199,7 +242,7 @@ export const VARIANTS = {
     saa: {
         title: 'Voltikan sähkösää',
         voice: 'fi-FI-Grant:MAI-Voice-2.1',
-        music: 'audio/music/weather-b.mp3',
+        music: 'music/weather-b.mp3',
         musicDb: -4,
         lead: 1.0,
         segments: [
@@ -215,9 +258,6 @@ export const VARIANTS = {
     },
 };
 
-// Folder of the voice takes of a variant: audio/vo/<this>/. MAI: voice name (+ speed); other models: `vo`.
-export const voDir = (v) => `audio/vo/${v.vo ?? v.voice.split(':')[0].replace('fi-FI-', '').toLowerCase() + (v.speed ? '-' + v.speed : '')}`;
-
 // Subtitle text where the spoken form differs from the written form (timeline.mjs uses it for the .srt).
 export const SUBS = {
     k_win3: 'Odotamme, että pörssisähkö maksaa marraskuusta maaliskuuhun 11–16 senttiä.',
@@ -231,3 +271,50 @@ export const SUBS = {
     k_q2: 'Sähkölämmitteisessä pientalossa tammikuusta maaliskuuhun maksaa silloin noin 155 euroa enemmän kuin nyt. Vaihda ennen vuodenvaihdetta pörssisähköön tai 24 kuukauden kiinteään hintaan.',
     k_be03_3: 'Valitse pörssisähkö tai edullisin pitkä kiinteä hinta. Keskihintainen 12 kuukauden sopimus maksaa noin 65 euroa enemmän.',
 };
+
+// ---------- YouTube title and description (chapters.mjs) ----------
+// Chapter starts: the first voice line of each part (YouTube needs 0:00 first and parts of at least 10 s).
+export const CHAPTERS = {
+    katsaus: [['Lokakuu oli halpa, talvesta tulee kallis', null], ['Miksi talvesta tulee kallis', 'k_win1'], ['Mikä sopimus nyt kannattaa', 'k_adv1'],
+        ['Sähkölämmitteinen pientalo', 'k_be02_1'], ['Pientalo ilman sähkölämmitystä', 'k_be03_1'], ['Kerrostaloasunto', 'k_be01_1'], ['Kvartaalisähkö', 'k_q1'], ['Sopimusmarkkina', 'k_mkt1'],
+        ['Lokakuu lyhyesti', 'k_oct0']],
+    kotia: [['Kiinteä vai pörssisähkö?', null], ['Halpa lokakuu, kallis talvi', 'h_ctx1'], ['Sähkölämmitteinen pientalo', 'h_be02_0'], ['Pientalo ilman sähkölämmitystä', 'k_be03_1'],
+        ['Kerrostaloasunto', 'h_be01_0'], ['Kvartaalisähkö', 'h_q0']],
+    numerot: [['Lokakuu', null], ['Talvi', 'n_6'], ['Mitä valita', 'n_11'], ['Sopimukset', 'n_14'], ['Neuvomme', 'n_sum']],
+    saa: [['Voltikan sähkösää', null], ['Lokakuun sää', 's_oct1'], ['Sääkartta', 's_map0'], ['Ennuste', 's_fc0'], ['Sähkövaroitus', 's_warn0'], ['Sopimusmarkkinan ilmanpaine', 's_mkt0'], ['Näin varaudut talveen', 's_adv0']],
+};
+// YouTube title and the text above the chapters, per variant (the other variants keep the plain first line).
+export const TITLE = {
+    katsaus: 'Sähkön hinta talvella: pörssisähkö vai kiinteä? Sähkömarkkinakatsaus lokakuu 2026',
+    'short-talvi': 'Talvesta tulee kallis: tammikuun sähkö maksaa yli kolme kertaa lokakuun hinnan',
+    'short-sahkolammitys': 'Sähkölämmitteinen talo: pörssisähkö vai kiinteä hinta tälle talvelle?',
+    'short-kvartaali': 'Kvartaalisopimus kallistuu tammikuussa: vaihda ennen vuodenvaihdetta',
+};
+// First line of a description when a variant has no INTRO.
+export const DEFAULT_INTRO = 'Voltikan sähkömarkkinakatsaus: lokakuu 2026 ja näkymät talveen.';
+export const INTRO = {
+    katsaus: `Lokakuu oli halpa, mutta talvesta tulee kallis. Pörssisähkö maksoi lokakuussa keskimäärin 4,77 c/kWh, ja tammikuun futuuri on jo 15,7 c/kWh. Kerromme, miksi talvesta tulee kallis ja mikä sähkösopimus nyt kannattaa kolmessa tavallisessa kodissa.
+
+Neuvomme lyhyesti:
+• Sähkölämmitteinen pientalo: pörssisähkö on pitkällä aikavälillä halvempi, mutta tuleva talvi on sille riski. Jos haluat kiinteän hinnan, valitse 24 kuukautta.
+• Pientalo ilman sähkölämmitystä: pysy pörssisähkössä.
+• Kerrostaloasunto: pysy pörssisähkössä.
+• Kvartaalisähkö: hinta nousee 1.1. noin 3,8 c/kWh. Vaihda ennen vuodenvaihdetta pörssisähköön tai 24 kuukauden kiinteään hintaan.
+
+Myyjät nostivat energiahintojaan lokakuussa 12 %, vaikka pörssisähkö halpeni kolmanneksen.`,
+    'short-talvi': `Pörssisähkö maksoi lokakuussa keskimäärin 4,77 c/kWh. Tammikuun futuuri on 15,7 c/kWh, ja odotamme marras–maaliskuulle 11–16 c/kWh. Syyt: Norjan vesialtaissa on 13 prosenttiyksikköä tavallista vähemmän vettä, Euroopan kaasuvarastot ovat vajaammat kuin vuosi sitten, ja Olkiluoto 3 palaa vuosihuollosta vasta 11.11.`,
+    'short-sahkolammitys': `Sähkölämmitteinen pientalo (noin 11 100 kWh vuodessa): marras–maaliskuussa pörssisähkö maksaa noin 150 € enemmän kuin tavallinen kiinteä hinta, kylmänä talvena noin 190 €. Huhti–lokakuussa kiinteä hinta maksaa noin 225 € enemmän, joten koko vuonna pörssisähkö on noin 75 € halvempi. Jos haluat kiinteän hinnan, valitse 24 kuukautta: se kattaa kaksi talvea ja on halvempi kuin 12 kuukauden sopimus.`,
+    'short-kvartaali': `Kvartaalisopimusten hinta nousee 1.1.2027 noin 3,8 c/kWh (mediaani, futuurien muutoksesta). Sähkölämmitteisessä pientalossa tammi–maaliskuu maksaa silloin noin 155 € enemmän kuin nyt. Vaihda ennen vuodenvaihdetta pörssisähköön tai 24 kuukauden kiinteään hintaan.`,
+};
+// Text below the chapters of a YouTube description. v: variant name.
+export const FOOTER = (v) => v.startsWith('short-') ? `Koko katsaus lukuineen ja kuvineen: https://voltikka.fi/markkinakatsaus/2026-10
+Laske sopimusten hinnat omalla kulutuksellasi: https://voltikka.fi/sahkosopimus
+
+Laskelmat: sähköenergia ja sähkövero, ei siirtomaksuja. Tulevat hinnat: Suomen sähköfutuurit (EEX) 30.10.2026. Sopimukset: Voltikan päivittäin keräämät hinnat 2.11.2026.
+
+#shorts #sähkö #pörssisähkö #sähkösopimus
+` : `Laske sopimusten hinnat omalla kulutuksellasi: https://voltikka.fi/sahkosopimus
+${v === 'katsaus' ? 'Koko katsaus lukuineen ja kuvineen: https://voltikka.fi/markkinakatsaus/2026-10\n' : ''}
+Laskelmat: sähköenergia ja sähkövero (2,918 c/kWh alv mukaan lukien), ei siirtomaksuja. Kodit: Fingrid Datahub (keskimääräinen kerrostaloasunto, pientalo ilman sähkölämmitystä ja sähkölämmitteinen pientalo). Tulevat hinnat: Suomen sähköfutuurit (EEX) 30.10.2026 ja kolmen menneen talven tuntivaihtelu. Sopimukset: Voltikan päivittäin keräämät hinnat 2.11.2026.
+Lähteet: ENTSO-E, Fingrid (CC BY 4.0), Open-Meteo.com (ERA5, ECMWF), NVE, GIE AGSI, EEX, Voltikka.
+${v === 'katsaus' ? '\n#sähkö #pörssisähkö #sähkösopimus\n' : ''}`;

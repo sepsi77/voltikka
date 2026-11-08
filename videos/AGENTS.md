@@ -1,6 +1,6 @@
 # videos/ — code-rendered video
 
-Marketing videos made from HTML scenes. No video library (no Remotion). Read the root `AGENTS.md` first; the brand rules in `design/` apply to every frame. Current work: `tasks/youtube-brand-video/` and the monthly review video (`market-review/video.md`).
+Marketing videos made from HTML scenes. No video library (no Remotion). Read the root `AGENTS.md` first; the brand rules in `design/` apply to every frame. Current work: `tasks/youtube-brand-video/` and the monthly review video (`market-review/video.md`). Exception to the layout below: the monthly review keeps only its engine here; each edition's scenes and outputs are in `market-review/editions/<month>/` (see `monthly-market-review/AGENTS.md`).
 
 ## Folder layout
 
@@ -55,7 +55,7 @@ Write scenes with normal CSS keyframes and `animation-delay`. Do not use `setTim
 |---|---|
 | `spike/` | 3 s technical test (plate drift, fox entry, word stagger, ink draw-on) |
 | `youtube-brand-video/` | 15 s YouTube brand ads for rotation: Hintalappu, Oma lasku and Haku; see its `AGENTS.md` |
-| `monthly-market-review/` | 3–5 min narrated videos of the monthly market review (October 2026: four concept variations); see its `AGENTS.md` |
+| `monthly-market-review/` | Engine of the monthly market review videos and Shorts; sources and outputs per edition in `market-review/editions/<month>/`; see its `AGENTS.md` |
 
 ## Media files
 

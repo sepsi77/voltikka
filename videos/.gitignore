@@ -21,3 +21,6 @@ audio/
 *.jpg
 *.jpeg
 *.webp
+
+# Shared music beds of the market review videos (media and Lyria logs).
+monthly-market-review/music/

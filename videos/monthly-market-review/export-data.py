@@ -1,20 +1,23 @@
-"""Collects the figures of one review edition into data/<month>.js for the scenes (read-only).
+"""Collects the figures of one review edition into market-review/editions/<month>/video/data.js for the scenes.
 
-Usage (from videos/monthly-market-review): python3 -I export-data.py 2026-10
+Usage: python3 -I videos/monthly-market-review/export-data.py 2026-10 (from any folder; reads are read-only)
 Sources: market-review/editions/<month>/*.json (the frozen draft figures) and the local
 SQLite snapshot (only the Voltikka price index series), plus the frozen chart data of the site page
 (laravel/resources/market-reviews/<month>/kuva-*.json, read only) so that the video charts show the same data.
 """
 import json
+import os
 import sqlite3
 import sys
 
 month = sys.argv[1]
-root = "../../"
+root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../")
 proto = root + f"market-review/editions/{month}/"
 m = json.load(open(proto + f"metrics-{month}.json"))
 d = json.load(open(proto + f"drivers-{month}.json"))
-o = json.load(open(proto + "consumer-outlook-2026-11.json"))
+y, mo = map(int, month.split("-"))
+next_month = f"{y + mo // 12}-{mo % 12 + 1:02d}"  # the consumer files carry the forecast month
+o = json.load(open(proto + f"consumer-outlook-{next_month}.json"))
 
 db = sqlite3.connect(f"file:{root}laravel/database/database.sqlite?mode=ro", uri=True)
 index = {}
@@ -55,5 +58,6 @@ out = {
     "groups": groups,
     "site": site,
 }
-open(f"data/{month}.js", "w").write("// Made by export-data.py. Do not edit.\nwindow.DATA = " + json.dumps(out, ensure_ascii=False) + ";\n")
-print(f"data/{month}.js", len(index["overall"]), "index days")
+target = proto + "video/data.js"
+open(target, "w").write("// Made by export-data.py. Do not edit.\nwindow.DATA = " + json.dumps(out, ensure_ascii=False) + ";\n")
+print(target, len(index["overall"]), "index days")

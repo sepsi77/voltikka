@@ -1,0 +1,19 @@
+1
+00:00:00,250 --> 00:00:03,467
+Onko sinulla kvartaalisopimus? Tämä koskee sinua.
+
+2
+00:00:03,967 --> 00:00:08,409
+Kvartaalisopimusten hinta nousee vuodenvaihteessa lähes neljä senttiä kilowattitunnilta.
+
+3
+00:00:09,009 --> 00:00:15,712
+Sähkölämmitteisessä pientalossa tammikuusta maaliskuuhun maksaa silloin noin 155 euroa enemmän kuin nyt.
+
+4
+00:00:15,712 --> 00:00:20,739
+Vaihda ennen vuodenvaihdetta pörssisähköön tai 24 kuukauden kiinteään hintaan.
+
+5
+00:00:21,439 --> 00:00:26,481
+Laske sopimusten hinnat omalla kulutuksellasi Voltikassa: voltikka.fi.

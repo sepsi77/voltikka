@@ -1,0 +1,12 @@
+# Video work files and media of each edition (made again from editions/<month>/video/ with the
+# engine in videos/monthly-market-review/). work/ never goes to git. final/ keeps its text files
+# (title, description, .srt) in git, but not its media.
+editions/*/work/
+editions/*/final/**/*.mp4
+editions/*/final/**/*.mov
+editions/*/final/**/*.mp3
+editions/*/final/**/*.wav
+editions/*/final/**/*.png
+editions/*/final/**/*.jpg
+editions/*/final/**/*.jpeg
+editions/*/final/**/*.webp

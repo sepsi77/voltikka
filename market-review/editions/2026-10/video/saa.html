@@ -5,7 +5,7 @@
 <title>Voltikan sähkösää · lokakuu 2026</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:wght@400;500;600;700;800&display=block" rel="stylesheet">
-<link rel="stylesheet" href="lib.css">
+<link rel="stylesheet" href="../../../../videos/monthly-market-review/lib.css">
 <style>
   .board { background: #10203A; color: #fff; }
   .board::before { content: ''; position: absolute; inset: 0; background-image: linear-gradient(rgb(255 255 255 / 0.035) 2px, transparent 2px), linear-gradient(90deg, rgb(255 255 255 / 0.035) 2px, transparent 2px); background-size: 96px 96px; }
@@ -40,7 +40,7 @@
 
 <!-- ============ Opener: the weather station in autumn ============ -->
 <section class="scene" id="sc-open">
-  <img class="plate" id="open-plate" src="../../design/scenes/forecast-hero-syksy-v1.png" alt="">
+  <img class="plate" id="open-plate" src="../../../../design/scenes/forecast-hero-syksy-v1.png" alt="">
   <div class="show-title" id="open-title">
     <div class="bar"><span id="open-logo"></span><b>Voltikan sähkösää</b></div>
     <div class="sub">Lokakuu 2026 ja näkymät talveen</div>
@@ -72,7 +72,7 @@
 <section class="scene board" id="sc-map">
   <div class="abs" style="left:110px; top:150px; width:520px"><div class="kicker">Lokakuun sääkartta</div><div class="h-2" style="margin-top:12px">Missä sähkö tehtiin ja minne se meni</div></div>
   <div class="abs" id="map" style="left:700px; top:40px; width:750px; height:1000px">
-    <img src="../../design/illustrations/map-finland-talvi-v1.png" style="width:750px" alt="">
+    <img src="../../../../design/illustrations/map-finland-talvi-v1.png" style="width:750px" alt="">
   </div>
   <div class="abs caption" style="left:110px; top:1000px; color:#9FB0C8">Hinnat ilman arvonlisäveroa, c/kWh, lokakuun keskiarvo.</div>
 </section>
@@ -87,7 +87,7 @@
 
 <!-- ============ Warning ============ -->
 <section class="scene night" id="sc-warn">
-  <img class="plate" id="warn-plate" src="../../design/scenes/night-sky-plate-v1.png" alt="" style="opacity:0.5">
+  <img class="plate" id="warn-plate" src="../../../../design/scenes/night-sky-plate-v1.png" alt="" style="opacity:0.5">
   <div class="abs" id="warn-head" style="left:110px; top:150px; display:flex; align-items:center; gap:34px">
     <svg width="150" height="132" viewBox="0 0 150 132"><path d="M75 8 L142 124 H8 Z" fill="#E0A21B" stroke="#16202E" stroke-width="6" stroke-linejoin="round"/><path d="M75 46 V86" stroke="#16202E" stroke-width="12" stroke-linecap="round"/><circle cx="75" cy="106" r="7" fill="#16202E"/></svg>
     <div><div class="kicker" style="color:#E0A21B">Sähkövaroitus</div><div class="h-1" style="margin-top:8px">Kylmä ja tyyni sää</div></div>
@@ -116,7 +116,7 @@
 
 <!-- ============ Outro: the same weather station in winter ============ -->
 <section class="scene" id="sc-out">
-  <img class="plate" id="out-plate" src="../../design/scenes/forecast-hero-talvi-v1.png" alt="">
+  <img class="plate" id="out-plate" src="../../../../design/scenes/forecast-hero-talvi-v1.png" alt="">
   <div class="show-title" id="out-title" style="bottom:150px">
     <div class="bar"><b style="font-size:96px; color:#FFB089">voltikka.fi</b></div>
     <div class="sub">Laske oman kotisi hinnat · sähkösää palaa joulukuun alussa</div>
@@ -124,8 +124,8 @@
 </section>
 
 <script src="timeline/saa.js"></script>
-<script src="data/2026-10.js"></script>
-<script src="lib.js"></script>
+<script src="data.js"></script>
+<script src="../../../../videos/monthly-market-review/lib.js"></script>
 <script>
 const END = TL.total;
 $('#open-logo').innerHTML = LOGO(64);
@@ -259,7 +259,7 @@ $$('#mkt-1 > div').forEach((d, i) => show(d, S('s_mkt1') + [0.2, 5.6][i], { dy: 
         ['s_adv4', null, 'Kvartaalisähkö', 'Vaihda kiinteään ennen 1.1.', 'Hinta nousee vuodenvaihteessa noin 3,8 c/kWh.', 0.2],
     ];
     rows.forEach(([line, img, who, what, why, d]) => {
-        const r = el(`<div class="advice-row">${img ? `<img src="../../design/illustrations/${img}.png">` : `<div style="width:170px; display:flex; justify-content:center"><svg width="150" height="110" viewBox="0 0 150 110"><path d="M10 80 H60 V30 H140" fill="none" stroke="#2B5F8C" stroke-width="10" stroke-linejoin="round"/><path d="M60 10 V100" stroke="#16202E" stroke-width="3" stroke-dasharray="6 6"/></svg></div>`}<div class="who">${who}</div><div><div class="what">${what}</div><div class="why">${why}</div></div></div>`);
+        const r = el(`<div class="advice-row">${img ? `<img src="../../../../design/illustrations/${img}.png">` : `<div style="width:170px; display:flex; justify-content:center"><svg width="150" height="110" viewBox="0 0 150 110"><path d="M10 80 H60 V30 H140" fill="none" stroke="#2B5F8C" stroke-width="10" stroke-linejoin="round"/><path d="M60 10 V100" stroke="#16202E" stroke-width="3" stroke-dasharray="6 6"/></svg></div>`}<div class="who">${who}</div><div><div class="what">${what}</div><div class="why">${why}</div></div></div>`);
         $('#adv').appendChild(r);
         show(r, (line === 's_adv0' ? S('s_adv1') : S(line)) + d - (line === 's_adv0' ? 1.0 : 0), { dy: 30 });
     });

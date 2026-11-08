@@ -14,6 +14,9 @@ root `AGENTS.md` first: the site-wide "Writing rules for public copy" apply to e
 | `video.md` | The review video (made in `videos/monthly-market-review/`) |
 | `tools/` | Scripts for an edition, with `tools/README.md` (commands). Run them from `tools/` |
 | `editions/<YYYY-MM>/` | One folder per review month: the draft (`<month>-katsaus.md`), the frozen figures (`metrics-*.json`, `drivers-*.json`, `consumer-*.json`) and draft SVG charts. The consumer files carry the forecast month in their name (October 2026 → `consumer-outlook-2026-11.json`) |
+| `editions/<YYYY-MM>/video/` | The edition's video sources (git): `script.mjs` (voice lines, variants, YouTube text), scene HTML, `data.js`, `timeline/`. The shared engine is `videos/monthly-market-review/` |
+| `editions/<YYYY-MM>/work/` | Work files of the edition (not in git): voice takes, voice tracks, renders, stills, archived versions, storyboard images |
+| `editions/<YYYY-MM>/final/` | The files to publish: the review video and its Shorts (`final/shorts/`) with `.srt`, title, description and thumbnail. Text files are in git, media are not (`.gitignore`) |
 
 The public page is in Laravel, not here: `laravel/config/market_reviews.php` (list of editions,
 `draft` flag, video), `laravel/resources/views/market-reviews/<month>.blade.php` (frozen page
@@ -31,7 +34,8 @@ text), `laravel/resources/market-reviews/<month>/` (frozen chart JSON and CSV). 
 4. Page: copy the previous month's Blade view as a start, write the frozen text; chart JSON with
    `tools/site_payloads.py` (it refuses to overwrite; `--force` only before publication); CSV
    `luvut.csv` (no EEX futures values). Add the edition with `draft => true` to the config.
-5. Publish: `draft => false`, `published_on`, `teaser` (the one line of the home page row), video
+5. Video and Shorts: `editions/<month>/video/` → `final/` with the engine in `videos/monthly-market-review/` (see its `AGENTS.md`).
+6. Publish: `draft => false`, `published_on`, `teaser` (the one line of the home page row), video
    `youtube_id` + `uploaded_on`; tests; commit; deploy with approval. The home page row and the
    menu link change to the new edition by themselves.
 
