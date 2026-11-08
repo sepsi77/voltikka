@@ -173,3 +173,26 @@
   volume no alert is built. Add a payment method before the trial credit ends.
 - Checked read-only (names only): the web service has `DB_HOST`, `DB_PORT`, `DB_DATABASE`,
   `DB_USERNAME`, `DB_PASSWORD`, so the worker can reference them for the model.
+
+## 2026-11-08 – Production rollout (user: "You can handle the rest")
+
+- User created the namespace (`voltikka-prod.lw6f1`, values in `laravel/.env`, not printed) and
+  approved the rest: commit, push, image, Railway service, variables, worker deploy, schedules.
+- Commit `220c32c` pushed. Image `deploy-000021-220c32cd0a2c` (PHP 8.4.27; worker, model and
+  scikit-learn 1.9.1 import in the image). The web service was not deployed: this release has no
+  migration and the web code path is unchanged; it gets the image at its next normal release.
+- Railway service `voltikka-worker` (`73a37ca9-6280-4695-856a-7674e548e74c`, europe-west4,
+  restart ALWAYS, no volume, no domain): one `railway environment edit` JSON patch with the image,
+  the start command `/usr/local/bin/docker-worker-entrypoint.sh` (replaces the image ENTRYPOINT),
+  the registry credential copied from the web service config through a pipe, the three
+  `TEMPORAL_*` values from `laravel/.env`, and references for everything else (`DB_*` to MySQL,
+  Laravel/API keys to `voltikka`, `FORECAST_BUCKET*` to `voltikka-forecast`). No value printed.
+- Deployment `b3e32a5f-…` SUCCESS; log: "Worker started: namespace voltikka-prod.lw6f1, task
+  queue voltikka-main". `orchestration:readiness` runs in the worker against production MySQL.
+  Python logs go to stderr, so Railway shows them with level "error" (cosmetic).
+- Schedules created: `s-forecast-daily` (next 2026-11-08 10:55 Helsinki) and `s-refit-weekly`
+  (next 2026-11-09 10:45).
+- Open: the own-model session's one-time `seed-misses` and `upload-archive` in the worker (they
+  need its local research files). Until then `predict` gives `no_active_version` (one Issue per
+  day) and the refit gives `refit_invalid`. The Sentry interceptor for unexpected workflow
+  failures is not built.
