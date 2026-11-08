@@ -91,6 +91,9 @@ cd "$(git rev-parse --show-toplevel)" && \
   --session-id <slug>-<ts>-<reviewer-name> --mode text
 ```
 
+`write` is there only for the reviewer's own report file. Read-only for source is a prompt rule,
+not a tool limit (`bash` can also write), so check `git status --short` after the round.
+
 Wait for each background task's completion notification; do not poll with sleeps.
 
 ```

@@ -62,9 +62,11 @@ show)
   if [ -z "$review" ]; then
     # A clean incremental review posts no review object; its result is in the walkthrough.
     # Use only the walkthrough that names this head commit, never an earlier round's result.
-    walkthrough=$(gh api "repos/$repo/issues/$pr/comments" --paginate -q \
-      ".[] | select(.user.login == \"$bot\") | select(.body | contains(\"$head\")) | .body" |
-      sed 's/<[^>]*>//g' || true)
+    # A failed API read must not look like "no result": only the filter may come back empty.
+    comments=$(gh api "repos/$repo/issues/$pr/comments" --paginate -q \
+      ".[] | select(.user.login == \"$bot\") | select(.body | contains(\"$head\")) | .body") ||
+      { echo "gh api failed while reading the walkthrough: result unknown" >&2; exit 1; }
+    walkthrough=$(printf '%s' "$comments" | sed 's/<[^>]*>//g')
     if [ -z "$walkthrough" ]; then
       echo "no review object and no walkthrough that names ${head:0:7}: no current result"
       exit 0
@@ -75,8 +77,9 @@ show)
     exit 0
   fi
   # Print everything: a truncating pipe (head) can also stop the script under pipefail.
-  gh api "repos/$repo/pulls/$pr/reviews/$review" -q .body |
-    sed 's/<[^>]*>//g' | grep -v '^[[:space:]]*$' || true
+  body=$(gh api "repos/$repo/pulls/$pr/reviews/$review" -q .body) ||
+    { echo "gh api failed while reading review $review: result unknown" >&2; exit 1; }
+  printf '%s\n' "$body" | sed 's/<[^>]*>//g' | grep -v '^[[:space:]]*$' || true
   echo "## Inline comments of review $review"
   gh api "repos/$repo/pulls/$pr/comments" --paginate |
     jq -r --argjson r "$review" '.[] | select(.pull_request_review_id == $r)

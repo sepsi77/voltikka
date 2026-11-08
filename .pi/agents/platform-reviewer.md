@@ -55,9 +55,15 @@ result acceptable: report the result and cite the decision.
    A workflow date input must agree with the date that its commands write: when the commands use
    the current Helsinki date, a run for another date (a past date, a write after midnight) is
    refused, not run (example: `MorningChain` read yesterday's checkpoints but wrote today's facts).
+   Check this at the activity boundary: a timer or activity timeout does not bound wall time, and a
+   worker outage can start any later step after midnight (a start-only check missed this).
 2. **Retries.** A failed command (`CommandFailed`) is never retried automatically; it is
    non-retryable in every retry policy. Only a lost attempt (worker deploy, crash, heartbeat
-   timeout) is retried. Social posting and morning consumers use `max_attempts=1`.
+   timeout) is retried. Social posting and morning consumers use `max_attempts=1`. For every step,
+   read the PHP command for durable claims, leases and cache locks (`Cache::lock`, `*_LEASE_*`,
+   claim rows): such a step is `interruptible=False` with a timeout below the worker drain, because
+   a deploy kill leaves the lock and the retry fails on it (example: `contracts:fetch` holds the
+   30-minute import execution lock in its first post-import work).
 3. **One Issue per failure.** Each failed step sends exactly one Sentry Issue. Self-reporting
    commands (`spot:fetch`, `futures:fetch-eex`, `contracts:fetch`) get none from the workflow. The
    Sentry interceptor does not report `ReportedFailure` again. A workflow outcome comes from the

@@ -85,11 +85,12 @@ implemented locally, not in production; only the collectors group is cut over in
 - **Deploy drain.** Railway sends SIGTERM to the old worker after the new one is active. The worker
   stops polling. An interruptible command (`Step.interruptible`, default true) is killed at once and
   repeats on the new worker after about 30 s. A claim-based command (`interruptible=False`:
-  `contracts:complete-import`, both morning consumers, social posts, `contracts:warm-cache
-  --pending` with its 30-minute producer lease) runs to its end within `GRACEFUL_SHUTDOWN` (65 min;
+  `contracts:fetch` and `contracts:complete-import` with the 30-minute import execution lock, both
+  morning consumers, social posts, `contracts:warm-cache --pending` with its 30-minute producer
+  lease) runs to its end within `GRACEFUL_SHUTDOWN` (65 min;
   `worker.py`), because a killed claim cannot be resumed and stays locked for inspection. Every
-  claim-based step timeout must stay below that drain (consumers and the weekly video 60 min; a test
-  checks it). The worker service needs `RAILWAY_DEPLOYMENT_DRAINING_SECONDS` above that (4000;
+  claim-based step timeout must stay below that drain (contract import, consumers and the weekly
+  video 60 min; a test checks it; measure the real import time in the R4 acceptance test). The worker service needs `RAILWAY_DEPLOYMENT_DRAINING_SECONDS` above that (4000;
   check the Railway maximum before R3, else keep a deploy guard for live claims). A crash (SIGKILL) still
   waits for the 2-minute heartbeat timeout. Tests: `test_a_deploy_*` in `tests/test_jobs.py`.
 - **One Issue per failure.** A failed step sends one `report_issue` (`command_failed`), because the
@@ -102,7 +103,10 @@ implemented locally, not in production; only the collectors group is cut over in
 - A failed step skips the later steps of the job, except `always` steps (backup clean/monitor after
   the backup, price-cache cleanup after the warm, daily spot social post after `spot:fetch`).
 - `MorningChain` (Schedule 04:00, one per Helsinki date): it refuses a past date (the commands
-  write the current Helsinki date) and waits until 04:00 of a later one. `EexFutures` starts at once;
+  write the current Helsinki date) and waits until 04:00 of a later one. Every morning command
+  carries its date (`CommandRequest.date`); `run_command` refuses it with `DatePassed` (one Issue)
+  before PHP starts when the Helsinki date has changed, because a timer does not bound how long a
+  workflow waits for a worker (an outage across midnight). `EexFutures` starts at once;
   `ContractImport` waits until 06:00, runs `contracts:fetch --skip-logos`, then
   `contracts:complete-import` every minute while `orchestration:readiness morning` says
   `pending_completion` (at most 2 h 10 min), then `forecasting:evaluate-fixed-contracts`. Exit 0

@@ -296,3 +296,26 @@
 - Deferred: process-level recovery test (same as the spec-review deferral) and a consumer activity
   across noon (R4 acceptance test). Lessons codified in `.pi/agents/platform-reviewer.md` items 1,
   3, 4 and 7. Details: `reviews/2026-11-08T17-53/actions.md`.
+
+## 2026-11-08 – PR #9 external review, round 1
+
+Head cb578b6. CodeRabbit review 5818590357 (3 actionable, 1 nitpick). Greptile review 5818601216
+(Plus tier, confidence 3/5, 4 findings; 2 duplicate CodeRabbit).
+
+| Finding | Reviewer | Verdict | Action | Reaction |
+|---|---|---|---|---|
+| `contracts:fetch` is interruptible but holds the 30-minute import execution lock (`ContractImportCompletion::required()`, `block(10)`); a deploy kill leaves it and the retry fails | Greptile 4506869539 | Valid | `CONTRACTS_STEP` `interruptible=False`, timeout 90 → 60 min (inside the 65-min drain); drain test includes it; R4 acceptance measures the real import time | 👍 |
+| A worker outage across midnight lets a morning step start on the next date (timers do not bound wall time); the Pi-round start-only check assumed otherwise | Greptile 4506869545 | Valid | `CommandRequest.date`; `run_command` refuses a passed date with `DatePassed` (non-retryable, one Issue) before PHP; every morning step carries the date; real-activity test | 👍 |
+| `greptile.sh show` does not paginate reviews | CodeRabbit 4506859231, Greptile 4506869550 | Valid | `--paginate` + `tail -1` | 👍 👍 |
+| `coderabbit.sh show` hides a failed `gh api` (walkthrough and review body) | CodeRabbit 4506859221, Greptile 4506869552 | Valid | API reads checked before the text filter; failure exits 1 with "result unknown" | 👍 👍 |
+| spec-review launch grants `write` to read-only reviewers | CodeRabbit 4506859237 | Partly valid | `write` stays for the reviewer's own report (bash can write anyway); note added next to the command, with a `git status` check | 👍 + reply |
+| `run.py` sets `PI_PR_REVIEW_MODEL` in its own environment (nitpick) | CodeRabbit body | Declined | Short-lived process; harmless; ported code kept equal to ecom-buddy | — |
+| Docstring coverage pre-merge warning | CodeRabbit | Declined | Not a repository rule | — |
+
+Codification (`.agents/skills/spec-review/missed-findings.md`):
+
+| Finding | Owner | Cause | Instruction changed |
+|---|---|---|---|
+| Import lock on an interruptible step | platform-reviewer | (d) the drain rule is written; the checklist did not tell the reviewer to read each PHP command for locks and leases | `.pi/agents/platform-reviewer.md` item 2 (+ copy) |
+| Date check only at workflow start | platform-reviewer | (e) the Pi round found it; the manager's partial fix assumed a run cannot cross midnight | item 1 widened: check at the activity boundary |
+| Review helper scripts | none | (b) `code-review-workflow` tooling (ported), outside this task's spec-review range | none |

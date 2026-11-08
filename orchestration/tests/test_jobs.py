@@ -4,7 +4,7 @@ import asyncio
 import os
 import sys
 import uuid
-from datetime import time, timedelta
+from datetime import datetime, time, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -13,6 +13,7 @@ import sentry_sdk
 from temporalio import activity
 from temporalio.client import Schedule, ScheduleOverlapPolicy, WorkflowFailureError
 from temporalio.exceptions import ApplicationError
+from temporalio.testing import ActivityEnvironment
 from temporalio.worker import UnsandboxedWorkflowRunner, Worker
 
 from voltikka_orchestration import jobs, sentry
@@ -403,9 +404,10 @@ def test_claim_based_steps_finish_during_a_deploy_drain():
     for argv in (("contracts:warm-cache", "--pending"), ("social:publish-daily-spot",), ("social:weekly-offers-video",)):
         assert steps[argv].interruptible is False, argv
     assert jobs.COMPLETION_STEP.interruptible is False and jobs.COMPLETION_STEP.self_reports is True
+    assert jobs.CONTRACTS_STEP.interruptible is False  # holds the import execution lock
     assert steps[("spot:fetch",)].interruptible is True
     # Every claim-based step ends within the drain, or the end of the drain still kills it.
-    protected = [step for step in steps.values() if not step.interruptible] + [jobs.COMPLETION_STEP]
+    protected = [step for step in steps.values() if not step.interruptible] + [jobs.COMPLETION_STEP, jobs.CONTRACTS_STEP]
     limits = [timedelta(minutes=step.timeout_minutes) for step in protected] + [timedelta(minutes=jobs.CONSUMER_TIMEOUT_MINUTES)]
     assert max(limits) < GRACEFUL_SHUTDOWN
 
@@ -474,6 +476,25 @@ async def test_a_real_nonzero_exit_is_command_failed_and_runs_once(env, tmp_path
             await env.client.execute_workflow(ArtisanJob.run, ArtisanJobInput("t", [Step(["fail"])]),
                                               id=f"real-{uuid.uuid4()}", task_queue=QUEUE)
     assert calls(tmp_path) == ["fail"]
+
+
+async def test_a_morning_activity_that_starts_after_its_date_is_refused_before_php(tmp_path, monkeypatch):
+    """A worker outage across midnight: the timer fires on the next date, and the commands would
+    write that date."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "artisan").write_text(ARTISAN)
+    activities = Activities(real_settings(tmp_path))
+    today = datetime.now(HELSINKI).date()
+
+    with pytest.raises(ApplicationError) as refused:
+        await ActivityEnvironment().run(activities.run_command,
+                                        CommandRequest("artisan", ["short"], date=(today - timedelta(days=1)).isoformat()))
+
+    assert refused.value.type == "DatePassed" and refused.value.non_retryable
+    assert not (tmp_path / "calls.log").exists()
+    result = await ActivityEnvironment().run(activities.run_command,
+                                             CommandRequest("artisan", ["short"], date=today.isoformat()))
+    assert result.result == {"ok": True}
 
 
 async def test_a_deploy_kills_an_interruptible_command_and_the_new_worker_repeats_it(env, tmp_path, monkeypatch):

@@ -57,8 +57,8 @@ different value would write wrong or orphaned prices into the shared cache.
 `CommandFailed` as non-retryable: a command that failed is not run again automatically (same as
 the scheduler today). Only a lost attempt (worker restart, heartbeat timeout) is retried. Deploy
 safety: on a worker deploy, interruptible commands stop and repeat on the new worker; commands with
-a durable claim or lease (deferred import completion, morning consumers, social posts, the
-price-cache warm) finish within the drain (`GRACEFUL_SHUTDOWN` 65 min, longer than every
+a durable claim, lease or lock (the contract import and its deferred completion, morning
+consumers, social posts, the price-cache warm) finish within the drain (`GRACEFUL_SHUTDOWN` 65 min, longer than every
 claim-based step timeout; Railway draining seconds 4000), because a killed claim cannot be resumed.
 
 ## Groups and order of cut-over
@@ -99,7 +99,9 @@ spot, morning) leaves the web container before every service uses the shared Red
 - **R4 (own PR): morning.** The PR removes the morning chain from `console.php` and adds
   `logos:download` (the worker import uses `--skip-logos`). Deploy web outside 04:00–12:00 (the old
   window still applies until this release), then `--group morning`. Check the next morning: EEX,
-  import, completion, both lanes, evaluation.
+  import, completion, both lanes, evaluation. Before the PR: the real PHP + Temporal + database
+  morning test, which also measures the `contracts:fetch` time (its step timeout is 60 min, inside
+  the 65-minute drain).
 - **R5 Phase 4.** After two good mornings, remove the deploy window from `scripts/deploy-image.sh`
   and root `AGENTS.md`.
 

@@ -99,10 +99,10 @@ def step_options(step: Step) -> dict:
     )
 
 
-async def artisan(step: Step) -> CommandResult:
+async def artisan(step: Step, day: str | None = None) -> CommandResult:
     return await workflow.execute_activity(
         "run_command",
-        CommandRequest("artisan", step.args, step.interruptible),
+        CommandRequest("artisan", step.args, step.interruptible, day),
         result_type=CommandResult,
         **step_options(step),
     )
@@ -114,9 +114,10 @@ def reported_by_command(step: Step, error: ActivityError) -> bool:
     return step.self_reports and isinstance(cause, ApplicationError) and cause.type == "CommandFailed"
 
 
-async def run_steps(name: str, steps: list[Step]) -> list[StepOutcome]:
+async def run_steps(name: str, steps: list[Step], day: str | None = None) -> list[StepOutcome]:
     """Run the steps in order. A failure skips later steps except `always` steps, and sends one
-    Issue unless the command has already reported it."""
+    Issue unless the command has already reported it. With `day`, a step that would start after that
+    Helsinki date has passed fails (`DatePassed`) before PHP starts."""
     outcomes: list[StepOutcome] = []
     failed = False
     for step in steps:
@@ -125,7 +126,7 @@ async def run_steps(name: str, steps: list[Step]) -> list[StepOutcome]:
             outcomes.append(StepOutcome(command, "skipped"))
             continue
         try:
-            result = await artisan(step)
+            result = await artisan(step, day)
             outcomes.append(StepOutcome(command, "succeeded", result=result.result))
         except ActivityError as error:
             failed = True
@@ -170,7 +171,9 @@ class MorningResult:
 
 
 EEX_STEP = Step(["futures:fetch-eex"], timeout_minutes=6 * 60, self_reports=True)
-CONTRACTS_STEP = Step(["contracts:fetch", "--skip-logos"], timeout_minutes=90, self_reports=True)
+# Its first post-import work holds the 30-minute import execution lock (ContractImportCompletion):
+# a killed run would leave it locked, and a retry would fail on it. So it finishes in the drain.
+CONTRACTS_STEP = Step(["contracts:fetch", "--skip-logos"], timeout_minutes=60, self_reports=True, interruptible=False)
 # Its claim cannot be resumed after a kill (an expired claim becomes interrupted_execution).
 COMPLETION_STEP = Step(["contracts:complete-import"], timeout_minutes=35, self_reports=True, interruptible=False)
 EVALUATION_STEP = Step(["forecasting:evaluate-fixed-contracts"], timeout_minutes=30)
@@ -196,7 +199,7 @@ class EexFutures:
 
     @workflow.run
     async def run(self, params: MorningInput) -> str:
-        outcome = (await run_steps("EexFutures", [EEX_STEP]))[0]
+        outcome = (await run_steps("EexFutures", [EEX_STEP], params.date))[0]
         if outcome.status == "failed":
             raise reported_failure(f"futures:fetch-eex failed ({outcome.error})", [outcome.error])
         return outcome.status
@@ -211,7 +214,8 @@ class ContractImport:
     async def run(self, params: MorningInput) -> str:
         day = date.fromisoformat(params.date) if params.date else local_date(workflow.now())
         await sleep_until(local_instant(day, CONTRACT_IMPORT_START))
-        status = (await run_steps("ContractImport", [CONTRACTS_STEP]))[0].status
+        iso = day.isoformat()
+        status = (await run_steps("ContractImport", [CONTRACTS_STEP], iso))[0].status
 
         if status == "succeeded":
             limit = workflow.now() + COMPLETION_LIMIT
@@ -225,7 +229,7 @@ class ContractImport:
                     ))
                     break
                 await workflow.sleep(COMPLETION_POLL)
-                if (await run_steps("ContractImport", [COMPLETION_STEP]))[0].status == "failed":
+                if (await run_steps("ContractImport", [COMPLETION_STEP], iso))[0].status == "failed":
                     status = "completion_failed"
                     break
             else:
@@ -240,7 +244,7 @@ class ContractImport:
                             {"date": day.isoformat(), "checkpoint": state},
                         ))
 
-        evaluation = (await run_steps("ContractImport", [EVALUATION_STEP]))[0].status
+        evaluation = (await run_steps("ContractImport", [EVALUATION_STEP], iso))[0].status
         if status != "succeeded" or evaluation == "failed":
             raise reported_failure(f"Contract import {day}: {status}, evaluation {evaluation}", [status, evaluation])
         return status
@@ -270,8 +274,8 @@ class MorningChain:
         day = date.fromisoformat(params.date) if params.date else local_date(workflow.now())
         if day < local_date(workflow.now()):
             # The commands write the current Helsinki date, so a run for a past date would read old
-            # checkpoints while it writes today's facts. A run that starts on its own date ends the
-            # same day (producer timeouts, consumers end at noon), so no write crosses midnight.
+            # checkpoints while it writes today's facts. A later activity that would start after the
+            # date has passed (a worker outage across midnight) is refused by run_command (`day`).
             raise ApplicationError(f"Morning chain {day}: the date has passed", non_retryable=True)
         await sleep_until(local_instant(day, MORNING_START))
         iso = day.isoformat()
@@ -318,7 +322,7 @@ class MorningChain:
         facts = await morning_facts(iso)
         open_keys = [key for key in CONSUMERS if not facts["scheduled_complete"].get(key)]
         await asyncio.gather(*(run_steps("MorningChain", [Step(CONSUMERS[key], timeout_minutes=5, max_attempts=1,
-                                                                 interruptible=False)]) for key in open_keys))
+                                                                 interruptible=False)], iso) for key in open_keys))
 
     async def _lane(self, key: str, iso: str, noon: datetime) -> str:
         self._lanes[key] = "waiting_for_producers"
@@ -341,7 +345,7 @@ class MorningChain:
                 await sleep_until(noon)
                 continue
             self._lanes[key] = "ticking"
-            await run_steps("MorningChain", [step])
+            await run_steps("MorningChain", [step], iso)
             if at_deadline:
                 facts = await morning_facts(iso)
                 state = "complete" if facts["scheduled_complete"].get(key) else (facts["checkpoints"].get(key) or "missing")

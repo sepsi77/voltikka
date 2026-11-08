@@ -67,8 +67,10 @@ show)
     sed -n '/Confidence Score/,/^Summary/p'
   # Old inline comments are moved onto new commits by GitHub, so filter by the newest review
   # on the head commit, never by commit_id. A clean round may post no review object at all.
-  review=$(gh api "repos/$repo/pulls/$pr/reviews" -q \
-    "[.[] | select(.user.login | startswith(\"greptile\")) | select(.commit_id == \"$head\")] | last | .id // empty")
+  # --paginate applies the filter per page; the last non-empty line is the newest match.
+  review=$(gh api "repos/$repo/pulls/$pr/reviews" --paginate -q \
+    "[.[] | select(.user.login | startswith(\"greptile\")) | select(.commit_id == \"$head\")] | last | .id // empty" |
+    tail -1)
   echo "## Inline comments of the newest review on ${head:0:7}"
   if [ -z "$review" ]; then
     echo "none (no review object on this commit)"

@@ -31,3 +31,7 @@ No PHP code changed in this round.
 | S1 Retry comment | refactor-reviewer | none: one-word comment error; the stale-comment focus already covers it | none |
 | S2 Deploy effect text | platform-reviewer | (d) item 7 checked refusals, not the stated effect | Checklist item 7 |
 | S3 Noon across an active consumer | test-reviewer | none: deferred to the R4 acceptance test | none |
+
+Later correction (PR #9 round 1, Greptile 4506869545): the assumption in finding 2 was wrong. A
+timer does not bound wall time, so a worker outage can start a step after midnight. Every morning
+step now carries its date, and `run_command` refuses a passed date (`DatePassed`).
