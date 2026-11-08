@@ -4,7 +4,8 @@ Expected outcomes that need a person (no forecast, missed deadline, failed refit
 `report_issue` activity. This interceptor covers the rest: an exception that leaves workflow code
 (a bug, a sandbox restriction, an activity error that the workflow does not handle). The worker
 sets `workflow_failure_exception_types=[Exception]`, so such an exception fails the workflow once
-instead of retrying its workflow task forever, and this reports it once.
+instead of retrying its workflow task forever, and this reports it once. An `ArtisanJob` that ends
+with a failed step raises `ReportedFailure` after its own Issue; that error is not reported again.
 """
 
 from __future__ import annotations
@@ -12,6 +13,7 @@ from __future__ import annotations
 from typing import Any
 
 from temporalio import workflow
+from temporalio.exceptions import ApplicationError
 from temporalio.worker import ExecuteWorkflowInput, Interceptor, WorkflowInboundInterceptor, WorkflowInterceptorClassInput
 
 with workflow.unsafe.imports_passed_through():
@@ -19,7 +21,8 @@ with workflow.unsafe.imports_passed_through():
     from sentry_sdk.integrations.logging import LoggingIntegration
 
 
-def init(dsn: str | None, environment: str) -> None:
+def init(dsn: str | None, environment: str, transport: object | None = None) -> None:
+    """`transport` replaces only the network transport (tests)."""
     if not dsn:
         return
     # event_level=None: a log line is never an Issue; only the explicit captures are (report_issue
@@ -29,6 +32,7 @@ def init(dsn: str | None, environment: str) -> None:
         environment=environment,
         traces_sample_rate=0.0,
         integrations=[LoggingIntegration(event_level=None)],
+        transport=transport,
     )
 
 
@@ -54,8 +58,10 @@ class _WorkflowInbound(WorkflowInboundInterceptor):
         try:
             return await super().execute_workflow(input)
         except Exception as error:
-            # A replay re-raises the same error: report only the first time it happens.
-            if not workflow.unsafe.is_replaying():
+            # A replay re-raises the same error: report only the first time it happens. A
+            # "ReportedFailure" (jobs.py) already sent its own Issue.
+            already_reported = isinstance(error, ApplicationError) and error.type == "ReportedFailure"
+            if not already_reported and not workflow.unsafe.is_replaying():
                 with workflow.unsafe.sandbox_unrestricted():
                     report_workflow_failure(workflow.info(), error)
             raise

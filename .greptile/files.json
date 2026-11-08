@@ -1,0 +1,48 @@
+{
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "description": "Project context: features, pricing source of truth, statistics history rule, production safety, public copy rules"
+    },
+    {
+      "path": "laravel/AGENTS.md",
+      "description": "Laravel conventions, import failure reporting, site shell, long-read pages",
+      "scope": ["laravel/**"]
+    },
+    {
+      "path": "laravel/app/Services/CanonicalPricing/AGENTS.md",
+      "description": "Canonical pricing rules: annualized comparison policy, VAT, phases, estimators",
+      "scope": ["laravel/app/**"]
+    },
+    {
+      "path": "laravel/app/Services/ContractStatistics/AGENTS.md",
+      "description": "Annual-cost methods, as-of history, statistics basis compatibility",
+      "scope": ["laravel/app/Services/ContractStatistics/**", "laravel/app/Livewire/**", "laravel/database/migrations/**"]
+    },
+    {
+      "path": "laravel/app/Services/Caching/AGENTS.md",
+      "description": "Price cache generations, retained-cache policy, cleanup limits",
+      "scope": ["laravel/app/**"]
+    },
+    {
+      "path": "laravel/app/Livewire/AGENTS.md",
+      "description": "Listing components, pricing-type filter, bill comparison in listings",
+      "scope": ["laravel/app/Livewire/**", "laravel/resources/views/**"]
+    },
+    {
+      "path": "orchestration/AGENTS.md",
+      "description": "Temporal worker, schedules, retry policy, cut-over groups",
+      "scope": ["orchestration/**", "laravel/routes/console.php", "Dockerfile", "docker-*.sh", "supervisord.conf"]
+    },
+    {
+      "path": "forecast/AGENTS.md",
+      "description": "Own spot forecast models, frozen s_v1, vintage-as-of-issue",
+      "scope": ["forecast/**"]
+    },
+    {
+      "path": "market-review/AGENTS.md",
+      "description": "Monthly market review structure and frozen figures",
+      "scope": ["market-review/**"]
+    }
+  ]
+}

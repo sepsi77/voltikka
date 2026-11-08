@@ -1,21 +1,23 @@
 // Builds the timeline of one variant from the measured voice lines.
 //
-//   node timeline.mjs katsaus
-//   node timeline.mjs katsaus --srt     # only the subtitles
+//   node timeline.mjs 2026-10 katsaus
+//   node timeline.mjs 2026-10 katsaus --srt     # only the subtitles
 //
-// Writes:
-//   timeline/<variant>.js        window.TL = { total, lines: { id: { start, end, text } } } for the scene
-//   audio/<variant>/voice.wav    the voice track: each line at its start time (48 kHz mono)
-//   final/…-katsaus.srt (other variants: out/archive/) subtitles (one cue per line, long lines split in two cues)
+// Writes (paths in market-review/editions/<month>/, see edition.mjs):
+//   video/timeline/<variant>.js     window.TL = { total, lines: { id: { start, end, text, sub? } } } for the scene (sub: SUBS text)
+//   work/audio/<variant>/voice.wav  the voice track: each line at its start time (48 kHz mono)
+//   <out>.srt                       subtitles (one cue per line, long lines split in two cues); <out> = edition.out()
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { LINES, SUBS, VARIANTS, voDir } from './script.mjs';
+import { dirname } from 'node:path';
+import { edition } from './edition.mjs';
 
-const variant = process.argv[2];
-const srtOnly = process.argv[3] === '--srt';
-const v = VARIANTS[variant];
-if (!v) throw new Error(`Unknown variant: ${variant}`);
-const dir = voDir(v);
+const [month, variant, flag] = process.argv.slice(2);
+const srtOnly = flag === '--srt';
+const ed = await edition(month);
+const { LINES, SUBS } = ed.script;
+const v = ed.variant(variant);
+const dir = ed.voDir(v);
 const duration = (f) => Number(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f]).toString());
 
 const lines = {};
@@ -23,17 +25,17 @@ const order = [];
 let t = v.lead;
 for (const [id, pause] of v.segments) {
     const d = duration(`${dir}/${id}.wav`);
-    lines[id] = { start: +t.toFixed(3), end: +(t + d).toFixed(3), text: LINES[id] };
+    lines[id] = { start: +t.toFixed(3), end: +(t + d).toFixed(3), text: LINES[id], ...(SUBS[id] ? { sub: SUBS[id] } : {}) };
     order.push(id);
     t += d + pause;
 }
 const total = +t.toFixed(2);
 
-mkdirSync('timeline', { recursive: true });
-if (!srtOnly) writeFileSync(`timeline/${variant}.js`, `// Made by timeline.mjs from the voice durations. Do not edit.\nwindow.TL = ${JSON.stringify({ variant, total, order, lines }, null, 1)};\n`);
+mkdirSync(dirname(ed.timeline(variant)), { recursive: true });
+if (!srtOnly) writeFileSync(ed.timeline(variant), `// Made by timeline.mjs from the voice durations. Do not edit.\nwindow.TL = ${JSON.stringify({ variant, total, order, lines }, null, 1)};\n`);
 
 // Voice track: silence + line, in order. The concat demuxer keeps sample-exact timing.
-const work = `audio/${variant}`;
+const work = `${ed.work}/audio/${variant}`;
 if (!srtOnly) {
 mkdirSync(`${work}/gaps`, { recursive: true });
 let list = '';
@@ -42,7 +44,7 @@ order.forEach((id, i) => {
     const gap = lines[id].start - pos;
     const g = `${work}/gaps/${i}.wav`;
     execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=mono', '-t', gap.toFixed(4), '-c:a', 'pcm_s16le', g]);
-    list += `file '${process.cwd()}/${g}'\nfile '${process.cwd()}/${dir}/${id}.wav'\n`;
+    list += `file '${g}'\nfile '${dir}/${id}.wav'\n`;
     pos = lines[id].start + duration(`${dir}/${id}.wav`);
 });
 writeFileSync(`${work}/voice-list.txt`, list);
@@ -77,7 +79,6 @@ for (const id of order) {
         c0 = c1;
     }
 }
-mkdirSync('final', { recursive: true });
-mkdirSync('out/archive', { recursive: true });
-writeFileSync(`${variant === 'katsaus' ? 'final' : 'out/archive'}/voltikka-markkinakatsaus-2026-10-${variant}.srt`, srt.trimEnd() + '\n');
+mkdirSync(dirname(ed.out(variant)), { recursive: true });
+writeFileSync(`${ed.out(variant)}.srt`, srt.trimEnd() + '\n');
 console.log(`${variant}: ${order.length} lines, ${total} s (${Math.floor(total / 60)}:${String(Math.round(total % 60)).padStart(2, '0')})`);

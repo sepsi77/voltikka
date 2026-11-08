@@ -25,8 +25,8 @@ RUN apt-get update && apt-get install -y \
     $PHPIZE_DEPS \
     && docker-php-ext-configure gd --with-jpeg --with-webp \
     && docker-php-ext-install pdo pdo_pgsql pdo_mysql mbstring exif pcntl bcmath gd zip intl \
-    && pecl install excimer \
-    && docker-php-ext-enable excimer \
+    && pecl install excimer redis \
+    && docker-php-ext-enable excimer redis \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Set Chromium path for Remotion/Puppeteer

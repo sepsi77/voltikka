@@ -12,3 +12,7 @@ Rules:
 - Create a separate folder for each task and create empty spec.md, tasks.json and decisions.md files there
 - ALWAYS read the context files for the task before you read or edit any code.
 - ALWAYS update the relevant files after each task
+
+Reviews:
+- A review round writes its reports, `summary.md` and `actions.md` to `tasks/<slug>/reviews/<ts>/` (`<ts>` = `YYYY-MM-DDTHH-MM`, Helsinki time). See `## Code review workflow` in the root `AGENTS.md` and `.agents/skills/spec-review/SKILL.md`.
+- Write `spec.md` so it can be reviewed: list the requirements and "Done when" checks as separate items. The spec review numbers them `S1..Sn`.

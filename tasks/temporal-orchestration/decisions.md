@@ -218,3 +218,169 @@
   model process for two checks): the worker has no volume, so a restart deletes `/tmp` files. Log
   lines now have level "info". No active model version yet: today's run gives `no_active_version`
   unless a version is activated before 14:30; the first refit is 2026-11-09 10:45.
+
+## 2026-11-08 – Phase 2 decisions and local implementation
+
+- User request: move all data fetch pipelines and their orchestration to Temporal, so fetching does
+  not depend on the main application and the no-deploy window goes away.
+- User decisions (all four recommended options): Railway Redis as the shared cache store; a separate
+  Railway service `voltikka-queue` for `queue:work`; all scheduled jobs to Temporal except jobs that
+  need the web volume (weekly file backup, logo download); direct cut-over one group at a time
+  instead of a shadow phase. Plan and runbook: `phase2-plan.md`.
+- Why Redis is necessary: fetch commands write the Laravel cache (price-cache demand and
+  generations, spot header, statistics warm, forecasts). The file store is on the web volume.
+  A worker without the shared store would write a private cache and the web would never see it.
+- Found: the worker and queue services must have the same pricing flags as the web service
+  (`CANONICAL_PRICING_ENABLED`, `RESET_FORWARD_SHIFT_ENABLED`, annual method, interpretation
+  settings). The current worker references only a subset; with the shared cache a different value
+  would write wrong prices. Rule: reference every application variable of `voltikka`.
+- Found: the Laravel scheduler failure listener alerted for every job without its own Issue. Outside
+  the scheduler this listener does not run, so `ArtisanJob` sends one Issue per failed step, except
+  for the three self-reporting imports (`spot:fetch`, `futures:fetch-eex`, `contracts:fetch`).
+- Retry rule: a non-zero exit (`CommandFailed`) is non-retryable in every job, as with the
+  scheduler; only lost attempts are retried. This keeps "no automatic retry" for imports, social
+  posting and morning writers, and still makes a worker deploy safe. The worker now shuts down on
+  SIGTERM (activities cancelled, child killed, retry about 30 s later on the new worker) instead of
+  waiting for the 2-minute heartbeat timeout. Both cases verified on a local dev server.
+- Morning chain: one `MorningChain` per date with two children (EEX at 04:00, import at 06:00). The
+  consumers start when both children have ended; the `--scheduled` commands keep their gates and
+  claims, so the workflow only replaces the cron ticks. Evaluation runs after import completion
+  (was 07:45). Signals were not used: the parent waits on its children, which is simpler.
+- `contracts:warm-cache --pending` + `contracts:cleanup-price-cache`: one Temporal job every five
+  minutes (was per instance every minute). Interpretation demand can wait up to five minutes;
+  imports and EEX still refresh synchronously. A one-minute schedule would cost about four times
+  more Temporal Actions for no user-visible gain.
+- Not done: splitting `futures:fetch-eex` into units. A worker deploy during the run repeats the
+  whole run (about 1.7 h) but loses no data; split only if this becomes a real problem.
+- Verified locally: PHP readiness tests (9) and the scheduler-related test files (101 tests
+  pass), Python tests (23), schedule times on a dev server (UTC future actions match Helsinki
+  times), an `ArtisanJob` run with real `php artisan` (success, failure with skip/always, one
+  Issue), and lost-attempt retries after SIGKILL and SIGTERM. Nothing deployed, nothing committed.
+
+## 2026-11-08 – Spec review round 2026-11-08T12-53 (Pi reviewers in T3)
+
+- Five Pi reviewers (platform, test, laravel, pricing, refactor) ran as T3 child tasks on the Pi
+  provider (`openai-codex/gpt-6.1-sol`, thinking high) instead of `pi-run.sh`. A T3 child has no
+  tool limit, so `git status` was checked after the round: only reports were written.
+- 21 first-round findings; the fixes (f6452f2 and later local changes) changed the plan:
+  - **Staged cut-over in code** (PLT-001, PRC-001): this branch moves only the collectors group.
+    The queue worker and the maintenance, spot and morning schedules stay in the web container
+    until the shared Redis store is live (R2), because they write the cache. Each later group is
+    its own PR (R3 queue+maintenance+spot, R4 morning). This replaces "one release removes all".
+  - **Consumer lanes**: one lane per consumer; done only on `scheduled_complete` (a manual subset
+    run is not the daily scope); a separate noon check ticks every incomplete consumer at 12:00
+    even while producers or its own command run; a late completion (`deadline_alerted`) counts as
+    incomplete; an incomplete morning sends one Issue and fails. The PHP 07:15/07:30 lower clock
+    bound is removed (the Laravel cron windows keep the start until R4).
+  - **Deploy drain** (PLT-006, PLT-V01): interruptible commands stop and repeat on the new worker;
+    claim-based commands (completion, consumers, social posts, price-cache warm) finish within a
+    65-minute drain; every claim-based timeout is at most 60 minutes (test); Railway draining
+    seconds 4000 on the worker (check the maximum before R3).
+  - Completion self-reports; lost/timed-out attempts of self-reporting steps are reported by the
+    workflow; `gas-storage:fetch --if-configured` keeps the optional-key skip.
+- Found while testing: the Temporal time-skipping test server does not move a workflow task from a
+  stopped worker's sticky queue (Temporal Cloud does after a short timeout). Tests that stop a worker
+  use `max_cached_workflows=0`.
+- Deferred (agent decision): a real heartbeat-loss test and a real PHP + Temporal + database morning
+  test; the second is a required acceptance check before the R4 PR. Verdict: ACCEPT for R1.
+  Reports: `reviews/2026-11-08T12-53/` (`summary.md`, `actions.md`).
+
+## 2026-11-08 – Pi PR review 2026-11-08T17-53
+
+- `pi-pr-review` over the branch (base local `main`): no critical findings, four important ones.
+  Fixed: `schedules --apply` needs `--group` or `--only` (a bare apply would start groups that
+  still run in `console.php`); `MorningChain` refuses a past date and waits until 04:00 of a later
+  date (the commands write the current Helsinki date); `ContractImport` reads the checkpoint after
+  exit 0 (`incomplete` from a partial acquisition fails without a second Issue; another non-`ready`
+  state fails with one `import_not_ready` Issue). Deploy-script effect texts corrected.
+- Deferred: process-level recovery test (same as the spec-review deferral) and a consumer activity
+  across noon (R4 acceptance test). Lessons codified in `.pi/agents/platform-reviewer.md` items 1,
+  3, 4 and 7. Details: `reviews/2026-11-08T17-53/actions.md`.
+
+## 2026-11-08 – PR #9 external review, round 1
+
+Head cb578b6. CodeRabbit review 5818590357 (3 actionable, 1 nitpick). Greptile review 5818601216
+(Plus tier, confidence 3/5, 4 findings; 2 duplicate CodeRabbit).
+
+| Finding | Reviewer | Verdict | Action | Reaction |
+|---|---|---|---|---|
+| `contracts:fetch` is interruptible but holds the 30-minute import execution lock (`ContractImportCompletion::required()`, `block(10)`); a deploy kill leaves it and the retry fails | Greptile 4506869539 | Valid | `CONTRACTS_STEP` `interruptible=False`, timeout 90 → 60 min (inside the 65-min drain); drain test includes it; R4 acceptance measures the real import time | 👍 |
+| A worker outage across midnight lets a morning step start on the next date (timers do not bound wall time); the Pi-round start-only check assumed otherwise | Greptile 4506869545 | Valid | `CommandRequest.date`; `run_command` refuses a passed date with `DatePassed` (non-retryable, one Issue) before PHP; every morning step carries the date; real-activity test | 👍 |
+| `greptile.sh show` does not paginate reviews | CodeRabbit 4506859231, Greptile 4506869550 | Valid | `--paginate` + `tail -1` | 👍 👍 |
+| `coderabbit.sh show` hides a failed `gh api` (walkthrough and review body) | CodeRabbit 4506859221, Greptile 4506869552 | Valid | API reads checked before the text filter; failure exits 1 with "result unknown" | 👍 👍 |
+| spec-review launch grants `write` to read-only reviewers | CodeRabbit 4506859237 | Partly valid | `write` stays for the reviewer's own report (bash can write anyway); note added next to the command, with a `git status` check | 👍 + reply |
+| `run.py` sets `PI_PR_REVIEW_MODEL` in its own environment (nitpick) | CodeRabbit body | Declined | Short-lived process; harmless; ported code kept equal to ecom-buddy | — |
+| Docstring coverage pre-merge warning | CodeRabbit | Declined | Not a repository rule | — |
+
+Codification (`.agents/skills/spec-review/missed-findings.md`):
+
+| Finding | Owner | Cause | Instruction changed |
+|---|---|---|---|
+| Import lock on an interruptible step | platform-reviewer | (d) the drain rule is written; the checklist did not tell the reviewer to read each PHP command for locks and leases | `.pi/agents/platform-reviewer.md` item 2 (+ copy) |
+| Date check only at workflow start | platform-reviewer | (e) the Pi round found it; the manager's partial fix assumed a run cannot cross midnight | item 1 widened: check at the activity boundary |
+| Review helper scripts | none | (b) `code-review-workflow` tooling (ported), outside this task's spec-review range | none |
+
+## 2026-11-08 – PR #9 external review, round 2
+
+Head b7d0045. CodeRabbit review 5818634562: no inline finding; one comment outside the diff
+(`laravel/routes/console.php:11-15`): the R1 web deploy removes the collector entries before the
+Schedules are applied, so a delay misses triggers. Valid (runbook gap): R1 now applies the
+Schedules at once after the web deployment is `SUCCESS`, in a 16:00–16:40 window, with recovery
+for a missed trigger (`temporal schedule trigger`) and for a failed apply (previous web image).
+No code change. Codification: platform-reviewer, cause (d): checklist item 4 covers double runs,
+not the gap between the two schedulers; item 4 widened.
+
+## 2026-11-08 – PR #9 external review, round 3
+
+Head 0b451de. CodeRabbit: no inline finding; one comment outside the diff (`jobs.py:253-361`):
+`MorningChain` took its default date from `workflow.now()` in the first workflow task, so after a
+worker outage across midnight a 04:00 run did the next morning and the lost morning sent no Issue.
+Valid (verified with a test that fails without the fix). The default date is now the run's start
+date (`workflow.info().workflow_start_time`, also in `ContractImport`); such a run fails with "the
+date has passed". Test `test_a_scheduled_morning_keeps_the_date_it_started_on_after_a_worker_outage`
+(a `start_delay` stands in for the outage, because the test server does not skip time while a
+workflow task waits). Codification: platform-reviewer item 1 widened, cause (d) (third finding of
+the same date class; the checklist now names the default-date source).
+
+## 2026-11-08 – PR #9 external review, round 4
+
+Head a593060. CodeRabbit review 5818723528: no actionable comment; one trivial nitpick (the
+readiness retry policy looks like a conflict with "never retry a failed command"). Valid as a
+documentation gap: the exception was in `orchestration/AGENTS.md` only. Comment added next to
+`READINESS_OPTIONS`, and the exception added to the `temporal-retry-and-cutover` rule in
+`.greptile/config.json` so the comment does not return. No behavior change. Codification: none,
+because it is a missing comment on a documented exception, not a defect.
+
+## 2026-11-09 – PR #9 external review, round 5
+
+Head 2b9c947. CodeRabbit: no inline finding; two comments outside the diff (`jobs.py` noon check
+and lanes): an exhausted `orchestration:readiness` read (3 attempts in about one minute) ends the
+whole `MorningChain`, so a short database break stops the morning. Valid (R4 code). One fix for
+every caller (lanes, noon check, import loop): `READINESS_OPTIONS` retries without an attempt
+limit inside a 30-minute `schedule_to_close_timeout` (interval 20 s to 2 min); a longer outage still
+fails the run with one Issue (Sentry interceptor). Consumer writes keep `max_attempts=1`. Test
+`test_a_short_readiness_outage_does_not_end_the_morning` (8 failed reads in a row); it fails with
+the old policy. Found while testing: a stale `.pyc` (same source size and mtime second after a
+restore) made one check run old code; run such checks with `PYTHONDONTWRITEBYTECODE=1`.
+Codification: platform-reviewer item 2, cause (d).
+
+## 2026-11-09 – PR #9 external review, round 6 (clean) and consolidation
+
+Head a349056. CodeRabbit review 5818826687: no actionable comment, no nitpick, no comment outside
+the diff (only the docstring-coverage warning, declined: not a repository rule). All CodeRabbit
+threads are fixed or answered; `@coderabbitai resolve` posted. All four Greptile findings are fixed
+(👍); Greptile was not requested again (one review per PR). CodeRabbit covered every fix commit.
+
+Consolidation (agent decision under delegated authority, `missed-findings.md`): the platform
+reviewer got six new items in this PR, so its checklist was regrouped by invariant. No item was
+lost:
+
+| Old item (this PR) | New rule |
+|---|---|
+| 1: date input agrees with the written date; activity-boundary check; default date from `workflow_start_time` | 2 Run date |
+| 2: claims, leases and cache locks are `interruptible=False` below the drain | 4 Deploy drain |
+| 2: a read-only call survives a short outage; round-4 readiness exception | 3 Retries |
+| 3: outcome from the checkpoint, not the exit code | 5 One Issue per failure (unchanged) |
+| 4: no "all groups" default; the gap between schedulers | 6 Cut-over (one scheduler at every moment) |
+| 7: the stated deploy effect matches reality | 9 Deploy scripts (unchanged) |
+| PR round 1 review-helper findings (`|| true` hid a failed `gh api`) | 11 Shell safety |

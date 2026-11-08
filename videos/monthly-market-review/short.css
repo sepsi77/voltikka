@@ -1,0 +1,20 @@
+/* Portrait (1080×1920) Shorts of the market review. Load after lib.css.
+   Safe zones (YouTube Shorts, TikTok, Reels): the player puts its title, channel and caption over the
+   bottom ~420 px and its buttons over the right ~130 px from y ≈ 900 down. So:
+     header  0–240     wordmark
+     content 250–1290  the scene
+     caption 1320–1500 burned-in captions (most viewers watch without sound)
+     bottom  1500–1920 nothing important */
+body { width: 1080px; height: 1920px; }
+.sh-wm { position: absolute; left: 64px; top: 112px; z-index: 60; display: flex; align-items: center; gap: 12px; }
+.sh-wm span { font: 800 36px/1 var(--font-display); letter-spacing: -0.02em; }
+.sh-wm em { font: 600 22px/1 var(--font-sans); font-style: normal; color: var(--color-ink-muted); margin-left: 8px; }
+.band { position: absolute; left: 0; width: 1080px; height: 608px; object-fit: cover; }
+.cap { position: absolute; left: 60px; right: 120px; top: 1320px; z-index: 70; text-align: center; }
+.cap span {
+  font: 800 60px/1.18 var(--font-display); letter-spacing: -0.02em; color: var(--color-ink);
+  background: var(--paper); padding: 4px 18px 8px; border-radius: 10px;
+  box-decoration-break: clone; -webkit-box-decoration-break: clone;
+  box-shadow: 0 6px 24px rgb(22 32 46 / 0.12);
+}
+.cap span b { color: var(--color-fox-deep); font-weight: 800; }

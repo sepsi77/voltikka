@@ -114,7 +114,7 @@ class MorningConsumerExecutionTest extends TestCase
         $this->assertSame('running', DataFreshnessCheckpoint::sole()->status);
     }
 
-    public function test_current_date_and_windows_follow_helsinki_across_dst_and_midnight(): void
+    public function test_current_date_follows_helsinki_across_dst_and_midnight(): void
     {
         Log::spy();
         $service = app(MorningConsumerExecution::class);
@@ -123,15 +123,48 @@ class MorningConsumerExecutionTest extends TestCase
         };
         foreach (['2026-03-29', '2026-10-25'] as $day) {
             $date = CarbonImmutable::parse($day, 'Europe/Helsinki');
-            CarbonImmutable::setTestNow($date->setTime(7, 10));
+            CarbonImmutable::setTestNow($date->setTime(8, 0));
+            $this->assertSame(0, $service->run('forecast', $date, true, fn () => true, fn () => 0));
+            CarbonImmutable::setTestNow($date->addDay()->setTime(0, 0));
             $this->assertSame(0, $service->run('retail', $date, true, $never, $never));
-            CarbonImmutable::setTestNow($date->setTime(7, 15));
-            $this->assertSame(0, $service->run('retail', $date, true, fn () => true, fn () => 0));
-            $this->assertSame(0, $service->run('forecast', $date, true, $never, $never));
             CarbonImmutable::setTestNow($date->addDay()->setTime(8, 0));
-            $this->assertSame(0, $service->run('forecast', $date, true, $never, $never));
+            $this->assertSame(0, $service->run('retail', $date, true, $never, $never));
         }
-        $this->assertDatabaseCount('data_freshness_checkpoints', 2);
+        // A previous-date scheduled tick never creates or claims its checkpoint.
+        $this->assertSame(['morning_forecast', 'morning_forecast'], DataFreshnessCheckpoint::query()->orderBy('effective_date')->pluck('key')->all());
+        Log::shouldNotHaveReceived('error');
+    }
+
+    public function test_scheduled_tick_has_no_lower_clock_bound(): void
+    {
+        // The caller (Laravel cron window or the Temporal MorningChain) decides the start time.
+        Log::spy();
+        $service = app(MorningConsumerExecution::class);
+        $date = CarbonImmutable::parse('2026-09-20', 'Europe/Helsinki');
+        $never = function () {
+            $this->fail('Writer ran before freshness passed.');
+        };
+
+        CarbonImmutable::setTestNow('2026-09-20 06:20 Europe/Helsinki');
+        $this->assertSame(0, $service->run('retail', $date, true, fn () => false, $never));
+        $retail = DataFreshnessCheckpoint::query()->where('key', 'morning_retail')->sole();
+        $this->assertSame('waiting', $retail->status);
+        $this->assertSame('dependencies_not_ready', $retail->metadata['reason']);
+
+        CarbonImmutable::setTestNow('2026-09-20 06:25 Europe/Helsinki');
+        foreach (['retail', 'forecast'] as $consumer) {
+            $writes = 0;
+            $this->assertSame(0, $service->run($consumer, $date, true, fn () => true, function () use (&$writes) {
+                $writes++;
+
+                return 0;
+            }));
+            $this->assertSame(1, $writes, $consumer);
+            $row = DataFreshnessCheckpoint::query()->where('key', 'morning_'.$consumer)->sole();
+            $this->assertSame('ready', $row->status);
+            $this->assertTrue($row->metadata['scheduled_complete']);
+        }
+        Log::shouldNotHaveReceived('error');
     }
 
     public function test_running_work_can_finish_after_independent_noon_alert_without_a_second_alert(): void

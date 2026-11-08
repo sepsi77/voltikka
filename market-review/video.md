@@ -1,6 +1,8 @@
 # Video of the monthly review (phase 5: video template)
 
-Code: `videos/monthly-market-review/` (see its `AGENTS.md`). Paper: page "Video · Markkinakatsaus".
+Engine: `videos/monthly-market-review/` (see its `AGENTS.md`). Edition sources and outputs: `editions/<month>/video/`, `work/` and `final/` (user 2026-11-08). Paper: page "Video · Markkinakatsaus".
+
+Entries before 2026-11-08 name the old paths in `videos/monthly-market-review/`: `final/` is now `editions/2026-10/final/`, `out/` is `editions/2026-10/work/renders/`, `out/archive/` is `editions/2026-10/work/archive/`, `audio/` is `editions/2026-10/work/audio/` (music: `videos/monthly-market-review/music/`), and the scenes and `script.mjs` are in `editions/2026-10/video/`.
 
 ## Brief (user, 2026-11-06)
 
@@ -57,6 +59,19 @@ Code: `videos/monthly-market-review/` (see its `AGENTS.md`). Paper: page "Video 
 - Electrically heated house (user 2026-11-06: follow the written version): the advice is now "pörssisähkö on pitkällä aikavälillä halvempi, mutta tuleva talvi on sille riski; kiinteä hinta antaa varmuuden talven laskusta, mutta siitä maksat kesällä". Winter: spot about 150 € more (cold winter 190 €); April–October fixed about 225 € more; year: spot about 75 € cheaper. If fixed: 24 months, Pohjois-Karjalan Sähkö Optimi takuu (about 1 500 €, Herrfors Spot+ 1 564 €), second year spot about 175 € cheaper (115 € over 24 months), 36 months about 290 € more over three years; load shifting about 77 €. Cheap 36 kk is no longer named. Quarterly line `k_q2`: about 155 €, "vaihda pörssisähköön tai 24 kuukauden kiinteään". New Kore takes k_be02_2…8 and k_q2 (transcripts clean; the transcription writes "optimitakuu" as one word). Length 5:25. Kolme kotia shares these lines and gets them when it is rebuilt.
 
 - `final/` holds only the files to upload (Katsaus video, .srt, title, description, thumbnail). The earlier Katsaus versions and the Kolme kotia, Numerot and Sähkösää outputs are in `videos/monthly-market-review/out/archive/` (user 2026-11-06).
+
+## Round 6: per-edition folders and Shorts (user 2026-11-08)
+
+- Folders (user): each review has its own working and final output folders. Edition sources in `editions/<month>/video/`, work files in `work/`, files to upload in `final/`; the shared engine stays in `videos/monthly-market-review/`. The move was checked: the Katsaus timeline, `.srt` and description rebuild byte-identical, and Katsaus/Sähkösää stills render pixel-identical.
+- Shorts (user chose three): **Talvesta tulee kallis** (0:37), **Sähkölämmitteinen talo: pörssi vai kiinteä?** (1:05), **Kvartaalisopimus kallistuu tammikuussa** (0:29), 1080×1920, −14 LUFS, burned-in captions, in `editions/2026-10/final/shorts/` with title, description and `.srt`.
+- Method (agent): a portrait render of the same sources, not a crop of the 16:9 video (a crop cuts the charts and the text). Workflow: `videos/monthly-market-review/AGENTS.md`, "Shorts".
+- Lines: Katsaus voice lines with Kore; three new lines (`sh_talvi_end`, `sh_be02_0`, `sh_q0`), transcripts clean. The final mixes were transcribed: all lines clear.
+- The Talvi Short says that Olkiluoto 3 returns on 11 November. Publish it before 11.11., or change `k_win7` for it.
+- Sähkölämmitys is 1:05; YouTube Shorts accepts up to 3 min. Cut `k_be02_6` (named contracts) if 60 s is wanted.
+- The Talvi chart shows only October, January and the winter expectation (no summer band): the voice speaks only about the winter.
+
+- Published (user 2026-11-08): all three October Shorts.
+- Next Shorts (user 2026-11-08): a horizontal plate at the top with the text below "works but looks a bit weird". Generate plates or backgrounds in the Shorts aspect ratio (9:16) and explore how they work against the band layout. Instruction: `videos/monthly-market-review/AGENTS.md`, "Shorts", step 3.
 
 ## Open for the user
 

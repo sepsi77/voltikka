@@ -1,0 +1,35 @@
+1
+00:00:00,250 --> 00:00:03,199
+Lokakuu oli halpa. Talvesta tulee kallis.
+
+2
+00:00:03,699 --> 00:00:08,371
+Sähköpörssissä tammikuun sähkö maksaa nyt lähes 16 senttiä kilowattitunnilta.
+
+3
+00:00:08,371 --> 00:00:10,677
+Se on yli kolme kertaa lokakuun hinta.
+
+4
+00:00:11,177 --> 00:00:16,233
+Odotamme, että pörssisähkö maksaa marraskuusta maaliskuuhun 11–16 senttiä.
+
+5
+00:00:16,933 --> 00:00:17,994
+Syitä on kolme.
+
+6
+00:00:18,294 --> 00:00:22,581
+Norjan vesialtaissa on 13 prosenttiyksikköä tavallista vähemmän vettä.
+
+7
+00:00:22,981 --> 00:00:26,029
+Euroopan kaasuvarastot ovat vajaammat kuin vuosi sitten.
+
+8
+00:00:26,429 --> 00:00:30,470
+Ja Olkiluoto 3 palaa vuosihuollosta vasta 11. marraskuuta.
+
+9
+00:00:31,170 --> 00:00:34,101
+Mikä sopimus talveksi kannattaa? Katso koko katsaus.

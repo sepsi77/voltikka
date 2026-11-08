@@ -1,0 +1,46 @@
+# CodeRabbit settings (https://docs.coderabbit.ai/reference/configuration).
+# The review standards are shared with Greptile: .greptile/rules.md says what matters and what
+# not to flag, and .greptile/config.json holds the scoped rules. Change them there, not here.
+language: en-US
+reviews:
+  profile: chill
+  # Greptile rewrites the summary in the PR description; keep CodeRabbit's in its walkthrough.
+  high_level_summary_in_walkthrough: true
+  poem: false
+  auto_review:
+    enabled: true
+    auto_incremental_review: true
+    # The default pauses reviews after 5 reviewed commits; the loop needs every batched push reviewed.
+    auto_pause_after_reviewed_commits: 0
+    drafts: false
+  # Mirror of ignorePatterns in .greptile/config.json.
+  path_filters:
+    - "!tasks/**"
+    - "!legacy/**"
+    - "!.impeccable/**"
+    - "!.autoclaude/**"
+    - "!design/**"
+    - "!videos/**"
+    - "!remotion/**"
+    - "!media/**"
+    - "!research/**"
+    - "!market-review/editions/**"
+    - "!laravel/public/images/**"
+    - "!laravel/public/build/**"
+    - "!**/package-lock.json"
+    - "!**/composer.lock"
+    - "!**/uv.lock"
+  path_instructions:
+    - path: "**"
+      instructions: >-
+        Review against .greptile/rules.md (what matters most, in order, and what not to flag) and
+        the scoped rules in the "rules" list of .greptile/config.json for the files they scope.
+        Give each finding a concrete failure path: the input or state, and the wrong price, figure
+        or page a visitor, journalist or operator would see.
+knowledge_base:
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - "**/AGENTS.md"
+      - ".greptile/rules.md"
+      - ".greptile/config.json"

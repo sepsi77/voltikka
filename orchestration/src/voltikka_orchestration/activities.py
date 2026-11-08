@@ -12,13 +12,17 @@ import json
 import sys
 import time
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import sentry_sdk
 from temporalio import activity
 from temporalio.exceptions import ApplicationError
 
 from .settings import Settings
+
+HELSINKI = ZoneInfo("Europe/Helsinki")  # activities are not sandboxed
 
 HEARTBEAT_SECONDS = 10
 
@@ -29,6 +33,15 @@ class CommandRequest:
     # "model": python -m <S_MODEL_MODULE> <args> (stub result when no module is configured).
     kind: str
     args: list[str]
+    # True: on worker shutdown (deploy) kill the child at once; the new worker repeats the attempt.
+    # False: a command with a durable claim or lock (the contract import and its deferred completion,
+    # morning consumers, social posts, the price-cache producer lease) runs to its end during the
+    # graceful drain, because a killed claim cannot be resumed and stays locked for inspection.
+    interruptible: bool = True
+    # The Helsinki date (YYYY-MM-DD) that the command must run on. The commands write the current
+    # Helsinki date, and a Temporal timer does not bound how long a workflow waits for a worker, so
+    # a morning activity that starts after its date has passed is refused before PHP starts.
+    date: str | None = None
 
 
 @dataclass
@@ -79,23 +92,37 @@ class Activities:
             activity.logger.info("S model module not configured; stub result for %s", request.args[:1])
             return CommandResult(0, {"status": "stub", "command": request.args[0]}, 0.0)
 
+        if request.date is not None and (today := datetime.now(HELSINKI).date().isoformat()) != request.date:
+            raise ApplicationError(f"{request.args[0]} is for {request.date}, but the Helsinki date is {today}",
+                                   "date_passed", type="DatePassed", non_retryable=True)
         argv, cwd = self._argv(request)
         started = time.monotonic()
         process = await asyncio.create_subprocess_exec(
             *argv, cwd=cwd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
         )
         communicate = asyncio.ensure_future(process.communicate())
+        shutdown = asyncio.ensure_future(activity.wait_for_worker_shutdown()) if request.interruptible else None
         try:
             while True:
-                done, _ = await asyncio.wait({communicate}, timeout=HEARTBEAT_SECONDS)
-                if done:
+                waiting = {communicate} if shutdown is None else {communicate, shutdown}
+                done, _ = await asyncio.wait(waiting, timeout=HEARTBEAT_SECONDS, return_when=asyncio.FIRST_COMPLETED)
+                if communicate in done:
                     break
+                if shutdown is not None and shutdown in done:
+                    # Deploy: stop the child now; the attempt is retried on the new worker.
+                    process.kill()
+                    await process.wait()
+                    raise ApplicationError(f"{' '.join(argv[1:3])} stopped by worker shutdown", type="WorkerShutdown")
                 activity.heartbeat()
         except asyncio.CancelledError:
-            # Worker shutdown or activity timeout: stop the child so a retry cannot overlap it.
+            # Activity timeout or the end of the graceful drain: stop the child so a retry cannot
+            # overlap it.
             process.kill()
             await process.wait()
             raise
+        finally:
+            if shutdown is not None:
+                shutdown.cancel()
 
         stdout_bytes, stderr_bytes = communicate.result()
         stdout = stdout_bytes.decode(errors="replace")

@@ -1,0 +1,55 @@
+1
+00:00:00,250 --> 00:00:04,169
+Sähkölämmitteinen talo: pörssisähkö vai kiinteä hinta tälle talvelle?
+
+2
+00:00:04,769 --> 00:00:12,024
+Marraskuusta maaliskuuhun pörssisähkö maksaa sille noin 150 euroa enemmän kuin tavallinen kiinteä hinta.
+
+3
+00:00:12,024 --> 00:00:14,675
+Kylmänä talvena ero on noin 190 euroa.
+
+4
+00:00:15,275 --> 00:00:17,025
+Kesällä tilanne kääntyy.
+
+5
+00:00:17,025 --> 00:00:21,912
+Huhtikuusta lokakuuhun kiinteä hinta maksaa noin 225 euroa enemmän.
+
+6
+00:00:21,912 --> 00:00:25,559
+Koko vuonna pörssisähkö on noin 75 euroa halvempi.
+
+7
+00:00:26,259 --> 00:00:31,977
+Siksi neuvomme: pörssisähkö on pitkällä aikavälillä halvempi, mutta tuleva talvi on sille riski.
+
+8
+00:00:31,977 --> 00:00:36,385
+Kiinteä hinta antaa varmuuden talven laskusta, mutta siitä maksat kesällä.
+
+9
+00:00:37,085 --> 00:00:40,162
+Jos haluat kiinteän hinnan, valitse 24 kuukautta.
+
+10
+00:00:40,162 --> 00:00:44,431
+Se kattaa kaksi talvea, ja se on halvempi kuin 12 kuukauden sopimus.
+
+11
+00:00:44,931 --> 00:00:48,643
+Edullisin on Pohjois-Karjalan Sähkön Optimi takuu.
+
+12
+00:00:48,643 --> 00:00:51,761
+Ensimmäinen vuosi maksaa noin 1 500 euroa.
+
+13
+00:00:51,761 --> 00:00:56,587
+Edullisin pörssisähkö, Herrforsin Spot+, maksaa noin 1 560 euroa.
+
+14
+00:00:57,287 --> 00:01:02,330
+Laske sopimusten hinnat omalla kulutuksellasi Voltikassa: voltikka.fi.

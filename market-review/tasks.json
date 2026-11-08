@@ -214,5 +214,21 @@
   {
     "name": "Phone board for the review page in Paper, then align the CSS",
     "status": "pending"
+  },
+  {
+    "name": "Per-edition video folders: editions/<month>/video, work, final; shared engine in videos/monthly-market-review",
+    "status": "done"
+  },
+  {
+    "name": "October Shorts: Talvesta tulee kallis, Sähkölämmitteinen talo, Kvartaalisopimus (final/shorts/)",
+    "status": "done"
+  },
+  {
+    "name": "Upload the October Shorts with the full review as related video; Talvi before 11.11. (Olkiluoto 3 line)",
+    "status": "done"
+  },
+  {
+    "name": "Next Shorts: generate 9:16 portrait plates and compare them with the band layout (user 2026-11-08)",
+    "status": "pending"
   }
 ]

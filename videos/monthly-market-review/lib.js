@@ -129,8 +129,10 @@ function chrome(t0, t1, chapters = [], { title = 'Sähkömarkkinakatsaus · loka
 // three-winter range of the spot bill, € ticks). Returns { node, grow(t0), mark(season, t0) }; mark highlights
 // 'winter' (Nov–Mar) or 'rest' (Apr–Oct).
 const COL = { spot: '#1C7A5E', fixed: '#535D68', ink: '#16202E', muted: '#5E6876', edge: '#D9DFDC', fox: '#C4501C', lake: '#2B5F8C' };
-function billChart(group, { w = 1000, h = 520 } = {}) {
+// labels: optional shorter month labels for a narrow chart (default: the site labels).
+function billChart(group, { w = 1000, h = 520, labels = null } = {}) {
     const k = D.site.kuva1, home = k.homes.find((x) => x.key === group);
+    const months = labels ?? k.labels;
     const max = Math.max(...home.spot_high, ...home.fixed);
     const step = max > 250 ? 50 : 20;
     const top = Math.ceil(max / step) * step;
@@ -147,7 +149,7 @@ function billChart(group, { w = 1000, h = 520 } = {}) {
         s += `<rect class="bar fixed" data-i="${i}" x="${x + bw + 5}" y="${y(home.fixed[i])}" width="${bw}" height="${y(0) - y(home.fixed[i])}" fill="${COL.fixed}" rx="4"/>`;
         const cx = x + bw / 2, t = y(home.spot_high[i]), b = y(home.spot_low[i]);
         s += `<path class="whisker" data-i="${i}" d="M${cx} ${t} V${b} M${cx - 7} ${t} H${cx + 7} M${cx - 7} ${b} H${cx + 7}" stroke="${COL.ink}" stroke-width="3" fill="none" opacity="0"/>`;
-        s += `<text class="axis-label" x="${pl + cw * i + cw / 2}" y="${h - 14}" text-anchor="middle">${k.labels[i]}</text>`;
+        s += `<text class="axis-label" x="${pl + cw * i + cw / 2}" y="${h - 14}" text-anchor="middle">${months[i]}</text>`;
     });
     s += `<line x1="${pl}" x2="${w}" y1="${y(0)}" y2="${y(0)}" stroke="${COL.ink}" stroke-width="3"/></svg>`;
     const node = el(`<div style="position:relative">${s}</div>`);

@@ -1,6 +1,6 @@
 # Move scheduled pipelines and their orchestration to Temporal
 
-Created 2026-11-02 (user request). Status: phase 0 approved 2026-11-07 (`phase0-decision-record.md`); phase 1 in progress.
+Created 2026-11-02 (user request). Status: phase 0 approved 2026-11-07 (`phase0-decision-record.md`); phase 1 live; phase 2 decided and implemented locally 2026-11-08 (`phase2-plan.md`), production rollout pending approval.
 
 ## Goal
 

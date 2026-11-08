@@ -1,7 +1,7 @@
 // Voice comparison: the same Katsaus passage with several TTS models and voices.
 //
-//   node voice-test.mjs            # makes audio/voice-test/<nn>-<name>.mp3 and audio/voice-test/results.json
-//   node voice-test.mjs 03 07      # only these candidates
+//   node voice-test.mjs 2026-10          # makes work/audio/voice-test/<nn>-<name>.mp3 and results.json in the edition
+//   node voice-test.mjs 2026-10 03 07    # only these candidates
 //
 // The agent cannot listen. Each file is transcribed: "missing" lists words of the passage that the
 // transcript does not have (unclear Finnish), "extra" lists heard words that are not in the passage.
@@ -11,8 +11,10 @@ import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { promisify } from 'node:util';
 
 const run = promisify(execFile);
-const only = process.argv.slice(2);
-const dir = 'audio/voice-test';
+import { edition, GENERATE_AUDIO } from './edition.mjs';
+
+const [month, ...only] = process.argv.slice(2);
+const dir = `${(await edition(month)).work}/audio/voice-test`;
 mkdirSync(dir, { recursive: true });
 
 const TEXT = 'Lokakuu oli halpa. Talvesta tulee kallis. Sähköpörssissä tammikuun sähkö maksaa nyt lähes 16 senttiä kilowattitunnilta. Se on yli kolme kertaa lokakuun hinta. '
@@ -54,7 +56,7 @@ const results = existsSync(`${dir}/results.json`) ? JSON.parse(readFileSync(`${d
 async function make([name, model, voice, o]) {
     const ext = o.format === 'pcm' ? 'wav' : 'mp3';
     const out = `${dir}/${name}.${ext}`;
-    const args = ['../generate-audio.mjs', 'speech', '--model', model, '--text', o.text ?? TEXT, '--out', out];
+    const args = [GENERATE_AUDIO, 'speech', '--model', model, '--text', o.text ?? TEXT, '--out', out];
     if (voice) args.push('--voice', voice);
     if (o.speed) args.push('--speed', String(o.speed));
     if (o.instructions) args.push('--instructions', o.instructions);
@@ -72,7 +74,7 @@ async function make([name, model, voice, o]) {
     await run('ffmpeg', ['-loglevel', 'error', '-y', '-i', out, '-af',
         'silenceremove=start_periods=1:start_threshold=-45dB,areverse,silenceremove=start_periods=1:start_threshold=-45dB,areverse', trimmed]);
     const dur = Number((await run('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', trimmed])).stdout);
-    const heard = (await run('node', ['../generate-audio.mjs', 'transcribe', '--file', trimmed])).stdout.trim();
+    const heard = (await run('node', [GENERATE_AUDIO, 'transcribe', '--file', trimmed])).stdout.trim();
     const got = norm(heard);
     const missing = words.filter((w) => !got.some((g) => g.startsWith(w.slice(0, 5))));
     const extra = got.filter((g) => !words.some((x) => x.startsWith(g.slice(0, 5)) || g.startsWith(x.slice(0, 5))) && !NUM.test(g));

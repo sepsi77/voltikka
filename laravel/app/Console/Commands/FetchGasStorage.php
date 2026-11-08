@@ -13,14 +13,16 @@ use Throwable;
  *
  * Without --from: the last `gas_storage.lookback_days` gas days, because GIE confirms estimated
  * days later. With --from/--to: a backfill (AGSI paginates, 300 days per call). Read-only
- * towards GIE; upserts locally. Needs GIE_API_KEY.
+ * towards GIE; upserts locally. Needs GIE_API_KEY. The scheduled run passes --if-configured, so a
+ * missing optional key skips the run instead of creating a daily failure.
  */
 class FetchGasStorage extends Command
 {
     protected $signature = 'gas-storage:fetch
                             {--from= : Backfill start gas day (YYYY-MM-DD)}
                             {--to= : Backfill end gas day, inclusive (YYYY-MM-DD; default today)}
-                            {--area=* : Only these configured areas, for example eu or de}';
+                            {--area=* : Only these configured areas, for example eu or de}
+                            {--if-configured : Skip with success when GIE_API_KEY is not set}';
 
     protected $description = 'Fetch GIE AGSI+ gas storage levels for market reviews';
 
@@ -34,6 +36,11 @@ class FetchGasStorage extends Command
     public function handle(): int
     {
         if ((string) config('gas_storage.api_key') === '') {
+            if ($this->option('if-configured')) {
+                $this->info('GIE_API_KEY is not set; gas storage collection is not enabled. Skipped.');
+
+                return Command::SUCCESS;
+            }
             $this->error('GIE_API_KEY is not set. Register for a free key at https://agsi.gie.eu/account.');
 
             return Command::FAILURE;

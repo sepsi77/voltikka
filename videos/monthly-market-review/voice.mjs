@@ -1,23 +1,24 @@
 // Makes the voice lines of one variant and checks each take with a transcript.
 //
-//   node voice.mjs katsaus            # only missing lines
-//   node voice.mjs katsaus k_oct2     # make these lines again
+//   node voice.mjs 2026-10 katsaus            # only missing lines
+//   node voice.mjs 2026-10 katsaus k_oct2     # make these lines again
 //
-// Each line: speech (MAI voice) → trim silence → audio/vo/<voice>/<id>.wav (48 kHz mono) →
+// Each line: speech (MAI voice) → trim silence → work/audio/vo/<voice>/<id>.wav (48 kHz mono) →
 // transcribe. A take passes when every word of the line without digits is in the transcript
 // (the transcript writes numbers as words) and no other word is heard except Finnish number words. A failed take is made again, at most 3 times; the
-// best take stays and the log (audio/vo/<voice>/check.json) shows it.
+// best take stays and the log (work/audio/vo/<voice>/check.json) shows it.
 import { execFileSync, execFile } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { promisify } from 'node:util';
-import { LINES, VARIANTS, voDir } from './script.mjs';
+import { edition, GENERATE_AUDIO } from './edition.mjs';
 
 const run = promisify(execFile);
-const [variant, ...only] = process.argv.slice(2);
-const v = VARIANTS[variant];
-if (!v) throw new Error(`Unknown variant: ${variant}`);
+const [month, variant, ...only] = process.argv.slice(2);
+const ed = await edition(month);
+const { LINES } = ed.script;
+const v = ed.variant(variant);
 // Each voice (and MAI speed) has its own folder, so other variants keep their takes.
-const dir = voDir(v);
+const dir = ed.voDir(v);
 const voiceName = dir.split('/').pop();
 mkdirSync(dir, { recursive: true });
 const logFile = `${dir}/check.json`;
@@ -31,7 +32,7 @@ const norm = (s) => s.toLowerCase().replace(/[^a-zåäö\s]/g, ' ').split(/\s+/)
 async function take(id, n) {
     const mp3 = `${dir}/raw/${id}-${n}.${v.format === 'pcm' ? 'pcm.wav' : 'mp3'}`;
     mkdirSync(`${dir}/raw`, { recursive: true });
-    const args = ['../generate-audio.mjs', 'speech', '--model', v.model ?? 'microsoft/mai-voice-2.1', '--voice', v.voice,
+    const args = [GENERATE_AUDIO, 'speech', '--model', v.model ?? 'microsoft/mai-voice-2.1', '--voice', v.voice,
         '--text', (v.tag ? v.tag + ' ' : '') + LINES[id], '--out', mp3];
     if (v.speed) args.push('--speed', String(v.speed));
     if (v.instructions) args.push('--instructions', v.instructions);
@@ -42,7 +43,7 @@ async function take(id, n) {
     await run('ffmpeg', ['-loglevel', 'error', '-y', '-i', mp3, '-af',
         'silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.02,areverse,silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.05,areverse',
         '-ar', '48000', '-ac', '1', wav]);
-    const { stdout } = await run('node', ['../generate-audio.mjs', 'transcribe', '--file', wav]);
+    const { stdout } = await run('node', [GENERATE_AUDIO, 'transcribe', '--file', wav]);
     const heard = stdout.trim();
     const words = norm(LINES[id].replace(/\d[\d\s,]*/g, ' '));
     const got = norm(heard);
