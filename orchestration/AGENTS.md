@@ -33,7 +33,15 @@ service `voltikka-worker`; see "Image and service" below.
 - `s_forecast.py`: `SDailyForecast` and `SWeeklyRefit` (the S pilot). Timeline and model interface:
   `../tasks/temporal-orchestration/s-workflow-interface.md` and
   `../tasks/own-forecast-model-data/s-model-freeze.md`.
-- `worker.py`: worker entrypoint (`python -m voltikka_orchestration.worker`).
+- `worker.py`: worker entrypoint (`python -m voltikka_orchestration.worker`). Logs go to stdout
+  (Railway shows every stderr line as "error").
+- `sentry.py`: Sentry init and `SentryInterceptor`. Any exception that leaves workflow code (a bug,
+  a sandbox restriction, an unhandled activity error) fails the workflow
+  (`workflow_failure_exception_types=[Exception]`, also in the tests) and sends one Issue
+  (fingerprint `temporal-workflow` + workflow + `unexpected_failure` + exception type). It never
+  reports during replay. `LoggingIntegration(event_level=None)`: a log line is never an Issue, so
+  `report_issue` sends exactly one event. Not covered: a nondeterminism error raised by the SDK
+  outside workflow code (it fails the workflow, visible only in the Temporal UI).
 - `schedules.py`: creates or updates the Temporal Schedules; prints the plan without `--apply`.
   Applying a production schedule is a production change and needs user approval.
 

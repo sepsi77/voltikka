@@ -196,3 +196,18 @@
   need its local research files). Until then `predict` gives `no_active_version` (one Issue per
   day) and the refit gives `refit_invalid`. The Sentry interceptor for unexpected workflow
   failures is not built.
+
+## 2026-11-08 – Sentry interceptor and stdout logs
+
+- `orchestration/src/voltikka_orchestration/sentry.py`: an exception from workflow code fails the
+  workflow and sends one Issue (`unexpected_failure`). Chosen over endless workflow-task retries:
+  the pilot has no public output, and one Issue plus a fresh run the next day is clearer than a
+  stuck run that sends an event on each retry. A deploy can then fix the bug; the failed run is not
+  resumed.
+- Found: the default Sentry `LoggingIntegration` makes every `logger.error` an event, so
+  `report_issue` (log at ERROR + `capture_message`) would have sent two events per outcome. Now
+  `event_level=None`.
+- An activity failure that the workflow does not handle (for example a crash of the readiness
+  command) gives both the Laravel Issue of the command and this workflow Issue: the second one says
+  that the day's run ended, which is a separate fact.
+- Worker logs go to stdout.

@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import sys
 
-import sentry_sdk
 from temporalio.client import Client
 from temporalio.worker import Worker
 
+from . import sentry
 from .activities import Activities
 from .s_forecast import SDailyForecast, SWeeklyRefit
 from .settings import Settings
@@ -31,16 +32,22 @@ def build_worker(client: Client, settings: Settings) -> Worker:
         task_queue=settings.task_queue,
         workflows=WORKFLOWS,
         activities=[activities.run_command, activities.report_issue],
+        # Any exception from workflow code fails the workflow (one Sentry Issue from the
+        # interceptor) instead of retrying its workflow task forever.
+        workflow_failure_exception_types=[Exception],
+        interceptors=[sentry.SentryInterceptor()],
         # One process per command: keep concurrency small (shared 32 vCPU host, MySQL, API limits).
         max_concurrent_activities=4,
     )
 
 
 async def main() -> None:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+    # stdout: Railway shows every stderr line with level "error".
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s", stream=sys.stdout
+    )
     settings = Settings.from_env()
-    if settings.sentry_dsn:
-        sentry_sdk.init(dsn=settings.sentry_dsn, environment=settings.environment, traces_sample_rate=0.0)
+    sentry.init(settings.sentry_dsn, settings.environment)
     client = await connect(settings)
     logging.getLogger(__name__).info(
         "Worker started: namespace %s, task queue %s", settings.namespace, settings.task_queue

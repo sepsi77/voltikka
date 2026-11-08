@@ -83,12 +83,6 @@ def test_local_instant_matches_zoneinfo_for_the_workflow_times():
         day += timedelta(days=1)
 
 
-@pytest.fixture(scope="session")
-async def env():
-    async with await WorkflowEnvironment.start_time_skipping() as environment:
-        yield environment
-
-
 async def run_daily(env, fake: FakeCommands, params: SForecastInput):
     async with Worker(
         env.client, task_queue=QUEUE, workflows=[SDailyForecast, SWeeklyRefit],

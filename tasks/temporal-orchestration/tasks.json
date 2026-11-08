@@ -17,7 +17,7 @@
   {"name": "Phase 1: apply the Temporal Schedules (python -m voltikka_orchestration.schedules --apply); production change, user approval", "status": "done (2026-11-08)"},
   {"name": "Phase 1: add forecast/ (voltikka_forecast.s, own-model session) as a uv path dependency in orchestration/uv.lock, copy it in the Dockerfile, set S_MODEL_MODULE=voltikka_forecast.s (after the package reproduces E32)", "status": "done"},
   {"name": "Phase 1: refit on Monday 10:45 with a 14:15 deadline; ecmwf_prev_day1 readiness; model error keys in Issues", "status": "done"},
-  {"name": "Phase 1: Sentry report for unexpected workflow failures (worker interceptor), beside the planned report_issue outcomes", "status": "pending"},
+  {"name": "Phase 1: Sentry report for unexpected workflow failures (worker interceptor), beside the planned report_issue outcomes", "status": "done (2026-11-08)"},
   {"name": "Phase 1: pilot = the own S forecast workflow (trigger after the D+1 result, input fan-in, weekly refit, Python worker); live test with no public output (user decision 2026-11-06)", "status": "in progress (live from 2026-11-08; waits for the model setup seed-misses/upload-archive by the own-model session)"},
   {"name": "Phase 2: morning chain workflow in shadow mode beside the scheduler, then cut over (remove its scheduler entries in the same change)", "status": "pending"},
   {"name": "Phase 2: cut over the spot chain", "status": "pending"},
