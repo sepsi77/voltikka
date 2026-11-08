@@ -69,5 +69,5 @@
   {"name": "S phase 4: deploy the ecmwf_prev_day1 collector, the model table migration and the import command (deploy-000020, 2026-11-07)", "status": "done"},
   {"name": "S phase 4: production weather imports: ecmwf_00z history (36,556 rows), ecmwf_prev_day1 history (15 rows) (2026-11-07)", "status": "done"},
   {"name": "S phase 4: archive bucket voltikka-forecast created (ams, keys not read; worker uses variable references)", "status": "done"},
-  {"name": "S phase 4: in the worker service once, before the first train: seed-misses (271,392 rows) and upload-archive into voltikka-forecast (user approved 2026-11-07; waits for the worker)", "status": "pending"}
+  {"name": "S phase 4: in the worker service once, before the first train: seed-misses (271,392 rows) and upload-archive into voltikka-forecast (user approved 2026-11-07; done 2026-11-08 in voltikka-worker deploy-000021, both checked)", "status": "done"}
 ]

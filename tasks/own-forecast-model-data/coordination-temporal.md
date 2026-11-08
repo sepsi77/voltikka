@@ -167,9 +167,12 @@ code supplies", with these details:
   `FORECAST_BUCKET_ACCESS_KEY_ID=${{voltikka-forecast.ACCESS_KEY_ID}}`,
   `FORECAST_BUCKET_SECRET_ACCESS_KEY=${{voltikka-forecast.SECRET_ACCESS_KEY}}`.
   Setting worker variables is a production change for the user to approve.
-- Not done yet, because only the worker image has the `forecast` package and the database is
-  reachable only inside Railway: the one-time `seed-misses` (271,392 rows from the E30/E32 files)
-  and `upload-archive` (the pinned archive folder). Both must run once in the worker before the
-  first `train`; the own-model session will run them when the worker exists (the user approved
-  both on 2026-11-07). Until then `train` fails (`refit_invalid` or a missing archive) and
-  `predict` returns `no_active_version`.
+- Done 2026-11-08 08:32–08:56 Helsinki in `voltikka-worker` (`deploy-000021-220c32cd0a2c`; the
+  user approved both on 2026-11-07): `seed-misses` stored 271,392 rows (E32 best_d1 24,672; E30
+  best_d24 74,016; E30 best_d57 172,704; issues 2024-01-01..2026-10-24), and `upload-archive`
+  stored the 4 pinned files under `archive/s/`. Checks: the files were sent with SHA-256 equal on
+  both sides; the archive read back from the bucket into an empty folder passes its pins; the
+  worker has the frozen code hashes and scikit-learn 1.9.1, pandas 3.1.0, numpy 2.5.4. The temp
+  files were deleted. Before the seed, the model tables were empty and all of the day's morning
+  checkpoints were `ready`. `predict` returns `no_active_version` until the first refit
+  (Monday 2026-11-09 10:45) activates a version.

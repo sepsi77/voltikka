@@ -853,3 +853,13 @@ Answers in `../temporal-orchestration/s-workflow-interface.md` ("Answers to the 
 - `seed-misses` and `upload-archive` wait for the worker service: the app image has no
   `forecast` package, and the database is reachable only inside Railway, so running them from a
   local computer would need the production secrets.
+
+## 2026-11-08: seed-misses and upload-archive in the worker (user approved 2026-11-07)
+
+- The Temporal session reported `voltikka-worker` (`73a37ca9-6280-4695-856a-7674e548e74c`) on
+  `deploy-000021-220c32cd0a2c` with the `DB_*` and `FORECAST_BUCKET*` variables (names checked,
+  values not read). Its forecast code has the frozen file hashes, and its runtime has the pins.
+- `seed-misses`: 271,392 rows (the planned count). `upload-archive`: 4 files. The archive read
+  back from the bucket passes its pins. Details: `coordination-temporal.md` section 10.
+- Started at 08:32 Helsinki, before 09:00: this is a database write, not a deploy, and all of
+  the day's morning checkpoints (EEX, contracts, retail, forecast) were already `ready`.
