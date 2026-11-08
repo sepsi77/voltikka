@@ -49,7 +49,8 @@ version and a new pre-declared live count (freeze section 5).
   `upload-archive`. The last stdout line is one JSON object; a failure has a closed `error` key
   (`input_missing`, `cuts_differ`, `no_active_version`, `artifact_mismatch`, `version_mismatch`,
   `prices_incomplete`, `refit_invalid`, `bad_argument`, `internal_error`); the detail is on the
-  line before it (the container log), never in Temporal.
+  line before it (the container log), never in Temporal. A missing `DB_*` variable or a refused
+  database connection also gives the JSON line (`internal_error`).
 
 Rules:
 

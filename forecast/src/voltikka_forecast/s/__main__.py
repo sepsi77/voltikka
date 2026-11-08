@@ -187,14 +187,18 @@ def main(argv=None):
     p.add_argument("--e32", required=True)
     sub.add_parser("upload-archive").add_argument("--dir", required=True)
     args = ap.parse_args(argv)
-    db = D.Db.from_sqlite(os.environ["FORECAST_SQLITE"]) if os.environ.get("FORECAST_SQLITE") else D.Db.from_env()
     try:
+        # Inside the try: a missing DB_* variable or a refused connection also gives the JSON line.
+        db = D.Db.from_sqlite(os.environ["FORECAST_SQLITE"]) if os.environ.get("FORECAST_SQLITE") else D.Db.from_env()
         result = COMMANDS[args.command](args, db)
     except Exception as e:
         key = e.key if isinstance(e, Fail) else next((k for cls, k in ERROR_KEYS if isinstance(e, cls)), "internal_error")
         # Own messages name dates, columns and versions only; other exceptions (a driver error can
-        # name the host) give their class only.
+        # name the host) give their class only. A KeyError names only the missing key (for
+        # example the variable DB_HOST), never a value.
         detail = str(e) if key != "internal_error" else type(e).__name__
+        if isinstance(e, KeyError):
+            detail += f" {e}"
         print(f"{args.command} failed: {detail}", flush=True)
         print(json.dumps({"status": "failed", "command": args.command, "error": key}))
         return 1

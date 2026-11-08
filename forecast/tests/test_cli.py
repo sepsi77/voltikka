@@ -37,3 +37,12 @@ def test_predict_is_idempotent_per_issue_day(tmp_path, monkeypatch, capsys):
                      "--afternoon-cut=2026-11-07T12:30:00+00:00"])
     out = _last_json(capsys)
     assert code == 0 and out == {"status": "exists", "vintage_id": 1, "model_version": "s_v1-x"}
+
+
+def test_missing_database_variable_gives_the_json_line(monkeypatch, capsys):
+    monkeypatch.delenv("FORECAST_SQLITE", raising=False)
+    monkeypatch.delenv("DB_HOST", raising=False)
+    code = cli.main(["score", "--target-date=2026-11-07"])
+    lines = capsys.readouterr().out.strip().splitlines()
+    assert code == 1 and json.loads(lines[-1]) == {"status": "failed", "command": "score", "error": "internal_error"}
+    assert lines[-2] == "score failed: KeyError 'DB_HOST'"
