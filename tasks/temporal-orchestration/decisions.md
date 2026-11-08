@@ -363,3 +363,24 @@ fails the run with one Issue (Sentry interceptor). Consumer writes keep `max_att
 the old policy. Found while testing: a stale `.pyc` (same source size and mtime second after a
 restore) made one check run old code; run such checks with `PYTHONDONTWRITEBYTECODE=1`.
 Codification: platform-reviewer item 2, cause (d).
+
+## 2026-11-09 – PR #9 external review, round 6 (clean) and consolidation
+
+Head a349056. CodeRabbit review 5818826687: no actionable comment, no nitpick, no comment outside
+the diff (only the docstring-coverage warning, declined: not a repository rule). All CodeRabbit
+threads are fixed or answered; `@coderabbitai resolve` posted. All four Greptile findings are fixed
+(👍); Greptile was not requested again (one review per PR). CodeRabbit covered every fix commit.
+
+Consolidation (agent decision under delegated authority, `missed-findings.md`): the platform
+reviewer got six new items in this PR, so its checklist was regrouped by invariant. No item was
+lost:
+
+| Old item (this PR) | New rule |
+|---|---|
+| 1: date input agrees with the written date; activity-boundary check; default date from `workflow_start_time` | 2 Run date |
+| 2: claims, leases and cache locks are `interruptible=False` below the drain | 4 Deploy drain |
+| 2: a read-only call survives a short outage; round-4 readiness exception | 3 Retries |
+| 3: outcome from the checkpoint, not the exit code | 5 One Issue per failure (unchanged) |
+| 4: no "all groups" default; the gap between schedulers | 6 Cut-over (one scheduler at every moment) |
+| 7: the stated deploy effect matches reality | 9 Deploy scripts (unchanged) |
+| PR round 1 review-helper findings (`|| true` hid a failed `gh api`) | 11 Shell safety |

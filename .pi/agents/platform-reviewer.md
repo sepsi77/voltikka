@@ -52,39 +52,41 @@ result acceptable: report the result and cite the decision.
    `workflow.sleep()`, no system clock, no `zoneinfo` objects (use the `helsinki_offset` helpers).
    Activities do the I/O. PHP work runs as `php artisan` activities through `run_command`.
    Workflow IDs are deterministic (one per job and Helsinki date where the rule says so).
-   A workflow date input must agree with the date that its commands write: when the commands use
-   the current Helsinki date, a run for another date (a past date, a write after midnight) is
-   refused, not run (example: `MorningChain` read yesterday's checkpoints but wrote today's facts).
-   Check this at the activity boundary: a timer or activity timeout does not bound wall time, and a
-   worker outage can start any later step after midnight (a start-only check missed this). The
-   default date of a scheduled run comes from the run's start (`workflow_start_time`), never from
-   `workflow.now()` in the first task, which runs late after an outage.
-2. **Retries.** A failed command (`CommandFailed`) is never retried automatically; it is
+2. **Run date.** A run writes only the Helsinki date it is for. The commands use the current
+   Helsinki date, so a step that would start after its date has passed is refused before PHP starts,
+   at the activity boundary: timers and timeouts do not bound wall time, and a worker outage can
+   start any later step after midnight. Look at every `local_date(...)`, a date input
+   (`MorningInput.date`) and `CommandRequest.date`; the default date of a scheduled run comes from
+   `workflow.info().workflow_start_time`, never from `workflow.now()` in the first task. Examples:
+   a run for yesterday read old checkpoints but wrote today's facts; a 04:00 run whose first task
+   ran after midnight did the next morning with no Issue.
+3. **Retries.** A failed command (`CommandFailed`) is never retried automatically; it is
    non-retryable in every retry policy. Only a lost attempt (worker deploy, crash, heartbeat
-   timeout) is retried. Social posting and morning consumers use `max_attempts=1`. For every step,
-   read the PHP command for durable claims, leases and cache locks (`Cache::lock`, `*_LEASE_*`,
-   claim rows): such a step is `interruptible=False` with a timeout below the worker drain, because
-   a deploy kill leaves the lock and the retry fails on it (example: `contracts:fetch` holds the
-   30-minute import execution lock in its first post-import work). A read-only call that a long
-   run depends on (readiness polling) survives a short outage: an exhausted read must not end the
-   run (example: three failed readiness reads in one minute ended a whole `MorningChain`).
-3. **One Issue per failure.** Each failed step sends exactly one Sentry Issue. Self-reporting
+   timeout) is retried. Social posting and morning consumers use `max_attempts=1`. The one
+   exception is a read-only call that a long run depends on (`orchestration:readiness`): it retries
+   inside a bounded time (`READINESS_OPTIONS`), and a comment says why. An exhausted read must not
+   end the run (example: three failed readiness reads in one minute ended a whole `MorningChain`).
+4. **Deploy drain.** For every step, read its PHP command for durable claims, leases and cache
+   locks (`Cache::lock`, `*_LEASE_*` constants, claim rows). Such a step is `interruptible=False`,
+   and its timeout stays below `GRACEFUL_SHUTDOWN`, because a deploy kill leaves the lock and the
+   retry fails on it. Example: `contracts:fetch` holds the 30-minute import execution lock in its
+   first post-import work.
+5. **One Issue per failure.** Each failed step sends exactly one Sentry Issue. Self-reporting
    commands (`spot:fetch`, `futures:fetch-eex`, `contracts:fetch`) get none from the workflow. The
    Sentry interceptor does not report `ReportedFailure` again. A workflow outcome comes from the
    checkpoint, not only from the exit code: a command that exits 0 with a non-`ready` checkpoint
    is not a success (example: a partial contract acquisition exits 0 and stores `incomplete`).
-4. **Cut-over.** A job group never runs both as a Temporal Schedule (`schedules.py`, `jobs.py`)
-   and as a `routes/console.php` entry. Check both files for every changed job. The web scheduler
-   keeps only web-volume jobs. Times are Europe/Helsinki and match the documented order (EEX at
-   04:00, contract import from 06:00, consumers until 12:00). The operator tool must not be able
-   to start a group that has not moved: no default of "all groups" on apply (example: a bare
-   `schedules --apply` started maintenance, spot and morning beside the web scheduler). The
-   runbook also covers the gap: no group is without a scheduler past a trigger time, and it names
-   the recovery for a missed trigger and a failed apply.
-5. **Shared state.** Worker and queue services reference every application variable of the
+6. **Cut-over.** A job group runs from exactly one scheduler at every moment. Check
+   `schedules.py`, `jobs.py` and `routes/console.php` for every changed job: never both, and never
+   neither past a trigger time (the runbook orders deploy and apply and names the recovery for a
+   missed trigger and a failed apply). The operator tool has no "all groups" default on apply
+   (example: a bare `schedules --apply` started maintenance, spot and morning beside the web
+   scheduler). The web scheduler keeps only web-volume jobs. Times are Europe/Helsinki and match the
+   documented order (EEX at 04:00, contract import from 06:00, consumers until 12:00).
+7. **Shared state.** Worker and queue services reference every application variable of the
    `voltikka` service, above all the pricing flags (they are part of cache keys) and
    `CACHE_STORE=redis`. A job that writes cache without the shared store writes a private cache.
-6. **Image and start time.** `Dockerfile` keeps `ext-intl`; `scripts/build-and-push-image.sh`
+8. **Image and start time.** `Dockerfile` keeps `ext-intl`; `scripts/build-and-push-image.sh`
    keeps `--pull` on the base image. `docker-entrypoint.sh` stays fast: no recursive `chmod`,
    `chown` or `find` over `storage`, never walk `storage/framework/cache`.
    `docker-worker-entrypoint.sh` modes and `supervisord.conf` programs match the services. The
@@ -93,17 +95,18 @@ result acceptable: report the result and cite the decision.
    `--timeout=1020`; redis defaults to 90 s). A move to another queue connection without the same
    guard releases a long job while it still runs. `--max-time` is checked between jobs and may be
    above `retry_after`.
-7. **Deploy scripts.** `scripts/deploy-image.sh` refuses `latest`, unknown tags and the
+9. **Deploy scripts.** `scripts/deploy-image.sh` refuses `latest`, unknown tags and the
    04:00–09:00 Helsinki window for the web service (`--morning-checks-passed` overrides only the
    window). Every Railway call uses explicit project, environment and service IDs and
    `RAILWAY_CALLER=skill:use-railway@1.2.2`. No script prints secrets or variable values. The
    effect that a script states before the approval matches the real deploy behavior (drain,
    retry); a wrong statement misleads the approval.
-8. **Own forecast model.** `s_v1` is frozen: no change to its features, settings or training data
-   without a new model version. Each input uses only the forecast vintage that existed at issue
-   time (`hourly_forecast_runs`). A failed input fetch ends the run with "no forecast" and one Issue.
-9. **Shell safety.** `set -euo pipefail` where the script expects it; quoted variables; a pipe
-   that can truncate does not hide a failure; timeouts on network waits.
+10. **Own forecast model.** `s_v1` is frozen: no change to its features, settings or training data
+    without a new model version. Each input uses only the forecast vintage that existed at issue
+    time (`hourly_forecast_runs`). A failed input fetch ends the run with "no forecast" and one Issue.
+11. **Shell safety.** `set -euo pipefail` where the script expects it; quoted variables; a pipe
+    that can truncate does not hide a failure; timeouts on network waits. A failed read is not an
+    empty result: `cmd | filter || true` hides a failed `cmd` (check the command, then filter).
 
 ## Bar for a finding
 
