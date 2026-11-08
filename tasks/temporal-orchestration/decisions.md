@@ -329,3 +329,15 @@ Schedules at once after the web deployment is `SUCCESS`, in a 16:00–16:40 wind
 for a missed trigger (`temporal schedule trigger`) and for a failed apply (previous web image).
 No code change. Codification: platform-reviewer, cause (d): checklist item 4 covers double runs,
 not the gap between the two schedulers; item 4 widened.
+
+## 2026-11-08 – PR #9 external review, round 3
+
+Head 0b451de. CodeRabbit: no inline finding; one comment outside the diff (`jobs.py:253-361`):
+`MorningChain` took its default date from `workflow.now()` in the first workflow task, so after a
+worker outage across midnight a 04:00 run did the next morning and the lost morning sent no Issue.
+Valid (verified with a test that fails without the fix). The default date is now the run's start
+date (`workflow.info().workflow_start_time`, also in `ContractImport`); such a run fails with "the
+date has passed". Test `test_a_scheduled_morning_keeps_the_date_it_started_on_after_a_worker_outage`
+(a `start_delay` stands in for the outage, because the test server does not skip time while a
+workflow task waits). Codification: platform-reviewer item 1 widened, cause (d) (third finding of
+the same date class; the checklist now names the default-date source).

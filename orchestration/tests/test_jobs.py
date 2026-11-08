@@ -309,6 +309,22 @@ async def test_a_morning_for_a_past_date_is_refused_before_any_command(env):
     assert fake.calls == [] and fake.reports == []
 
 
+async def test_a_scheduled_morning_keeps_the_date_it_started_on_after_a_worker_outage(env):
+    """The run is recorded as started now, but its first workflow task runs on the next date (a
+    start delay stands in for a worker outage: the test server does not skip time while a task waits)."""
+    fake = FakeArtisan()
+    async with Worker(env.client, task_queue=QUEUE, workflows=WORKFLOWS,
+                      activities=[fake.run_command, fake.report_issue],
+                      workflow_failure_exception_types=[Exception]):
+        handle = await env.client.start_workflow(MorningChain.run, MorningInput(), id=f"jobs-test-{uuid.uuid4()}",
+                                                 task_queue=QUEUE, start_delay=timedelta(days=1))
+        with pytest.raises(WorkflowFailureError) as failure:
+            await handle.result()
+
+    assert "the date has passed" in str(failure.value.cause)
+    assert fake.calls == []
+
+
 @pytest.mark.parametrize("state, reports", [("incomplete", []), (None, ["import_not_ready"])])
 async def test_an_import_that_exits_0_without_a_ready_checkpoint_fails(env, state, reports):
     """A partial acquisition exits 0 with `incomplete` (contracts:fetch sent its own Issue)."""

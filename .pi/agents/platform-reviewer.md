@@ -56,7 +56,9 @@ result acceptable: report the result and cite the decision.
    the current Helsinki date, a run for another date (a past date, a write after midnight) is
    refused, not run (example: `MorningChain` read yesterday's checkpoints but wrote today's facts).
    Check this at the activity boundary: a timer or activity timeout does not bound wall time, and a
-   worker outage can start any later step after midnight (a start-only check missed this).
+   worker outage can start any later step after midnight (a start-only check missed this). The
+   default date of a scheduled run comes from the run's start (`workflow_start_time`), never from
+   `workflow.now()` in the first task, which runs late after an outage.
 2. **Retries.** A failed command (`CommandFailed`) is never retried automatically; it is
    non-retryable in every retry policy. Only a lost attempt (worker deploy, crash, heartbeat
    timeout) is retried. Social posting and morning consumers use `max_attempts=1`. For every step,

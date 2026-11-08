@@ -102,8 +102,10 @@ implemented locally, not in production; only the collectors group is cut over in
   interceptor does not report that type again.
 - A failed step skips the later steps of the job, except `always` steps (backup clean/monitor after
   the backup, price-cache cleanup after the warm, daily spot social post after `spot:fetch`).
-- `MorningChain` (Schedule 04:00, one per Helsinki date): it refuses a past date (the commands
-  write the current Helsinki date) and waits until 04:00 of a later one. Every morning command
+- `MorningChain` (Schedule 04:00, one per Helsinki date): its default date is the date the run
+  started (`workflow.info().workflow_start_time`), not the time of its first workflow task; it
+  refuses a past date (the commands write the current Helsinki date) and waits until 04:00 of a
+  later one. Every morning command
   carries its date (`CommandRequest.date`); `run_command` refuses it with `DatePassed` (one Issue)
   before PHP starts when the Helsinki date has changed, because a timer does not bound how long a
   workflow waits for a worker (an outage across midnight). `EexFutures` starts at once;

@@ -212,7 +212,7 @@ class ContractImport:
 
     @workflow.run
     async def run(self, params: MorningInput) -> str:
-        day = date.fromisoformat(params.date) if params.date else local_date(workflow.now())
+        day = date.fromisoformat(params.date) if params.date else local_date(workflow.info().workflow_start_time)
         await sleep_until(local_instant(day, CONTRACT_IMPORT_START))
         iso = day.isoformat()
         status = (await run_steps("ContractImport", [CONTRACTS_STEP], iso))[0].status
@@ -271,7 +271,9 @@ class MorningChain:
 
     @workflow.run
     async def run(self, params: MorningInput) -> MorningResult:
-        day = date.fromisoformat(params.date) if params.date else local_date(workflow.now())
+        # The Schedule's date is the date the run started, not the time of its first workflow task:
+        # after a worker outage across midnight, the run must fail visibly, not do the next morning.
+        day = date.fromisoformat(params.date) if params.date else local_date(workflow.info().workflow_start_time)
         if day < local_date(workflow.now()):
             # The commands write the current Helsinki date, so a run for a past date would read old
             # checkpoints while it writes today's facts. A later activity that would start after the
