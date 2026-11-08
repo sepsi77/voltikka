@@ -211,3 +211,10 @@
   command) gives both the Laravel Issue of the command and this workflow Issue: the second one says
   that the day's run ended, which is a separate fact.
 - Worker logs go to stdout.
+- Worker deployed with `deploy-000022-696b65fa70d7` (commit 696b65f, built from a clean
+  worktree because another session had staged changes in the main checkout) at 08:56 Helsinki,
+  deployment `997f0dde-…` SUCCESS. The deploy waited until the own-model session's `seed-misses`
+  and `upload-archive` were done (seed rows present, `archive/s/pins.json` in the bucket, no
+  model process for two checks): the worker has no volume, so a restart deletes `/tmp` files. Log
+  lines now have level "info". No active model version yet: today's run gives `no_active_version`
+  unless a version is activated before 14:30; the first refit is 2026-11-09 10:45.
