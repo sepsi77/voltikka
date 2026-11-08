@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Services\Caching\ExpiredFileCacheCleanup;
 use Illuminate\Cache\FileStore;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
@@ -138,8 +139,16 @@ class ExpiredFileCacheCleanupTest extends TestCase
         $this->artisan('cache:reclaim-expired-files --max-seconds=0')->assertExitCode(2);
     }
 
-    public function test_rotation_covers_local_hash_shards(): void
+    public function test_schedule_and_rotation_cover_local_hash_shards(): void
     {
+        $event = collect(app(Schedule::class)->events())->first(fn ($event) => str_contains($event->command ?? '', 'cache:reclaim-expired-files'));
+        $this->assertNotNull($event);
+        $this->assertStringContainsString('--apply --scheduled', $event->command);
+        $this->assertSame('* * * * *', $event->expression);
+        $this->assertFalse($event->onOneServer);
+        $this->assertTrue($event->withoutOverlapping);
+        $this->assertSame(2, $event->expiresAt);
+
         $path = $this->entry('rotated', 1, []);
         $shard = hexdec(substr(sha1('rotated'), 0, 2));
         $minute = intdiv(now()->timestamp, 60);

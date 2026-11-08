@@ -6,6 +6,7 @@ import asyncio
 import logging
 import signal
 import sys
+from datetime import timedelta
 
 from temporalio.client import Client
 from temporalio.worker import Worker
@@ -15,6 +16,9 @@ from .activities import Activities
 from .jobs import ArtisanJob, ContractImport, EexFutures, MorningChain
 from .s_forecast import SDailyForecast, SWeeklyRefit
 from .settings import Settings
+
+# Longest claim-based step: contracts:complete-import (35 min activity timeout).
+GRACEFUL_SHUTDOWN = timedelta(minutes=38)
 
 WORKFLOWS = [SDailyForecast, SWeeklyRefit, ArtisanJob, MorningChain, EexFutures, ContractImport]
 
@@ -41,6 +45,10 @@ def build_worker(client: Client, settings: Settings) -> Worker:
         # One process per command. Long activities (EEX about 1.7 h, contract import, S training)
         # hold a slot each, so the morning and 10:20-11:10 collector peaks need more than four.
         max_concurrent_activities=8,
+        # Deploy drain: interruptible commands stop at once and are retried on the new worker;
+        # claim-based commands (CommandRequest.interruptible=False) can finish. The Railway service
+        # variable RAILWAY_DEPLOYMENT_DRAINING_SECONDS must be longer than this (2400 s).
+        graceful_shutdown_timeout=GRACEFUL_SHUTDOWN,
     )
 
 
@@ -56,9 +64,9 @@ async def main() -> None:
         "Worker started: namespace %s, task queue %s", settings.namespace, settings.task_queue
     )
     worker = build_worker(client, settings)
-    # Railway stops a deployment with SIGTERM. Shut down at once: running activities are cancelled
-    # (run_command kills its child process) and fail as retryable, so the new worker repeats them
-    # without waiting for the heartbeat timeout.
+    # Railway sends SIGTERM to the old deployment after the new one is active. The worker stops
+    # polling; interruptible commands stop at once (run_command kills the child) and fail as
+    # retryable, so the new worker repeats them; claim-based commands finish within the drain.
     loop = asyncio.get_running_loop()
     loop.add_signal_handler(signal.SIGTERM, lambda: asyncio.ensure_future(worker.shutdown()))
     await worker.run()

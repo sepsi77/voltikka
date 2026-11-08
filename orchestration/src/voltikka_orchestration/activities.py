@@ -29,6 +29,11 @@ class CommandRequest:
     # "model": python -m <S_MODEL_MODULE> <args> (stub result when no module is configured).
     kind: str
     args: list[str]
+    # True: on worker shutdown (deploy) kill the child at once; the new worker repeats the attempt.
+    # False: a command with a durable claim (deferred import completion, morning consumers, social
+    # posts, the price-cache producer lease) runs to its end during the graceful drain, because a
+    # killed claim cannot be resumed and stays locked for inspection.
+    interruptible: bool = True
 
 
 @dataclass
@@ -85,17 +90,28 @@ class Activities:
             *argv, cwd=cwd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
         )
         communicate = asyncio.ensure_future(process.communicate())
+        shutdown = asyncio.ensure_future(activity.wait_for_worker_shutdown()) if request.interruptible else None
         try:
             while True:
-                done, _ = await asyncio.wait({communicate}, timeout=HEARTBEAT_SECONDS)
-                if done:
+                waiting = {communicate} if shutdown is None else {communicate, shutdown}
+                done, _ = await asyncio.wait(waiting, timeout=HEARTBEAT_SECONDS, return_when=asyncio.FIRST_COMPLETED)
+                if communicate in done:
                     break
+                if shutdown is not None and shutdown in done:
+                    # Deploy: stop the child now; the attempt is retried on the new worker.
+                    process.kill()
+                    await process.wait()
+                    raise ApplicationError(f"{' '.join(argv[1:3])} stopped by worker shutdown", type="WorkerShutdown")
                 activity.heartbeat()
         except asyncio.CancelledError:
-            # Worker shutdown or activity timeout: stop the child so a retry cannot overlap it.
+            # Activity timeout or the end of the graceful drain: stop the child so a retry cannot
+            # overlap it.
             process.kill()
             await process.wait()
             raise
+        finally:
+            if shutdown is not None:
+                shutdown.cancel()
 
         stdout_bytes, stderr_bytes = communicate.result()
         stdout = stdout_bytes.decode(errors="replace")

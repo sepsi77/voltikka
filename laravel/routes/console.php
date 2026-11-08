@@ -8,10 +8,87 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-// Every data, maintenance and social job runs as a Temporal Schedule in the voltikka-worker
-// service (orchestration/src/voltikka_orchestration/schedules.py; tasks/temporal-orchestration/
-// phase2-plan.md), so a web deploy never stops one. Only the jobs that need the web volume
-// (/app/storage) stay here. Do not add a data job to this file.
+// The collectors group (market-review and own-model data) runs as Temporal Schedules in the
+// voltikka-worker service (orchestration/src/voltikka_orchestration/schedules.py). Each later group
+// (maintenance, spot, morning) moves in its own release (tasks/temporal-orchestration/phase2-plan.md).
+// A group's Temporal Schedules and its entries here must never both run.
+
+// Schedule the contracts:fetch command to run daily at 06:00
+Schedule::command('contracts:fetch')
+    ->dailyAt('06:00')
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/contracts-fetch.log'));
+
+// Finish only proven same-day imports; never refetch or redispatch interpretations.
+Schedule::command('contracts:complete-import')
+    ->everyMinute()
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping(35)
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/contracts-complete-import.log'));
+
+// File price caches are instance-local. All producers also share the execution lease.
+Schedule::command('contracts:warm-cache --pending')
+    ->everyMinute()
+    ->runInBackground()
+    ->withoutOverlapping(35)
+    ->appendOutputTo(storage_path('logs/contract-price-cache-warm.log'));
+
+// Delete only tracked retired price-cache payloads, after their one-hour reader grace period.
+Schedule::command('contracts:cleanup-price-cache')
+    ->everyFiveMinutes()
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping(10)
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/contract-price-cache-cleanup.log'));
+
+// Local file payloads need cleanup on each instance, not just one server.
+Schedule::command('cache:reclaim-expired-files --apply --scheduled')
+    ->everyMinute()
+    ->withoutOverlapping(2)
+    ->appendOutputTo(storage_path('logs/expired-file-cache-cleanup.log'));
+
+// Schedule the spot:fetch command to run hourly
+Schedule::command('spot:fetch')
+    ->hourly()
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping(60)
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/spot-fetch.log'));
+
+// Neighbour-zone day-ahead prices for market reviews. Separate from spot:fetch so that a
+// neighbour failure cannot affect the Finnish import; insert-only, so reruns are harmless.
+Schedule::command('spot:fetch-neighbours')
+    ->hourlyAt(25)
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping(30)
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/spot-fetch-neighbours.log'));
+
+// Check official FI data independently after the hourly import has time to finish.
+Schedule::command('spot:check-freshness')
+    ->hourlyAt(10)
+    ->timezone('Europe/Helsinki')
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/spot-freshness-check.log'));
+
+// Poll the lightweight third-party forecast feed a few times per day.
+Schedule::command('spot:fetch-forecast')
+    ->everySixHours()
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/spot-forecast-fetch.log'));
+
+// Take a database-only disaster-recovery backup before overnight imports mutate source data.
+Schedule::command('backup:run --only-db')
+    ->dailyAt('03:00')
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/backup-run.log'));
 
 // Back up public app storage weekly. This currently covers company logos and similar generated public files.
 Schedule::command('backup:run --only-files')
@@ -21,12 +98,86 @@ Schedule::command('backup:run --only-files')
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/backup-files-run.log'));
 
-// Company logos live on the web public disk. The worker import runs `contracts:fetch --skip-logos`,
-// so the web service downloads missing logos after the 06:00 import (idempotent: only companies
-// without a stored logo).
-Schedule::command('logos:download')
-    ->dailyAt('08:30')
+// Prune old backup archives according to config/backup.php retention settings.
+Schedule::command('backup:clean')
+    ->dailyAt('03:30')
     ->timezone('Europe/Helsinki')
     ->withoutOverlapping()
     ->onOneServer()
-    ->appendOutputTo(storage_path('logs/logos-download.log'));
+    ->appendOutputTo(storage_path('logs/backup-clean.log'));
+
+// Check that a recent backup exists and stays within configured size bounds.
+Schedule::command('backup:monitor')
+    ->dailyAt('03:45')
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/backup-monitor.log'));
+
+// Delete page feedback free text after 12 months (the privacy page states this period).
+Schedule::command('feedback:purge-text')
+    ->dailyAt('02:15')
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping()
+    ->onOneServer();
+
+// Schedule EEX electricity futures settlement price collection overnight, after EEX FI data is reliably available.
+Schedule::command('futures:fetch-eex')
+    ->dailyAt('04:00')
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/eex-futures-fetch.log'));
+
+// Collect per-contract retail premiums after the morning contract interpretations can publish.
+Schedule::command('retail-premiums:collect --scheduled')
+    ->everyFiveMinutes()
+    ->timezone('Europe/Helsinki')
+    ->between('07:15', '12:01') // Include the full noon tick despite process startup seconds.
+    ->runInBackground()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/retail-premiums.log'));
+
+// Re-measure market-reset pass-through (beta) monthly, on the 2nd, after the 1st-of-month resets
+// have been imported and interpreted. Read-only. It logs a summary line and escalates to warning
+// when the quarterly cadence becomes measurable and disagrees with the configured global beta, so
+// the calibration surfaces itself instead of depending on someone reading a docs file.
+Schedule::command('retail-premiums:calibrate')
+    ->monthlyOn(2, '08:00')
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/retail-premium-calibration.log'));
+
+// Run fixed-term price forecasts after the morning contract import/statistics update.
+Schedule::command('forecasting:run-fixed-contracts --scheduled')
+    ->everyFiveMinutes()
+    ->timezone('Europe/Helsinki')
+    ->between('07:30', '12:01') // The five-minute cron still ends at the noon deadline tick.
+    ->runInBackground()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/fixed-contract-forecasts.log'));
+
+// Evaluate matured fixed-term forecasts once fresh contract statistics should be available.
+Schedule::command('forecasting:evaluate-fixed-contracts')
+    ->dailyAt('07:45')
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/fixed-contract-forecast-evaluation.log'));
+
+// Check each hour and publish only after complete hourly data exists for today and tomorrow.
+Schedule::command('social:publish-daily-spot')
+    ->hourlyAt(15)
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/daily-spot-social.log'));
+
+// Schedule weekly offers video for Sunday at 13:00
+Schedule::command('social:weekly-offers-video')
+    ->weeklyOn(0, '13:00')  // 0 = Sunday
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/weekly-offers-video.log'));

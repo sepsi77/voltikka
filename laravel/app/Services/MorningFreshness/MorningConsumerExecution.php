@@ -18,8 +18,8 @@ class MorningConsumerExecution
         $owner = null;
         try {
             $now = CarbonImmutable::now('Europe/Helsinki');
-            if ($scheduled && ($date->toDateString() !== $now->toDateString()
-                || $now->format('H:i') < ($consumer === 'retail' ? '07:15' : '07:30'))) {
+            // No lower clock bound: the caller (cron window or the Temporal MorningChain) decides the start.
+            if ($scheduled && $date->toDateString() !== $now->toDateString()) {
                 return 0;
             }
 

@@ -3,7 +3,7 @@
 Temporal workflows and the worker for Voltikka data pipelines. Task, decisions and status:
 `../tasks/temporal-orchestration/` (read `phase0-decision-record.md`, then `phase2-plan.md`).
 Status 2026-11-08: phase 1 live (S pilot); phase 2 (every scheduled job as a Temporal Schedule)
-implemented locally, not in production. Production: Temporal Cloud namespace `voltikka-prod`
+implemented locally, not in production; only the collectors group is cut over in code. Production: Temporal Cloud namespace `voltikka-prod`
 (AWS eu-central-1) and the Railway service `voltikka-worker`; see "Image and service" below.
 
 ## Decisions that this code follows (approved 2026-11-07)
@@ -29,7 +29,7 @@ implemented locally, not in production. Production: Temporal Cloud namespace `vo
   `TEMPORAL_NAMESPACE`, `TEMPORAL_API_KEY`, `LARAVEL_DIR`, `PHP_BINARY`, `S_MODEL_MODULE`,
   `SENTRY_DSN`/`SENTRY_LARAVEL_DSN`, `TEMPORAL_TASK_QUEUE`).
 - `activities.py`: `run_command` (one process per unit, heartbeats every 10 s, kills the child on
-  cancellation) and `report_issue` (one Sentry Issue per outcome that needs a person, fingerprint
+  cancellation, and on worker shutdown when `CommandRequest.interruptible`) and `report_issue` (one Sentry Issue per outcome that needs a person, fingerprint
   `temporal-workflow` + workflow + reason).
 - `s_forecast.py`: `SDailyForecast` and `SWeeklyRefit` (the S pilot). Timeline and model interface:
   `../tasks/temporal-orchestration/s-workflow-interface.md` and
@@ -79,28 +79,42 @@ implemented locally, not in production. Production: Temporal Cloud namespace `vo
 
 - **No automatic retry of a failed command.** `run_command` raises `CommandFailed` for a non-zero
   exit, and every job retry policy lists it as non-retryable (as with the Laravel scheduler). Only a
-  lost attempt is retried: a worker deploy (SIGTERM cancels the activity and kills the child; the
-  new worker repeats it after about 30 s) or a crash (heartbeat timeout 2 min). Verified locally
-  2026-11-08 with both SIGTERM and SIGKILL. Social posting and the morning consumers use
-  `max_attempts=1`: a lost consumer attempt leaves its claim `running` for inspection, as before.
+  lost attempt is retried. Read-only readiness calls may retry. Social posting and the morning
+  consumers use `max_attempts=1`.
+- **Deploy drain.** Railway sends SIGTERM to the old worker after the new one is active. The worker
+  stops polling. An interruptible command (`Step.interruptible`, default true) is killed at once and
+  repeats on the new worker after about 30 s. A claim-based command (`interruptible=False`:
+  `contracts:complete-import`, both morning consumers, social posts, `contracts:warm-cache
+  --pending` with its 30-minute producer lease) runs to its end within `GRACEFUL_SHUTDOWN` (38 min;
+  `worker.py`), because a killed claim cannot be resumed and stays locked for inspection. The worker
+  service needs `RAILWAY_DEPLOYMENT_DRAINING_SECONDS` above that (2400). A crash (SIGKILL) still
+  waits for the 2-minute heartbeat timeout. Tests: `test_a_deploy_*` in `tests/test_jobs.py`.
 - **One Issue per failure.** A failed step sends one `report_issue` (`command_failed`), because the
-  Laravel scheduler failure listener does not run here. `spot:fetch`, `futures:fetch-eex` and
-  `contracts:fetch` report themselves (`self_reports=True`), so the workflow sends nothing for them.
-  The job then fails with `ReportedFailure` (red in the Temporal UI); the Sentry interceptor does
-  not report that type again.
+  Laravel scheduler failure listener does not run here. `spot:fetch`, `futures:fetch-eex`,
+  `contracts:fetch` and `contracts:complete-import` report a non-zero exit themselves
+  (`self_reports=True`); the workflow still reports a lost or timed-out attempt of these, because
+  it never reached the command's reporter (`reported_by_command`). A failed job, `EexFutures` or
+  `ContractImport` then fails with `ReportedFailure` (red in the Temporal UI); the Sentry
+  interceptor does not report that type again.
 - A failed step skips the later steps of the job, except `always` steps (backup clean/monitor after
   the backup, price-cache cleanup after the warm, daily spot social post after `spot:fetch`).
 - `MorningChain` (Schedule 04:00, one per Helsinki date): `EexFutures` starts at once;
-  `ContractImport` waits until 06:00, runs `contracts:fetch --skip-logos` (logos are on the web
-  volume; the web scheduler runs `logos:download`), then `contracts:complete-import` every minute
-  while `orchestration:readiness morning` says `pending_completion` (at most 2 h 10 min), then
-  `forecasting:evaluate-fixed-contracts`. When both children have ended (success or failure), the
-  chain ticks `retail-premiums:collect --scheduled` and `forecasting:run-fixed-contracts
-  --scheduled` every five minutes until their checkpoints are `ready` or `failed`, and once at or
-  after 12:00 so that `MorningConsumerExecution` sends its deadline alert. The commands keep their
-  gates, claims and alerts; the workflow only replaces the 07:15/07:30 cron ticks.
-- Every job runs on the shared Redis cache (`CACHE_STORE=redis`): price-cache warm/cleanup run in
-  the worker for all web instances. Without the shared store a worker job writes a private cache.
+  `ContractImport` waits until 06:00, runs `contracts:fetch --skip-logos`, then
+  `contracts:complete-import` every minute while `orchestration:readiness morning` says
+  `pending_completion` (at most 2 h 10 min), then `forecasting:evaluate-fixed-contracts`. Each
+  consumer has its own lane: it waits until both children have ended (or noon), then ticks its
+  `--scheduled` command every five minutes until `scheduled_complete` is true. A manual subset
+  `ready` row is not done. A `failed` claim gets no tick before noon. At or after 12:00 every
+  incomplete lane runs one tick (also while a producer still runs), so `MorningConsumerExecution`
+  reserves the deadline alert. The lanes never wait for each other. An incomplete morning sends one
+  `morning_incomplete` Issue and fails. The PHP commands keep their gates, claims and alerts;
+  their lower clock bound was removed, so the start is the producers' end.
+- **Cut-over order** (`../tasks/temporal-orchestration/phase2-plan.md`): only the collectors
+  group is out of `laravel/routes/console.php` in this branch. Maintenance and spot move only
+  after every service uses the shared Redis cache and the queue runs in `voltikka-queue`, because
+  they write the cache; a worker job on a private file cache would keep stale prices on the web.
+  The morning chain also moves `logos:download` to the web scheduler (the worker import uses
+  `--skip-logos`).
 
 ## S model command
 

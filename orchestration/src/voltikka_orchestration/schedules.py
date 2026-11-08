@@ -56,7 +56,7 @@ def job(*steps: Step) -> list[Step]:
 JOBS: dict[str, tuple[str, list[ScheduleCalendarSpec], list[Step]]] = {
     # A. Market-review and own-model collectors (no cache writes).
     "fingrid-fetch": ("collectors", [at([10], 20)], job(Step(["fingrid:fetch"], 60))),
-    "gas-storage-fetch": ("collectors", [at([10], 35)], job(Step(["gas-storage:fetch"]))),
+    "gas-storage-fetch": ("collectors", [at([10], 35)], job(Step(["gas-storage:fetch", "--if-configured"]))),
     "weather-fetch": ("collectors", [at([10], 40)], job(Step(["weather:fetch"], 60))),
     "weather-fetch-ec46": ("collectors", [at([10], 50, weekday=1)], job(Step(["weather:fetch", "--only=ecmwf_ec46"], 60))),
     "weather-fetch-seas5": ("collectors", [at([11], 0, day=8)], job(Step(["weather:fetch", "--only=ecmwf_seas5"], 60))),
@@ -81,20 +81,21 @@ JOBS: dict[str, tuple[str, list[ScheduleCalendarSpec], list[Step]]] = {
         Step(["backup:clean"], always=True),
         Step(["backup:monitor"], always=True),
     )),
-    # The shared Redis cache: one producer for all instances (was per instance every minute).
+    # The shared Redis cache: one producer for all instances (was per instance every minute). The
+    # warm holds the 30-minute producer lease, so a deploy lets it finish instead of killing it.
     "price-cache-maintenance": ("maintenance", [every_minutes(5)], job(
-        Step(["contracts:warm-cache", "--pending"], 35),
+        Step(["contracts:warm-cache", "--pending"], 35, interruptible=False),
         Step(["contracts:cleanup-price-cache"], 10, always=True),
     )),
     "retail-premiums-calibrate": ("maintenance", [at([8], 0, day=2)], job(Step(["retail-premiums:calibrate"]))),
     # Social posting: never repeated automatically.
     "social-weekly-offers-video": ("maintenance", [at([13], 0, weekday=0)], job(
-        Step(["social:weekly-offers-video"], 60, max_attempts=1),
+        Step(["social:weekly-offers-video"], 60, max_attempts=1, interruptible=False),
     )),
     # C. Spot. Publication follows the hourly import (it checks complete data itself).
     "spot-hourly": ("spot", [at(None, 0)], job(
         Step(["spot:fetch"], 55, self_reports=True),
-        Step(["social:publish-daily-spot"], 15, always=True, max_attempts=1),
+        Step(["social:publish-daily-spot"], 15, always=True, max_attempts=1, interruptible=False),
     )),
     # Independent watchdog: it must run even when spot:fetch hangs.
     "spot-check-freshness": ("spot", [at(None, 10)], job(Step(["spot:check-freshness"], 5))),

@@ -21,7 +21,34 @@ class OrchestrationMorningReadinessTest extends TestCase
         $this->assertSame([
             'date' => '2026-11-09',
             'checkpoints' => ['eex_futures' => 'ready', 'contract_import' => 'pending_completion', 'morning_retail' => null, 'morning_forecast' => null],
+            'scheduled_complete' => ['morning_retail' => false, 'morning_forecast' => false],
         ], json_decode(trim(Artisan::output()), true));
+    }
+
+    public function test_only_a_completed_scheduled_run_certifies_a_consumer(): void
+    {
+        // A successful manual subset run leaves `ready` with scheduled_complete=false.
+        DataFreshnessCheckpoint::query()->create(['key' => 'morning_retail', 'effective_date' => '2026-11-09', 'status' => 'ready',
+            'metadata' => ['reason' => 'completed', 'scheduled_complete' => false], 'recorded_at' => now()]);
+        DataFreshnessCheckpoint::query()->create(['key' => 'morning_forecast', 'effective_date' => '2026-11-09', 'status' => 'ready',
+            'metadata' => ['reason' => 'completed', 'scheduled_complete' => true], 'recorded_at' => now()]);
+
+        $this->assertSame(0, Artisan::call('orchestration:readiness', ['pipeline' => 'morning', '--date' => '2026-11-09']));
+        $result = json_decode(trim(Artisan::output()), true);
+        $this->assertSame(['morning_retail' => 'ready', 'morning_forecast' => 'ready'],
+            array_intersect_key($result['checkpoints'], array_flip(['morning_retail', 'morning_forecast'])));
+        $this->assertSame(['morning_retail' => false, 'morning_forecast' => true], $result['scheduled_complete']);
+    }
+
+    public function test_a_failed_row_or_a_row_without_the_key_is_not_complete(): void
+    {
+        DataFreshnessCheckpoint::query()->create(['key' => 'morning_retail', 'effective_date' => '2026-11-09', 'status' => 'failed',
+            'metadata' => ['reason' => 'execution_failed', 'scheduled_complete' => false], 'recorded_at' => now()]);
+        DataFreshnessCheckpoint::query()->create(['key' => 'morning_forecast', 'effective_date' => '2026-11-09', 'status' => 'ready',
+            'metadata' => [], 'recorded_at' => now()]);
+
+        $this->assertSame(0, Artisan::call('orchestration:readiness', ['pipeline' => 'morning', '--date' => '2026-11-09']));
+        $this->assertSame(['morning_retail' => false, 'morning_forecast' => false], json_decode(trim(Artisan::output()), true)['scheduled_complete']);
     }
 
     public function test_an_invalid_date_fails_with_a_closed_error_key(): void

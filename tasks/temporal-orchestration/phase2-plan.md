@@ -38,10 +38,13 @@ different value would write wrong or orphaned prices into the shared cache.
 - `ArtisanJob`: generic. Input: a list of steps (`php artisan` argv, timeout, `always` flag). Steps
   run in order; a failed step stops later steps except `always` steps. Used for every simple job.
 - `MorningChain` (one per Helsinki date, Schedule 04:00): child `EexFutures` and child
-  `ContractImport` run at the same time; when both have ended (success or failure), the workflow
-  ticks the two `--scheduled` consumers every 5 minutes until both checkpoints are terminal, and
-  runs one tick at or after 12:00 for the existing deadline alert. Event chaining replaces the
-  07:15/07:30 start times; the commands keep their own freshness gate, claims and alerts.
+  `ContractImport` run at the same time. Each consumer has its own lane: it waits until both
+  children have ended (or noon), then ticks its `--scheduled` command every 5 minutes until the
+  scheduled scope is complete (`scheduled_complete`, not a manual subset `ready`). At or after
+  12:00 every incomplete lane runs one tick (also a failed claim or while a producer still runs)
+  for the existing deadline alert. An incomplete morning sends one Issue and fails. Event chaining
+  replaces the 07:15/07:30 start times (the PHP lower clock bound is removed); the commands keep
+  their own freshness gate, claims and alerts.
 - `ContractImport` (child): waits until 06:00, `contracts:fetch --skip-logos`, then
   `contracts:complete-import` every minute while the checkpoint is `pending_completion` (at most
   2 h 10 min, the command's own bound is 2 h), then `forecasting:evaluate-fixed-contracts`.
@@ -52,9 +55,11 @@ different value would write wrong or orphaned prices into the shared cache.
 
 `run_command` raises `CommandFailed` when the command exits non-zero. Every job policy lists
 `CommandFailed` as non-retryable: a command that failed is not run again automatically (same as
-the scheduler today). Only a lost attempt (worker restart, heartbeat timeout) is retried. That is
-the deploy safety: a worker deploy repeats the interrupted attempt, never a completed or failed
-one. Exceptions with an explicit retry are listed in `jobs.py`.
+the scheduler today). Only a lost attempt (worker restart, heartbeat timeout) is retried. Deploy
+safety: on a worker deploy, interruptible commands stop and repeat on the new worker; commands with
+a durable claim or lease (deferred import completion, morning consumers, social posts, the
+price-cache warm) finish within the drain (`GRACEFUL_SHUTDOWN` 38 min, Railway draining seconds
+2400), because a killed claim cannot be resumed.
 
 ## Groups and order of cut-over
 
@@ -67,43 +72,37 @@ one. Exceptions with an explicit retry are listed in `jobs.py`.
 
 ## Production runbook (each step needs explicit user approval)
 
-The working tree holds the final state of `laravel/routes/console.php`. At commit time it is split
-into one commit per release below, so each release removes only its own group.
+Revised after the spec review of 2026-11-08 (PLT-001, PRC-001, PLT-006): each group leaves
+`laravel/routes/console.php` in its own release, and no cache-writing job (queue, maintenance,
+spot, morning) leaves the web container before every service uses the shared Redis store.
 
-- **R0 Services.** Railway Redis service in europe-west4 with a volume (a restart must not empty the
-  shared price cache: web GET reads are cache-only and would return 503 until the next warm),
-  `maxmemory` about 1 GB, `maxmemory-policy volatile-lru`, private network only. Service
-  `voltikka-queue` (same image and registry credential as the worker, start command
-  `/usr/local/bin/docker-worker-entrypoint.sh queue`, restart ALWAYS, no volume, no domain). Worker
-  and queue reference every application variable of `voltikka` (see `orchestration/AGENTS.md`).
-  Set `QUEUE_SERVICE_ID` in `scripts/deploy-image.sh`.
-- **R1 Image + collectors.** Commit 1: phpredis, `jobs.py`/`schedules.py`, readiness `morning`,
-  queue entrypoint mode, supervisord without the queue worker, `console.php` without the collector
-  group. Deploy order: queue → worker → web (two queue workers on the database queue are safe:
-  MySQL `SKIP LOCKED`), then `schedules --apply --group collectors`.
-- **R2 Redis.** `REDIS_URL` references and `CACHE_STORE=redis` on `voltikka` (worker and queue
-  reference it). All three services restart; the web start-up `contracts:warm-cache` fills Redis
-  before FrankenPHP starts. Check `/up`, the listing and a contract page, and the worker's next
-  `contracts:warm-cache --pending`.
-- **R3 Maintenance + spot.** Commit 2: `console.php` without those groups and without
-  `cache:reclaim-expired-files`. Deploy web, then `--group maintenance --group spot`.
-- **R4 Morning.** Commit 3: `console.php` with only the volume jobs. Deploy web outside 04:00–12:00
-  (the old window still applies until this release), then `--group morning`. Check the next
-  morning: EEX, import, completion, consumers, evaluation.
+- **R1 (this branch): image + collectors.** The image has phpredis, the workflows, the queue
+  entrypoint mode (not used yet) and `console.php` without the collector group only; the web still
+  runs the queue worker and every other schedule. Worker variables: add references to every
+  application variable of `voltikka` and `RAILWAY_DEPLOYMENT_DRAINING_SECONDS=2400` (check the
+  Railway maximum). Deploy worker, then web; then `schedules --apply --group collectors`.
+  Collectors write no cache.
+- **R2 Redis.** Railway Redis service in europe-west4 with a volume (a restart must not empty the
+  shared price cache: web GET reads are cache-only and return 503 until the next warm), `maxmemory`
+  about 1 GB, `maxmemory-policy volatile-lru`, private network only. `REDIS_URL` references and
+  `CACHE_STORE=redis` on `voltikka` and the worker. All writers still run in the web container, so
+  this changes only the store; the web start-up `contracts:warm-cache` fills Redis before FrankenPHP
+  starts. Check `/up`, the listing, a contract page, and the next per-instance warm.
+- **R3 (own PR): queue + maintenance + spot.** Service `voltikka-queue` (same image and registry
+  credential, start command `/usr/local/bin/docker-worker-entrypoint.sh queue`, restart ALWAYS, no
+  volume, no domain, all application variables incl. `REDIS_URL`/`CACHE_STORE`); set
+  `QUEUE_SERVICE_ID` in `scripts/deploy-image.sh`. The PR removes the queue worker from
+  `supervisord.conf` and the maintenance and spot groups (and `cache:reclaim-expired-files`) from
+  `console.php`. Start the queue service first (two queue workers on the database queue are safe:
+  MySQL `SKIP LOCKED`), then deploy web, then `--group maintenance --group spot`.
+- **R4 (own PR): morning.** The PR removes the morning chain from `console.php` and adds
+  `logos:download` (the worker import uses `--skip-logos`). Deploy web outside 04:00–12:00 (the old
+  window still applies until this release), then `--group morning`. Check the next morning: EEX,
+  import, completion, both lanes, evaluation.
 - **R5 Phase 4.** After two good mornings, remove the deploy window from `scripts/deploy-image.sh`
   and root `AGENTS.md`.
 
-Rollback of a group: pause its Schedules and deploy the previous web image (its scheduler entries
-return). Rollback of R2: set `CACHE_STORE=file` on `voltikka` (the web volume still holds the old
-file cache).
-
-## What stays and why
-
-- `cache:reclaim-expired-files` is file-store only (no-op on Redis): its per-instance schedule is
-  removed; the command stays for local file stores.
-- The S workflows are unchanged.
-- Readiness facts stay PHP (`orchestration:readiness morning --date=D` reads the four morning
-  checkpoint statuses).
-- Splitting `futures:fetch-eex` into per-request units (requirement 3) is not part of this step:
-  a worker deploy during the run repeats the whole run (about 1.7 h) but loses no data, and the
-  consumers wait for it. Do it only if worker deploys in the morning become a real problem.
+Rollback of a group: pause its Schedules, then deploy the previous web image (its scheduler
+entries return). Rollback of R2 after R3: first return the cache writers to the web (deploy the
+R2-era web image, pause the maintenance/spot/morning Schedules, stop `voltikka-queue`), then set
+`CACHE_STORE=file`. A file store with writers outside the web container would keep stale prices.

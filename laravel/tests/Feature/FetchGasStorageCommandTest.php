@@ -109,6 +109,34 @@ class FetchGasStorageCommandTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_if_configured_skips_with_success_and_no_request_when_the_key_is_missing(): void
+    {
+        config(['gas_storage.api_key' => null]);
+        Http::fake();
+
+        $this->artisan('gas-storage:fetch --if-configured')
+            ->expectsOutputToContain('GIE_API_KEY is not set')
+            ->assertExitCode(0);
+
+        Http::assertNothingSent();
+        $this->assertDatabaseCount('gas_storage_daily_values', 0);
+    }
+
+    public function test_if_configured_fetches_normally_when_the_key_is_set(): void
+    {
+        Http::fake([
+            'agsi.gie.eu/api*' => Http::response([
+                'last_page' => 1, 'total' => 1, 'dataset' => 'storage', 'gas_day' => '2026-10-30',
+                'data' => [$this->day('2026-10-30', '89.47')],
+            ]),
+        ]);
+
+        $this->artisan('gas-storage:fetch --if-configured --area=eu')->assertExitCode(0);
+
+        Http::assertSentCount(1);
+        $this->assertDatabaseCount('gas_storage_daily_values', 1);
+    }
+
     public function test_error_payload_with_status_200_fails_that_area_but_not_the_others(): void
     {
         Http::fake(fn (Request $request) => ($request->data()['country'] ?? null) === 'de'

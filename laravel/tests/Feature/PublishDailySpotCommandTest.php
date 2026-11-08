@@ -9,6 +9,7 @@ use App\Services\SocialMediaPromptFormatter;
 use App\Services\SpotPriceVideoService;
 use App\Services\SpotSocial\SpotSocialPublicationService;
 use Carbon\Carbon;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery;
@@ -257,6 +258,19 @@ class PublishDailySpotCommandTest extends TestCase
         $this->artisan('social:publish-daily-spot --retry')->assertExitCode(1);
 
         $this->assertSame(0, SpotSocialPublication::count());
+    }
+
+    public function test_schedule_runs_independently_each_hour_at_minute_15(): void
+    {
+        $event = collect(app(Schedule::class)->events())
+            ->first(fn ($event) => str_contains($event->command, 'social:publish-daily-spot'));
+
+        $this->assertNotNull($event);
+        $this->assertSame('15 * * * *', $event->expression);
+        $this->assertSame('Europe/Helsinki', $event->timezone);
+        $this->assertTrue($event->withoutOverlapping);
+        $this->assertTrue($event->onOneServer);
+        $this->assertStringEndsWith('storage/logs/daily-spot-social.log', $event->output);
     }
 
     private function mockPipeline(int $videoCalls = 1, ?Carbon $expectedAsOf = null): PostFastService

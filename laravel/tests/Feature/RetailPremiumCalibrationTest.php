@@ -6,6 +6,7 @@ use App\Models\RetailPremiumObservation;
 use App\Services\RetailPremium\RetailPremiumCalibrationService;
 use App\Services\RetailPremium\RetailPremiumObservationService;
 use Carbon\CarbonImmutable;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
@@ -288,6 +289,16 @@ class RetailPremiumCalibrationTest extends TestCase
         );
         // Still visible as context, just never as the figure.
         $this->assertEqualsWithDelta(0.0, $monthly['median_company_beta_included'], 0.0001);
+    }
+
+    public function test_the_report_is_scheduled_monthly_on_the_second(): void
+    {
+        $events = collect(app(Schedule::class)->events())
+            ->filter(fn ($event) => str_contains((string) $event->command, 'retail-premiums:calibrate'));
+
+        $this->assertCount(1, $events);
+        $this->assertSame('0 8 2 * *', $events->first()->expression);
+        $this->assertSame('Europe/Helsinki', (string) $events->first()->timezone);
     }
 
     public function test_not_comparable_rows_and_non_reset_cadences_are_out_of_scope(): void

@@ -11,18 +11,23 @@ use InvalidArgumentException;
  *
  * Only the latest status of each key is returned (null = no row). The workflow uses them to stop
  * polling: the producers and the consumers keep their own gates, claims and alerts.
+ *
+ * `scheduled_complete` tells for each consumer whether the scheduled default scope completed. A
+ * successful manual subset run also leaves `ready`, but it does not certify the full daily scope
+ * (MorningConsumerExecution::finish()), so `ready` alone is not completion.
  */
 class MorningReadiness
 {
+    public const CONSUMER_KEYS = ['morning_retail', 'morning_forecast'];
+
     public const KEYS = [
         DataFreshnessCheckpoint::KEY_EEX_FUTURES,
         DataFreshnessCheckpoint::KEY_CONTRACT_IMPORT,
-        'morning_retail',
-        'morning_forecast',
+        ...self::CONSUMER_KEYS,
     ];
 
     /**
-     * @return array{date: string, checkpoints: array<string, string|null>}
+     * @return array{date: string, checkpoints: array<string, string|null>, scheduled_complete: array<string, bool>}
      */
     public function check(string $date): array
     {
@@ -31,16 +36,25 @@ class MorningReadiness
             throw new InvalidArgumentException('--date must be YYYY-MM-DD');
         }
 
-        $statuses = DataFreshnessCheckpoint::query()
+        $rows = DataFreshnessCheckpoint::query()
             ->whereIn('key', self::KEYS)
             ->whereDate('effective_date', $date)
-            ->pluck('status', 'key');
+            ->get(['key', 'status', 'metadata'])
+            ->keyBy('key');
 
         $checkpoints = [];
         foreach (self::KEYS as $key) {
-            $checkpoints[$key] = $statuses[$key] ?? null;
+            $checkpoints[$key] = $rows[$key]->status ?? null;
         }
 
-        return ['date' => $date, 'checkpoints' => $checkpoints];
+        $scheduledComplete = [];
+        foreach (self::CONSUMER_KEYS as $key) {
+            $row = $rows[$key] ?? null;
+            $scheduledComplete[$key] = $row !== null
+                && $row->status === DataFreshnessCheckpoint::STATUS_READY
+                && ($row->metadata['scheduled_complete'] ?? false) === true;
+        }
+
+        return ['date' => $date, 'checkpoints' => $checkpoints, 'scheduled_complete' => $scheduledComplete];
     }
 }
