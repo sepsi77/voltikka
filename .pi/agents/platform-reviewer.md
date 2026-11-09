@@ -81,7 +81,11 @@ result acceptable: report the result and cite the decision.
    neither past a trigger time (the runbook orders deploy and apply and names the recovery for a
    missed trigger and a failed apply). The operator tool has no "all groups" default on apply
    (example: a bare `schedules --apply` started maintenance, spot and morning beside the web
-   scheduler). The web scheduler keeps only web-volume jobs. Times are Europe/Helsinki and match the
+   scheduler). The web scheduler keeps only web-volume jobs. A job that moves to the worker still
+   reaches the storage it writes (PR #12: `backup:run` with `BACKUP_DISK=local` on a worker with no
+   volume would keep archives in a temporary container). A test that proves both sides agree
+   compares full command strings, not command names (PR #12: a lost `weather:fetch --only=` variant
+   passed a name-only check). Times are Europe/Helsinki and match the
    documented order (EEX at 04:00, contract import from 06:00, consumers until 12:00).
 7. **Shared state.** Worker and queue services reference every application variable of the
    `voltikka` service, above all the pricing flags (they are part of cache keys) and

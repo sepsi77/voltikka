@@ -22,9 +22,12 @@ servers:
     options:
       memory: 4g
       volume: voltikka-storage:/app/storage
-  # Temporal Python worker (docker-worker-entrypoint.sh). No proxy, no volume except the S model
-  # file store. The image HEALTHCHECK probes the web port, so it is off here. The stop timeout is
-  # longer than the 65-minute GRACEFUL_SHUTDOWN of the worker, so claim-based steps can finish.
+  # Temporal Python worker (docker-worker-entrypoint.sh). No proxy. It mounts the same storage
+  # volume as the web role (one host): the maintenance jobs that it runs after their cut-over
+  # (backup:run with BACKUP_DISK=local, backup:clean, backup:monitor) must use the same
+  # persistent archive set as the weekly files backup on the web role. The image HEALTHCHECK
+  # probes the web port, so it is off here. The stop timeout is longer than the 65-minute
+  # GRACEFUL_SHUTDOWN of the worker, so claim-based steps can finish.
   worker:
     hosts:
       - breezily-vps
@@ -33,13 +36,13 @@ servers:
       entrypoint: /usr/local/bin/docker-worker-entrypoint.sh
       no-healthcheck: true
       memory: 2g
-      volume: voltikka-forecast-store:/var/lib/voltikka-forecast
+      volume: voltikka-storage:/app/storage
     env:
       clear:
         TEMPORAL_ADDRESS: voltikka-prod-vps.lw6f1.tmprl.cloud:7233
         TEMPORAL_NAMESPACE: voltikka-prod-vps.lw6f1
-        # Own S model files on a local volume, not in the production voltikka-forecast bucket.
-        FORECAST_STORE_DIR: /var/lib/voltikka-forecast
+        # Own S model files on the storage volume, not in the production voltikka-forecast bucket.
+        FORECAST_STORE_DIR: /app/storage/app/forecast-models
       secret:
         - TEMPORAL_API_KEY
 

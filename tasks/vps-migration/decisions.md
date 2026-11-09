@@ -89,8 +89,9 @@ User request 2026-11-09: start the VPS deployment, copy the databases and set ev
 - **Kamal files** at the repository root: `config/deploy.yml`, `.kamal/secrets` (commands only).
   Roles `web` (supervisord: FrankenPHP, scheduler, queue; volume `voltikka-storage` on
   `/app/storage`) and `worker` (entrypoint `docker-worker-entrypoint.sh`, image HEALTHCHECK off,
-  stop timeout 3960 s > 65-minute drain, S model files on volume `voltikka-forecast-store` through
-  `FORECAST_STORE_DIR`). Accessories `voltikka-db` (MySQL 9.7, buffer pool 1 GB) and
+  stop timeout 3960 s > 65-minute drain, S model files through `FORECAST_STORE_DIR`; since the PR #12
+  review the worker mounts `voltikka-storage` too and the model files are in
+  `/app/storage/app/forecast-models`). Accessories `voltikka-db` (MySQL 9.7, buffer pool 1 GB) and
   `voltikka-redis` (Redis 8, 2 GB, `noeviction` after PR #11 review, append-only file). `CACHE_STORE=redis` from the
   start (phase 2 R2).
 - **Known overlap.** Kamal starts the new container before it stops the old one. During a web
@@ -160,3 +161,18 @@ Every group assignment matches its Temporal job. Findings:
 | PLT-001 | With `morning` on Temporal, no scheduler completes an import started by hand (`contracts:complete-import` runs only after the chain's own import); a deferred `pending_completion` stays and the consumers stay closed | valid, deferred | **Condition of the morning cut-over:** before `morning` is listed, add a standalone completion Schedule in the morning group, or make `MorningChain` with `date=` the only recovery for a missed import. Not needed while `morning` runs in `console.php`. |
 | PLT-002 | `schedules --apply --only <id>` applies one job of a group: it runs in both schedulers, or the rest of a listed group runs nowhere | valid, fixed | `--apply` takes `--group` only; test in `test_jobs.py`. |
 | PLT-003 | The runbook text dropped "only after the web deploy succeeded" and "let running workflows end" | valid, fixed | Text above. |
+
+## 2026-11-09 – PR #12 review, round 1
+
+Head 871badd. Greptile (Plus, score 4/5) and CodeRabbit (1 actionable).
+
+| Finding | Reviewer | Verdict | Action |
+|---|---|---|---|
+| 4509406068 After the maintenance cut-over, `backup:run` (BACKUP_DISK=local), clean and monitor run in the worker, which had no storage volume: archives in a temporary container, apart from the weekly files backup | Greptile | valid (👍) | The worker role mounts `voltikka-storage` (one host, one Docker volume); S model files move into it (`/app/storage/app/forecast-models`). The empty `voltikka-forecast-store` volume is removed after the next worker deploy. |
+| 4509406071 The reverse group test compared only command names, so a lost `weather:fetch --only=` variant passed | Greptile | valid (👍) | Full command strings in both directions; the two Temporal-only flags are named (`--if-configured`, `--skip-logos`). Proved: deleting `weather-fetch-ecmwf-prev-day1` from `JOBS` is detected. |
+| 4509411679 Stage a group paused, verify, then activate; document a partial apply | CodeRabbit | partly valid (👍 + reply) | Added the partial-apply recovery (re-run, or pause the created schedules) and the fact that a re-apply unpauses. Not adopted: a staged-paused apply mode; one operator applies one group with `schedule:list` proof, which is enough for this tool. |
+
+Codification (missed-findings): owner `platform-reviewer` (it reviewed this diff before the PR and
+missed both Greptile findings); cause (d). Its checklist item 6 now names: a job that moves to the
+worker must still reach the storage it writes (volume, disk), and a consistency test must compare
+full command strings, not names.

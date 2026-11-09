@@ -57,10 +57,15 @@ VPS test copy (2026-11-09): Kamal role `worker` in `../config/deploy.yml` on nam
   policy SKIP replaces `withoutOverlapping`; one schedule start replaces `onOneServer`. Applying a
   production schedule is a production change and needs user approval. A group's Schedules and its
   `laravel/routes/console.php` entries must never both run: list the group in
-  `TEMPORAL_SCHEDULE_GROUPS` of the web role at the same time as its `--apply`, and remove it only
-  after its Schedules are paused. `tests/test_console_groups.py` checks that every Temporal step has
-  the same group in `console.php`; `cache:reclaim-expired-files` is the one console entry without a
-  Temporal job (file cache only).
+  `TEMPORAL_SCHEDULE_GROUPS` of the web role, deploy the web role, confirm with `schedule:list` in
+  the new container that the group is absent, and only then `--apply --group` it. Remove the group
+  only after its Schedules are paused and their running workflows ended. `--apply` creates or
+  updates one schedule at a time and is idempotent: after a partial apply (an error after some
+  schedules were created), run the same `--apply --group` again; to roll back instead, pause every
+  schedule of the group that exists (`temporal schedule list`), then remove the group. A re-apply
+  replaces the whole schedule, so it unpauses a paused one. `tests/test_console_groups.py` checks
+  both directions with full command strings; `cache:reclaim-expired-files` is the one console entry
+  without a Temporal job (file cache only).
 
 ## Rules for workflow code
 
