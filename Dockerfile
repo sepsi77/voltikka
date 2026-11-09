@@ -1,6 +1,9 @@
 # Voltikka Laravel Application - Production
 FROM dunglas/frankenphp:1-php8.4
 
+# Kamal (VPS, config/deploy.yml) refuses an image without this label; Railway ignores it.
+LABEL service="voltikka"
+
 # Install system dependencies and PHP extensions
 # Note: libjpeg62-turbo-dev for JPEG, libwebp-dev for WebP support in GD
 # Note: chromium for Remotion video rendering

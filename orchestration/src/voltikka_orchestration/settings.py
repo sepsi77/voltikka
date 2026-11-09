@@ -34,6 +34,8 @@ class Settings:
             # Empty: the model activities return a stub result (live test of readiness/deadlines).
             s_model_module=os.environ.get("S_MODEL_MODULE") or None,
             sentry_dsn=os.environ.get("SENTRY_DSN") or os.environ.get("SENTRY_LARAVEL_DSN") or None,
-            environment=os.environ.get("APP_ENV", "local"),
+            # SENTRY_ENVIRONMENT first, as in Laravel: the VPS test copy runs APP_ENV=production
+            # but reports as vps-test.
+            environment=os.environ.get("SENTRY_ENVIRONMENT") or os.environ.get("APP_ENV", "local"),
             task_queue=os.environ.get("TEMPORAL_TASK_QUEUE", TASK_QUEUE),
         )

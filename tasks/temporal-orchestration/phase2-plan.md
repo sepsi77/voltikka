@@ -25,7 +25,7 @@ User decisions (2026-11-08, all four recommended options):
 | `voltikka` (web) | FrankenPHP, `schedule:work` with two volume jobs. No data job, no queue. |
 | `voltikka-worker` | Temporal Python worker; every scheduled job as a `php artisan` activity. |
 | `voltikka-queue` (new) | `php artisan queue:work --queue=default,historical-interpretation --timeout=1020 --tries=3 --max-time=3600` |
-| `Redis` (new) | Shared Laravel cache and locks. `maxmemory-policy volatile-lru`: forever price payloads are never evicted; TTL entries can be. |
+| `Redis` (new) | Shared Laravel cache and locks. `maxmemory-policy noeviction` (PR #11 review: an LRU policy can remove an active lock, because locks have a TTL; a full Redis must fail writes visibly). |
 
 Worker and queue services must reference **every application variable** of the web service
 (not `PORT`, not Railway-generated names). The pricing flags (`CANONICAL_PRICING_ENABLED`,
@@ -97,7 +97,7 @@ spot, morning) leaves the web container before every service uses the shared Red
   deploy the previous web image (its collector entries return) and keep the Schedules unapplied.
 - **R2 Redis.** Railway Redis service in europe-west4 with a volume (a restart must not empty the
   shared price cache: web GET reads are cache-only and return 503 until the next warm), `maxmemory`
-  about 1 GB, `maxmemory-policy volatile-lru`, private network only. `REDIS_URL` references and
+  about 1 GB, `maxmemory-policy noeviction`, private network only. `REDIS_URL` references and
   `CACHE_STORE=redis` on `voltikka` and the worker. All writers still run in the web container, so
   this changes only the store; the web start-up `contracts:warm-cache` fills Redis before FrankenPHP
   starts. Check `/up`, the listing, a contract page, and the next per-instance warm.

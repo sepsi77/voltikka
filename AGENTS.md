@@ -48,6 +48,7 @@ User decisions 2026-11-06; they apply to all writing on the site (pages, article
 
 - Production site URL https://voltikka.fi/
 - Hosting: Railway with MySQL database
+- VPS test copy (since 2026-11-09, `tasks/vps-migration/`): the Breezily VPS (`breezily-vps`, runbook in `~/code/breezily-infra`) runs the same GHCR image with Kamal (`config/deploy.yml`, `.kamal/secrets`), its own MySQL and Redis accessories and Temporal namespace `voltikka-prod-vps.lw6f1`. It writes only its own database, posts nothing and is not public. Deploy: `kamal deploy --skip-push --version <deploy tag>` from the repository root. A VPS deploy does not change production; Railway stays production until the approved cut-over.
 
 ## Railway production operations
 
@@ -155,6 +156,10 @@ Reviewer agents: `refactor-reviewer`, `laravel-reviewer`, `pricing-reviewer`, `t
 ## Dated follow-ups
 
 Time-triggered work that is not yet possible. Check this list when the date has passed. Each item says what unblocks it and where the detail lives. **Remove an item once it is done**, and do not add anything here that a scheduled command already surfaces on its own.
+
+### Before 2028-11-07 — rotate the VPS Temporal API key
+
+The Temporal Cloud API key of namespace `voltikka-prod-vps.lw6f1` (GCP Secret Manager project `breezily-infra`, secret `voltikka-temporal-api-key`) expires on 2028-11-07. After the expiry, the VPS worker cannot connect and no Temporal Schedule runs. About one month before, make a new key in Temporal Cloud, add it as a new secret version, redeploy the worker role, then delete the old key. If the namespace has changed after the cut-over, update this item. See `tasks/vps-migration/decisions.md`.
 
 ### After 2026-11-15 — score the falling-market forecast holdout
 

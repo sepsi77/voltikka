@@ -1,6 +1,7 @@
 # VPS migration: move Voltikka hosting from Railway to a VPS
 
-Status 2026-11-09: started. Phase 0 (decisions) is open; nothing is built or changed.
+Status 2026-11-09: phase 0 decisions approved (`decisions.md`). Phase 1 in progress: Kamal files,
+secrets, MySQL copy and Redis are on the VPS; the app deploy waits for the image label (PR).
 
 ## Goal
 
@@ -62,7 +63,7 @@ Phase 2 also needs a shared Redis cache and a separate queue worker (`phase2-pla
 
 ## Done when
 
-- [ ] Phase 0 decisions are recorded in `decisions.md` with the user's approval.
+- [x] Phase 0 decisions are recorded in `decisions.md` with the user's approval.
 - [ ] A VPS test environment runs the image with its own database and Temporal namespace, and the
       phase 2 collectors group has run there on Temporal Schedules for at least one week.
 - [ ] The production cut-over plan (S4–S6) is written and approved.

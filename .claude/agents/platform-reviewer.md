@@ -87,6 +87,11 @@ result acceptable: report the result and cite the decision.
 7. **Shared state.** Worker and queue services reference every application variable of the
    `voltikka` service, above all the pricing flags (they are part of cache keys) and
    `CACHE_STORE=redis`. A job that writes cache without the shared store writes a private cache.
+   A Redis that holds Laravel locks uses `maxmemory-policy noeviction`: locks have a TTL, so an
+   LRU policy can remove an active lock when Redis is full (PR #11: `volatile-lru` on the VPS
+   accessory). Each runtime (PHP and the Python worker) reports the same Sentry environment from
+   `SENTRY_ENVIRONMENT` (PR #11: the worker read only `APP_ENV` and reported a test copy as
+   `production`).
 8. **Image and start time.** `Dockerfile` keeps `ext-intl`; `scripts/build-and-push-image.sh`
    keeps `--pull` on the base image. `docker-entrypoint.sh` stays fast: no recursive `chmod`,
    `chown` or `find` over `storage`, never walk `storage/framework/cache`.
