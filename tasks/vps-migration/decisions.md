@@ -38,3 +38,74 @@ and one comment.
 - Verified 2026-11-09 (read-only, with the worker's own `connect()`): the key connects to the new
   namespace (registered, 30-day retention, no workflows, no Schedules), and the production
   namespace `voltikka-prod.lw6f1` refuses it with `Request unauthorized`.
+
+## 2026-11-09 – Phase 0 decisions (user-approved)
+
+Proposed by the VPS migration thread ("Choose a VPS Deployment Approach") and approved by the
+user on 2026-11-09, with one change (item 3).
+
+1. **Host.** The Breezily Hostinger KVM 4 VPS (Debian 13, Lithuania, 16 GB), SSH host
+   `breezily-vps` (Tailscale only, user `deploy`), shared with the Portfolio tracker and Likaiset
+   sivut. Runbook: `~/code/breezily-infra` (README). Kamal 2; Cloudflare Tunnel in front.
+2. **Parallel run model: a separate test copy.** Railway stays production. The VPS runs a full copy
+   with its own MySQL (Kamal accessory `voltikka-db`, filled with `mysqldump --single-transaction`
+   from Railway, not `scripts/sync-production-database.sh`, which builds an incomplete SQLite
+   copy), its own Redis and its own Temporal namespace `voltikka-prod-vps.lw6f1`. Each side writes
+   only its own database, so a double write is not possible. Refresh only when a test needs
+   current data; the production data moves only at the cut-over. Rejected: a VPS that fetches data
+   into the Railway database (public MySQL port, shared writes, first morning test on production
+   data).
+3. **Full collection on the test copy, EEX included.** User change to the proposal (EEX only for
+   the morning tests): the VPS runs every collector every day, `futures:fetch-eex` included.
+   Reason: the VPS must collect full data from the start, so the cut-over is a clean break from
+   Railway; EEX has not blocked Railway and is unlikely to block the VPS. LLM contract
+   interpretation is also on (a second interpretation of each changed contract is accepted).
+4. **One image: a `TEMPORAL_SCHEDULE_GROUPS` switch in `laravel/routes/console.php`.** The listed
+   groups are skipped by the Laravel scheduler. Railway leaves it unset and runs every group as
+   now; the VPS lists the groups that its Temporal Schedules run. Phase 2 stays off Railway.
+5. **Registry.** GHCR (`ghcr.io/sepsi77/voltikka`), the same immutable tags as Railway, pulled by
+   Kamal with a read-only `read:packages` token (secret `voltikka-ghcr-read-token`).
+   `scripts/build-and-push-image.sh` is unchanged.
+6. **Preview host.** `voltikka.breezily.net` behind Cloudflare Access, only seppo@breezily.fi. Off
+   on the test copy: social posting, weekly-offers video publication, GTM/Plausible, outgoing
+   email, backups to the Railway buckets, S model files in `voltikka-forecast`, a Sentry uptime
+   monitor. `SENTRY_ENVIRONMENT=vps-test`.
+7. **Railway `voltikka-worker` and the S pilot** run unchanged on `voltikka-prod` until the
+   cut-over; the VPS runs its own copy of every Schedule on its own namespace.
+8. **Parallel period: one week.** The cut-over follows after the VPS has run every schedule group
+   for one week with good mornings. Weekday evening at about 20:20 Helsinki, maintenance page for
+   about 30–45 min. Keep the Railway project stopped, not deleted, for at least two weeks after.
+9. **Backups after the cut-over.** Keep `spatie/laravel-backup` with a GCS bucket as the target
+   instead of the Railway bucket; the server's nightly restic backup runs beside it.
+
+## 2026-11-09 – Test copy set-up (phase 1, step 1)
+
+User request 2026-11-09: start the VPS deployment, copy the databases and set everything up.
+
+- **Order.** Step 1 runs the current `main` image with every schedule group in `console.php` (as on
+  Railway) and the Temporal worker with only the S pilot group. The VPS thus collects full data
+  from the first night. Step 2 (own PR): the `TEMPORAL_SCHEDULE_GROUPS` switch, then the groups
+  move to Temporal Schedules on the VPS one at a time.
+- **Kamal files** at the repository root: `config/deploy.yml`, `.kamal/secrets` (commands only).
+  Roles `web` (supervisord: FrankenPHP, scheduler, queue; volume `voltikka-storage` on
+  `/app/storage`) and `worker` (entrypoint `docker-worker-entrypoint.sh`, image HEALTHCHECK off,
+  stop timeout 3960 s > 65-minute drain, S model files on volume `voltikka-forecast-store` through
+  `FORECAST_STORE_DIR`). Accessories `voltikka-db` (MySQL 9.7, buffer pool 1 GB) and
+  `voltikka-redis` (Redis 8, 2 GB, `volatile-lru`, append-only file). `CACHE_STORE=redis` from the
+  start (phase 2 R2).
+- **Known overlap.** Kamal starts the new container before it stops the old one. During a web
+  deploy, two schedulers and two queue workers can run for some seconds; acceptable on the test
+  copy, removed when phase 2 takes the scheduler out of the web container.
+- **Secrets** (GCP Secret Manager, project `breezily-infra`): copied from Railway through a pipe,
+  never printed: `voltikka-app-key` (same `APP_KEY`, so encrypted columns and signatures of the
+  copy stay valid), `voltikka-entsoe-api-key`, `voltikka-fingrid-api-key`, `voltikka-gie-api-key`,
+  `voltikka-openrouter-api-key`, `voltikka-digitransit-api-key`, `voltikka-sentry-laravel-dsn`.
+  New: `voltikka-mysql-password`, `voltikka-mysql-root-password`. Not copied on purpose:
+  `AWS_*` and `BACKUP_ARCHIVE_PASSWORD*` (Railway backup bucket), `FORECAST_BUCKET_*`,
+  `POSTFAST_API_KEY` (no key: the weekly video skips its post), `GTM_CONTAINER_ID`, the production
+  Temporal key.
+- **Cloudflare Access.** The tunnel token (`~/.cloudflared/cert-breezily.net.pem`) can read but not
+  create Access applications (`auth.forbidden`). Until the user creates the Access application for
+  `voltikka.breezily.net`, the proxy host is `voltikka-vps.internal`: Cloudflare cannot route that
+  name, so the copy is not reachable from the internet. Tests use `curl -H 'Host: …'` on the
+  server.

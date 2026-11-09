@@ -7,6 +7,8 @@ merged on `main` (PR #9), not in production. User decision 2026-11-09: phase 2 g
 on the planned VPS (`../tasks/vps-migration/`), never on Railway; every group stays in
 `laravel/routes/console.php` until its VPS cut-over. Production: Temporal Cloud namespace `voltikka-prod`
 (AWS eu-central-1) and the Railway service `voltikka-worker`; see "Image and service" below.
+VPS test copy (2026-11-09): Kamal role `worker` in `../config/deploy.yml` on namespace
+`voltikka-prod-vps.lw6f1` (own API key `voltikka-temporal-api-key`; the production namespace refuses it).
 
 ## Decisions that this code follows (approved 2026-11-07)
 

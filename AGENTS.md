@@ -48,6 +48,7 @@ User decisions 2026-11-06; they apply to all writing on the site (pages, article
 
 - Production site URL https://voltikka.fi/
 - Hosting: Railway with MySQL database
+- VPS test copy (since 2026-11-09, `tasks/vps-migration/`): the Breezily VPS (`breezily-vps`, runbook in `~/code/breezily-infra`) runs the same GHCR image with Kamal (`config/deploy.yml`, `.kamal/secrets`), its own MySQL and Redis accessories and Temporal namespace `voltikka-prod-vps.lw6f1`. It writes only its own database, posts nothing and is not public. Deploy: `kamal deploy --skip-push --version <deploy tag>` from the repository root. A VPS deploy does not change production; Railway stays production until the approved cut-over.
 
 ## Railway production operations
 

@@ -1,0 +1,149 @@
+# Kamal deployment of the Voltikka VPS test copy (tasks/vps-migration/). Server runbook:
+# github.com/sepsi77/breezily-infra. Railway stays production until the cut-over.
+#
+# Deploy an existing immutable GHCR tag (built by scripts/build-and-push-image.sh); Kamal never
+# builds this image:
+#   kamal deploy --skip-push --version deploy-NNNNNN-<sha12>
+#
+# The test copy writes only its own database, Redis and Temporal namespace. Settings with an
+# outside effect stay off: no PostFast key (social posts), no GTM, no production buckets,
+# mail to the log, Sentry environment vps-test.
+service: voltikka
+image: sepsi77/voltikka
+
+servers:
+  # FrankenPHP + schedule:work + queue:work (supervisord), as on Railway. Kamal starts the new
+  # container before it stops the old one, so two schedulers can overlap for some seconds
+  # during a web deploy; phase 2 moves the scheduled jobs to Temporal.
+  web:
+    hosts:
+      - breezily-vps
+    stop_timeout: 60
+    options:
+      memory: 4g
+      volume: voltikka-storage:/app/storage
+  # Temporal Python worker (docker-worker-entrypoint.sh). No proxy, no volume except the S model
+  # file store. The image HEALTHCHECK probes the web port, so it is off here. The stop timeout is
+  # longer than the 65-minute GRACEFUL_SHUTDOWN of the worker, so claim-based steps can finish.
+  worker:
+    hosts:
+      - breezily-vps
+    stop_timeout: 3960
+    options:
+      entrypoint: /usr/local/bin/docker-worker-entrypoint.sh
+      no-healthcheck: true
+      memory: 2g
+      volume: voltikka-forecast-store:/var/lib/voltikka-forecast
+    env:
+      clear:
+        TEMPORAL_ADDRESS: voltikka-prod-vps.lw6f1.tmprl.cloud:7233
+        TEMPORAL_NAMESPACE: voltikka-prod-vps.lw6f1
+        # Own S model files on a local volume, not in the production voltikka-forecast bucket.
+        FORECAST_STORE_DIR: /var/lib/voltikka-forecast
+      secret:
+        - TEMPORAL_API_KEY
+
+ssh:
+  user: deploy
+
+registry:
+  server: ghcr.io
+  username: sepsi77
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+# Required by Kamal; deploys always use --skip-push with a tag from build-and-push-image.sh.
+builder:
+  arch: amd64
+
+# Cloudflare Tunnel ends TLS and sends traffic to kamal-proxy on the server (127.0.0.1:80).
+# voltikka-vps.internal is not a Cloudflare host, so nobody can reach the copy from the internet.
+# Change it to voltikka.breezily.net only after its Cloudflare Access application exists.
+proxy:
+  host: voltikka-vps.internal
+  app_port: 8000
+  ssl: false
+  response_timeout: 120
+  healthcheck:
+    path: /up
+    interval: 5
+    timeout: 5
+
+# The web start runs migrations and contracts:warm-cache before FrankenPHP starts.
+deploy_timeout: 1200
+retain_containers: 3
+
+env:
+  clear:
+    APP_NAME: Voltikka
+    APP_ENV: production
+    APP_DEBUG: "false"
+    APP_URL: https://voltikka.breezily.net
+    LOG_CHANNEL: stack
+    LOG_STACK: single,sentry_logs
+    SENTRY_ENVIRONMENT: vps-test
+    SENTRY_ENABLE_LOGS: "true"
+    SENTRY_TRACES_SAMPLE_RATE: "0.0"
+    SENTRY_PROFILES_SAMPLE_RATE: "0.0"
+    DB_CONNECTION: mysql
+    DB_HOST: voltikka-db
+    DB_PORT: "3306"
+    DB_DATABASE: voltikka
+    DB_USERNAME: voltikka
+    DB_QUEUE_RETRY_AFTER: "450"
+    CACHE_STORE: redis
+    REDIS_HOST: voltikka-redis
+    REDIS_PORT: "6379"
+    # The pricing flags are part of the cache keys: keep them equal to Railway production.
+    CANONICAL_PRICING_ENABLED: "true"
+    RESET_FORWARD_SHIFT_ENABLED: "true"
+    CONTRACT_STATISTICS_ANNUAL_METHOD_VERSION: annual_cost_as_of_v3
+    CONTRACT_INTERPRETATION_ENABLED: "true"
+    CONTRACT_INTERPRETATION_MAX_REPAIR_ATTEMPTS: "2"
+    CONTRACT_INTERPRETATION_MODEL: openai/gpt-5.6-luna
+    CONTRACT_INTERPRETATION_REASONING_EFFORT: medium
+    # Database backups to the local disk of the copy, not to the Railway voltikka-backups bucket.
+    BACKUP_DISK: local
+    BACKUP_NAME: Voltikka
+    BACKUP_FILENAME_PREFIX: voltikka-
+    BACKUP_MAX_STORAGE_MB: "3000"
+    MAIL_MAILER: log
+    SPOT_SOCIAL_PUBLISHING_ENABLED: "false"
+  secret:
+    - APP_KEY
+    - DB_PASSWORD
+    - ENTSOE_API_KEY
+    - FINGRID_API_KEY
+    - GIE_API_KEY
+    - OPENROUTER_API_KEY
+    - DIGITRANSIT_API_KEY
+    - SENTRY_LARAVEL_DSN
+
+accessories:
+  # Not published on the host: only containers on Kamal's Docker network can connect, as
+  # voltikka-db:3306. Same major version as Railway (9.7). The server backup (01:30) dumps it.
+  db:
+    image: mysql:9.7
+    host: breezily-vps
+    cmd: --innodb-buffer-pool-size=1G --disable-log-bin --performance-schema=0 --max-allowed-packet=256M
+    options:
+      memory: 3g
+    env:
+      clear:
+        MYSQL_DATABASE: voltikka
+        MYSQL_USER: voltikka
+      secret:
+        - MYSQL_PASSWORD
+        - MYSQL_ROOT_PASSWORD
+    volumes:
+      - voltikka-db:/var/lib/mysql
+  # Shared Laravel cache and locks (phase 2 R2). volatile-lru: forever price payloads are never
+  # evicted. Append-only file, so a restart does not empty the price cache.
+  redis:
+    image: redis:8
+    host: breezily-vps
+    cmd: redis-server --maxmemory 2gb --maxmemory-policy volatile-lru --appendonly yes --save ""
+    options:
+      memory: 2560m
+    volumes:
+      - voltikka-redis:/data
