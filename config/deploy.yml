@@ -137,12 +137,14 @@ accessories:
         - MYSQL_ROOT_PASSWORD
     volumes:
       - voltikka-db:/var/lib/mysql
-  # Shared Laravel cache and locks (phase 2 R2). volatile-lru: forever price payloads are never
-  # evicted. Append-only file, so a restart does not empty the price cache.
+  # Shared Laravel cache and locks (phase 2 R2). noeviction: Laravel locks have a TTL, so an
+  # LRU policy could remove an active lock when Redis is full; a full Redis must fail writes
+  # visibly instead. Expired entries still go away. Append-only file, so a restart does not
+  # empty the price cache.
   redis:
     image: redis:8
     host: breezily-vps
-    cmd: redis-server --maxmemory 2gb --maxmemory-policy volatile-lru --appendonly yes --save ""
+    cmd: redis-server --maxmemory 2gb --maxmemory-policy noeviction --appendonly yes --save ""
     options:
       memory: 2560m
     volumes:

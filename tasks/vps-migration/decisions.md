@@ -91,7 +91,7 @@ User request 2026-11-09: start the VPS deployment, copy the databases and set ev
   `/app/storage`) and `worker` (entrypoint `docker-worker-entrypoint.sh`, image HEALTHCHECK off,
   stop timeout 3960 s > 65-minute drain, S model files on volume `voltikka-forecast-store` through
   `FORECAST_STORE_DIR`). Accessories `voltikka-db` (MySQL 9.7, buffer pool 1 GB) and
-  `voltikka-redis` (Redis 8, 2 GB, `volatile-lru`, append-only file). `CACHE_STORE=redis` from the
+  `voltikka-redis` (Redis 8, 2 GB, `noeviction` after PR #11 review, append-only file). `CACHE_STORE=redis` from the
   start (phase 2 R2).
 - **Known overlap.** Kamal starts the new container before it stops the old one. During a web
   deploy, two schedulers and two queue workers can run for some seconds; acceptable on the test
@@ -109,3 +109,17 @@ User request 2026-11-09: start the VPS deployment, copy the databases and set ev
   `voltikka.breezily.net`, the proxy host is `voltikka-vps.internal`: Cloudflare cannot route that
   name, so the copy is not reachable from the internet. Tests use `curl -H 'Host: …'` on the
   server.
+
+## 2026-11-09 – PR #11 review, round 1
+
+Head 98f88e2. CodeRabbit: no actionable comments. Greptile (Plus, score 4/5), both valid and fixed:
+
+| Finding | Verdict | Fix |
+|---|---|---|
+| 4509165668 `volatile-lru` can evict active Laravel locks (they have a TTL) when Redis is full | valid (👍) | `noeviction`: a full Redis fails writes visibly; expired entries still go. Also in `phase2-plan.md`. |
+| 4509165690 the Python worker reports Sentry events as `APP_ENV` (`production`), not `vps-test` | valid (👍) | `Settings.from_env()` reads `SENTRY_ENVIRONMENT` first; `tests/test_settings.py`. |
+
+Codification (missed-findings): owner `platform-reviewer`; cause "no spec review ran" and (c) the
+rules were not written. Checklist item 7 of `.pi/agents/platform-reviewer.md` (and its
+`.claude/agents/` copy) now names both classes: a Redis with Laravel locks uses `noeviction`; every
+runtime reports `SENTRY_ENVIRONMENT`.
