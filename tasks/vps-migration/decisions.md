@@ -176,3 +176,8 @@ Codification (missed-findings): owner `platform-reviewer` (it reviewed this diff
 missed both Greptile findings); cause (d). Its checklist item 6 now names: a job that moves to the
 worker must still reach the storage it writes (volume, disk), and a consistency test must compare
 full command strings, not names.
+
+## 2026-11-09 – PR #12 review, round 2
+
+Head bea9c3c. CodeRabbit: no inline comments (only the general docstring-coverage check, not
+blocking); threads resolved. Every Greptile finding of round 1 is fixed and covered by this review.
