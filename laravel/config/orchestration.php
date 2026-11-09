@@ -14,6 +14,13 @@
  * missing input.
  */
 return [
+    // Phase 2 groups that run as Temporal Schedules, so routes/console.php skips them. Empty on
+    // Railway (every group runs in the web scheduler); set on the VPS only (tasks/vps-migration/).
+    'temporal_schedule_groups' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) env('TEMPORAL_SCHEDULE_GROUPS', '')),
+    ))),
+
     's_forecast' => [
         'timezone' => 'Europe/Helsinki',
 

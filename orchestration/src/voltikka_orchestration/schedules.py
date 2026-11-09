@@ -179,10 +179,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--only", action="append", help="schedule ID(s) to select (without a selector: plan of all)")
     parser.add_argument("--group", action="append", choices=sorted(GROUPS), help="schedule group(s) to select")
     args = parser.parse_args(argv)
-    if args.apply and not (args.only or args.group):
-        # Groups move one release at a time; a bare apply would start groups that still run in
-        # laravel/routes/console.php.
-        parser.error("--apply needs --group or --only")
+    if args.apply and not args.group:
+        # A bare apply would start groups that still run in laravel/routes/console.php.
+        parser.error("--apply needs --group")
+    if args.apply and args.only:
+        # console.php skips whole groups (TEMPORAL_SCHEDULE_GROUPS): one applied schedule of a group
+        # would run in both schedulers, and a listed group's other jobs would run nowhere.
+        parser.error("--apply takes whole groups only (--group), not --only")
     return args
 
 

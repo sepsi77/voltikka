@@ -77,6 +77,11 @@ claim-based step timeout; Railway draining seconds 4000), because a killed claim
 of `console.php`; the follow-up PR restored them, so `main` matches Railway production and a Railway
 deploy stays safe. The steps below stay valid as the order of the cut-over, with Railway service
 names replaced by their VPS counterparts in the VPS plan. R1 (collectors) is the first VPS cut-over.
+**Mechanism changed (2026-11-09, `tasks/vps-migration/decisions.md`):** a group no longer leaves
+`console.php` in its own release. The image has every group behind a condition, and
+`TEMPORAL_SCHEDULE_GROUPS` on the VPS web role lists the groups that Temporal runs. "The PR removes
+group X from `console.php`" below now means "add X to `TEMPORAL_SCHEDULE_GROUPS` and redeploy the
+web role"; the order of each step stays the same.
 
 Revised after the spec review of 2026-11-08 (PLT-001, PRC-001, PLT-006): each group leaves
 `laravel/routes/console.php` in its own release, and no cache-writing job (queue, maintenance,

@@ -123,3 +123,40 @@ Codification (missed-findings): owner `platform-reviewer`; cause "no spec review
 rules were not written. Checklist item 7 of `.pi/agents/platform-reviewer.md` (and its
 `.claude/agents/` copy) now names both classes: a Redis with Laravel locks uses `noeviction`; every
 runtime reports `SENTRY_ENVIRONMENT`.
+
+## 2026-11-09 – Test copy live; the group switch (phase 1, step 2)
+
+- **Step 1 done.** PR #11 merged (`74710ab`); image `deploy-000024-74710abe15f6` on the VPS
+  (`kamal deploy --skip-push`, 124 s). Web healthy, every console.php group runs on the VPS like
+  on Railway. Worker on `voltikka-prod-vps.lw6f1`; the S pilot Schedules (`--group s-forecast`) are
+  applied there. The weekly refit (Monday 10:45) fills the empty local model store before the first
+  daily forecast (10:55). The VPS missed its 04:00 EEX run and the 06:00 import (deploy after
+  06:00), so both ran by hand on 2026-11-09 (`futures:fetch-eex`, `contracts:fetch`).
+- **The switch.** `config('orchestration.temporal_schedule_groups')` from `TEMPORAL_SCHEDULE_GROUPS`
+  (comma list). `routes/console.php` wraps every entry in its group condition (same groups as
+  `schedules.py` / `jobs.py`); `backup:run --only-files` stays always; `logos:download` (07:00) runs
+  only when the morning group is listed. An unknown name throws, so a typo stops the scheduler
+  instead of a group running in both schedulers. With no group listed, `schedule:list` is identical
+  to `main` (39 lines), so Railway does not change.
+- **Cut-over of a group on the VPS:** set the group in `TEMPORAL_SCHEDULE_GROUPS` (env of the web
+  role only in `config/deploy.yml`: a typo then stops only the new web container), deploy the web
+  role. Only after the deploy succeeded, run `php artisan schedule:list` in the new web container
+  and confirm that the group is absent; then `schedules --apply --group <group>` in the worker
+  container at once. A failed deploy keeps the old container with the group, so never apply after
+  it. Rollback: pause the group's Schedules, wait until its running workflows end, then remove the
+  group and redeploy the web role. Trigger-gap and failed-apply recovery:
+  `tasks/temporal-orchestration/phase2-plan.md`, R1. `--apply` takes whole groups only.
+- **Queue on the VPS.** The phase 2 plan moved the queue to its own service before maintenance and
+  spot, because a worker job on a private file cache would keep stale prices. The VPS has the shared
+  Redis cache on every role from the start, so that reason does not apply; the queue stays in the
+  web container for now. A separate `queue` role (deploy survival of the LLM jobs) is a later step.
+
+### Independent review of the switch (platform-reviewer, before the PR)
+
+Every group assignment matches its Temporal job. Findings:
+
+| ID | Finding | Verdict | Action |
+|---|---|---|---|
+| PLT-001 | With `morning` on Temporal, no scheduler completes an import started by hand (`contracts:complete-import` runs only after the chain's own import); a deferred `pending_completion` stays and the consumers stay closed | valid, deferred | **Condition of the morning cut-over:** before `morning` is listed, add a standalone completion Schedule in the morning group, or make `MorningChain` with `date=` the only recovery for a missed import. Not needed while `morning` runs in `console.php`. |
+| PLT-002 | `schedules --apply --only <id>` applies one job of a group: it runs in both schedulers, or the rest of a listed group runs nowhere | valid, fixed | `--apply` takes `--group` only; test in `test_jobs.py`. |
+| PLT-003 | The runbook text dropped "only after the web deploy succeeded" and "let running workflows end" | valid, fixed | Text above. |
