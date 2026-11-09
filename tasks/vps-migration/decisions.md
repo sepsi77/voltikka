@@ -181,3 +181,11 @@ full command strings, not names.
 
 Head bea9c3c. CodeRabbit: no inline comments (only the general docstring-coverage check, not
 blocking); threads resolved. Every Greptile finding of round 1 is fixed and covered by this review.
+
+## 2026-11-09 – Collectors cut-over on the VPS (user-approved)
+
+User approval 2026-11-09: the collectors cut-over on the VPS test copy, today between 16:00 and
+16:40 Helsinki (after the 15:30 collector time, away from the hourly :45 Fingrid vintage). This PR
+sets `TEMPORAL_SCHEDULE_GROUPS: collectors` on the web role. Steps after the merge: deploy the web
+role, confirm with `schedule:list` that the 16 collector entries are absent, then
+`schedules --apply --group collectors` in the worker container. Railway does not change.

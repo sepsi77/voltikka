@@ -22,6 +22,12 @@ servers:
     options:
       memory: 4g
       volume: voltikka-storage:/app/storage
+    env:
+      clear:
+        # Phase 2 groups that Temporal runs, so routes/console.php skips them. Web role only: a
+        # typo then stops only the new web container. Change it only with the runbook in
+        # tasks/vps-migration/decisions.md (deploy web, check schedule:list, then --apply --group).
+        TEMPORAL_SCHEDULE_GROUPS: collectors
   # Temporal Python worker (docker-worker-entrypoint.sh). No proxy. It mounts the same storage
   # volume as the web role (one host): the maintenance jobs that it runs after their cut-over
   # (backup:run with BACKUP_DISK=local, backup:clean, backup:monitor) must use the same
