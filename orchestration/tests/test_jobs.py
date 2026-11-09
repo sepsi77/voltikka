@@ -423,6 +423,11 @@ def test_apply_needs_an_explicit_group_and_selects_only_that_group():
     with pytest.raises(SystemExit):
         parse_args(["--apply"])
     assert parse_args([]).apply is False  # the read-only plan of every schedule stays available
+    with pytest.raises(SystemExit):  # console.php skips whole groups only
+        parse_args(["--apply", "--only", "spot-hourly"])
+    with pytest.raises(SystemExit):
+        parse_args(["--apply", "--group", "spot", "--only", "spot-hourly"])
+    assert parse_args(["--only", "spot-hourly"]).only == ["spot-hourly"]  # the read-only plan of one
     args = parse_args(["--apply", "--group", "collectors"])
     wanted = schedules(Settings.from_env())
     assert set(select(wanted, args.only, args.group)) == GROUPS["collectors"]

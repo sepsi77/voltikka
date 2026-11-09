@@ -51,11 +51,21 @@ VPS test copy (2026-11-09): Kamal role `worker` in `../config/deploy.yml` on nam
   outside workflow code (it fails the workflow, visible only in the Temporal UI).
 - `schedules.py`: creates or updates the Temporal Schedules; prints the plan without `--apply`.
   `JOBS` is the table of every phase 2 job (Helsinki times, steps, group); `--group
-  collectors|maintenance|spot|morning|s-forecast` or `--only <id>` selects schedules; `--apply`
-  refuses to run without a selector (groups move one release at a time). Overlap
+  collectors|maintenance|spot|morning|s-forecast` or `--only <id>` selects schedules for the
+  read-only plan; `--apply` takes whole groups only (`--group`), because `console.php` skips whole
+  groups. Overlap
   policy SKIP replaces `withoutOverlapping`; one schedule start replaces `onOneServer`. Applying a
   production schedule is a production change and needs user approval. A group's Schedules and its
-  `laravel/routes/console.php` entries must never both run (cut-over in one release).
+  `laravel/routes/console.php` entries must never both run: list the group in
+  `TEMPORAL_SCHEDULE_GROUPS` of the web role, deploy the web role, confirm with `schedule:list` in
+  the new container that the group is absent, and only then `--apply --group` it. Remove the group
+  only after its Schedules are paused and their running workflows ended. `--apply` creates or
+  updates one schedule at a time and is idempotent: after a partial apply (an error after some
+  schedules were created), run the same `--apply --group` again; to roll back instead, pause every
+  schedule of the group that exists (`temporal schedule list`), then remove the group. A re-apply
+  replaces the whole schedule, so it unpauses a paused one. `tests/test_console_groups.py` checks
+  both directions with full command strings; `cache:reclaim-expired-files` is the one console entry
+  without a Temporal job (file cache only).
 
 ## Rules for workflow code
 
@@ -128,7 +138,7 @@ VPS test copy (2026-11-09): Kamal role `worker` in `../config/deploy.yml` on nam
   and fails. The PHP commands keep their gates, claims and alerts;
   their lower clock bound was removed, so the start is the producers' end.
 - **Cut-over order** (`../tasks/temporal-orchestration/phase2-plan.md`): on the VPS only; every
-  group is still in `laravel/routes/console.php` (Railway). Collectors move first. Maintenance and spot move only
+  group runs in `laravel/routes/console.php` unless `TEMPORAL_SCHEDULE_GROUPS` lists it (Railway: empty). Collectors move first. Maintenance and spot move only
   after every service uses the shared Redis cache and the queue runs in `voltikka-queue`, because
   they write the cache; a worker job on a private file cache would keep stale prices on the web.
   The morning chain also moves `logos:download` to the web scheduler (the worker import uses
