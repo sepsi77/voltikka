@@ -189,3 +189,38 @@ User approval 2026-11-09: the collectors cut-over on the VPS test copy, today be
 sets `TEMPORAL_SCHEDULE_GROUPS: collectors` on the web role. Steps after the merge: deploy the web
 role, confirm with `schedule:list` that the 16 collector entries are absent, then
 `schedules --apply --group collectors` in the worker container. Railway does not change.
+
+## 2026-11-09 – PR #12 image on the VPS; first full VPS morning
+
+- `deploy-000025-886abe858cb7` (PR #12: the worker mounts `voltikka-storage`) deployed to both
+  roles at 07:45 Helsinki (109 s). Web healthy; worker on `voltikka-prod-vps.lw6f1`.
+- Morning of 2026-11-09 on the VPS: `contract_import` (06:14, by hand), `eex_futures` (07:45, by
+  hand), `morning_retail` and `morning_forecast` (07:50) all `ready`.
+- **Lesson (wait condition).** The pre-deploy check counted `waiting` as finished, so the deploy
+  started while both consumers were still `waiting` for EEX. No tick ran in the old container during
+  the deploy, and the 07:50 tick completed both in the new one, so nothing was lost. A deploy waits
+  for final statuses of all three checkpoints (`ready` or a terminal failure), never `waiting` or
+  `running`.
+- The empty `voltikka-forecast-store` volume stays until Kamal prunes the stopped 000024 worker (its
+  rollback target); then remove it.
+
+## 2026-11-09 – Collectors cut-over done (18:49 Helsinki)
+
+- **The planned 16:03 start did not run.** It was a timer of the agent session only, and the
+  session was not active then. New user approval at 17:40 to run it at once. Lesson: an approved
+  change at a set time needs an operator who is present, or a durable scheduler, never a session
+  timer.
+- **First attempt (17:42) stopped before any change:** the gcloud login of the operator had expired,
+  so `kamal deploy` could not read the GCP secrets (`Reauthentication failed`). No container, lock
+  or Schedule changed. The user logged in again (`gcloud auth login`); check the login before a
+  planned deploy.
+- **Deploy.** `ac7e530` (`TEMPORAL_SCHEDULE_GROUPS: collectors` on the web role), image
+  `deploy-000025-886abe858cb7`, `--roles web`, 50.5 s; new web container healthy, `/up` 200.
+- **Proof.** `schedule:list` in the new web container: 23 entries (was 39), no collector entry;
+  `spot:fetch`, `contracts:fetch`, `futures:fetch-eex`, both backups still present.
+- **Apply.** `schedules --apply --group collectors` in the worker: 16 Schedules created. Every one
+  read back by ID (`describe`): all 16 exist and are active. `list_schedules` showed only some of
+  them right after the apply, because the Temporal list index is eventually consistent; read back by
+  ID, not by list.
+- First Temporal collector run: `fingrid-forecast-vintages` at 19:45 Helsinki; the web scheduler ran
+  the 18:45 one before the deploy, so no gap.

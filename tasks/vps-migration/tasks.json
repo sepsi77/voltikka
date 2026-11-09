@@ -6,7 +6,7 @@
   {"name": "Phase 0: Temporal namespace/task queue for the VPS test; fate of Railway voltikka-worker", "status": "done"},
   {"name": "Phase 0: secrets handling on the VPS", "status": "done"},
   {"name": "Phase 1: VPS test environment (image, own database copy, Redis, worker, queue)", "status": "in_progress"},
-  {"name": "Phase 1: phase 2 collectors cut-over on the VPS test environment", "status": "pending"},
+  {"name": "Phase 1: phase 2 collectors cut-over on the VPS test environment", "status": "done"},
   {"name": "Phase 2: production cut-over plan (backup, data move, DNS, outage, rollback)", "status": "pending"},
   {"name": "Phase 2: production cut-over", "status": "pending"},
   {"name": "Phase 3: stop Railway services after the agreed period; update docs and scripts", "status": "pending"}
