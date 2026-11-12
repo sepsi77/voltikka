@@ -224,3 +224,19 @@ role, confirm with `schedule:list` that the 16 collector entries are absent, the
   ID, not by list.
 - First Temporal collector run: `fingrid-forecast-vintages` at 19:45 Helsinki; the web scheduler ran
   the 18:45 one before the deploy, so no gap.
+
+## 2026-11-12 – First days of the Temporal collectors; own Fingrid key for the VPS
+
+- 2026-11-09 18:49 to 2026-11-12 11:46 Helsinki: 117 collector workflows, 114 completed, no missed
+  or paused Schedule (`fingrid-forecast-vintages` 65 hourly runs without a gap).
+- **`fingrid:fetch` failed on 10.11, 11.11 and 12.11** (`exited 1`): each day 8–10 of about 24
+  datasets with an HTTP `RequestException`, different datasets each day; the others were saved.
+  Railway had 2 failed datasets in the same days. Both ran at 10:20 Helsinki with the same API key,
+  so the two runs together went above Fingrid's request limit. Proof: a run alone on the VPS
+  (11:48) saved every dataset. No data was lost: each run fetches 72 hours.
+- **Fix (user, 2026-11-12):** Fingrid gives two API keys per account and no more. The VPS uses the
+  second key: new version 2 of GCP secret `voltikka-fingrid-api-key` (version 1, the first key, is
+  still enabled); Railway keeps the first key. Both VPS roles redeployed at 11:55 (69 s) after all
+  four morning checkpoints were `ready` and no workflow ran; both containers have the second key
+  (hash compared, never printed); a test `fingrid:fetch` had no failed dataset.
+- After the production cut-over, the first key is free again; keep one key per running system.
