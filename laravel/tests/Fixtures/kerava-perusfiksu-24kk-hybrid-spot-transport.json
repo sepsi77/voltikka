@@ -1,0 +1,196 @@
+{
+  "_source": "Keravan Energia PerusFiksu 24kk, published interpretation 6090 (2026-11-14). Its result stopped every price cache build on 2026-11-14.",
+  "contract": {
+    "pricing_model": "Hybrid",
+    "contract_type": "FixedTerm",
+    "fixed_time_range": "Fixed24",
+    "metering": "General",
+    "target_group": "Household"
+  },
+  "canonical_pricing": {
+    "phases": [
+      {
+        "ends": {
+          "kind": "period_boundary",
+          "value": "March"
+        },
+        "label": "Talvikuukaudet marraskuu–maaliskuu",
+        "starts": {
+          "kind": "period_boundary",
+          "value": "November"
+        },
+        "package": null,
+        "evidence": [
+          {
+            "quote": "talvikuukaudet marraskuusta maaliskuuhun laskutetaan kiinteällä hinnalla",
+            "source": "extra_information_fi"
+          }
+        ],
+        "components": [
+          {
+            "unit": "cents_per_kwh",
+            "amount": 14.6,
+            "evidence": [
+              {
+                "quote": "components[1].price=14.6",
+                "source": "components[1].price"
+              },
+              {
+                "quote": "talvikuukaudet marraskuusta maaliskuuhun laskutetaan kiinteällä hinnalla",
+                "source": "extra_information_fi"
+              }
+            ],
+            "price_role": "current",
+            "vat_status": "unknown",
+            "source_kind": "both",
+            "normal_amount": null,
+            "component_type": "energy_general"
+          },
+          {
+            "unit": "eur_per_month",
+            "amount": 5.5,
+            "evidence": [
+              {
+                "quote": "components[0].price=5.5",
+                "source": "components[0].price"
+              }
+            ],
+            "price_role": "current",
+            "vat_status": "unknown",
+            "source_kind": "structured",
+            "normal_amount": null,
+            "component_type": "monthly_fee"
+          }
+        ],
+        "phase_kind": "recurring_period"
+      },
+      {
+        "ends": {
+          "kind": "period_boundary",
+          "value": "October"
+        },
+        "label": "Muut kuukaudet huhtikuu–lokakuu",
+        "starts": {
+          "kind": "period_boundary",
+          "value": "April"
+        },
+        "package": null,
+        "evidence": [
+          {
+            "quote": "loput vuodesta huhtikuusta lokakuuhun pörssihinnalla + marginaalilla",
+            "source": "extra_information_fi"
+          }
+        ],
+        "components": [
+          {
+            "unit": "cents_per_kwh",
+            "amount": 0.55,
+            "evidence": [
+              {
+                "quote": "components[2].price=0.55",
+                "source": "components[2].price"
+              },
+              {
+                "quote": "pörssihinnalla + marginaalilla",
+                "source": "extra_information_fi"
+              }
+            ],
+            "price_role": "current",
+            "vat_status": "unknown",
+            "source_kind": "both",
+            "normal_amount": null,
+            "component_type": "spot_margin"
+          },
+          {
+            "unit": "eur_per_month",
+            "amount": 5.5,
+            "evidence": [
+              {
+                "quote": "components[0].price=5.5",
+                "source": "components[0].price"
+              }
+            ],
+            "price_role": "current",
+            "vat_status": "unknown",
+            "source_kind": "structured",
+            "normal_amount": null,
+            "component_type": "monthly_fee"
+          }
+        ],
+        "phase_kind": "recurring_period"
+      }
+    ],
+    "consumption_effect": {
+      "cadence": "unknown",
+      "present": true,
+      "evidence": [
+        {
+          "quote": "pricing_model=Hybrid",
+          "source": "pricing_model"
+        }
+      ],
+      "uncapped": null,
+      "applies_to": "unknown",
+      "description": null,
+      "expected_cents_per_kwh": null,
+      "hard_max_cents_per_kwh": null,
+      "hard_min_cents_per_kwh": null,
+      "typical_max_cents_per_kwh": null,
+      "typical_min_cents_per_kwh": null
+    },
+    "recurring_schedule": {
+      "cadence": "none",
+      "present": false,
+      "evidence": [],
+      "description": null,
+      "current_period_end": null,
+      "future_price_known": null,
+      "current_period_start": null
+    }
+  },
+  "canonical_source_consistency": {
+    "summary": "Structured data identifies a 24-month Hybrid contract with a monthly fee, a fixed general energy price, and a spot component. The description specifies fixed pricing for November–March and spot pricing plus a margin for April–October. The Hybrid category indicates a consumption-effect mechanism, but its amount and calculation rules are not represented in the structured components.",
+    "evidence": [
+      {
+        "quote": "pricing_model=Hybrid",
+        "source": "pricing_model"
+      },
+      {
+        "quote": "contract_type=FixedTerm",
+        "source": "contract_type"
+      },
+      {
+        "quote": "fixed_time_range=Fixed24",
+        "source": "fixed_time_range"
+      },
+      {
+        "quote": "metering=General",
+        "source": "metering"
+      },
+      {
+        "quote": "Sopimus on määräaikainen ja voimassa kaksi vuotta",
+        "source": "extra_information_fi"
+      }
+    ],
+    "issue_codes": [
+      "unsupported_consumption_effect"
+    ],
+    "metering_status": "match",
+    "contract_type_status": "match",
+    "pricing_model_status": "match",
+    "recommended_metering": "General",
+    "recommended_contract_type": "FixedTerm",
+    "recommended_pricing_model": "Hybrid",
+    "structured_pricing_status": "incomplete",
+    "misleading_first_12_months": "uncertain"
+  },
+  "canonical_calculation": {
+    "status": "unsupported",
+    "missing_facts": [
+      "Consumption-effect amount and calculation rule"
+    ],
+    "required_assumptions": [
+      "The unstructured consumption effect must be quantified before calculating the first 12 months exactly."
+    ]
+  }
+}

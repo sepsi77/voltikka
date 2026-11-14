@@ -32,6 +32,7 @@ use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
+use InvalidArgumentException;
 
 /**
  * Batch orchestrator and feature-flag gate for canonical phase-aware pricing.
@@ -70,7 +71,7 @@ class CanonicalContractPricingService
             );
         }
         if ($calculator->resetForwardShiftEnabled() !== $mode->resetForwardShiftEnabled()) {
-            throw new \InvalidArgumentException('PricingMode and the reset estimator must use the same reset-shift state.');
+            throw new InvalidArgumentException('PricingMode and the reset estimator must use the same reset-shift state.');
         }
     }
 
@@ -134,7 +135,23 @@ class CanonicalContractPricingService
                 $integrity = $this->integrityService->assess($record['data'], $outcome, $record['context']);
             }
 
-            $metrics[$contractId] = CanonicalContractMetric::fromEvaluation($outcome, $integrity);
+            try {
+                $metrics[$contractId] = CanonicalContractMetric::fromEvaluation($outcome, $integrity);
+            } catch (InvalidArgumentException $exception) {
+                // A result that the strict reader rejects excludes only this contract (fail closed, no price).
+                // On 2026-11-14 one new Hybrid result stopped every price cache build and the morning chain.
+                Log::error('Canonical pricing result rejected by the strict reader; contract excluded.', [
+                    'contract_id' => $contractId,
+                    'comparability' => $outcome->comparability->value,
+                    'estimate_method' => $outcome->estimateMethod->value,
+                    'exception_class' => $exception::class,
+                    'reason' => $exception->getMessage(),
+                ]);
+                $metrics[$contractId] = CanonicalContractMetric::fromEvaluation(
+                    $this->excludedOutcome($record['context']),
+                    ContractPricingIntegrity::none(),
+                );
+            }
         }
 
         return $metrics;
