@@ -1,0 +1,10 @@
+[
+  {"name": "Spec and open questions O1–O3 decided by the user", "status": "in_progress"},
+  {"name": "S1–S3 seasonal calendar recognition, validation and timeline", "status": "pending"},
+  {"name": "S4–S7 annual and exact-period costing, consumption-effect rule, transport", "status": "pending"},
+  {"name": "S8–S9 card category Kiinteä hinta and filter bucket kiintea", "status": "pending"},
+  {"name": "S10–S11 statistics segment and other consumers", "status": "pending"},
+  {"name": "S12–S13 schema v20 and documentation", "status": "pending"},
+  {"name": "spec-review, PR and external review", "status": "pending"},
+  {"name": "Deploy (approval) and v3 history recalculation from 2026-11-14 (approval)", "status": "pending"}
+]
