@@ -1,5 +1,5 @@
 [
-  {"name": "Spec and open questions O1–O3 decided by the user", "status": "in_progress"},
+  {"name": "Spec written; decide open questions O1–O3 with the user at the start", "status": "pending"},
   {"name": "S1–S3 seasonal calendar recognition, validation and timeline", "status": "pending"},
   {"name": "S4–S7 annual and exact-period costing, consumption-effect rule, transport", "status": "pending"},
   {"name": "S8–S9 card category Kiinteä hinta and filter bucket kiintea", "status": "pending"},

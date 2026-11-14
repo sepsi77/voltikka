@@ -19,3 +19,15 @@
   a recurring schedule; only `fxn0lr-keravan-energia-oy-perusfiksu-24kk` is active. Three are older
   inactive PerusFiksu versions; three inactive fixed-price contracts misuse `period_boundary` with
   month counts (`4`, `24`, `2`, `12`, `3`, `contract_end`).
+
+## 2026-11-14 – Deferred to a later session
+
+- User: add the recommendations to the task files, keep them as decisions to make when the work
+  starts, and do not implement in this session. O1–O3 in `spec.md` are open; their recommendations
+  are not decisions.
+- O3 user comment: people want a fixed price for the winter, not for the summer, so people who
+  search for fixed-price contracts would want to know about this contract type. The first
+  recommendation (keep it off `/sahkosopimus/kiintea-hinta`) is therefore doubtful; decide the
+  listing rule and the page copy at the start.
+- Until the task is deployed, PerusFiksu stays excluded (PR #15 catch logs it on every price
+  build), and its 2026-11-14 v3 annual row keeps the wrong all-Spot total (S12).

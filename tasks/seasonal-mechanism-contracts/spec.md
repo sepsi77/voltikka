@@ -1,6 +1,8 @@
 # Contracts with different pricing mechanisms in different calendar months
 
-Status: spec draft 2026-11-14, not implemented.
+Status: spec draft 2026-11-14, not implemented. Deferred to a later session (user, 2026-11-14).
+Decide O1–O3 with the user when the work starts; the recommendations below are not decisions.
+Until then PerusFiksu stays excluded from listings (PR #15 safety catch).
 
 ## Background
 
@@ -92,18 +94,24 @@ general rule, not as a one-contract exception.
   `ContractCard/AGENTS.md`, `ContractStatistics/AGENTS.md` and the root `AGENTS.md` describe the
   seasonal calendar, its validation and the category decision.
 
-## Open questions
+## Open questions (decide with the user when the work starts)
 
 - **O1 Interpretation schema.** Keep reading the current shape (S1) only, or also add an explicit
-  calendar boundary (for example month numbers) to the next schema/prompt version so later
+  calendar boundary (for example month numbers) to the next schema/prompt version, so later
   interpretations state the calendar without ambiguity? A prompt or schema change causes new
-  analyses. Recommendation: S1 now; the explicit field as a later, separate change.
-- **O2 Unit energy-price statistics.** A seasonal contract has no single energy price. Recommendation:
-  include it in the annual-cost medians of its fixed segment, exclude it from unit energy-price
-  medians.
-- **O3 SEO page `/sahkosopimus/kiintea-hinta`.** It requires `pricing_model = FixedPrice` and an
-  exact calculation, so PerusFiksu is not listed there. Recommendation: keep that rule; the page
-  copy promises a fixed price.
+  analyses of all contracts.
+  - Recommendation: S1 now; the explicit field later as a separate change.
+- **O2 Unit energy-price statistics.** A seasonal contract has no single energy price.
+  - Recommendation: include it in the annual-cost medians of its fixed segment; exclude it from the
+    unit energy-price medians.
+- **O3 SEO page `/sahkosopimus/kiintea-hinta`.** Today the page requires `pricing_model = FixedPrice`
+  and an exact calculation, so PerusFiksu is not listed there.
+  - First recommendation (2026-11-14): keep that rule, because the page copy promises a fixed price.
+  - User comment (2026-11-14): "People want fixed price for winter, not for summer. So people
+    searching for fixed price contracts would want to know about this." This points to listing
+    seasonal-calendar contracts on the page with a clear seasonal line, and to a copy check of
+    the page (it must not promise an all-year fixed price for them). Decide the exact rule and
+    copy at the start.
 
 ## Done when
 
