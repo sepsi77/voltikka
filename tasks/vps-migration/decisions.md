@@ -189,3 +189,79 @@ User approval 2026-11-09: the collectors cut-over on the VPS test copy, today be
 sets `TEMPORAL_SCHEDULE_GROUPS: collectors` on the web role. Steps after the merge: deploy the web
 role, confirm with `schedule:list` that the 16 collector entries are absent, then
 `schedules --apply --group collectors` in the worker container. Railway does not change.
+
+## 2026-11-09 – PR #12 image on the VPS; first full VPS morning
+
+- `deploy-000025-886abe858cb7` (PR #12: the worker mounts `voltikka-storage`) deployed to both
+  roles at 07:45 Helsinki (109 s). Web healthy; worker on `voltikka-prod-vps.lw6f1`.
+- Morning of 2026-11-09 on the VPS: `contract_import` (06:14, by hand), `eex_futures` (07:45, by
+  hand), `morning_retail` and `morning_forecast` (07:50) all `ready`.
+- **Lesson (wait condition).** The pre-deploy check counted `waiting` as finished, so the deploy
+  started while both consumers were still `waiting` for EEX. No tick ran in the old container during
+  the deploy, and the 07:50 tick completed both in the new one, so nothing was lost. A deploy waits
+  for final statuses of all three checkpoints (`ready` or a terminal failure), never `waiting` or
+  `running`.
+- The empty `voltikka-forecast-store` volume stays until Kamal prunes the stopped 000024 worker (its
+  rollback target); then remove it.
+
+## 2026-11-09 – Collectors cut-over done (18:49 Helsinki)
+
+- **The planned 16:03 start did not run.** It was a timer of the agent session only, and the
+  session was not active then. New user approval at 17:40 to run it at once. Lesson: an approved
+  change at a set time needs an operator who is present, or a durable scheduler, never a session
+  timer.
+- **First attempt (17:42) stopped before any change:** the gcloud login of the operator had expired,
+  so `kamal deploy` could not read the GCP secrets (`Reauthentication failed`). No container, lock
+  or Schedule changed. The user logged in again (`gcloud auth login`); check the login before a
+  planned deploy.
+- **Deploy.** `ac7e530` (`TEMPORAL_SCHEDULE_GROUPS: collectors` on the web role), image
+  `deploy-000025-886abe858cb7`, `--roles web`, 50.5 s; new web container healthy, `/up` 200.
+- **Proof.** `schedule:list` in the new web container: 23 entries (was 39), no collector entry;
+  `spot:fetch`, `contracts:fetch`, `futures:fetch-eex`, both backups still present.
+- **Apply.** `schedules --apply --group collectors` in the worker: 16 Schedules created. Every one
+  read back by ID (`describe`): all 16 exist and are active. `list_schedules` showed only some of
+  them right after the apply, because the Temporal list index is eventually consistent; read back by
+  ID, not by list.
+- First Temporal collector run: `fingrid-forecast-vintages` at 19:45 Helsinki; the web scheduler ran
+  the 18:45 one before the deploy, so no gap.
+
+## 2026-11-12 – First days of the Temporal collectors; own Fingrid key for the VPS
+
+- 2026-11-09 18:49 to 2026-11-12 11:46 Helsinki: 117 collector workflows, 114 completed, no missed
+  or paused Schedule (`fingrid-forecast-vintages` 65 hourly runs without a gap).
+- **`fingrid:fetch` failed on 10.11, 11.11 and 12.11** (`exited 1`): each day 8–10 of about 24
+  datasets with an HTTP `RequestException`, different datasets each day; the others were saved.
+  Railway had 2 failed datasets in the same days. Both ran at 10:20 Helsinki with the same API key,
+  so the two runs together went above Fingrid's request limit. Proof: a run alone on the VPS
+  (11:48) saved every dataset. No data was lost: each run fetches 72 hours.
+- **Fix (user, 2026-11-12):** Fingrid gives two API keys per account and no more. The VPS uses the
+  second key: new version 2 of GCP secret `voltikka-fingrid-api-key` (version 1, the first key, is
+  still enabled); Railway keeps the first key. Both VPS roles redeployed at 11:55 (69 s) after all
+  four morning checkpoints were `ready` and no workflow ran; both containers have the second key
+  (hash compared, never printed); a test `fingrid:fetch` had no failed dataset.
+- After the production cut-over, the first key is free again; keep one key per running system.
+
+## 2026-11-14 – Status check; production import incident; findings on the VPS
+
+- **Production incident (both systems).** The first interpretation of Keravan Energia PerusFiksu
+  24kk (Hybrid: fixed Nov–Mar, Spot + 0.55 c/kWh Apr–Oct) gave a `base_only_hybrid` /
+  `forward_curve_spot` result that the strict reader rejects. The exception stopped every price
+  cache build, so `contracts:fetch` failed at `price_cache_refresh` (06:11) on Railway and on the
+  VPS, and both morning consumers waited. The API data and the daily statistics were already
+  stored; only the cache, the forecast and the retail collection were missing. Fix PR #15
+  (`b147c81`): the contract is excluded with one error log. User approved the whole recovery:
+  `deploy-000026-b147c81b13b1` to Railway web at 09:00 (SUCCESS), a fresh production
+  `contracts:fetch` (ready 09:13), `morning_forecast` and `morning_retail` ready 09:16 (9 forecasts,
+  69 retail rows); the same image on both VPS roles (180 s) and a fresh VPS import. The calculator
+  mismatch itself is a separate follow-up. Production also missed both consumers on 12.11
+  (`publication_miss`); a backfill of that forecast needs its own approval.
+- **Fingrid.** The second key did not stop the 10:20 failures (8 datasets on 13.11). Probable
+  cause: Fingrid counts the request limit per account, not per key; runs alone (11:48, 11:57 on
+  12.11) had no failures. Proposed: move the VPS `fingrid-fetch` Schedule away from 10:20 (PR).
+- **VPS restart.** Unattended upgrades rebooted the host at 02:00 on 11.11
+  (`Automatic-Reboot "true"`, time 02:00). All containers came back. Not yet in the runbook.
+- **gcloud.** The personal login expired after about 2 days (9.11, 12.11, 14.11), which stops
+  every `kamal deploy`. A service account for the Kamal secrets is a separate task (user
+  delegated it to another agent).
+- **Lesson (operator).** A `git stash` at the end of a command line in a worktree stashed the
+  uncommitted fix; it was restored at once. Never run stash commands in a shared repository.
