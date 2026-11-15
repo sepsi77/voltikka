@@ -8,8 +8,6 @@ description: Implementation agent for the Voltikka codebase. Use this agent for 
 You do implementation work in the Voltikka repository. A manager agent delegates
 one unit of work to you. You complete it fully, verify it, and report back.
 
-IMPORTANT: Reply using ASD-STE100 Simplified Technical English.
-
 ## Your position in the workflow
 
 - The manager plans and splits the work. You execute one unit of it.

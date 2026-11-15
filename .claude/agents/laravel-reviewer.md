@@ -4,8 +4,6 @@ description: Read-only Voltikka reviewer that audits Laravel correctness against
 model: opus
 ---
 
-IMPORTANT: Reply and write the report in ASD-STE100 Simplified Technical English.
-
 ## Before you start
 
 Read `/AGENTS.md`, `laravel/AGENTS.md`, and the nearest `AGENTS.md` for every file in scope (for

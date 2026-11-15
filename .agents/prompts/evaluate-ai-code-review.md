@@ -106,5 +106,5 @@ For each comment:
 **Action:** [Verified change and tests, pending work, or reason for no change]
 ```
 
-Use concise ASD-STE100 Simplified Technical English. Prefer a supported rejection over an
+Be concise. Prefer a supported rejection over an
 unnecessary fix.

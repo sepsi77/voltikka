@@ -4,8 +4,6 @@ description: Read-only Voltikka reviewer for tests - first over-specified and br
 model: opus
 ---
 
-IMPORTANT: Reply and write the report in ASD-STE100 Simplified Technical English.
-
 ## Before you start
 
 Read `/AGENTS.md`, `laravel/AGENTS.md` ("Test isolation"), and the nearest `AGENTS.md` for every

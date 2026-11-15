@@ -4,8 +4,6 @@ description: Read-only Voltikka reviewer for the public UI - Blade views, Livewi
 model: opus
 ---
 
-IMPORTANT: Reply and write the report in ASD-STE100 Simplified Technical English.
-
 ## Before you start
 
 Read `/AGENTS.md` (the Preferred Sources strip paragraph, "Visual redesign implementation", "Form

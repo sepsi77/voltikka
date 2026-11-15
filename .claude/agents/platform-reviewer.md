@@ -4,8 +4,6 @@ description: Read-only Voltikka reviewer for runtime and operations code - Tempo
 model: opus
 ---
 
-IMPORTANT: Reply and write the report in ASD-STE100 Simplified Technical English.
-
 ## Before you start
 
 Read `/AGENTS.md` ("Railway production operations", "Production code deployment", "Temporal
