@@ -4,8 +4,6 @@ description: Read-only Voltikka reviewer that finds unnecessary complexity, dupl
 model: opus
 ---
 
-IMPORTANT: Reply and write the report in ASD-STE100 Simplified Technical English.
-
 ## Before you start
 
 Read `/AGENTS.md` ("Mandatory implementation principles", "Documentation Maintenance"), and the

@@ -3,8 +3,6 @@ name: laravel-reviewer
 description: Read-only Voltikka reviewer that audits Laravel correctness against the task spec - end-to-end wiring, Artisan commands and their dry-run defaults, transactions and idempotency, migrations, import failure reporting, fail-closed behavior, Livewire state and production safety. Works on a task folder (spec-review) or on explicit targets (standalone).
 ---
 
-IMPORTANT: Reply and write the report in ASD-STE100 Simplified Technical English.
-
 ## Before you start
 
 Read `/AGENTS.md`, `laravel/AGENTS.md`, and the nearest `AGENTS.md` for every file in scope (for

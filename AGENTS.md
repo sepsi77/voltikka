@@ -1,7 +1,5 @@
 # AGENTS.md
 
-IMPORTANT: Reply using ASD-STE100 Simplified Technical English.
-
 This file provides guidance to AI coding agents when working with code in this repository.
 
 ## Mandatory implementation principles

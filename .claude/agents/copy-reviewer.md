@@ -4,8 +4,7 @@ description: Read-only Voltikka reviewer for Finnish public text - site pages, S
 model: opus
 ---
 
-IMPORTANT: Reply and write the report in ASD-STE100 Simplified Technical English. Quote Finnish
-text exactly and give the replacement in Finnish.
+Quote Finnish text exactly and give the replacement in Finnish.
 
 ## Before you start
 
