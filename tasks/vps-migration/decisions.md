@@ -304,3 +304,35 @@ role, confirm with `schedule:list` that the 16 collector entries are absent, the
 - **S pilot on the VPS.** `SDailyForecast` stopped at the 11:30 morning cut with `inputs_missing` on
   10.11–14.11; on 15.11 the morning inputs were ready for the first time. Not a cut-over blocker (no
   public output); a separate check.
+
+## 2026-11-15 – Production cut-over done (VPS serves voltikka.fi)
+
+User go 2026-11-15 ("Merge the PR and start the migration if possible now"); the user changed the
+DNS record. Times are Helsinki.
+
+- 19:17 PR #14 merged (`1a6a64a`). Pre-checks: no running workflow on either namespace, Railway
+  `jobs` empty; the only `running` checkpoint is the stale `eex_futures` row of 2026-10-02.
+- 19:19 Railway `php artisan down --retry=1800`; S pilot Schedules on `voltikka-prod` paused.
+  `/` gave 503, `/up` stayed 200: the Sentry uptime monitor on `/up` did not see the outage.
+- 19:20 VPS Schedules paused (18), `kamal app stop`, `voltikka` schema dropped and recreated
+  (`utf8mb4_0900_ai_ci`, grants kept), dump and import in 436 s. Exact counts: 60 of 60 tables,
+  7,227,519 rows on both sides, no difference.
+- Files: `public` and `videos` from Railway into `voltikka-storage` (64 files, 59 logos). Redis
+  `FLUSHALL`.
+- 19:28–19:30 `kamal deploy --skip-push --version deploy-000026-b147c81b13b1` from `main`, both
+  roles (126 s). `schedule:list` 21 entries, equal to Railway's 37 minus the 16 collectors (the
+  plan's "23" was a counting error). Environment: `APP_URL=https://voltikka.fi`, Sentry
+  `production`, `BACKUP_DISK=s3`, GTM in the page.
+- 19:31 VPS Schedules unpaused: 18 active. 19:33 first production `backup:run --only-db` to GCS:
+  203.27 MB, completed. Railway MySQL client file deleted from the VPS.
+- About 19:35 the user pointed the `voltikka.fi` CNAME to the tunnel. Checks through Cloudflare:
+  200 for `/up`, `/`, `/sahkosopimus`, `/spot-price`, `/sahkosopimus/tilastot`, a contract page,
+  `/sahkosopimus/sahkoyhtiot`, `/sahkosopimus/porssisahko`, `/markkinakatsaus`,
+  `/maksatko-liikaa`, `/sitemap.xml`; no `x-railway` headers; kamal-proxy logs show the requests;
+  https canonical and assets; a company logo from `/storage`; `http://` redirects to https. In a
+  browser, the 18 000 kWh preset recalculated the cards through Livewire (451 → 1 544 €/v for the
+  first card), with no page errors. Laravel errors since the deploy: only the known PerusFiksu
+  exclusion (PR #15 behaviour). No failed jobs.
+- Outage: 19:19 to about 19:35, about 16 minutes.
+- Railway stays in maintenance mode with the S pilot paused. Stopping its services needs the user's
+  approval after a good first VPS morning (Mon 16.11). Rollback until then: `cutover-plan.md`.
