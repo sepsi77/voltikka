@@ -271,3 +271,36 @@ role, confirm with `schedule:list` that the 16 collector entries are absent, the
   delegated it to another agent).
 - **Lesson (operator).** A `git stash` at the end of a command line in a worktree stashed the
   uncommitted fix; it was restored at once. Never run stash commands in a shared repository.
+
+## 2026-11-15 – Cut-over today; plan and production settings
+
+- **User decision:** switch production to the VPS as soon as possible, on Sunday 2026-11-15 (low
+  traffic), instead of a weekday evening (decision 8). The user approved writing the cut-over plan
+  and setting up the GCS backup bucket. The cut-over itself still needs the user's go. Plan:
+  `cutover-plan.md`.
+- **Cloudflare Access for `voltikka.breezily.net` dropped.** After the switch the VPS serves
+  `voltikka.fi`, so the preview host is no longer needed. The proxy host is now `voltikka.fi`.
+- **Settings compared with Railway (names and non-secret values only).** Railway web has no `MAIL_*`
+  variables (mail goes to the log) and no `SPOT_SOCIAL_PUBLISHING_ENABLED` (off), so the VPS keeps
+  both. Differences taken over: `APP_URL`, Sentry `production` (Railway sets no
+  `SENTRY_ENVIRONMENT`, so it reports `APP_ENV`), `GTM_CONTAINER_ID` (public, in every page),
+  `POSTFAST_API_KEY` (copied through a pipe to secret `voltikka-postfast-api-key`),
+  `BACKUP_MAX_STORAGE_MB` 10000. S model files stay on the VPS volume, not in a bucket: the weekly
+  refit rebuilds them.
+- **Backups (decision 9).** GCS bucket `breezily-voltikka-backups` (project `breezily-infra`,
+  europe-north1, 30-day soft delete, public access prevention), service account `voltikka-backup`
+  with `roles/storage.objectAdmin` on this bucket only, HMAC key in secrets
+  `voltikka-backup-hmac-access-id` / `-secret`, new archive password `voltikka-backup-archive-password`
+  (new archives, so the Railway passwords are not needed). `vps-deploy` can read all four new
+  secrets. Uniform bucket-level access is off on purpose: Flysystem sends an object ACL (`private`)
+  on every write, and GCS refuses any ACL with `Cannot insert legacy ACL ... uniform bucket-level
+  access is enabled` (the first test backup failed so). The AWS SDK checksum headers were not the
+  cause (a multipart create without ACL passed).
+- **Service-account deploy proved.** The branch had the old `.kamal/secrets` (before PR #16); after
+  the merge of `main`, `kamal deploy --roles web` with the same image passed in 52 s with only
+  `vps-deploy` (the personal login had expired at that time).
+- **02:00 reboot** is already in the breezily-infra README (decision "Automatic updates with a reboot
+  at 02:00 Helsinki time"); no change.
+- **S pilot on the VPS.** `SDailyForecast` stopped at the 11:30 morning cut with `inputs_missing` on
+  10.11–14.11; on 15.11 the morning inputs were ready for the first time. Not a cut-over blocker (no
+  public output); a separate check.
