@@ -28,19 +28,24 @@ social posts off (both equal to Railway), the Sentry uptime monitor on `https://
 - [x] Backup to GCS: `backup:run --only-db` of the test copy, 203 MB encrypted archive (AES-256).
       Found: GCS refuses the object ACL that Flysystem sends when uniform bucket-level access is on,
       so the bucket uses fine-grained access (public access prevention stays enforced).
-- [ ] Restore drill: archive downloaded, decrypted with the Secret Manager password, restored into a
-      throwaway `mysql:9.7` container (`--network none`), row counts compared.
+- [x] Restore drill (13:05): archive downloaded from GCS, decrypted with the Secret Manager password,
+      restored into a throwaway `mysql:9.7` container (`--network none`) in 300 s. 60 of 60 tables,
+      7,226,416 rows; only `jao_max_border_flows` (+192) and `hourly_forecast_runs` (+1) differ, both
+      written by collectors after the backup. Drill container, files and archive removed.
+- [x] File copy rehearsed (Railway → VPS scratch folder, `tar` through `base64`): 62 files, 12 MB.
+- [x] CodeRabbit: no actionable comments up to `c6b98ca`.
 - [ ] This PR merged (needs the user's merge request).
 - [ ] User ready in the Cloudflare dashboard (DNS of `voltikka.fi`), with the current Railway CNAME
       target written down for a rollback.
 
 ## Window
 
-Start **16:05 Helsinki** (after the 16:00 `spot:fetch`), about 35–45 min. Condition: no
-`SDailyForecast` runs on either namespace (it ends by 18:00 at the latest; if it still runs, wait or
-start at 20:05). Lost in the window: hourly runs that fall in it (Fingrid 245 vintage at 16:45 if the
-window runs late, `spot:fetch-neighbours` 16:25). Spot data is fetched again each hour, so only the
-append-only Fingrid vintage is a real gap.
+Start at the first **:05 Helsinki** after the user's go (after the hourly `spot:fetch`), about
+35–45 min. A running VPS `SDailyForecast` does not block: the import replaces every row it wrote, so
+it is terminated in step 3 (no public output; that day's S forecast is lost). Railway's S pilot had
+no running workflow on 15.11. Lost in the window: the hourly runs that fall in it (`:25`
+`spot:fetch-neighbours`, the `:45` Fingrid 245 vintage if the window runs late). Spot data is
+fetched again each hour, so only the append-only Fingrid vintage is a real gap.
 
 ## Steps
 
@@ -54,8 +59,8 @@ check and use the rollback below.
    This also stops the Railway scheduler and queue worker (both respect maintenance mode). Check:
    `https://voltikka.fi/up` gives 503. Pause the S pilot Schedules on `voltikka-prod` (script in the
    Railway worker).
-3. **Stop the VPS writers.** Pause every Schedule on `voltikka-prod-vps.lw6f1`; wait until no
-   workflow runs; `kamal app stop` (web and worker).
+3. **Stop the VPS writers.** Pause every Schedule on `voltikka-prod-vps.lw6f1`; let a running
+   `ArtisanJob` end, terminate a running `SDailyForecast`; `kamal app stop` (web and worker).
 4. **Database.** On the VPS: drop and recreate the `voltikka` schema, then the 2026-11-09 recipe:
    `mysqldump --single-transaction --quick --routines --triggers --no-tablespaces
    --set-gtid-purged=OFF --default-character-set=utf8mb4 railway | mysql voltikka` (9 min on 11-09).
