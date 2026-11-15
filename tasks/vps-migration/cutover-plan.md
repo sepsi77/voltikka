@@ -34,8 +34,8 @@ social posts off (both equal to Railway), the Sentry uptime monitor on `https://
       written by collectors after the backup. Drill container, files and archive removed.
 - [x] File copy rehearsed (Railway → VPS scratch folder, `tar` through `base64`): 62 files, 12 MB.
 - [x] CodeRabbit: no actionable comments up to `c6b98ca`.
-- [ ] This PR merged (needs the user's merge request).
-- [ ] User ready in the Cloudflare dashboard (DNS of `voltikka.fi`), with the current Railway CNAME
+- [x] This PR merged (PR #14, `1a6a64a`, 2026-11-15 19:17).
+- [x] User ready in the Cloudflare dashboard (DNS of `voltikka.fi`), with the current Railway CNAME
       target written down for a rollback.
 
 ## Window
@@ -57,7 +57,7 @@ check and use the rollback below.
    namespace. Write the Railway MySQL client file to the VPS through a pipe (never printed).
 2. **Railway maintenance (T0).** `railway ssh` into `voltikka`: `php artisan down --retry=1800`.
    This also stops the Railway scheduler and queue worker (both respect maintenance mode). Check:
-   `https://voltikka.fi/up` gives 503. Pause the S pilot Schedules on `voltikka-prod` (script in the
+   `https://voltikka.fi/` gives 503 (`/up` stays 200 in maintenance mode). Pause the S pilot Schedules on `voltikka-prod` (script in the
    Railway worker).
 3. **Stop the VPS writers.** Pause every Schedule on `voltikka-prod-vps.lw6f1`; let a running
    `ArtisanJob` end, terminate a running `SDailyForecast`; `kamal app stop` (web and worker).
@@ -74,7 +74,7 @@ check and use the rollback below.
    (both roles). The web start runs `migrate` (nothing new) and `contracts:warm-cache` (builds the
    price cache from the imported data). Check: web healthy; `curl -H 'Host: voltikka.fi'` on the
    server gives 200 for `/`, `/sahkosopimus`, `/spot-price`, `/sahkosopimus/tilastot`, one contract
-   page and `/sitemap.xml`; `schedule:list` has 23 entries without collectors; environment
+   page and `/sitemap.xml`; `schedule:list` has 21 entries: Railway's 37 minus the 16 collectors; environment
    `SENTRY_ENVIRONMENT=production`, `BACKUP_DISK=s3`.
 8. **Resume Temporal.** Unpause the VPS Schedules. Check: all 18 active.
 9. **DNS (user).** Cloudflare dashboard → `voltikka.fi` → DNS: edit the `voltikka.fi` CNAME to
@@ -94,7 +94,7 @@ check and use the rollback below.
   deploy rule applies to the VPS web role as it did to Railway.
 - Docs (S7): root `AGENTS.md`, `orchestration/AGENTS.md`, `scripts/deploy-image.sh` and the
   breezily-infra README describe the VPS. Own PR after the cut-over.
-- Remove the empty `voltikka-forecast-store` volume; free the first Fingrid key.
+- Free the first Fingrid key. (The empty `voltikka-forecast-store` volume was removed on 2026-11-15.)
 
 ## Rollback
 
