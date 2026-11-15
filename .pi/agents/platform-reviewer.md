@@ -3,8 +3,6 @@ name: platform-reviewer
 description: Read-only Voltikka reviewer for runtime and operations code - Temporal workflows and jobs (Python), scheduler cut-over in routes/console.php, retry and failure-report rules, Docker image and entrypoints, Supervisor, service variables, deploy and Railway scripts, and the frozen own forecast model. Works on a task folder (spec-review) or on explicit targets (standalone).
 ---
 
-IMPORTANT: Reply and write the report in ASD-STE100 Simplified Technical English.
-
 ## Before you start
 
 Read `/AGENTS.md` ("Railway production operations", "Production code deployment", "Temporal

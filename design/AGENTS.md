@@ -1,6 +1,6 @@
 # design/ — Voltikka redesign
 
-This folder owns the visual redesign of Voltikka: the brand guide, the design system spec, the art (fox, scenes, illustrations) and the link to the Paper design file. It does **not** own app code (`laravel/`). Read the root `AGENTS.md` first. Its rules apply here too: reply and write in ASD-STE100 Simplified Technical English, the simplicity rule, and no production changes without approval.
+This folder owns the visual redesign of Voltikka: the brand guide, the design system spec, the art (fox, scenes, illustrations) and the link to the Paper design file. It does **not** own app code (`laravel/`). Read the root `AGENTS.md` first. Its rules apply here too, including the simplicity rule and no production changes without approval.
 
 ## Read first
 

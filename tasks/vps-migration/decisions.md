@@ -105,6 +105,12 @@ User request 2026-11-09: start the VPS deployment, copy the databases and set ev
   `AWS_*` and `BACKUP_ARCHIVE_PASSWORD*` (Railway backup bucket), `FORECAST_BUCKET_*`,
   `POSTFAST_API_KEY` (no key: the weekly video skips its post), `GTM_CONTAINER_ID`, the production
   Temporal key.
+- **Secret access** (2026-11-14): `.kamal/secrets` reads the secrets with the service account
+  `vps-deploy@breezily-infra.iam.gserviceaccount.com` (key file `~/.config/breezily/vps-deploy.json`
+  on the Mac; `secretAccessor` on each app secret only). Until then it used the gcloud login of
+  seppo@breezily.fi, which expires after about 2 days (Workspace session control). Deploys then
+  stopped with `Reauthentication failed` (2026-11-09, 11-12, 11-14). A new `voltikka-*` secret needs
+  its own binding for `vps-deploy`; see the breezily-infra README, "Deploy secrets".
 - **Cloudflare Access.** The tunnel token (`~/.cloudflared/cert-breezily.net.pem`) can read but not
   create Access applications (`auth.forbidden`). Until the user creates the Access application for
   `voltikka.breezily.net`, the proxy host is `voltikka-vps.internal`: Cloudflare cannot route that

@@ -3,8 +3,7 @@ name: copy-reviewer
 description: Read-only Voltikka reviewer for Finnish public text - site pages, SEO titles and descriptions, UI states, market review editions and media material. Checks that every claim is true against the code and data, that the writing rules hold (clear stances, exact facts, short, spot vs fixed framing), and Finnish grammar. Works on a task folder (spec-review) or on explicit targets (standalone).
 ---
 
-IMPORTANT: Reply and write the report in ASD-STE100 Simplified Technical English. Quote Finnish
-text exactly and give the replacement in Finnish.
+Quote Finnish text exactly and give the replacement in Finnish.
 
 ## Before you start
 

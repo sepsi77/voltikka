@@ -4,8 +4,6 @@ description: Read-only Voltikka reviewer for every published number - canonical 
 model: opus
 ---
 
-IMPORTANT: Reply and write the report in ASD-STE100 Simplified Technical English.
-
 ## Before you start
 
 Read `/AGENTS.md` (Canonical phase-aware pricing, Contract Price Statistics, Fixed-term Price

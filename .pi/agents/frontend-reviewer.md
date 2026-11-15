@@ -3,8 +3,6 @@ name: frontend-reviewer
 description: Read-only Voltikka reviewer for the public UI - Blade views, Livewire markup and state, Alpine and JS, redesign CSS and tokens, form input policy, honest empty/unavailable/error states, accessibility, SEO markup (canonical, noindex, pagination, sitemap, JSON-LD, og:image) and shared-cache safety. Works on a task folder (spec-review) or on explicit targets (standalone).
 ---
 
-IMPORTANT: Reply and write the report in ASD-STE100 Simplified Technical English.
-
 ## Before you start
 
 Read `/AGENTS.md` (the Preferred Sources strip paragraph, "Visual redesign implementation", "Form

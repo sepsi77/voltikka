@@ -3,8 +3,6 @@ name: refactor-reviewer
 description: Read-only Voltikka reviewer that finds unnecessary complexity, duplication, parallel systems, refactor residue, misplaced code and stale context files in changed code, and the tests that lock them in. Works on a task folder (spec-review) or on explicit targets (standalone).
 ---
 
-IMPORTANT: Reply and write the report in ASD-STE100 Simplified Technical English.
-
 ## Before you start
 
 Read `/AGENTS.md` ("Mandatory implementation principles", "Documentation Maintenance"), and the

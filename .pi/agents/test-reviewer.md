@@ -3,8 +3,6 @@ name: test-reviewer
 description: Read-only Voltikka reviewer for tests - first over-specified and brittle tests, then behavioral coverage of every spec item through the real chain (PHPUnit Feature/Unit, node --test JavaScript, pytest in orchestration and forecast). Works on a task folder (spec-review) or on explicit targets (standalone).
 ---
 
-IMPORTANT: Reply and write the report in ASD-STE100 Simplified Technical English.
-
 ## Before you start
 
 Read `/AGENTS.md`, `laravel/AGENTS.md` ("Test isolation"), and the nearest `AGENTS.md` for every

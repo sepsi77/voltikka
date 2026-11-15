@@ -3,8 +3,6 @@ name: pricing-reviewer
 description: Read-only Voltikka reviewer for every published number - canonical pricing as source of truth, VAT basis, missing is not zero, annual methods and "history follows the current method", statistics basis, forecasts, Spot values, Helsinki dates and the cache keys that carry pricing semantics. Works on a task folder (spec-review) or on explicit targets (standalone).
 ---
 
-IMPORTANT: Reply and write the report in ASD-STE100 Simplified Technical English.
-
 ## Before you start
 
 Read `/AGENTS.md` (Canonical phase-aware pricing, Contract Price Statistics, Fixed-term Price
