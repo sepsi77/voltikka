@@ -8,7 +8,7 @@ on the planned VPS (`../tasks/vps-migration/`), never on Railway; every group st
 `laravel/routes/console.php` until its VPS cut-over. Production: Temporal Cloud namespace `voltikka-prod`
 (AWS eu-central-1) and the Railway service `voltikka-worker`; see "Image and service" below.
 VPS test copy (2026-11-09): Kamal role `worker` in `../config/deploy.yml` on namespace
-`voltikka-prod-vps.lw6f1` (own API key `voltikka-temporal-api-key`; the production namespace refuses it).
+`voltikka-prod-vps.lw6f1` (own API key `voltikka-temporal-api-key`; the production namespace refuses it). Applied groups there: `s-forecast` and, since 2026-11-09, `collectors`.
 
 ## Decisions that this code follows (approved 2026-11-07)
 

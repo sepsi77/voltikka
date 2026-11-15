@@ -1,13 +1,13 @@
-# Kamal deployment of the Voltikka VPS test copy (tasks/vps-migration/). Server runbook:
-# github.com/sepsi77/breezily-infra. Railway stays production until the cut-over.
+# Kamal deployment of Voltikka production on the Breezily VPS (tasks/vps-migration/,
+# cutover-plan.md). Server runbook: github.com/sepsi77/breezily-infra.
 #
 # Deploy an existing immutable GHCR tag (built by scripts/build-and-push-image.sh); Kamal never
 # builds this image:
 #   kamal deploy --skip-push --version deploy-NNNNNN-<sha12>
 #
-# The test copy writes only its own database, Redis and Temporal namespace. Settings with an
-# outside effect stay off: no PostFast key (social posts), no GTM, no production buckets,
-# mail to the log, Sentry environment vps-test.
+# Production settings equal the Railway web service (2026-11-15): GTM, PostFast key, backups to
+# the GCS bucket breezily-voltikka-backups, Sentry environment production. Mail goes to the log and
+# daily spot social posts stay off, as on Railway.
 service: voltikka
 image: sepsi77/voltikka
 
@@ -29,9 +29,8 @@ servers:
         # tasks/vps-migration/decisions.md (deploy web, check schedule:list, then --apply --group).
         TEMPORAL_SCHEDULE_GROUPS: collectors
   # Temporal Python worker (docker-worker-entrypoint.sh). No proxy. It mounts the same storage
-  # volume as the web role (one host): the maintenance jobs that it runs after their cut-over
-  # (backup:run with BACKUP_DISK=local, backup:clean, backup:monitor) must use the same
-  # persistent archive set as the weekly files backup on the web role. The image HEALTHCHECK
+  # volume as the web role (one host), so the jobs that move to it in phase 2 see the same files
+  # (S model files, backup temp) as the web role. The image HEALTHCHECK
   # probes the web port, so it is off here. The stop timeout is longer than the 65-minute
   # GRACEFUL_SHUTDOWN of the worker, so claim-based steps can finish.
   worker:
@@ -65,11 +64,10 @@ registry:
 builder:
   arch: amd64
 
-# Cloudflare Tunnel ends TLS and sends traffic to kamal-proxy on the server (127.0.0.1:80).
-# voltikka-vps.internal is not a Cloudflare host, so nobody can reach the copy from the internet.
-# Change it to voltikka.breezily.net only after its Cloudflare Access application exists.
+# Cloudflare Tunnel ends TLS and sends traffic to kamal-proxy on the server (127.0.0.1:80). The
+# tunnel takes every host; the voltikka.fi DNS record (CNAME to the tunnel, proxied) selects it.
 proxy:
-  host: voltikka-vps.internal
+  host: voltikka.fi
   app_port: 8000
   ssl: false
   response_timeout: 120
@@ -87,10 +85,10 @@ env:
     APP_NAME: Voltikka
     APP_ENV: production
     APP_DEBUG: "false"
-    APP_URL: https://voltikka.breezily.net
+    APP_URL: https://voltikka.fi
     LOG_CHANNEL: stack
     LOG_STACK: single,sentry_logs
-    SENTRY_ENVIRONMENT: vps-test
+    SENTRY_ENVIRONMENT: production
     SENTRY_ENABLE_LOGS: "true"
     SENTRY_TRACES_SAMPLE_RATE: "0.0"
     SENTRY_PROFILES_SAMPLE_RATE: "0.0"
@@ -111,11 +109,20 @@ env:
     CONTRACT_INTERPRETATION_MAX_REPAIR_ATTEMPTS: "2"
     CONTRACT_INTERPRETATION_MODEL: openai/gpt-5.6-luna
     CONTRACT_INTERPRETATION_REASONING_EFFORT: medium
-    # Database backups to the local disk of the copy, not to the Railway voltikka-backups bucket.
-    BACKUP_DISK: local
+    # spatie/laravel-backup to GCS through its S3 API (HMAC key of the service account
+    # voltikka-backup, object access to this bucket only). The bucket has fine-grained access
+    # control on purpose: Flysystem sends an object ACL on every write, and GCS refuses any ACL
+    # when uniform bucket-level access is on. Public access prevention is enforced.
+    BACKUP_DISK: s3
+    AWS_ENDPOINT: https://storage.googleapis.com
+    AWS_DEFAULT_REGION: auto
+    AWS_BUCKET: breezily-voltikka-backups
+    AWS_USE_PATH_STYLE_ENDPOINT: "true"
     BACKUP_NAME: Voltikka
     BACKUP_FILENAME_PREFIX: voltikka-
-    BACKUP_MAX_STORAGE_MB: "3000"
+    BACKUP_MAX_STORAGE_MB: "10000"
+    # The container ID is public (it is in every page).
+    GTM_CONTAINER_ID: GTM-T6BLZDB7
     MAIL_MAILER: log
     SPOT_SOCIAL_PUBLISHING_ENABLED: "false"
   secret:
@@ -127,6 +134,10 @@ env:
     - OPENROUTER_API_KEY
     - DIGITRANSIT_API_KEY
     - SENTRY_LARAVEL_DSN
+    - POSTFAST_API_KEY
+    - AWS_ACCESS_KEY_ID
+    - AWS_SECRET_ACCESS_KEY
+    - BACKUP_ARCHIVE_PASSWORD
 
 accessories:
   # Not published on the host: only containers on Kamal's Docker network can connect, as
