@@ -21,12 +21,22 @@ class ProductionMySqlConnectionTest extends TestCase
         'RAILWAY_TCP_PROXY_PORT' => '1234',
     ];
 
+    /** @var array<string, string|false> Values before the test; false means "not set". */
+    private array $originalEnvironment = [];
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        foreach (['PRODUCTION_MYSQL_URL', ...array_keys(self::RAILWAY_VARIABLES)] as $name) {
+            $this->originalEnvironment[$name] = getenv($name);
+        }
+    }
+
     protected function tearDown(): void
     {
-        putenv('PRODUCTION_MYSQL_URL');
-
-        foreach (array_keys(self::RAILWAY_VARIABLES) as $name) {
-            putenv($name);
+        foreach ($this->originalEnvironment as $name => $value) {
+            putenv($value === false ? $name : "{$name}={$value}");
         }
 
         parent::tearDown();
