@@ -394,3 +394,55 @@ Round 2 (head `007648a`; CodeRabbit after its rate limit, 1 finding): "legacy im
 healthy without a connection check": rejected (👎 + reply). The fallback only keeps the current
 behaviour of rollback images (no health check), and those images have no in-container connection
 signal (stdout log only).
+
+## 2026-11-16 – Maintenance, spot and morning move to Temporal (user decision)
+
+User decision 2026-11-16: "I think we can move everything over to Temporal now." This PR sets
+`TEMPORAL_SCHEDULE_GROUPS: collectors,maintenance,spot,morning` on the web role.
+
+- **Queue.** Stays in the web container (decision 2026-11-09): the shared Redis cache removes the
+  reason for a separate `voltikka-queue`. A web deploy stops a running interpretation job; the queue
+  retries it.
+- **PLT-001 (condition of the morning cut-over).** Resolved by the second option: a missed or
+  failed morning is recovered only by starting `MorningChain` for today's date; no hand-started
+  `contracts:fetch`. Root `AGENTS.md` and `orchestration/AGENTS.md` state the rule.
+- **Deploy window.** The morning chain runs in the worker, and the EEX step is interruptible, so the
+  04:00–09:00 refusal of `scripts/deploy-image.sh` now applies when the worker role is deployed;
+  a web-only deploy is free. Phase 4 (no window) needs two good Temporal mornings and a decision on
+  the EEX step.
+- **R4 morning test.** `MorningChain` has not run on real PHP and data yet. The first production
+  run (the next 04:00) is the acceptance test; rollback: pause `morning-chain`, remove `morning`
+  from the list, deploy web, and run the remaining commands in the web scheduler.
+- **Worker memory 2g → 4g**, as the web role: the import, the price-cache builds and the consumers
+  now run in the worker (up to 8 activities at once). The server has about 12 GB free.
+- **Steps after the merge** (runbook above): deploy the web role outside 04:00–12:00, check
+  that `schedule:list` has exactly two entries (`backup:run --only-files` and `logos:download`,
+  as `WebSchedulerTest` expects), then at once
+  `schedules --apply --group maintenance --group spot --group morning` in the worker.
+
+### PR #25 review, round 1
+
+Head `06aa14d`. CodeRabbit (3 findings) and Greptile Plus 4/5 (2 findings), all valid (👍):
+- A new `MorningChain` fails while an old child is open (same `eex-futures-<date>` /
+  `contract-import-<date>` IDs) (Greptile), and it does not repair a `failed` consumer claim
+  (CodeRabbit): the recovery rule now says to read the running chain first, let it run, start a
+  new chain only after the old one ended, and inspect a failed claim before an approved rerun.
+- Status: maintenance, spot and morning are "listed on 2026-11-16, live from their cut-over"
+  until the cut-over is recorded here (CodeRabbit).
+- Stale window sentences removed or fixed in root `AGENTS.md`, `scripts/AGENTS.md` and
+  `orchestration/AGENTS.md`: the window applies to worker deploys (both).
+
+Round 2 (head `a5d0099`, CodeRabbit, 1 finding, valid 👍): start a replacement chain before
+12:00 Helsinki; after noon the consumers stay incomplete without a separately approved run.
+
+Round 3 (head `3d6f69b`, CodeRabbit, 2 findings, valid 👍): start a replacement chain by about
+10:00 so EEX (1 h 42 min clean) and the import end before noon; check that both children are
+closed (Temporal UI or `temporal workflow describe`) before a new chain starts.
+
+Round 4 (head `3a5f027`, CodeRabbit, 1 finding, valid 👍): a replacement chain may also start
+when the old chain or a child does not exist (the 04:00 run never started).
+
+Round 5 (head `d41fdd8`, CodeRabbit, 2 findings, valid 👍): web-only deploys stay outside
+04:00–09:00 until the morning group is live; the backup schedule text names the Temporal Schedule
+`backup-nightly` (03:00 backup, then clean and monitor) and keeps only the weekly files backup in
+`console.php`.

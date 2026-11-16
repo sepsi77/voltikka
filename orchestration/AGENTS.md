@@ -4,9 +4,12 @@ Temporal workflows and the worker for Voltikka data pipelines. Task, decisions a
 `../tasks/temporal-orchestration/` (read `phase0-decision-record.md`, then `phase2-plan.md`).
 Status 2026-11-16: production runs on the Breezily VPS since 2026-11-15 (`../tasks/vps-migration/`):
 Temporal Cloud namespace `voltikka-prod-vps.lw6f1` (AWS eu-central-1) and the Kamal role `worker`
-in `../config/deploy.yml`; see "Image and service" below. Applied groups: `s-forecast` (S pilot)
-and, since 2026-11-09, `collectors`. Maintenance, spot and morning still run in
-`laravel/routes/console.php` (user decision 2026-11-09: phase 2 goes live only on the VPS).
+in `../config/deploy.yml`; see "Image and service" below. Applied groups: `s-forecast` (S pilot) and
+`collectors` (since 2026-11-09); `maintenance`, `spot` and `morning` are listed in `config/deploy.yml`
+since 2026-11-16 and live from their cut-over (`../tasks/vps-migration/decisions.md`). Only the
+web-volume jobs (weekly files backup, `logos:download`) stay in `laravel/routes/console.php`. Recover a
+missed morning by starting `MorningChain` for today's date, never with `contracts:fetch` by hand (no
+scheduler would run its `contracts:complete-import`).
 
 ## Decisions that this code follows (approved 2026-11-07)
 
@@ -135,9 +138,10 @@ and, since 2026-11-09, `collectors`. Maintenance, spot and morning still run in
   and fails. The PHP commands keep their gates, claims and alerts;
   their lower clock bound was removed, so the start is the producers' end.
 - **Cut-over order** (`../tasks/temporal-orchestration/phase2-plan.md`): on the VPS only; every
-  group runs in `laravel/routes/console.php` unless `TEMPORAL_SCHEDULE_GROUPS` lists it (production: `collectors`). Collectors move first. Maintenance and spot move only
-  after every service uses the shared Redis cache and the queue runs in `voltikka-queue`, because
-  they write the cache; a worker job on a private file cache would keep stale prices on the web.
+  group runs in `laravel/routes/console.php` unless `TEMPORAL_SCHEDULE_GROUPS` lists it (production since 2026-11-16: all four groups). Maintenance and spot write the cache, so
+  they needed a cache that the web and the worker share: on the VPS both roles use Redis. The queue
+  stays in the web container (decision 2026-11-09); a web deploy stops a running interpretation job,
+  and the queue retries it (`--tries=3`). A separate `queue` role is a later option.
   The morning chain also moves `logos:download` to the web scheduler (the worker import uses
   `--skip-logos`).
 
@@ -193,7 +197,8 @@ connects is stopped and the old one keeps running (2026-11-16). Keep the file in
 command also passes when the image's `worker.py` has no `READY_FILE` (images up to
 `deploy-000027`), so a rollback to such an image works as before; keep `READY_FILE` in `worker.py`. Deploy: `../scripts/deploy-image.sh` (both roles; Kamal boots the worker only
 after the new web container is healthy, so migrations run first) or `--role worker` (production
-mutation; the 04:00–09:00 window does not apply, because the web container keeps running).
+mutation). The 04:00–09:00 window applies to every worker deploy: the worker runs the
+`MorningChain`, and a deploy restarts its interruptible EEX step.
 Variables: the shared `env` of `config/deploy.yml` (so the pricing flags `CANONICAL_PRICING_ENABLED`,
 `RESET_FORWARD_SHIFT_ENABLED`, `CONTRACT_STATISTICS_ANNUAL_METHOD_VERSION` and
 `CONTRACT_INTERPRETATION_*`, which are part of the cache keys, are equal on both roles), plus

@@ -14,11 +14,13 @@ The script:
 - refuses `latest` and any tag that is not deploy-NNNNNN-<sha12>
 - refuses a checkout whose HEAD is not on origin/main, or that has local changes in config/ or
   .kamal/: Kamal reads the deploy config and the secret list from this checkout
-- when the web role is deployed: refuses to run between 04:00 and 09:00 Europe/Helsinki (EEX
-  futures import and morning consumers), unless --morning-checks-passed is given: use it only
-  after today's eex_futures, morning_retail and morning_forecast checkpoints have a final status
-  (ready or a terminal failure, never running or waiting). A worker deploy does not stop the web
-  container, so the window does not apply to --role worker.
+- when the worker role is deployed: refuses to run between 04:00 and 09:00 Europe/Helsinki,
+  unless --morning-checks-passed is given: the Temporal MorningChain (EEX futures import, contract
+  import, morning consumers) runs in the worker, and a worker deploy restarts the EEX step. Use
+  the flag only after today's eex_futures, morning_retail and morning_forecast checkpoints have a
+  final status (ready or a terminal failure, never running or waiting). Since the morning group
+  moved to Temporal (2026-11-16), a web deploy does not stop a morning run, so the window does
+  not apply to --role web.
 - checks that the image exists in GHCR
 - asks for the word "deploy" unless --yes is given
 - runs `kamal deploy --skip-push --version TAG` (with --roles for one role), then checks
@@ -63,11 +65,11 @@ while [[ $# -gt 0 ]]; do
 done
 
 case "$ROLE" in
-  "") ROLES_ARGS=(); DEPLOYS_WEB=1
+  "") ROLES_ARGS=(); WINDOW_APPLIES=1
     EFFECT="Kamal starts both new containers; kamal-proxy switches web traffic after /up answers, and the old worker stops only after the new one has connected to Temporal. A run in the old web scheduler stops; on the old worker, interruptible commands repeat on the new one and claim-based commands finish within the drain (up to 66 min)." ;;
-  web) ROLES_ARGS=(--roles web); DEPLOYS_WEB=1
+  web) ROLES_ARGS=(--roles web); WINDOW_APPLIES=0
     EFFECT="Kamal starts the new web container; kamal-proxy switches traffic after /up answers, then the old container stops. A run in the old web scheduler stops." ;;
-  worker) ROLES_ARGS=(--roles worker); DEPLOYS_WEB=0
+  worker) ROLES_ARGS=(--roles worker); WINDOW_APPLIES=1
     EFFECT="Kamal starts the new Temporal worker and stops the old one only after the new one has connected; on the old worker, interruptible commands repeat on the new one and claim-based commands finish within the drain (up to 66 min)." ;;
   *) echo "Unknown role '${ROLE}': use web or worker." >&2; exit 2 ;;
 esac
@@ -103,9 +105,9 @@ check_checkout() {
 check_checkout
 
 helsinki_hour=$((10#$(TZ=Europe/Helsinki date +%H)))
-if (( DEPLOYS_WEB && helsinki_hour >= 4 && helsinki_hour < 9 && ! MORNING_CHECKS_PASSED )); then
-  echo "Refusing to deploy the web role at $(TZ=Europe/Helsinki date +%H:%M) Europe/Helsinki." >&2
-  echo "futures:fetch-eex runs from 04:00 until about 09:00, and a web deploy stops it. See AGENTS.md 'Production code deployment'." >&2
+if (( WINDOW_APPLIES && helsinki_hour >= 4 && helsinki_hour < 9 && ! MORNING_CHECKS_PASSED )); then
+  echo "Refusing to deploy the worker role at $(TZ=Europe/Helsinki date +%H:%M) Europe/Helsinki." >&2
+  echo "The Temporal MorningChain (futures:fetch-eex from 04:00, then the contract import and the consumers) runs in the worker, and a worker deploy restarts the EEX step. See AGENTS.md 'Production code deployment'." >&2
   echo "If today's EEX import and both morning consumers have a final status, add --morning-checks-passed." >&2
   exit 1
 fi
@@ -124,7 +126,7 @@ Production deploy (Kamal, breezily-vps)
   config: $(git rev-parse --short=12 HEAD) (on origin/main)
 Effect: ${EFFECT}
 SUMMARY
-if (( DEPLOYS_WEB )); then
+if (( WINDOW_APPLIES )); then
   echo "Before 12:00 Helsinki, confirm that the EEX import and both morning consumers have a final status."
 fi
 
