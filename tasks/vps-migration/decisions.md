@@ -419,3 +419,15 @@ User decision 2026-11-16: "I think we can move everything over to Temporal now."
   that `schedule:list` has exactly two entries (`backup:run --only-files` and `logos:download`,
   as `WebSchedulerTest` expects), then at once
   `schedules --apply --group maintenance --group spot --group morning` in the worker.
+
+### PR #25 review, round 1
+
+Head `06aa14d`. CodeRabbit (3 findings) and Greptile Plus 4/5 (2 findings), all valid (👍):
+- A new `MorningChain` fails while an old child is open (same `eex-futures-<date>` /
+  `contract-import-<date>` IDs) (Greptile), and it does not repair a `failed` consumer claim
+  (CodeRabbit): the recovery rule now says to read the running chain first, let it run, start a
+  new chain only after the old one ended, and inspect a failed claim before an approved rerun.
+- Status: maintenance, spot and morning are "listed on 2026-11-16, live from their cut-over"
+  until the cut-over is recorded here (CodeRabbit).
+- Stale window sentences removed or fixed in root `AGENTS.md`, `scripts/AGENTS.md` and
+  `orchestration/AGENTS.md`: the window applies to worker deploys (both).

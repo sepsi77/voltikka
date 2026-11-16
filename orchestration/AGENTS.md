@@ -4,8 +4,9 @@ Temporal workflows and the worker for Voltikka data pipelines. Task, decisions a
 `../tasks/temporal-orchestration/` (read `phase0-decision-record.md`, then `phase2-plan.md`).
 Status 2026-11-16: production runs on the Breezily VPS since 2026-11-15 (`../tasks/vps-migration/`):
 Temporal Cloud namespace `voltikka-prod-vps.lw6f1` (AWS eu-central-1) and the Kamal role `worker`
-in `../config/deploy.yml`; see "Image and service" below. Applied groups: `s-forecast` (S pilot),
-`collectors` (since 2026-11-09), and `maintenance`, `spot` and `morning` (since 2026-11-16). Only the
+in `../config/deploy.yml`; see "Image and service" below. Applied groups: `s-forecast` (S pilot) and
+`collectors` (since 2026-11-09); `maintenance`, `spot` and `morning` are listed in `config/deploy.yml`
+since 2026-11-16 and live from their cut-over (`../tasks/vps-migration/decisions.md`). Only the
 web-volume jobs (weekly files backup, `logos:download`) stay in `laravel/routes/console.php`. Recover a
 missed morning by starting `MorningChain` for today's date, never with `contracts:fetch` by hand (no
 scheduler would run its `contracts:complete-import`).
@@ -196,7 +197,8 @@ connects is stopped and the old one keeps running (2026-11-16). Keep the file in
 command also passes when the image's `worker.py` has no `READY_FILE` (images up to
 `deploy-000027`), so a rollback to such an image works as before; keep `READY_FILE` in `worker.py`. Deploy: `../scripts/deploy-image.sh` (both roles; Kamal boots the worker only
 after the new web container is healthy, so migrations run first) or `--role worker` (production
-mutation; the 04:00–09:00 window does not apply, because the web container keeps running).
+mutation). The 04:00–09:00 window applies to every worker deploy: the worker runs the
+`MorningChain`, and a deploy restarts its interruptible EEX step.
 Variables: the shared `env` of `config/deploy.yml` (so the pricing flags `CANONICAL_PRICING_ENABLED`,
 `RESET_FORWARD_SHIFT_ENABLED`, `CONTRACT_STATISTICS_ANNUAL_METHOD_VERSION` and
 `CONTRACT_INTERPRETATION_*`, which are part of the cache keys, are equal on both roles), plus
