@@ -4,9 +4,11 @@ Temporal workflows and the worker for Voltikka data pipelines. Task, decisions a
 `../tasks/temporal-orchestration/` (read `phase0-decision-record.md`, then `phase2-plan.md`).
 Status 2026-11-16: production runs on the Breezily VPS since 2026-11-15 (`../tasks/vps-migration/`):
 Temporal Cloud namespace `voltikka-prod-vps.lw6f1` (AWS eu-central-1) and the Kamal role `worker`
-in `../config/deploy.yml`; see "Image and service" below. Applied groups: `s-forecast` (S pilot)
-and, since 2026-11-09, `collectors`. Maintenance, spot and morning still run in
-`laravel/routes/console.php` (user decision 2026-11-09: phase 2 goes live only on the VPS).
+in `../config/deploy.yml`; see "Image and service" below. Applied groups: `s-forecast` (S pilot),
+`collectors` (since 2026-11-09), and `maintenance`, `spot` and `morning` (since 2026-11-16). Only the
+web-volume jobs (weekly files backup, `logos:download`) stay in `laravel/routes/console.php`. Recover a
+missed morning by starting `MorningChain` for today's date, never with `contracts:fetch` by hand (no
+scheduler would run its `contracts:complete-import`).
 
 ## Decisions that this code follows (approved 2026-11-07)
 
@@ -135,9 +137,10 @@ and, since 2026-11-09, `collectors`. Maintenance, spot and morning still run in
   and fails. The PHP commands keep their gates, claims and alerts;
   their lower clock bound was removed, so the start is the producers' end.
 - **Cut-over order** (`../tasks/temporal-orchestration/phase2-plan.md`): on the VPS only; every
-  group runs in `laravel/routes/console.php` unless `TEMPORAL_SCHEDULE_GROUPS` lists it (production: `collectors`). Collectors move first. Maintenance and spot move only
-  after every service uses the shared Redis cache and the queue runs in `voltikka-queue`, because
-  they write the cache; a worker job on a private file cache would keep stale prices on the web.
+  group runs in `laravel/routes/console.php` unless `TEMPORAL_SCHEDULE_GROUPS` lists it (production since 2026-11-16: all four groups). Maintenance and spot write the cache, so
+  they needed a cache that the web and the worker share: on the VPS both roles use Redis. The queue
+  stays in the web container (decision 2026-11-09); a web deploy stops a running interpretation job,
+  and the queue retries it (`--tries=3`). A separate `queue` role is a later option.
   The morning chain also moves `logos:download` to the web scheduler (the worker import uses
   `--skip-logos`).
 

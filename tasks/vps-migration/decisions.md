@@ -394,3 +394,28 @@ Round 2 (head `007648a`; CodeRabbit after its rate limit, 1 finding): "legacy im
 healthy without a connection check": rejected (👎 + reply). The fallback only keeps the current
 behaviour of rollback images (no health check), and those images have no in-container connection
 signal (stdout log only).
+
+## 2026-11-16 – Maintenance, spot and morning move to Temporal (user decision)
+
+User decision 2026-11-16: "I think we can move everything over to Temporal now." This PR sets
+`TEMPORAL_SCHEDULE_GROUPS: collectors,maintenance,spot,morning` on the web role.
+
+- **Queue.** Stays in the web container (decision 2026-11-09): the shared Redis cache removes the
+  reason for a separate `voltikka-queue`. A web deploy stops a running interpretation job; the queue
+  retries it.
+- **PLT-001 (condition of the morning cut-over).** Resolved by the second option: a missed or
+  failed morning is recovered only by starting `MorningChain` for today's date; no hand-started
+  `contracts:fetch`. Root `AGENTS.md` and `orchestration/AGENTS.md` state the rule.
+- **Deploy window.** The morning chain runs in the worker, and the EEX step is interruptible, so the
+  04:00–09:00 refusal of `scripts/deploy-image.sh` now applies when the worker role is deployed;
+  a web-only deploy is free. Phase 4 (no window) needs two good Temporal mornings and a decision on
+  the EEX step.
+- **R4 morning test.** `MorningChain` has not run on real PHP and data yet. The first production
+  run (the next 04:00) is the acceptance test; rollback: pause `morning-chain`, remove `morning`
+  from the list, deploy web, and run the remaining commands in the web scheduler.
+- **Worker memory 2g → 4g**, as the web role: the import, the price-cache builds and the consumers
+  now run in the worker (up to 8 activities at once). The server has about 12 GB free.
+- **Steps after the merge** (runbook above): deploy the web role outside 04:00–12:00, check
+  that `schedule:list` has exactly two entries (`backup:run --only-files` and `logos:download`,
+  as `WebSchedulerTest` expects), then at once
+  `schedules --apply --group maintenance --group spot --group morning` in the worker.
