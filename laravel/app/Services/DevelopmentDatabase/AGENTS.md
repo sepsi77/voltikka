@@ -1,24 +1,29 @@
 # Development database sync
 
-**Status 2026-11-16:** this sync reads the Railway MySQL service, which has had no deployment since
-production moved to the Breezily VPS. Do not run it until it reads the VPS database (`voltikka-db`,
-only reachable on the Kamal network of `breezily-vps`). For that port, the isolation, read-only
-transaction, copy-exclusion, validation and atomic replacement rules below stay. The Railway
-transport rules (the Railway child `env` command, `ProductionMySqlConnection` reading
-Railway-injected variables, and the `MYSQL_PUBLIC_URL` / `MYSQLHOST` / `RAILWAY_TCP_PROXY_DOMAIN`
-fallback) are replaced by the VPS transport.
-
 This directory owns the copy from production MySQL to a fresh local SQLite file.
 The public entry point is `scripts/sync-production-database.sh` in the repository root.
+
+## Source transport (VPS since 2026-11-16)
+
+Production MySQL is the Kamal accessory `voltikka-db` on `breezily-vps`. It is not published on the host; only the Docker network `kamal` reaches it. The wrapper therefore:
+
+- reads the container address on that network with `docker inspect` over SSH
+- reads `DB_PASSWORD` from the Kamal web role env file (`~/.kamal/apps/voltikka/env/roles/web.env`) over SSH into a shell variable only, and requires exactly one non-empty value
+- opens `ssh -N -o BatchMode=yes -o ExitOnForwardFailure=yes -o ControlPath=none -L 127.0.0.1:<free port>:<container address>:3306 breezily-vps` in the background, and waits until that ssh process listens on the local port (`lsof`, at most 20 s)
+- gives the copy child `PRODUCTION_MYSQL_URL=mysql://voltikka:<url-encoded password>@127.0.0.1:<port>/voltikka` as a shell prefix assignment, so the value is in that child environment only, not in any argument list
+- closes the tunnel after the copy, and again in the `EXIT` cleanup trap on every failure path (`HUP`, `INT` and `TERM` exit through that trap)
+
+`ControlPath=none` keeps the forward in the background ssh process. With SSH multiplexing, a forward stays in the master process after the client is killed.
+
+The script constants `DB_NAME` and `DB_USER` must equal `DB_DATABASE` and `DB_USERNAME` in `config/deploy.yml`; `ProductionDatabaseSyncScriptTest` checks this. On the server, the wrapper runs only these two reads and the tunnel. It never writes to `voltikka-db`.
 
 ## Safety rules
 
 - The Artisan command needs `VOLTIKKA_LOCAL_DATABASE_SYNC=1` and an explicit `--target` file.
 - The target must exist in `laravel/database`, and its basename must start with `.production-sync-`. It must not have the same device and inode as `database/database.sqlite`.
-- Each Artisan process must use `APP_ENV=local`, `DB_CONNECTION=sqlite`, the explicit temporary `DB_DATABASE`, an empty `DB_URL`, and a unique nonexistent `APP_CONFIG_CACHE`. Put these variables in the Railway child `env` command so they override Railway injection without removing injected `MYSQL_PUBLIC_URL` or `MYSQL*` source credentials.
+- Each Artisan process must use `APP_ENV=local`, `DB_CONNECTION=sqlite`, the explicit temporary `DB_DATABASE`, an empty `DB_URL`, and a unique nonexistent `APP_CONFIG_CACHE`. Only the copy child also gets `PRODUCTION_MYSQL_URL`.
 - Before migration, run the command's `--verify-target` mode. It must prove through the booted Laravel connection that the effective driver is SQLite and the effective main database is the exact temporary target.
-- `ProductionMySqlConnection` reads credentials only from Railway-injected variables. Do not print these variables or connection errors.
-- Prefer `MYSQL_PUBLIC_URL`. The fallback uses `MYSQLHOST` or `RAILWAY_TCP_PROXY_DOMAIN` and their related `MYSQL*` fields.
+- `ProductionMySqlConnection` reads the source only from `PRODUCTION_MYSQL_URL`. It fails closed when the variable is missing, the scheme is not `mysql`, or the host, port, user, password or database name is missing. There is no fallback: the old Railway `MYSQL_PUBLIC_URL`, `MYSQL*` and `RAILWAY_TCP_PROXY_*` variables are ignored. Do not print the URL, the password or connection errors.
 - Start the MySQL read with `REPEATABLE READ` and `START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY` before all source queries.
 - Keep MySQL PDO queries unbuffered. Copy one row at a time.
 - Compare both migrated SQLite and production table lists after exclusions. Schema drift must fail in both directions, except that production can temporarily lack the one local-derived `contract_source_observations` table. A production-only application table still fails closed.

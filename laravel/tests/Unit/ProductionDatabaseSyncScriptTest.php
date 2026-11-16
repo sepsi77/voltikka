@@ -6,6 +6,8 @@ use PHPUnit\Framework\TestCase;
 
 class ProductionDatabaseSyncScriptTest extends TestCase
 {
+    private const COPY_COMMAND = 'php artisan development:sync-production-database --target="$TEMP_DATABASE"';
+
     public function test_the_script_replaces_only_after_sync_and_backup_steps(): void
     {
         $script = file_get_contents(dirname(__DIR__, 3).'/scripts/sync-production-database.sh');
@@ -23,7 +25,7 @@ class ProductionDatabaseSyncScriptTest extends TestCase
         $this->assertStringContainsString('validate_sqlite_database "$BACKUP_PATH"', $script);
         $this->assertStringContainsString('mv -f -- "$TEMP_DATABASE" "$LOCAL_DATABASE"', $script);
 
-        $syncPosition = strpos($script, 'railway run');
+        $syncPosition = strpos($script, self::COPY_COMMAND);
         $backupPosition = strpos($script, 'sqlite3 -batch "$LOCAL_DATABASE" ".backup \'$BACKUP_PATH\'"');
         $replacePosition = strpos($script, 'mv -f -- "$TEMP_DATABASE" "$LOCAL_DATABASE"');
 
@@ -44,7 +46,7 @@ class ProductionDatabaseSyncScriptTest extends TestCase
         $this->assertStringContainsString('"$LOCAL_DATABASE-journal"', $script);
         $this->assertStringContainsString("'PRAGMA wal_checkpoint(TRUNCATE);'", $script);
 
-        $syncPosition = strpos($script, 'railway run');
+        $syncPosition = strpos($script, self::COPY_COMMAND);
         $secondUseCheckPosition = strpos($script, "ensure_database_unused\n\nBACKUP_PATH", $syncPosition);
         $localCheckpointPosition = strpos($script, 'checkpoint_database "$LOCAL_DATABASE"', $syncPosition);
         $sidecarRemovalPosition = strpos($script, 'remove_database_sidecars "$LOCAL_DATABASE"', $syncPosition);
@@ -74,18 +76,90 @@ class ProductionDatabaseSyncScriptTest extends TestCase
 
         $verificationPosition = strpos($script, '--verify-target');
         $migrationPosition = strpos($script, 'php artisan migrate');
-        $railwayPosition = strpos($script, 'railway run');
-        $railwayChildEnvironmentPosition = strpos($script, '-- env', $railwayPosition);
-        $railwayArtisanPosition = strpos($script, 'php artisan development:sync-production-database', $railwayPosition);
+        $copyPosition = strpos($script, self::COPY_COMMAND);
 
         $this->assertIsInt($verificationPosition);
         $this->assertIsInt($migrationPosition);
-        $this->assertIsInt($railwayChildEnvironmentPosition);
-        $this->assertIsInt($railwayArtisanPosition);
+        $this->assertIsInt($copyPosition);
         $this->assertLessThan($migrationPosition, $verificationPosition);
-        $this->assertLessThan($railwayArtisanPosition, $railwayChildEnvironmentPosition);
-        $this->assertStringNotContainsString('MYSQL_PUBLIC_URL=', $script);
-        $this->assertStringNotContainsString('MYSQLHOST=', $script);
+        $this->assertLessThan($copyPosition, $migrationPosition);
+    }
+
+    public function test_the_source_credentials_reach_only_the_copy_child_environment(): void
+    {
+        $script = $this->script();
+
+        $this->assertSame(1, substr_count($script, 'PRODUCTION_MYSQL_URL='));
+        $this->assertStringContainsString(
+            "    PRODUCTION_MYSQL_URL=\"mysql://\$DB_USER:\$ENCODED_PASSWORD@127.0.0.1:\$LOCAL_TUNNEL_PORT/\$DB_NAME\" \\\n    env \\\n",
+            $script,
+        );
+        $this->assertMatchesRegularExpression('/PRODUCTION_MYSQL_URL=[^\n]+\n    env \\\\\n(        [A-Z_]+=[^\n]*\n)+        php artisan development:sync-production-database --target=/', $script);
+        $this->assertDoesNotMatchRegularExpression('/\bexport\b/', $script);
+        $this->assertStringContainsString('SYNC_PASSWORD="$DB_PASSWORD_VALUE" php -r', $script);
+        $this->assertStringContainsString("DB_PASSWORD_VALUE=''", $script);
+        $this->assertStringContainsString("ENCODED_PASSWORD=''", $script);
+        $this->assertDoesNotMatchRegularExpression('/(echo|printf)[^\n]*\$(DB_PASSWORD_VALUE|ENCODED_PASSWORD)/', $script);
+        $this->assertStringNotContainsString('MYSQL_PUBLIC_URL', $script);
+        $this->assertStringNotContainsString('MYSQLHOST', $script);
+    }
+
+    public function test_the_script_tunnels_to_the_vps_database_without_railway(): void
+    {
+        $script = $this->script();
+
+        $this->assertStringNotContainsStringIgnoringCase('railway', $script);
+        $this->assertStringContainsString('require_command ssh', $script);
+        $this->assertStringContainsString('readonly SSH_HOST="breezily-vps"', $script);
+        $this->assertStringContainsString('readonly DB_CONTAINER="voltikka-db"', $script);
+        $this->assertStringContainsString('{{(index .NetworkSettings.Networks \\"kamal\\").IPAddress}}', $script);
+        $this->assertStringContainsString("readonly REMOTE_ENV_FILE='~/.kamal/apps/voltikka/env/roles/web.env'", $script);
+        $this->assertStringContainsString("sed -n 's/^DB_PASSWORD=//p' \$REMOTE_ENV_FILE", $script);
+        $this->assertStringContainsString('ssh -N \\', $script);
+        $this->assertStringContainsString('-o BatchMode=yes', $script);
+        $this->assertStringContainsString('-o ExitOnForwardFailure=yes', $script);
+        $this->assertStringContainsString('-o ControlPath=none', $script);
+        $this->assertStringContainsString('-L "127.0.0.1:$local_port:$container_ip:3306"', $script);
+    }
+
+    public function test_the_database_names_match_the_kamal_configuration(): void
+    {
+        $script = $this->script();
+        $deploy = file_get_contents(dirname(__DIR__, 3).'/config/deploy.yml');
+
+        $this->assertIsString($deploy);
+        $this->assertMatchesRegularExpression('/^readonly DB_NAME="([^"]+)"$/m', $script);
+        preg_match('/^readonly DB_NAME="([^"]+)"$/m', $script, $name);
+        preg_match('/^readonly DB_USER="([^"]+)"$/m', $script, $user);
+        $this->assertStringContainsString("    DB_DATABASE: {$name[1]}\n", $deploy);
+        $this->assertStringContainsString("    DB_USERNAME: {$user[1]}\n", $deploy);
+        $this->assertStringContainsString('    DB_HOST: voltikka-db', $deploy);
+        $this->assertStringContainsString('    DB_PORT: "3306"', $deploy);
+    }
+
+    public function test_the_script_closes_the_tunnel_on_every_exit_path(): void
+    {
+        $script = $this->script();
+
+        $this->assertMatchesRegularExpression(
+            '/close_tunnel\(\) \{\n    if \[\[ -n "\$TUNNEL_PID" \]\]; then\n        kill "\$TUNNEL_PID" 2>\/dev\/null \|\| true\n        wait "\$TUNNEL_PID" 2>\/dev\/null \|\| true\n        TUNNEL_PID=\'\'\n/',
+            $script,
+        );
+        $this->assertMatchesRegularExpression('/cleanup\(\) \{\n    close_tunnel\n/', $script);
+        $this->assertStringContainsString("trap 'exit 1' HUP INT TERM", $script);
+
+        $trapPosition = strpos($script, 'trap cleanup EXIT');
+        $tunnelPosition = strpos($script, 'open_tunnel "$DB_CONTAINER_IP" "$LOCAL_TUNNEL_PORT"');
+        $copyPosition = strpos($script, self::COPY_COMMAND);
+        $closePosition = strpos($script, "\nclose_tunnel\n", (int) $copyPosition);
+        $backupPosition = strpos($script, 'sqlite3 -batch "$LOCAL_DATABASE" ".backup');
+
+        $this->assertIsInt($trapPosition);
+        $this->assertIsInt($tunnelPosition);
+        $this->assertIsInt($closePosition);
+        $this->assertLessThan($tunnelPosition, $trapPosition);
+        $this->assertLessThan($copyPosition, $tunnelPosition);
+        $this->assertLessThan($backupPosition, $closePosition);
     }
 
     public function test_the_script_checks_for_users_at_the_last_possible_point_before_rename(): void
@@ -98,17 +172,11 @@ class ProductionDatabaseSyncScriptTest extends TestCase
         );
     }
 
-    public function test_the_script_uses_explicit_railway_context_and_telemetry(): void
+    private function script(): string
     {
         $script = file_get_contents(dirname(__DIR__, 3).'/scripts/sync-production-database.sh');
+        $this->assertIsString($script);
 
-        $this->assertStringContainsString('6d8cae01-1006-409f-8108-1d51f1abc676', $script);
-        $this->assertStringContainsString('9245cef8-41d0-486e-862f-193726511dba', $script);
-        $this->assertStringContainsString('beb2ba12-4a7b-416b-b4b1-596434dc3215', $script);
-        $this->assertStringContainsString('RAILWAY_CALLER=skill:use-railway@1.2.2', $script);
-        $this->assertStringContainsString('RAILWAY_AGENT_SESSION="$SYNC_RAILWAY_AGENT_SESSION"', $script);
-        $this->assertStringNotContainsString('railway run env', $script);
-        $this->assertStringNotContainsString('railway variable', $script);
-        $this->assertStringContainsString('-- env', $script);
+        return $script;
     }
 }

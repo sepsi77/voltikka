@@ -59,7 +59,7 @@ scripts/sync-production-database.sh
 
 Run this command from the repository root. Stop all local Laravel, queue, SQLite, and database-tool processes first. The wrapper builds and migrates a separate `.production-sync-*` SQLite file, reads production MySQL in one read-only consistent transaction, validates row counts, foreign keys, and integrity, creates a timestamped SQLite backup in `/tmp`, removes stale sidecars, and atomically replaces the local file. A failure before replacement leaves the active local database unchanged.
 
-Authentication and operational runtime tables remain empty. If production temporarily lacks the local-derived `contract_source_observations` table, the fresh target reconstructs observations and current pointers with migration `2026_07_30_000002`; all other application-table drift fails closed. Detailed implementation rules are in `../app/Services/DevelopmentDatabase/AGENTS.md` and `../../scripts/AGENTS.md`. Never run the internal Artisan adapter directly against `database.sqlite`, print Railway database variables, or change this workflow into a production write.
+Authentication and operational runtime tables remain empty. If production temporarily lacks the local-derived `contract_source_observations` table, the fresh target reconstructs observations and current pointers with migration `2026_07_30_000002`; all other application-table drift fails closed. Detailed implementation rules are in `../app/Services/DevelopmentDatabase/AGENTS.md` and `../../scripts/AGENTS.md`. Never run the internal Artisan adapter directly against `database.sqlite`, print the source URL or the database password, or change this workflow into a production write.
 
 ## Own forecast model tables (`2026_11_07_100001`)
 
