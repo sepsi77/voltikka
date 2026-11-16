@@ -431,3 +431,6 @@ Head `06aa14d`. CodeRabbit (3 findings) and Greptile Plus 4/5 (2 findings), all 
   until the cut-over is recorded here (CodeRabbit).
 - Stale window sentences removed or fixed in root `AGENTS.md`, `scripts/AGENTS.md` and
   `orchestration/AGENTS.md`: the window applies to worker deploys (both).
+
+Round 2 (head `a5d0099`, CodeRabbit, 1 finding, valid 👍): start a replacement chain before
+12:00 Helsinki; after noon the consumers stay incomplete without a separately approved run.
