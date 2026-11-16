@@ -69,8 +69,9 @@ its commands write them; the migration lives here because the web service owns m
 vintage per (model, issue day), never rewritten; only one active version per model.
 `forecast_part_predictions` with `y` is the miss store of the range calibration (seeded rows have
 source `E30`/`E32`). Nothing public reads these tables yet. Datetimes are UTC text, `target_date`
-is the Helsinki day. Until production has these tables, `scripts/sync-production-database.sh`
-fails on the schema drift rule, so deploy the migration soon after it is committed.
+is the Helsinki day. Production has these tables (the 2026-11-16 sync copied all five). A new
+forecast table makes `scripts/sync-production-database.sh` fail on the schema drift rule until
+production has it, so deploy such a migration soon after it is committed.
 
 ## `spot_social_publications`
 
