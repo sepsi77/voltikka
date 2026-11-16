@@ -380,3 +380,17 @@ with the bucket ID, the settings to pipe into a mode-600 env file, the two passw
 the approval rule); the worker check has a 60 s deadline from `SECONDS`, `ConnectTimeout=10` and a
 remote `timeout 10`, and it also requires `State.Running=true` (tested against the running worker
 and a missing container).
+
+## 2026-11-16 – PR #24 (worker health check), review round 1
+
+Head `5e69ea2`. CodeRabbit did not review (hourly allowance used up). Greptile Plus 4/5, one
+finding, valid (👍): a worker rollback to an image without `READY_FILE` (`deploy-000027` and
+older) would fail the new health check. Fix: the health command also passes when the image's
+`worker.py` has no `READY_FILE`. Tested on `breezily-vps` with `deploy-000027`: the old image is
+`healthy` at once; with `READY_FILE` in `worker.py` the container is `starting` until the ready file
+exists, then `healthy`.
+
+Round 2 (head `007648a`; CodeRabbit after its rate limit, 1 finding): "legacy images count as
+healthy without a connection check": rejected (👎 + reply). The fallback only keeps the current
+behaviour of rollback images (no health check), and those images have no in-container connection
+signal (stdout log only).

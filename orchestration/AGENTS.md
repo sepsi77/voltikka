@@ -184,8 +184,14 @@ Production (since 2026-11-15): the Kamal role `worker` in `../config/deploy.yml`
 same GHCR image as the web role. Its entrypoint option `/usr/local/bin/docker-worker-entrypoint.sh`
 replaces the image ENTRYPOINT, so the web start script and its migrations never run here. It mounts
 the `voltikka-storage` volume (S model files in `FORECAST_STORE_DIR=/app/storage/app/forecast-models`,
-backup temp), has no proxy and no health check, and `stop_timeout: 3960` (above the 65-minute
-`GRACEFUL_SHUTDOWN`). Deploy: `../scripts/deploy-image.sh` (both roles; Kamal boots the worker only
+backup temp), has no proxy and `stop_timeout: 3960` (above the 65-minute `GRACEFUL_SHUTDOWN`). Its
+Docker health check (`health-cmd` in `config/deploy.yml`) tests `/tmp/voltikka-worker-ready`, which
+`worker.py` deletes at start and writes after `connect()` succeeds (`READY_FILE`). Kamal waits for
+`healthy` (up to `deploy_timeout`, 1200 s) before it stops the old worker; a new worker that never
+connects is stopped and the old one keeps running (2026-11-16). Keep the file in the container's own
+`/tmp`: on the shared volume, the old worker's file would make a new one look healthy. The health
+command also passes when the image's `worker.py` has no `READY_FILE` (images up to
+`deploy-000027`), so a rollback to such an image works as before; keep `READY_FILE` in `worker.py`. Deploy: `../scripts/deploy-image.sh` (both roles; Kamal boots the worker only
 after the new web container is healthy, so migrations run first) or `--role worker` (production
 mutation; the 04:00–09:00 window does not apply, because the web container keeps running).
 Variables: the shared `env` of `config/deploy.yml` (so the pricing flags `CANONICAL_PRICING_ENABLED`,

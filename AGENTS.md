@@ -54,7 +54,7 @@ User decisions 2026-11-06; they apply to all writing on the site (pages, article
 | Part | Name | Notes |
 |------|------|-------|
 | Kamal role `web` | `voltikka-web-<version>` | FrankenPHP, `schedule:work` and `queue:work` under supervisord; volume `voltikka-storage` on `/app/storage`; proxy host `voltikka.fi`; `stop_timeout` 60 s; `TEMPORAL_SCHEDULE_GROUPS: collectors` |
-| Kamal role `worker` | `voltikka-worker-<version>` | Temporal worker (`docker-worker-entrypoint.sh`) on namespace `voltikka-prod-vps.lw6f1`; same volume; `stop_timeout` 3960 s, above the 65-minute worker drain |
+| Kamal role `worker` | `voltikka-worker-<version>` | Temporal worker (`docker-worker-entrypoint.sh`) on namespace `voltikka-prod-vps.lw6f1`; same volume; `stop_timeout` 3960 s, above the 65-minute worker drain; Docker health check "connected to Temporal", so Kamal stops the old worker only after the new one has connected |
 | Accessory `db` | `voltikka-db` | MySQL 9.7, schema `voltikka`; not published on the host, only `voltikka-db:3306` on the Kamal network |
 | Accessory `redis` | `voltikka-redis` | shared cache (`CACHE_STORE=redis` on both roles); append-only persistence on, so keys survive a restart |
 | Secrets | GCP Secret Manager, project `breezily-infra` | `.kamal/secrets` reads them with the service account `vps-deploy` (key `~/.config/breezily/vps-deploy.json`), never with a personal login |
