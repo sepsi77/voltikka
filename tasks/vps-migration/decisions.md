@@ -441,3 +441,8 @@ closed (Temporal UI or `temporal workflow describe`) before a new chain starts.
 
 Round 4 (head `3a5f027`, CodeRabbit, 1 finding, valid 👍): a replacement chain may also start
 when the old chain or a child does not exist (the 04:00 run never started).
+
+Round 5 (head `d41fdd8`, CodeRabbit, 2 findings, valid 👍): web-only deploys stay outside
+04:00–09:00 until the morning group is live; the backup schedule text names the Temporal Schedule
+`backup-nightly` (03:00 backup, then clean and monitor) and keeps only the weekly files backup in
+`console.php`.
