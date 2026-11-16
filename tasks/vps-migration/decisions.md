@@ -336,3 +336,25 @@ DNS record. Times are Helsinki.
 - Outage: 19:19 to about 19:35, about 16 minutes.
 - Railway stays in maintenance mode with the S pilot paused. Stopping its services needs the user's
   approval after a good first VPS morning (Mon 16.11). Rollback until then: `cutover-plan.md`.
+
+## 2026-11-16 – First VPS production morning; Railway services stopped
+
+- Morning of 2026-11-16 on the VPS: `eex_futures` ready 05:43, `contract_import` ready 06:11
+  (through `pending_completion` 06:07–06:11), `morning_retail` ready 07:15, `morning_forecast`
+  ready 07:30. No failed jobs. Backups at 03:00 in GCS (two archives, 406.62 MB).
+- The 02:00 reboot (an update needed it) gave about 40 Laravel errors: the scheduler lost Docker's
+  DNS at shutdown (`live-restore`), one overlap lock stayed in Redis for 33 minutes, and the first
+  start failed `migrate` before MySQL was ready. Fixes: PR #20 (`docker-entrypoint.sh` waits up to
+  60 s for MySQL and Redis; image `deploy-000027-aeaaee327859`, deployed to both VPS roles at 07:30
+  after the morning checkpoints) and breezily-infra PR #2 (`breezily-app-containers.service` stops
+  the app containers before Docker at shutdown and starts them at boot; installed on the server).
+- User approval 2026-11-16: stop the Railway services. 08:30–08:31 `railway down` removed the active
+  deployments of `voltikka`, `voltikka-worker` and `MySQL` (status `REMOVED`). Volumes and buckets
+  are kept. `voltikka.fi` stays 200 on the VPS.
+- Rollback from now on: redeploy the Railway MySQL and `deploy-000026-b147c81b13b1` on the Railway
+  services, then the steps in `cutover-plan.md` ("Rollback"). Data written on the VPS after the
+  switch must be dumped back first.
+- Still open in phase 3: docs PR (root `AGENTS.md` "Production site" and Railway sections,
+  `orchestration/AGENTS.md`, `scripts/deploy-image.sh`, breezily-infra README Voltikka row), free
+  the first Fingrid key, delete the Railway project after 2026-11-30 (root `AGENTS.md`, "Dated
+  follow-ups").
