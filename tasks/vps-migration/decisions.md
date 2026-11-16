@@ -336,3 +336,19 @@ DNS record. Times are Helsinki.
 - Outage: 19:19 to about 19:35, about 16 minutes.
 - Railway stays in maintenance mode with the S pilot paused. Stopping its services needs the user's
   approval after a good first VPS morning (Mon 16.11). Rollback until then: `cutover-plan.md`.
+
+## 2026-11-16 – PR #23 (docs and Kamal deploy script), review round 1
+
+Head `6f201ea`. CodeRabbit review 5916034010 (5 findings), Greptile Plus 4/5 (3 findings, 2 of
+them duplicates). All valid (👍):
+- `curl` health check without timeouts (both): `--connect-timeout 10 --max-time 30`.
+- Worker readiness (both): `/up` checks only web. Fixed smaller: the script waits up to 60 s for
+  `Worker started` (logged after `connect()`) in `voltikka-worker-<TAG>`. A Docker health command
+  that would stop Kamal from stopping the old worker changes `worker.py` and `config/deploy.yml`;
+  not in this docs PR (reply in both threads).
+- Re-check `origin/main` and clean `config/`/`.kamal/` after the prompt (CodeRabbit).
+- Railway archive boundary is the cut-over time 2026-11-15 19:35, and the old-password rule
+  (`BACKUP_ARCHIVE_PASSWORD_UNTIL_2026_10_22` before 2026-10-22 08:10 UTC) is back in both
+  backup texts (CodeRabbit, Greptile).
+- DevelopmentDatabase notice names the rules that stay and the Railway transport rules that the
+  VPS port replaces (CodeRabbit).

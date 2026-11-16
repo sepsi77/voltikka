@@ -22,7 +22,8 @@ The script:
 - checks that the image exists in GHCR
 - asks for the word "deploy" unless --yes is given
 - runs `kamal deploy --skip-push --version TAG` (with --roles for one role), then checks
-  https://voltikka.fi/up
+  https://voltikka.fi/up and, when the worker is deployed, that the new worker has connected
+  to Temporal (its "Worker started" log line within 60 s)
 
 Rollback is the same command with an earlier known-good tag.
 
@@ -88,15 +89,18 @@ if [[ ! "$TAG" =~ ^deploy-[0-9]{6}-[0-9a-f]{12}$ ]]; then
 fi
 
 cd "$(git rev-parse --show-toplevel)"
-git fetch --quiet origin main
-if ! git merge-base --is-ancestor HEAD origin/main; then
-  echo "Refusing: HEAD $(git rev-parse --short=12 HEAD) is not on origin/main. Deploy from a clean checkout of main." >&2
-  exit 1
-fi
-if [[ -n "$(git status --porcelain -- config .kamal)" ]]; then
-  echo "Refusing: config/ or .kamal/ has local changes. Kamal must use the committed config." >&2
-  exit 1
-fi
+check_checkout() {
+  git fetch --quiet origin main
+  if ! git merge-base --is-ancestor HEAD origin/main; then
+    echo "Refusing: HEAD $(git rev-parse --short=12 HEAD) is not on origin/main. Deploy from a clean checkout of main." >&2
+    exit 1
+  fi
+  if [[ -n "$(git status --porcelain -- config .kamal)" ]]; then
+    echo "Refusing: config/ or .kamal/ has local changes. Kamal must use the committed config." >&2
+    exit 1
+  fi
+}
+check_checkout
 
 helsinki_hour=$((10#$(TZ=Europe/Helsinki date +%H)))
 if (( DEPLOYS_WEB && helsinki_hour >= 4 && helsinki_hour < 9 && ! MORNING_CHECKS_PASSED )); then
@@ -132,13 +136,40 @@ if (( ! ASSUME_YES )); then
   fi
 fi
 
+# Again after the prompt, which can wait: Kamal reads config/ and .kamal/ from this checkout.
+check_checkout
+
 # The ${a[@]+...} form keeps an empty array valid under set -u in macOS bash 3.2.
 kamal deploy --skip-push --version "$TAG" ${ROLES_ARGS[@]+"${ROLES_ARGS[@]}"}
 
-status="$(curl -s -o /dev/null -w '%{http_code}' "${HEALTH_URL}?deploy=${TAG}" || true)"
+failed=0
+status="$(curl -s --connect-timeout 10 --max-time 30 -o /dev/null -w '%{http_code}' "${HEALTH_URL}?deploy=${TAG}" || true)"
 echo
 echo "Deployed ${TAG} (${ROLE:-web and worker}). ${HEALTH_URL}: ${status}"
 if [[ "$status" != "200" ]]; then
   echo "The health check did not return 200. Read: kamal app logs --roles web --lines 200" >&2
-  exit 1
+  failed=1
 fi
+
+# The worker role has no Docker health check, so Kamal treats it as ready when it runs. The worker
+# logs "Worker started" only after its Temporal client has connected (orchestration worker.py).
+if [[ "$ROLE" != "web" ]]; then
+  worker_ok=0
+  for _ in $(seq 1 12); do
+    if ssh -o BatchMode=yes -o ConnectTimeout=10 breezily-vps \
+        "docker logs voltikka-worker-${TAG} 2>&1 | grep -q 'Worker started'"; then
+      worker_ok=1
+      break
+    fi
+    sleep 5
+  done
+  if (( worker_ok )); then
+    echo "Worker voltikka-worker-${TAG}: connected to Temporal."
+  else
+    echo "Worker voltikka-worker-${TAG} did not log 'Worker started' within 60 s, so nothing polls Temporal." >&2
+    echo "Read: kamal app logs --roles worker --lines 200. Roll back with an earlier tag if it does not connect." >&2
+    failed=1
+  fi
+fi
+
+exit "$failed"

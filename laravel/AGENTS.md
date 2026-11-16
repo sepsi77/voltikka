@@ -425,7 +425,7 @@ Current semantics:
 Do not expose backup S3 credentials or `BACKUP_ARCHIVE_PASSWORD` in chat/logs. Do not run restores, delete backup archives, reset bucket credentials, or trigger manual production backups without explicit user confirmation.
 
 Restore drill outline:
-1. On `breezily-vps`, download the selected encrypted archive from `gs://breezily-voltikka-backups` with the `s3` disk of a one-off container that has the web role's environment, without printing credentials. Archives from before 2026-11-15 are in the Railway bucket `voltikka-backups` and use the Railway passwords.
+1. On `breezily-vps`, download the selected encrypted archive from `gs://breezily-voltikka-backups` with the `s3` disk of a one-off container that has the web role's environment, without printing credentials. Archives made before the cut-over (2026-11-15 19:35 Helsinki, so including that day's 03:00 backup) are in the Railway bucket `voltikka-backups` and open with the Railway passwords: archives made before 2026-10-22 08:10 UTC with the Railway variable `BACKUP_ARCHIVE_PASSWORD_UNTIL_2026_10_22`, later ones with the Railway `BACKUP_ARCHIVE_PASSWORD`.
 2. Decrypt/unzip with `BACKUP_ARCHIVE_PASSWORD` from that environment (PHP `ZipArchive::setPassword`; the archives are AES-256).
 3. Restore into a throwaway MySQL container (`--network none`), not production.
 4. Run sanity checks before considering any production restore.

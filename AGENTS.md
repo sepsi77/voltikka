@@ -98,7 +98,7 @@ Do not deploy the web role between 04:00 and about 09:00 Europe/Helsinki. The sc
 - **Server backup (restic):** the nightly breezily-infra backup at 01:30 also dumps `voltikka-db` to `gs://breezily-infra-backups`.
 - Scheduled commands in `laravel/routes/console.php`: `backup:run --only-db` daily at 03:00, `backup:run --only-files` weekly on Sunday at 02:30 for `storage/app/public`, `backup:clean` daily at 03:30, and `backup:monitor` daily at 03:45 Europe/Helsinki.
 - Archives are AES-256 zips. A restore needs the archive password, which `ops-agent` cannot read: run a restore or drill on the server, with the password from the container environment, never printed. Drill of 2026-11-15: an archive from GCS restored into a throwaway `mysql:9.7` container (`--network none`) in 300 s, 60 of 60 tables (`tasks/vps-migration/decisions.md`).
-- Archives made on Railway (until 2026-11-15) stay in the Railway bucket `voltikka-backups` with the Railway passwords, until the Railway project is deleted.
+- Archives made on Railway (before 2026-11-15 19:35 Helsinki, so including that day's 03:00 backup) stay in the Railway bucket `voltikka-backups` until the Railway project is deleted. They open with the Railway variables: archives made before 2026-10-22 08:10 UTC with `BACKUP_ARCHIVE_PASSWORD_UNTIL_2026_10_22`, later ones with `BACKUP_ARCHIVE_PASSWORD`. Read them before the project is deleted if they must stay restorable.
 - Any restore, backup deletion, credential change or manual production backup run is production-mutating and requires explicit user confirmation.
 
 ## Retired Railway project
