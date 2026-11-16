@@ -27,7 +27,8 @@ php artisan storage:link --force 2>/dev/null || true
 # Wait up to 60 s for each host that the environment names; a missing host is not checked.
 wait_for_tcp() {
     [ -n "$1" ] || return 0
-    for _ in $(seq 1 60); do
+    local deadline=$((SECONDS + 60))
+    while [ "$SECONDS" -lt "$deadline" ]; do
         php -r 'exit(@fsockopen($argv[1], (int) $argv[2], $n, $m, 1) ? 0 : 1);' "$1" "$2" && return 0
         sleep 1
     done
