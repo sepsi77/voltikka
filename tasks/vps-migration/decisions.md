@@ -434,3 +434,7 @@ Head `06aa14d`. CodeRabbit (3 findings) and Greptile Plus 4/5 (2 findings), all 
 
 Round 2 (head `a5d0099`, CodeRabbit, 1 finding, valid 👍): start a replacement chain before
 12:00 Helsinki; after noon the consumers stay incomplete without a separately approved run.
+
+Round 3 (head `3d6f69b`, CodeRabbit, 2 findings, valid 👍): start a replacement chain by about
+10:00 so EEX (1 h 42 min clean) and the import end before noon; check that both children are
+closed (Temporal UI or `temporal workflow describe`) before a new chain starts.
