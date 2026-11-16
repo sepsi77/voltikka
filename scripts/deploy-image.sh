@@ -22,8 +22,8 @@ The script:
 - checks that the image exists in GHCR
 - asks for the word "deploy" unless --yes is given
 - runs `kamal deploy --skip-push --version TAG` (with --roles for one role), then checks
-  https://voltikka.fi/up and, when the worker is deployed, that the new worker has connected
-  to Temporal (its "Worker started" log line within 60 s)
+  https://voltikka.fi/up. Kamal itself stops the old worker only after the new one is healthy
+  (connected to Temporal; config/deploy.yml health-cmd), else it stops the new one.
 
 Rollback is the same command with an earlier known-good tag.
 
@@ -64,11 +64,11 @@ done
 
 case "$ROLE" in
   "") ROLES_ARGS=(); DEPLOYS_WEB=1
-    EFFECT="Kamal starts both new containers; kamal-proxy switches web traffic after /up answers, then the old containers stop. A run in the old web scheduler stops; on the old worker, interruptible commands repeat on the new one and claim-based commands finish within the drain (up to 66 min)." ;;
+    EFFECT="Kamal starts both new containers; kamal-proxy switches web traffic after /up answers, and the old worker stops only after the new one has connected to Temporal. A run in the old web scheduler stops; on the old worker, interruptible commands repeat on the new one and claim-based commands finish within the drain (up to 66 min)." ;;
   web) ROLES_ARGS=(--roles web); DEPLOYS_WEB=1
     EFFECT="Kamal starts the new web container; kamal-proxy switches traffic after /up answers, then the old container stops. A run in the old web scheduler stops." ;;
   worker) ROLES_ARGS=(--roles worker); DEPLOYS_WEB=0
-    EFFECT="Kamal starts the new Temporal worker; on the old worker, interruptible commands repeat on the new one and claim-based commands finish within the drain (up to 66 min)." ;;
+    EFFECT="Kamal starts the new Temporal worker and stops the old one only after the new one has connected; on the old worker, interruptible commands repeat on the new one and claim-based commands finish within the drain (up to 66 min)." ;;
   *) echo "Unknown role '${ROLE}': use web or worker." >&2; exit 2 ;;
 esac
 
@@ -142,38 +142,10 @@ check_checkout
 # The ${a[@]+...} form keeps an empty array valid under set -u in macOS bash 3.2.
 kamal deploy --skip-push --version "$TAG" ${ROLES_ARGS[@]+"${ROLES_ARGS[@]}"}
 
-failed=0
 status="$(curl -s --connect-timeout 10 --max-time 30 -o /dev/null -w '%{http_code}' "${HEALTH_URL}?deploy=${TAG}" || true)"
 echo
 echo "Deployed ${TAG} (${ROLE:-web and worker}). ${HEALTH_URL}: ${status}"
 if [[ "$status" != "200" ]]; then
   echo "The health check did not return 200. Read: kamal app logs --roles web --lines 200" >&2
-  failed=1
+  exit 1
 fi
-
-# The worker role has no Docker health check, so Kamal treats it as ready when it runs. The worker
-# logs "Worker started" only after its Temporal client has connected (orchestration worker.py).
-if [[ "$ROLE" != "web" ]]; then
-  worker="voltikka-worker-${TAG}"
-  worker_ok=0
-  deadline=$((SECONDS + 60))
-  while (( SECONDS < deadline )); do
-    # ConnectTimeout bounds the connection and the remote `timeout` the commands, so one attempt
-    # ends within about 20 s even when the server stalls.
-    if ssh -o BatchMode=yes -o ConnectTimeout=10 breezily-vps \
-        "timeout 10 sh -c '[ \"\$(docker inspect -f {{.State.Running}} ${worker})\" = true ] && docker logs ${worker} 2>&1 | grep -q \"Worker started\"'"; then
-      worker_ok=1
-      break
-    fi
-    sleep 5
-  done
-  if (( worker_ok )); then
-    echo "Worker ${worker}: running and connected to Temporal."
-  else
-    echo "Worker ${worker} was not running with a 'Worker started' log line within about 60 s, so it may not poll Temporal." >&2
-    echo "Read: kamal app logs --roles worker --lines 200. Roll back with an earlier tag if it does not connect." >&2
-    failed=1
-  fi
-fi
-
-exit "$failed"

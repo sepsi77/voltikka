@@ -30,16 +30,24 @@ servers:
         TEMPORAL_SCHEDULE_GROUPS: collectors
   # Temporal Python worker (docker-worker-entrypoint.sh). No proxy. It mounts the same storage
   # volume as the web role (one host), so the jobs that move to it in phase 2 see the same files
-  # (S model files, backup temp) as the web role. The image HEALTHCHECK
-  # probes the web port, so it is off here. The stop timeout is longer than the 65-minute
-  # GRACEFUL_SHUTDOWN of the worker, so claim-based steps can finish.
+  # (S model files, backup temp) as the web role. The image HEALTHCHECK probes the web port, so
+  # this role replaces it: the worker writes /tmp/voltikka-worker-ready after its Temporal client
+  # has connected (worker.py READY_FILE). Kamal waits for "healthy" (deploy_timeout) before it
+  # stops the old worker; a new worker that never connects is stopped and the old one keeps
+  # running. The stop timeout is longer than the 65-minute GRACEFUL_SHUTDOWN of the worker, so
+  # claim-based steps can finish.
   worker:
     hosts:
       - breezily-vps
     stop_timeout: 3960
     options:
       entrypoint: /usr/local/bin/docker-worker-entrypoint.sh
-      no-healthcheck: true
+      health-cmd: "test -f /tmp/voltikka-worker-ready"
+      health-start-period: 120s
+      health-start-interval: 2s
+      health-interval: 30s
+      health-timeout: 3s
+      health-retries: 3
       memory: 2g
       volume: voltikka-storage:/app/storage
     env:

@@ -1,4 +1,4 @@
-"""Worker entrypoint: `python -m voltikka_orchestration.worker` (Railway service voltikka-worker)."""
+"""Worker entrypoint: `python -m voltikka_orchestration.worker` (Kamal role `worker`)."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ import logging
 import signal
 import sys
 from datetime import timedelta
+from pathlib import Path
 
 from temporalio.client import Client
 from temporalio.worker import Worker
@@ -18,9 +19,15 @@ from .s_forecast import SDailyForecast, SWeeklyRefit
 from .settings import Settings
 
 # Longer than every claim-based step (interruptible=False): the morning consumers and the weekly
-# social video have 60-minute timeouts (tests/test_jobs.py checks this). Railway's
-# RAILWAY_DEPLOYMENT_DRAINING_SECONDS on the worker must be longer still (4000 s).
+# social video have 60-minute timeouts (tests/test_jobs.py checks this). The Kamal stop_timeout of
+# the worker role (config/deploy.yml, 3960 s) must be longer still.
 GRACEFUL_SHUTDOWN = timedelta(minutes=65)
+
+# Docker health check of the worker role (config/deploy.yml `health-cmd`): Kamal stops the old
+# worker only after this container is healthy, that is, after connect() succeeded. It is in the
+# container's own /tmp, never on the shared storage volume, where the old container's file would
+# make a new worker look healthy.
+READY_FILE = Path("/tmp/voltikka-worker-ready")
 
 WORKFLOWS = [SDailyForecast, SWeeklyRefit, ArtisanJob, MorningChain, EexFutures, ContractImport]
 
@@ -48,25 +55,28 @@ def build_worker(client: Client, settings: Settings) -> Worker:
         # hold a slot each, so the morning and 10:20-11:10 collector peaks need more than four.
         max_concurrent_activities=8,
         # Deploy drain: interruptible commands stop at once and are retried on the new worker;
-        # claim-based commands (CommandRequest.interruptible=False) can finish. The Railway service
-        # variable RAILWAY_DEPLOYMENT_DRAINING_SECONDS must be longer than this (4000 s).
+        # claim-based commands (CommandRequest.interruptible=False) can finish. The Kamal
+        # stop_timeout of the worker role must be longer than this (3960 s).
         graceful_shutdown_timeout=GRACEFUL_SHUTDOWN,
     )
 
 
 async def main() -> None:
-    # stdout: Railway shows every stderr line with level "error".
+    # stdout, not stderr (Railway showed every stderr line with level "error").
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s", stream=sys.stdout
     )
+    # A restart of the same container keeps /tmp: the file must mean "this process connected".
+    READY_FILE.unlink(missing_ok=True)
     settings = Settings.from_env()
     sentry.init(settings.sentry_dsn, settings.environment)
     client = await connect(settings)
+    READY_FILE.write_text("connected\n")
     logging.getLogger(__name__).info(
         "Worker started: namespace %s, task queue %s", settings.namespace, settings.task_queue
     )
     worker = build_worker(client, settings)
-    # Railway sends SIGTERM to the old deployment after the new one is active. The worker stops
+    # Kamal sends SIGTERM to the old worker after the new one is healthy. The worker stops
     # polling; interruptible commands stop at once (run_command kills the child) and fail as
     # retryable, so the new worker repeats them; claim-based commands finish within the drain.
     loop = asyncio.get_running_loop()
