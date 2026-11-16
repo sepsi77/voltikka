@@ -409,12 +409,12 @@ Not usable since 2026-11-16: the wrapper reads the Railway MySQL service, which 
 
 ## Backups and disaster recovery
 
-Voltikka uses `spatie/laravel-backup` for first-pass production database backups. Configuration lives in `config/backup.php`; scheduling lives in `routes/console.php`.
+Voltikka uses `spatie/laravel-backup` for first-pass production database backups. Configuration lives in `config/backup.php`. Scheduling: the nightly database backup is the Temporal Schedule `backup-nightly` (maintenance group, `orchestration/src/voltikka_orchestration/schedules.py`); the weekly files backup stays in `routes/console.php`, because it reads the web volume.
 
 Current semantics:
 - scheduled production database backup: `backup:run --only-db` daily at 03:00 Europe/Helsinki
 - scheduled production public-storage backup: `backup:run --only-files` weekly on Sunday at 02:30 Europe/Helsinki; this backs up `storage/app/public` only
-- cleanup runs daily at 03:30 and monitor runs daily at 03:45
+- `backup-nightly` runs cleanup and monitor right after the database backup, also after a failed one (in `console.php`, before the maintenance cut-over, they ran at 03:30 and 03:45)
 - backups are written to `BACKUP_DISK` (production: `s3`) and encrypted with `BACKUP_ARCHIVE_PASSWORD`
 - the `s3` disk in `config/filesystems.php` uses SDK `standard` retries (10 attempts, backoff up to 20 s) and multipart uploads with 16 MB parts and concurrency 2. The Railway bucket (until 2026-11-15) answered request bursts with `SlowDown`; with the SDK default (legacy, 4 attempts, about 1 s of backoff) all three tries of the 2026-10-25 database backup (79 MB, 16 parts at concurrency 5) failed. Do not remove these settings
 - the schedule uses Helsinki times inside the 03:00–03:59 hour, which repeats on the last Sunday of October and does not exist on the last Sunday of March. On 2026-10-25 the backup, cleanup and monitor ran twice (the second backup succeeded); in March they are skipped for one day
@@ -498,7 +498,7 @@ Important semantics:
 - `SpotPriceImporter` is the source of truth for official record normalization, Helsinki-local historical VAT, direct hourly persistence, and region+UTC-hour arithmetic aggregation from quarter-hour records. It uses insert-only `insertOrIgnore()` chunks of 500.
 - Backfill skips a half-open UTC chunk only when every exact expected FI hourly timestamp exists. Partial data and off-hour rows do not satisfy coverage. Exhausted request/connection failures do not stop later chunks, but any failed chunk makes the command return failure after averages are calculated for records imported by other chunks.
 - Phase 2 (`../tasks/temporal-orchestration/phase2-plan.md`): the market-review and own-model collectors below (`fingrid:*`, `fmi:fetch`, `syke:fetch`, `weather:fetch`, `entsoe:fetch`, `jao:fetch`, `nve:fetch-reservoirs`, `gas-storage:fetch --if-configured`, `futures:fetch-eex-europe`) run as Temporal Schedules in `voltikka-worker` (`../orchestration/src/voltikka_orchestration/schedules.py`), not in `routes/console.php`. The other groups move in later releases.
-- `spot:fetch` only persists spot prices, calculates averages, and warms the statistics cache. Manual or repeated imports never invoke social publication. Its hourly Europe/Helsinki schedule uses one-server execution and a 60-minute overlap-lock expiry so an interrupted run does not block the next day of imports.
+- `spot:fetch` only persists spot prices, calculates averages, and warms the statistics cache. Manual or repeated imports never invoke social publication. On the VPS since the spot cut-over (2026-11-16) it runs as the Temporal Schedule `spot-hourly` (overlap skip, then `social:publish-daily-spot`). When the spot group runs in the web scheduler instead, its hourly Europe/Helsinki entry uses one-server execution and a 60-minute overlap-lock expiry so an interrupted run does not block the next day of imports.
 - `spot:check-freshness` is a read-only independent check at minute 10 of each Helsinki hour. It has no overlap mutex. It writes one Laravel error log when the latest official FI UTC hour is older than the current Helsinki hour start, so the configured log stack sends the error to Sentry.
 - `social:publish-daily-spot` is scheduled independently at minute 15 each hour. It defers until exact hourly rows exist for both the Helsinki content date and next date.
 - Real PostFast publication is disabled by default through `SPOT_SOCIAL_PUBLISHING_ENABLED=false`. Dry-run, skip-post, and draft modes do not use the `spot_social_publications` ledger. Draft still requires the enable setting because it calls PostFast.
