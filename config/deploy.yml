@@ -42,7 +42,9 @@ servers:
     stop_timeout: 3960
     options:
       entrypoint: /usr/local/bin/docker-worker-entrypoint.sh
-      health-cmd: "test -f /tmp/voltikka-worker-ready"
+      # The second test keeps rollbacks to images without READY_FILE (deploy-000027 and older)
+      # possible: their worker never writes the file, so they count as healthy, as before.
+      health-cmd: "test -f /tmp/voltikka-worker-ready || ! grep -q READY_FILE /opt/orchestration/src/voltikka_orchestration/worker.py"
       health-start-period: 120s
       health-start-interval: 2s
       health-interval: 30s
