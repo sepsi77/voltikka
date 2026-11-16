@@ -358,3 +358,25 @@ DNS record. Times are Helsinki.
   `orchestration/AGENTS.md`, `scripts/deploy-image.sh`, breezily-infra README Voltikka row), free
   the first Fingrid key, delete the Railway project after 2026-11-30 (root `AGENTS.md`, "Dated
   follow-ups").
+## 2026-11-16 – PR #23 (docs and Kamal deploy script), review round 1
+
+Head `6f201ea`. CodeRabbit review 5916034010 (5 findings), Greptile Plus 4/5 (3 findings, 2 of
+them duplicates). All valid (👍):
+- `curl` health check without timeouts (both): `--connect-timeout 10 --max-time 30`.
+- Worker readiness (both): `/up` checks only web. Fixed smaller: the script waits up to 60 s for
+  `Worker started` (logged after `connect()`) in `voltikka-worker-<TAG>`. A Docker health command
+  that would stop Kamal from stopping the old worker changes `worker.py` and `config/deploy.yml`;
+  not in this docs PR (reply in both threads).
+- Re-check `origin/main` and clean `config/`/`.kamal/` after the prompt (CodeRabbit).
+- Railway archive boundary is the cut-over time 2026-11-15 19:35, and the old-password rule
+  (`BACKUP_ARCHIVE_PASSWORD_UNTIL_2026_10_22` before 2026-10-22 08:10 UTC) is back in both
+  backup texts (CodeRabbit, Greptile).
+- DevelopmentDatabase notice names the rules that stay and the Railway transport rules that the
+  VPS port replaces (CodeRabbit).
+
+Round 2 (head `8633ff9`, CodeRabbit, 4 findings, all valid 👍): the Railway archive restore needs
+the Railway bucket's own S3 settings and its passwords (restore text now has a separate paragraph
+with the bucket ID, the settings to pipe into a mode-600 env file, the two password variables and
+the approval rule); the worker check has a 60 s deadline from `SECONDS`, `ConnectTimeout=10` and a
+remote `timeout 10`, and it also requires `State.Running=true` (tested against the running worker
+and a missing container).

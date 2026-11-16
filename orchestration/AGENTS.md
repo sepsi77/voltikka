@@ -2,13 +2,11 @@
 
 Temporal workflows and the worker for Voltikka data pipelines. Task, decisions and status:
 `../tasks/temporal-orchestration/` (read `phase0-decision-record.md`, then `phase2-plan.md`).
-Status 2026-11-08: phase 1 live (S pilot); phase 2 (every scheduled job as a Temporal Schedule)
-merged on `main` (PR #9), not in production. User decision 2026-11-09: phase 2 goes live only
-on the planned VPS (`../tasks/vps-migration/`), never on Railway; every group stays in
-`laravel/routes/console.php` until its VPS cut-over. Production: Temporal Cloud namespace `voltikka-prod`
-(AWS eu-central-1) and the Railway service `voltikka-worker`; see "Image and service" below.
-VPS test copy (2026-11-09): Kamal role `worker` in `../config/deploy.yml` on namespace
-`voltikka-prod-vps.lw6f1` (own API key `voltikka-temporal-api-key`; the production namespace refuses it). Applied groups there: `s-forecast` and, since 2026-11-09, `collectors`.
+Status 2026-11-16: production runs on the Breezily VPS since 2026-11-15 (`../tasks/vps-migration/`):
+Temporal Cloud namespace `voltikka-prod-vps.lw6f1` (AWS eu-central-1) and the Kamal role `worker`
+in `../config/deploy.yml`; see "Image and service" below. Applied groups: `s-forecast` (S pilot)
+and, since 2026-11-09, `collectors`. Maintenance, spot and morning still run in
+`laravel/routes/console.php` (user decision 2026-11-09: phase 2 goes live only on the VPS).
 
 ## Decisions that this code follows (approved 2026-11-07)
 
@@ -41,7 +39,7 @@ VPS test copy (2026-11-09): Kamal role `worker` in `../config/deploy.yml` on nam
 - `jobs.py` (phase 2): `ArtisanJob` (a list of `php artisan` steps for one Schedule) and the morning
   chain `MorningChain` → children `EexFutures` and `ContractImport`. Rules below.
 - `worker.py`: worker entrypoint (`python -m voltikka_orchestration.worker`). Logs go to stdout
-  (Railway shows every stderr line as "error").
+  (Railway showed every stderr line as "error"; keep stdout).
 - `sentry.py`: Sentry init and `SentryInterceptor`. Any exception that leaves workflow code (a bug,
   a sandbox restriction, an unhandled activity error) fails the workflow
   (`workflow_failure_exception_types=[Exception]`, also in the tests) and sends one Issue
@@ -97,7 +95,7 @@ VPS test copy (2026-11-09): Kamal role `worker` in `../config/deploy.yml` on nam
   lost attempt is retried. Read-only readiness calls retry for up to 30 minutes (`READINESS_OPTIONS`), so a
   short database break does not end a morning; a longer one fails the run with one Issue. Social posting and the morning
   consumers use `max_attempts=1`.
-- **Deploy drain.** Railway sends SIGTERM to the old worker after the new one is active. The worker
+- **Deploy drain.** Kamal sends SIGTERM to the old worker after the new one is running. The worker
   stops polling. An interruptible command (`Step.interruptible`, default true) is killed at once and
   repeats on the new worker after about 30 s. A claim-based command (`interruptible=False`:
   `contracts:fetch` and `contracts:complete-import` with the 30-minute import execution lock, both
@@ -105,8 +103,7 @@ VPS test copy (2026-11-09): Kamal role `worker` in `../config/deploy.yml` on nam
   lease) runs to its end within `GRACEFUL_SHUTDOWN` (65 min;
   `worker.py`), because a killed claim cannot be resumed and stays locked for inspection. Every
   claim-based step timeout must stay below that drain (contract import, consumers and the weekly
-  video 60 min; a test checks it; measure the real import time in the R4 acceptance test). The worker service needs `RAILWAY_DEPLOYMENT_DRAINING_SECONDS` above that (4000;
-  check the Railway maximum before R3, else keep a deploy guard for live claims). A crash (SIGKILL) still
+  video 60 min; a test checks it; measure the real import time in the R4 acceptance test). The Kamal `stop_timeout` of the worker role (3960 s) stays above that. A crash (SIGKILL) still
   waits for the 2-minute heartbeat timeout. Tests: `test_a_deploy_*` in `tests/test_jobs.py`.
 - **One Issue per failure.** A failed step sends one `report_issue` (`command_failed`), because the
   Laravel scheduler failure listener does not run here. `spot:fetch`, `futures:fetch-eex`,
@@ -138,7 +135,7 @@ VPS test copy (2026-11-09): Kamal role `worker` in `../config/deploy.yml` on nam
   and fails. The PHP commands keep their gates, claims and alerts;
   their lower clock bound was removed, so the start is the producers' end.
 - **Cut-over order** (`../tasks/temporal-orchestration/phase2-plan.md`): on the VPS only; every
-  group runs in `laravel/routes/console.php` unless `TEMPORAL_SCHEDULE_GROUPS` lists it (Railway: empty). Collectors move first. Maintenance and spot move only
+  group runs in `laravel/routes/console.php` unless `TEMPORAL_SCHEDULE_GROUPS` lists it (production: `collectors`). Collectors move first. Maintenance and spot move only
   after every service uses the shared Redis cache and the queue runs in `voltikka-queue`, because
   they write the cache; a worker job on a private file cache would keep stale prices on the web.
   The morning chain also moves `logos:download` to the web scheduler (the worker import uses
@@ -178,29 +175,26 @@ Unset `SENTRY_LARAVEL_DSN` for local runs, or local outcomes become production S
 The production image (`../Dockerfile`) installs Python 3.13 and `uv.lock` with uv into
 `/opt/orchestration/.venv`, with `../forecast` copied to `/opt/forecast` (about +570 MB on the
 base image with the model libraries). `../.dockerignore` is an allowlist: it must keep
-`orchestration`, `forecast` and `docker-worker-entrypoint.sh`. The worker service starts `../docker-worker-entrypoint.sh`: no
-migrations, no volume, no web server, no scheduler. With the argument `queue` the same script
+`orchestration`, `forecast` and `docker-worker-entrypoint.sh`. The worker role starts `../docker-worker-entrypoint.sh`: no
+migrations, no web server, no scheduler. With the argument `queue` the same script
 starts `php artisan queue:work` for the planned service `voltikka-queue` (phase 2). The web service owns migrations, so deploy the
 web service first when a release has a migration.
 
-Production service (created 2026-11-08): Railway `voltikka-worker`
-(`73a37ca9-6280-4695-856a-7674e548e74c`), same GHCR image and registry credential as the web
-service, start command `/usr/local/bin/docker-worker-entrypoint.sh` (it replaces the image
-ENTRYPOINT, so the web start script and its migrations never run here), restart policy ALWAYS, no
-volume, no domain. Deploy: `../scripts/deploy-image.sh --service worker <TAG>` (production
+Production (since 2026-11-15): the Kamal role `worker` in `../config/deploy.yml` on `breezily-vps`,
+same GHCR image as the web role. Its entrypoint option `/usr/local/bin/docker-worker-entrypoint.sh`
+replaces the image ENTRYPOINT, so the web start script and its migrations never run here. It mounts
+the `voltikka-storage` volume (S model files in `FORECAST_STORE_DIR=/app/storage/app/forecast-models`,
+backup temp), has no proxy and no health check, and `stop_timeout: 3960` (above the 65-minute
+`GRACEFUL_SHUTDOWN`). Deploy: `../scripts/deploy-image.sh` (both roles; Kamal boots the worker only
+after the new web container is healthy, so migrations run first) or `--role worker` (production
 mutation; the 04:00–09:00 window does not apply, because the web container keeps running).
-Variables: `TEMPORAL_ADDRESS` (namespace endpoint `<ns>.<account>.tmprl.cloud:7233`),
-`TEMPORAL_NAMESPACE` (full `<ns>.<account>`), `TEMPORAL_API_KEY` (service-account key, namespace
-permission Write); everything else is a Railway reference, never a copied value: `DB_*` to
-`MySQL`, the Laravel and API-key variables the artisan activities need to `voltikka`
-(`APP_*`, `CACHE_STORE`, `LOG_*`, `ENTSOE_API_KEY`, `FINGRID_API_KEY`, `SENTRY_*`), and
-`FORECAST_BUCKET*` to `voltikka-forecast`.
-
-Phase 2 adds (production change, approval): `REDIS_URL` to the Redis service, `CACHE_STORE=redis`
-(reference to `voltikka`), and a reference to **every other application variable of `voltikka`**
-(not `PORT` or Railway-generated names), above all the pricing flags `CANONICAL_PRICING_ENABLED`,
+Variables: the shared `env` of `config/deploy.yml` (so the pricing flags `CANONICAL_PRICING_ENABLED`,
 `RESET_FORWARD_SHIFT_ENABLED`, `CONTRACT_STATISTICS_ANNUAL_METHOD_VERSION` and
-`CONTRACT_INTERPRETATION_*`: they are part of the price calculation and the cache keys, and a
-different value writes wrong prices into the shared cache. Also the backup (`AWS_*`, `BACKUP_*`),
-`GIE_API_KEY`, `POSTFAST_API_KEY`, `OPENROUTER_API_KEY` and `DB_QUEUE_RETRY_AFTER`. The same set
-applies to `voltikka-queue`.
+`CONTRACT_INTERPRETATION_*`, which are part of the cache keys, are equal on both roles), plus
+`TEMPORAL_ADDRESS` (`voltikka-prod-vps.lw6f1.tmprl.cloud:7233`), `TEMPORAL_NAMESPACE`
+(`voltikka-prod-vps.lw6f1`) and the secret `TEMPORAL_API_KEY` (`voltikka-temporal-api-key`; the old
+Railway namespace `voltikka-prod` refuses it). Both roles use the shared Redis cache.
+
+The Railway service `voltikka-worker` (`73a37ca9-6280-4695-856a-7674e548e74c`, namespace
+`voltikka-prod`, S Schedules paused) has had no deployment since 2026-11-16; see the root
+`AGENTS.md`, "Retired Railway project".

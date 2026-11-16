@@ -3,57 +3,52 @@ set -euo pipefail
 
 usage() {
   cat <<'USAGE'
-Usage: scripts/deploy-image.sh [--yes] [--morning-checks-passed] [--service web|worker|queue] TAG
+Usage: scripts/deploy-image.sh [--yes] [--morning-checks-passed] [--role web|worker] TAG
 
-Point one Voltikka production service at one immutable GHCR image tag that
-scripts/build-and-push-image.sh has already pushed. --service web (default) is the app
-service `voltikka`; --service worker is the Temporal worker `voltikka-worker`; --service queue
-is the Laravel queue worker `voltikka-queue`
-(tasks/temporal-orchestration/). Railway then starts a deployment of
-that image. This is a PRODUCTION MUTATION: get explicit user confirmation first.
+Deploy one immutable GHCR image tag, which scripts/build-and-push-image.sh has already pushed,
+to Voltikka production on the Breezily VPS with Kamal (config/deploy.yml). Without --role,
+both roles (web and worker) get the tag. This is a PRODUCTION MUTATION: get explicit user
+confirmation first.
 
 The script:
 - refuses `latest` and any tag that is not deploy-NNNNNN-<sha12>
-- for the web service only: refuses to run between 04:00 and 09:00 Europe/Helsinki (EEX
-  futures import window), unless --morning-checks-passed is given: use it only after today's
-  eex_futures, morning_retail and morning_forecast checkpoints have finished (none is running).
-  A worker deploy does not stop the web container, so the window does not apply to it; Temporal
-  retries the activities that the worker restart stops.
+- refuses a checkout whose HEAD is not on origin/main, or that has local changes in config/ or
+  .kamal/: Kamal reads the deploy config and the secret list from this checkout
+- when the web role is deployed: refuses to run between 04:00 and 09:00 Europe/Helsinki (EEX
+  futures import and morning consumers), unless --morning-checks-passed is given: use it only
+  after today's eex_futures, morning_retail and morning_forecast checkpoints have a final status
+  (ready or a terminal failure, never running or waiting). A worker deploy does not stop the web
+  container, so the window does not apply to --role worker.
 - checks that the image exists in GHCR
 - asks for the word "deploy" unless --yes is given
-- patches source.image with `railway environment edit` and explicit Railway IDs
+- runs `kamal deploy --skip-push --version TAG` (with --roles for one role), then checks
+  https://voltikka.fi/up and, when the worker is deployed, that the new worker has connected
+  to Temporal (its "Worker started" log line within 60 s)
 
 Rollback is the same command with an earlier known-good tag.
 
-After the patch, find the new deployment and poll it with scripts/railway-poll-deployment.sh.
-
 Examples:
-  scripts/deploy-image.sh deploy-000001-0123456789ab
-  scripts/deploy-image.sh --yes deploy-000002-ba9876543210
-  scripts/deploy-image.sh --service worker deploy-000021-0123456789ab
+  scripts/deploy-image.sh deploy-000027-aeaaee327859
+  scripts/deploy-image.sh --role worker deploy-000027-aeaaee327859
+  scripts/deploy-image.sh --yes --morning-checks-passed deploy-000027-aeaaee327859
 USAGE
 }
 
-PROJECT_ID="6d8cae01-1006-409f-8108-1d51f1abc676"
-ENVIRONMENT_ID="9245cef8-41d0-486e-862f-193726511dba"
-WEB_SERVICE_ID="700d0624-fa96-4266-876c-e37640d220ea"
-WORKER_SERVICE_ID="73a37ca9-6280-4695-856a-7674e548e74c"
-# Laravel queue worker (tasks/temporal-orchestration/phase2-plan.md). Set when the service exists.
-QUEUE_SERVICE_ID=""
 IMAGE_REPO="ghcr.io/sepsi77/voltikka"
+HEALTH_URL="https://voltikka.fi/up"
 
 TAG=""
 ASSUME_YES=0
 MORNING_CHECKS_PASSED=0
-SERVICE="web"
+ROLE=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --yes|-y) ASSUME_YES=1; shift ;;
     --morning-checks-passed) MORNING_CHECKS_PASSED=1; shift ;;
-    --service)
-      if [[ $# -lt 2 ]]; then echo "--service needs web, worker or queue." >&2; exit 2; fi
-      SERVICE="$2"; shift 2 ;;
+    --role)
+      if [[ $# -lt 2 ]]; then echo "--role needs web or worker." >&2; exit 2; fi
+      ROLE="$2"; shift 2 ;;
     --help|-h) usage; exit 0 ;;
     -*) echo "Unknown argument: $1" >&2; usage >&2; exit 2 ;;
     *)
@@ -67,15 +62,14 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-case "$SERVICE" in
-  web) SERVICE_ID="$WEB_SERVICE_ID"; SERVICE_NAME="voltikka"
-    EFFECT="Railway stops the current container and starts this image (short outage)." ;;
-  worker) SERVICE_ID="$WORKER_SERVICE_ID"; SERVICE_NAME="voltikka-worker"
-    EFFECT="Railway starts the Temporal worker on this image; on the old worker, interruptible commands stop and repeat on the new one, and claim-based commands finish within the drain." ;;
-  queue) SERVICE_ID="$QUEUE_SERVICE_ID"; SERVICE_NAME="voltikka-queue"
-    if [[ -z "$SERVICE_ID" ]]; then echo "voltikka-queue does not exist yet: set QUEUE_SERVICE_ID first." >&2; exit 2; fi
-    EFFECT="Railway restarts the queue worker on this image; a running job can finish during shutdown, and an interrupted job follows the queue retry rules." ;;
-  *) echo "Unknown service '${SERVICE}': use web, worker or queue." >&2; exit 2 ;;
+case "$ROLE" in
+  "") ROLES_ARGS=(); DEPLOYS_WEB=1
+    EFFECT="Kamal starts both new containers; kamal-proxy switches web traffic after /up answers, then the old containers stop. A run in the old web scheduler stops; on the old worker, interruptible commands repeat on the new one and claim-based commands finish within the drain (up to 66 min)." ;;
+  web) ROLES_ARGS=(--roles web); DEPLOYS_WEB=1
+    EFFECT="Kamal starts the new web container; kamal-proxy switches traffic after /up answers, then the old container stops. A run in the old web scheduler stops." ;;
+  worker) ROLES_ARGS=(--roles worker); DEPLOYS_WEB=0
+    EFFECT="Kamal starts the new Temporal worker; on the old worker, interruptible commands repeat on the new one and claim-based commands finish within the drain (up to 66 min)." ;;
+  *) echo "Unknown role '${ROLE}': use web or worker." >&2; exit 2 ;;
 esac
 
 if [[ -z "$TAG" ]]; then
@@ -94,11 +88,25 @@ if [[ ! "$TAG" =~ ^deploy-[0-9]{6}-[0-9a-f]{12}$ ]]; then
   exit 1
 fi
 
+cd "$(git rev-parse --show-toplevel)"
+check_checkout() {
+  git fetch --quiet origin main
+  if ! git merge-base --is-ancestor HEAD origin/main; then
+    echo "Refusing: HEAD $(git rev-parse --short=12 HEAD) is not on origin/main. Deploy from a clean checkout of main." >&2
+    exit 1
+  fi
+  if [[ -n "$(git status --porcelain -- config .kamal)" ]]; then
+    echo "Refusing: config/ or .kamal/ has local changes. Kamal must use the committed config." >&2
+    exit 1
+  fi
+}
+check_checkout
+
 helsinki_hour=$((10#$(TZ=Europe/Helsinki date +%H)))
-if [[ "$SERVICE" == "web" ]] && (( helsinki_hour >= 4 && helsinki_hour < 9 && ! MORNING_CHECKS_PASSED )); then
-  echo "Refusing to deploy at $(TZ=Europe/Helsinki date +%H:%M) Europe/Helsinki." >&2
-  echo "futures:fetch-eex runs from 04:00 until about 09:00, and a deploy stops it. See AGENTS.md 'Production code deployment'." >&2
-  echo "If today's EEX import and both morning consumers have finished, add --morning-checks-passed." >&2
+if (( DEPLOYS_WEB && helsinki_hour >= 4 && helsinki_hour < 9 && ! MORNING_CHECKS_PASSED )); then
+  echo "Refusing to deploy the web role at $(TZ=Europe/Helsinki date +%H:%M) Europe/Helsinki." >&2
+  echo "futures:fetch-eex runs from 04:00 until about 09:00, and a web deploy stops it. See AGENTS.md 'Production code deployment'." >&2
+  echo "If today's EEX import and both morning consumers have a final status, add --morning-checks-passed." >&2
   exit 1
 fi
 
@@ -110,16 +118,15 @@ if ! docker buildx imagetools inspect "$IMAGE" >/dev/null 2>&1; then
 fi
 
 cat <<SUMMARY
-if [[ "$SERVICE" == "web" ]]; then
-  echo "Before 12:00 Helsinki, confirm that the EEX import and both morning consumers have finished."
-fi
-Production deploy
-  project:     ${PROJECT_ID} (Voltikka)
-  environment: ${ENVIRONMENT_ID} (production)
-  service:     ${SERVICE_ID} (${SERVICE_NAME})
-  image:       ${IMAGE}
+Production deploy (Kamal, breezily-vps)
+  roles:  ${ROLE:-web and worker}
+  image:  ${IMAGE}
+  config: $(git rev-parse --short=12 HEAD) (on origin/main)
 Effect: ${EFFECT}
 SUMMARY
+if (( DEPLOYS_WEB )); then
+  echo "Before 12:00 Helsinki, confirm that the EEX import and both morning consumers have a final status."
+fi
 
 if (( ! ASSUME_YES )); then
   read -r -p 'Type "deploy" to continue: ' answer
@@ -129,17 +136,44 @@ if (( ! ASSUME_YES )); then
   fi
 fi
 
-SESSION="${RAILWAY_AGENT_SESSION:-railway-skill-$(date +%s)-$$}"
+# Again after the prompt, which can wait: Kamal reads config/ and .kamal/ from this checkout.
+check_checkout
 
-printf '{"services":{"%s":{"source":{"image":"%s"}}}}' "$SERVICE_ID" "$IMAGE" | \
-  RAILWAY_CALLER=skill:use-railway@1.2.2 RAILWAY_AGENT_SESSION="$SESSION" railway environment edit \
-    --project "$PROJECT_ID" \
-    --environment "$ENVIRONMENT_ID" \
-    --message "Deploy ${SERVICE_NAME} ${TAG}" \
-    --json
+# The ${a[@]+...} form keeps an empty array valid under set -u in macOS bash 3.2.
+kamal deploy --skip-push --version "$TAG" ${ROLES_ARGS[@]+"${ROLES_ARGS[@]}"}
 
+failed=0
+status="$(curl -s --connect-timeout 10 --max-time 30 -o /dev/null -w '%{http_code}' "${HEALTH_URL}?deploy=${TAG}" || true)"
 echo
-echo "Railway source.image set to ${IMAGE}."
-echo "Next: read the service config back, confirm source.image, then poll the new deployment:"
-echo "  RAILWAY_CALLER=skill:use-railway@1.2.2 RAILWAY_AGENT_SESSION=${SESSION} scripts/railway-poll-deployment.sh \\"
-echo "    --project ${PROJECT_ID} --environment ${ENVIRONMENT_ID} --service ${SERVICE_ID} --deployment <DEPLOYMENT_ID>"
+echo "Deployed ${TAG} (${ROLE:-web and worker}). ${HEALTH_URL}: ${status}"
+if [[ "$status" != "200" ]]; then
+  echo "The health check did not return 200. Read: kamal app logs --roles web --lines 200" >&2
+  failed=1
+fi
+
+# The worker role has no Docker health check, so Kamal treats it as ready when it runs. The worker
+# logs "Worker started" only after its Temporal client has connected (orchestration worker.py).
+if [[ "$ROLE" != "web" ]]; then
+  worker="voltikka-worker-${TAG}"
+  worker_ok=0
+  deadline=$((SECONDS + 60))
+  while (( SECONDS < deadline )); do
+    # ConnectTimeout bounds the connection and the remote `timeout` the commands, so one attempt
+    # ends within about 20 s even when the server stalls.
+    if ssh -o BatchMode=yes -o ConnectTimeout=10 breezily-vps \
+        "timeout 10 sh -c '[ \"\$(docker inspect -f {{.State.Running}} ${worker})\" = true ] && docker logs ${worker} 2>&1 | grep -q \"Worker started\"'"; then
+      worker_ok=1
+      break
+    fi
+    sleep 5
+  done
+  if (( worker_ok )); then
+    echo "Worker ${worker}: running and connected to Temporal."
+  else
+    echo "Worker ${worker} was not running with a 'Worker started' log line within about 60 s, so it may not poll Temporal." >&2
+    echo "Read: kamal app logs --roles worker --lines 200. Roll back with an earlier tag if it does not connect." >&2
+    failed=1
+  fi
+fi
+
+exit "$failed"

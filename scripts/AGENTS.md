@@ -14,6 +14,8 @@ scripts/sync-production-database.sh --yes
 
 The script reads Voltikka production MySQL through Railway and replaces the ignored local `laravel/database/database.sqlite` file with a fresh SQLite snapshot. It never writes to production.
 
+**Not usable since 2026-11-16:** production moved to the Breezily VPS on 2026-11-15, and the Railway MySQL service has no deployment. Do not run the script until it reads the VPS database (`voltikka-db`, reachable only on the Kamal network of `breezily-vps`). The safety rules below stay for that port.
+
 Important safety rules:
 - Stop local Laravel servers, queue workers, SQLite shells, and database tools for the full sync. The script checks the database and its sidecars with `lsof`, but that check is advisory.
 - Use the explicit Railway project, production environment, and MySQL service IDs already stored in the script. Do not rely on the linked Railway shell context.
@@ -36,18 +38,19 @@ Implementation details and tests:
 
 Prerequisites are PHP with `pdo_sqlite` and `pdo_mysql`, an authenticated Railway CLI, `sqlite3`, and `lsof`.
 
-## Production image build and deploy (active since 2026-10-21)
+## Production image build and deploy (image since 2026-10-21; Kamal on the VPS since 2026-11-15)
 
 Primary scripts:
 - `build-and-push-image.sh` builds the root `Dockerfile` for `linux/amd64` from a clean `git archive` export of HEAD and pushes `ghcr.io/sepsi77/voltikka:deploy-NNNNNN-<sha12>`. `--no-push` loads `voltikka:local-<sha12>` locally and never contacts GHCR.
-- `deploy-image.sh` patches `source.image` of one production service to one pushed tag with `railway environment edit` and the explicit Railway IDs. `--service web` (default) is the app service; `--service worker` is the Temporal worker `voltikka-worker` (see `../orchestration/AGENTS.md`), for which the 04:00–09:00 refusal does not apply.
+- `deploy-image.sh` deploys one pushed tag to production on `breezily-vps` with `kamal deploy --skip-push --version <TAG>` (both roles; `--role web` or `--role worker` for one), then checks `https://voltikka.fi/up`. It runs only from a checkout whose HEAD is on `origin/main` and whose `config/` and `.kamal/` have no local changes, because Kamal reads `config/deploy.yml` and `.kamal/secrets` from it. The 04:00–09:00 refusal applies when the web role is deployed, not to `--role worker` (see `../orchestration/AGENTS.md` for the worker drain). Railway's `railway-poll-deployment.sh` was removed on 2026-11-16 with the Railway services.
 
-Status: since 2026-10-21 the production service source is the GHCR image; a push to `main` does not deploy. The release flow is in the root `AGENTS.md` ("Production code deployment"). Running `deploy-image.sh` is a production mutation that needs explicit user confirmation.
+Status: production runs the GHCR image; a push to `main` does not deploy. The release flow is in the root `AGENTS.md` ("Production code deployment"). Running `deploy-image.sh` is a production mutation that needs explicit user confirmation.
 
 Safety rules:
 - Build only from the committed export. Never build the production image from the working tree: it holds `laravel/.env`, the local SQLite copy of production data, sessions, and the file cache. The root `.dockerignore` is only a second layer.
 - Never push or deploy `latest`, and never overwrite a tag. An explicit tag must end with `-<sha12>` of HEAD.
-- Keep the 04:00–09:00 Helsinki refusal in `deploy-image.sh` for the web service. `--morning-checks-passed` skips only that refusal; use it only after today's EEX import and both morning consumers have finished.
+- Keep the 04:00–09:00 Helsinki refusal in `deploy-image.sh` for the web role. `--morning-checks-passed` skips only that refusal; use it only after today's EEX import and both morning consumers have a final status (`ready` or a terminal failure, never `running` or `waiting`).
+- Keep the `origin/main` and clean `config/`/`.kamal/` checks: a deploy from a feature branch would apply unreviewed Kamal settings to production.
 - Keep `--pull` on the `docker buildx build` call. Without it buildx reuses a locally cached `dunglas/frankenphp:1-php8.4`; `deploy-000002` to `deploy-000004` (2026-10-23) were built from a cached 8.4.26 base and put a PHP release with two critical RCE fixes missing back into production. After a build, check the PHP version in the image (`docker run --rm --platform linux/amd64 --entrypoint php <image> -v`).
 
 Decisions and cutover record: `../tasks/prebuilt-image-deploy/decisions.md`.
