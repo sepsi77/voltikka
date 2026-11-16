@@ -425,8 +425,10 @@ Current semantics:
 Do not expose backup S3 credentials or `BACKUP_ARCHIVE_PASSWORD` in chat/logs. Do not run restores, delete backup archives, reset bucket credentials, or trigger manual production backups without explicit user confirmation.
 
 Restore drill outline:
-1. On `breezily-vps`, download the selected encrypted archive from `gs://breezily-voltikka-backups` with the `s3` disk of a one-off container that has the web role's environment, without printing credentials. Archives made before the cut-over (2026-11-15 19:35 Helsinki, so including that day's 03:00 backup) are in the Railway bucket `voltikka-backups` and open with the Railway passwords: archives made before 2026-10-22 08:10 UTC with the Railway variable `BACKUP_ARCHIVE_PASSWORD_UNTIL_2026_10_22`, later ones with the Railway `BACKUP_ARCHIVE_PASSWORD`.
+1. On `breezily-vps`, download the selected encrypted archive from `gs://breezily-voltikka-backups` with the `s3` disk of a one-off container that has the web role's environment, without printing credentials.
 2. Decrypt/unzip with `BACKUP_ARCHIVE_PASSWORD` from that environment (PHP `ZipArchive::setPassword`; the archives are AES-256).
+
+   Archives made before the cut-over (2026-11-15 19:35 Helsinki, so including that day's 03:00 backup) are in the Railway bucket `voltikka-backups` (bucket ID `460e1b25-73fc-45e3-a43a-0473d2d2b86d`), not in GCS. The VPS `s3` disk cannot read them: use a one-off container whose `AWS_ENDPOINT`, `AWS_DEFAULT_REGION`, `AWS_BUCKET`, `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` come from the Railway bucket credentials (Railway MCP `get-bucket-credentials` or the `voltikka` service variables), piped into an env file with mode 600 and never printed. Their passwords are Railway variables of `voltikka`: `BACKUP_ARCHIVE_PASSWORD_UNTIL_2026_10_22` for archives made before 2026-10-22 08:10 UTC, `BACKUP_ARCHIVE_PASSWORD` for later ones. Reading Railway credentials is allowed only while the project exists and with explicit user confirmation.
 3. Restore into a throwaway MySQL container (`--network none`), not production.
 4. Run sanity checks before considering any production restore.
 

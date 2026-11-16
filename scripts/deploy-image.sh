@@ -154,19 +154,23 @@ fi
 # The worker role has no Docker health check, so Kamal treats it as ready when it runs. The worker
 # logs "Worker started" only after its Temporal client has connected (orchestration worker.py).
 if [[ "$ROLE" != "web" ]]; then
+  worker="voltikka-worker-${TAG}"
   worker_ok=0
-  for _ in $(seq 1 12); do
+  deadline=$((SECONDS + 60))
+  while (( SECONDS < deadline )); do
+    # ConnectTimeout bounds the connection and the remote `timeout` the commands, so one attempt
+    # ends within about 20 s even when the server stalls.
     if ssh -o BatchMode=yes -o ConnectTimeout=10 breezily-vps \
-        "docker logs voltikka-worker-${TAG} 2>&1 | grep -q 'Worker started'"; then
+        "timeout 10 sh -c '[ \"\$(docker inspect -f {{.State.Running}} ${worker})\" = true ] && docker logs ${worker} 2>&1 | grep -q \"Worker started\"'"; then
       worker_ok=1
       break
     fi
     sleep 5
   done
   if (( worker_ok )); then
-    echo "Worker voltikka-worker-${TAG}: connected to Temporal."
+    echo "Worker ${worker}: running and connected to Temporal."
   else
-    echo "Worker voltikka-worker-${TAG} did not log 'Worker started' within 60 s, so nothing polls Temporal." >&2
+    echo "Worker ${worker} was not running with a 'Worker started' log line within about 60 s, so it may not poll Temporal." >&2
     echo "Read: kamal app logs --roles worker --lines 200. Roll back with an earlier tag if it does not connect." >&2
     failed=1
   fi

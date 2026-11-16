@@ -352,3 +352,10 @@ them duplicates). All valid (👍):
   backup texts (CodeRabbit, Greptile).
 - DevelopmentDatabase notice names the rules that stay and the Railway transport rules that the
   VPS port replaces (CodeRabbit).
+
+Round 2 (head `8633ff9`, CodeRabbit, 4 findings, all valid 👍): the Railway archive restore needs
+the Railway bucket's own S3 settings and its passwords (restore text now has a separate paragraph
+with the bucket ID, the settings to pipe into a mode-600 env file, the two password variables and
+the approval rule); the worker check has a 60 s deadline from `SECONDS`, `ConnectTimeout=10` and a
+remote `timeout 10`, and it also requires `State.Running=true` (tested against the running worker
+and a missing container).
