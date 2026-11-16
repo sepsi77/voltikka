@@ -1,5 +1,9 @@
 # Development database sync
 
+**Status 2026-11-16:** this sync reads the Railway MySQL service, which has had no deployment since
+production moved to the Breezily VPS. Do not run it until it reads the VPS database (`voltikka-db`,
+only reachable on the Kamal network of `breezily-vps`). The rules below stay for that port.
+
 This directory owns the copy from production MySQL to a fresh local SQLite file.
 The public entry point is `scripts/sync-production-database.sh` in the repository root.
 

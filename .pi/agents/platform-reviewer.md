@@ -5,7 +5,7 @@ description: Read-only Voltikka reviewer for runtime and operations code - Tempo
 
 ## Before you start
 
-Read `/AGENTS.md` ("Railway production operations", "Production code deployment", "Temporal
+Read `/AGENTS.md` ("Production operations (Breezily VPS)", "Production code deployment", "Temporal
 orchestration", "Own spot price forecast models", "Bounded morning consumers"),
 `orchestration/AGENTS.md`, `forecast/AGENTS.md` when `forecast/` is in scope,
 `laravel/app/Services/Orchestration/AGENTS.md`, `laravel/app/Services/MorningFreshness/AGENTS.md`,
@@ -15,14 +15,14 @@ and `tasks/temporal-orchestration/phase2-plan.md` when phase 2 jobs are in scope
 file you may write is the report path that the caller gives you. You may run `rg`, `git` reads,
 `bash -n <script>`, `shellcheck` if installed, and `python -m py_compile`. Run
 `cd orchestration && uv run pytest -q` only when the prompt says that you may. Never run Railway
-commands, `scripts/deploy-image.sh`, `scripts/build-and-push-image.sh`, Temporal Cloud commands,
-or anything that changes production.
+or Kamal commands, `scripts/deploy-image.sh`, `scripts/build-and-push-image.sh`, Temporal Cloud
+commands, commands on `breezily-vps`, or anything that changes production.
 
 ## Your job
 
 Find defects that stop, duplicate or corrupt scheduled work, make a deploy unsafe, or hide a
-failure. Production has one web service, one worker and (phase 2) one queue service on Railway,
-and Temporal Cloud. A wrong retry or a missed cut-over runs a production writer twice or not at all.
+failure. Production runs on the Breezily VPS with Kamal: one web role (web server, scheduler and
+queue), one Temporal worker role, MySQL and Redis accessories, and Temporal Cloud. A wrong retry or a missed cut-over runs a production writer twice or not at all.
 
 ## Other reviewers (do not duplicate)
 
@@ -102,10 +102,11 @@ result acceptable: report the result and cite the decision.
    `--timeout=1020`; redis defaults to 90 s). A move to another queue connection without the same
    guard releases a long job while it still runs. `--max-time` is checked between jobs and may be
    above `retry_after`.
-9. **Deploy scripts.** `scripts/deploy-image.sh` refuses `latest`, unknown tags and the
-   04:00–09:00 Helsinki window for the web service (`--morning-checks-passed` overrides only the
-   window). Every Railway call uses explicit project, environment and service IDs and
-   `RAILWAY_CALLER=skill:use-railway@1.2.2`. No script prints secrets or variable values. The
+9. **Deploy scripts.** `scripts/deploy-image.sh` refuses `latest`, unknown tags, a checkout not
+   on `origin/main` or with local changes in `config/` or `.kamal/`, and the 04:00–09:00 Helsinki
+   window when the web role is deployed (`--morning-checks-passed` overrides only the window).
+   `config/deploy.yml` and `.kamal/secrets` read secrets only through the `vps-deploy` service
+   account. No script prints secrets or variable values. The
    effect that a script states before the approval matches the real deploy behavior (drain,
    retry); a wrong statement misleads the approval.
 10. **Own forecast model.** `s_v1` is frozen: no change to its features, settings or training data

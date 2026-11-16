@@ -71,7 +71,7 @@ Important semantics:
 ### Edge HTML caching vs hashed assets (bounded compatibility)
 
 `app/Http/Middleware/SetPublicCacheHeaders` marks the comparison/detail HTML
-`public, max-age=300, s-maxage=3600, stale-while-revalidate=86400`, so Railway's edge can serve
+`public, max-age=300, s-maxage=3600, stale-while-revalidate=86400`, so a shared edge cache can serve
 that HTML for an hour and serve it **stale for a further 24 hours** while it revalidates.
 
 Vite filenames are content-hashed and the Docker image runs a clean `npm run build`. Without
@@ -405,7 +405,7 @@ The wrapper creates a `.production-sync-*` temporary SQLite file in `laravel/dat
 
 The wrapper stops if `database/database.sqlite` or one of its WAL/shared-memory/journal sidecars is in use. It does not open or change the active database until the fresh target passes sync validation. It then uses `sqlite3` backup for a consistent timestamped backup in `/tmp`, validates that backup, checkpoints the active database, removes every old sidecar, makes the final possible `lsof` check, and atomically replaces the main file. `lsof` cannot prevent a process from opening the file after a check, so all local processes must stay stopped for the full operation. A migration, connection, copy, validation, backup, checkpoint, or lock failure stops replacement. See `app/Services/DevelopmentDatabase/AGENTS.md` for copy rules. Do not run the Artisan command directly; its target guards accept only the wrapper-shaped temporary file and reject an inode alias of the active database. Never print Railway database variables.
 
-Prerequisites are PHP with `pdo_sqlite` and `pdo_mysql`, Railway CLI authentication, `sqlite3`, and `lsof`. Stop Laravel, queue workers, and database tools before you run the wrapper. Restart them after replacement.
+Not usable since 2026-11-16: the wrapper reads the Railway MySQL service, which has no deployment since production moved to the VPS; it must move to the VPS database first (root `AGENTS.md`, "Local production database snapshot"). Prerequisites were PHP with `pdo_sqlite` and `pdo_mysql`, Railway CLI authentication, `sqlite3`, and `lsof`. Stop Laravel, queue workers, and database tools before you run the wrapper. Restart them after replacement.
 
 ## Backups and disaster recovery
 
@@ -416,7 +416,7 @@ Current semantics:
 - scheduled production public-storage backup: `backup:run --only-files` weekly on Sunday at 02:30 Europe/Helsinki; this backs up `storage/app/public` only
 - cleanup runs daily at 03:30 and monitor runs daily at 03:45
 - backups are written to `BACKUP_DISK` (production: `s3`) and encrypted with `BACKUP_ARCHIVE_PASSWORD`
-- the `s3` disk in `config/filesystems.php` uses SDK `standard` retries (10 attempts, backoff up to 20 s) and multipart uploads with 16 MB parts and concurrency 2. The Railway bucket answers request bursts with `SlowDown`; with the SDK default (legacy, 4 attempts, about 1 s of backoff) all three tries of the 2026-10-25 database backup (79 MB, 16 parts at concurrency 5) failed. Do not remove these settings
+- the `s3` disk in `config/filesystems.php` uses SDK `standard` retries (10 attempts, backoff up to 20 s) and multipart uploads with 16 MB parts and concurrency 2. The Railway bucket (until 2026-11-15) answered request bursts with `SlowDown`; with the SDK default (legacy, 4 attempts, about 1 s of backoff) all three tries of the 2026-10-25 database backup (79 MB, 16 parts at concurrency 5) failed. Do not remove these settings
 - the schedule uses Helsinki times inside the 03:00–03:59 hour, which repeats on the last Sunday of October and does not exist on the last Sunday of March. On 2026-10-25 the backup, cleanup and monitor ran twice (the second backup succeeded); in March they are skipped for one day
 - MySQL dumps use `useSingleTransaction` in `config/database.php` to avoid table locking for InnoDB tables and explicitly use `skip-ssl` so `mysqldump` does not fail on Railway's self-signed internal MySQL certificate
 - the Docker image must include `default-mysql-client` because Spatie shells out to `mysqldump`
@@ -425,9 +425,9 @@ Current semantics:
 Do not expose backup S3 credentials or `BACKUP_ARCHIVE_PASSWORD` in chat/logs. Do not run restores, delete backup archives, reset bucket credentials, or trigger manual production backups without explicit user confirmation.
 
 Restore drill outline:
-1. Download the selected encrypted backup archive from the Railway bucket without printing credentials.
-2. Decrypt/unzip using `BACKUP_ARCHIVE_PASSWORD` from Railway variables.
-3. Restore into a temporary MySQL service/database, not production.
+1. On `breezily-vps`, download the selected encrypted archive from `gs://breezily-voltikka-backups` with the `s3` disk of a one-off container that has the web role's environment, without printing credentials. Archives from before 2026-11-15 are in the Railway bucket `voltikka-backups` and use the Railway passwords.
+2. Decrypt/unzip with `BACKUP_ARCHIVE_PASSWORD` from that environment (PHP `ZipArchive::setPassword`; the archives are AES-256).
+3. Restore into a throwaway MySQL container (`--network none`), not production.
 4. Run sanity checks before considering any production restore.
 
 ## Observability

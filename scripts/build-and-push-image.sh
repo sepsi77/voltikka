@@ -17,7 +17,7 @@ the committed HEAD and push it to GHCR with one immutable tag.
 - --no-push builds and loads voltikka:local-<sha12> into the local Docker engine. It does
   not read or write GHCR. Use it to validate Dockerfile changes.
 
-This script never changes Railway. Deploy a pushed tag with scripts/deploy-image.sh.
+This script never changes production. Deploy a pushed tag with scripts/deploy-image.sh.
 
 Examples:
   scripts/build-and-push-image.sh
