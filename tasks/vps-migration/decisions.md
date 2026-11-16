@@ -389,3 +389,8 @@ older) would fail the new health check. Fix: the health command also passes when
 `worker.py` has no `READY_FILE`. Tested on `breezily-vps` with `deploy-000027`: the old image is
 `healthy` at once; with `READY_FILE` in `worker.py` the container is `starting` until the ready file
 exists, then `healthy`.
+
+Round 2 (head `007648a`; CodeRabbit after its rate limit, 1 finding): "legacy images count as
+healthy without a connection check": rejected (👎 + reply). The fallback only keeps the current
+behaviour of rollback images (no health check), and those images have no in-container connection
+signal (stdout log only).
