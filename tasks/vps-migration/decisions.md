@@ -438,3 +438,6 @@ Round 2 (head `a5d0099`, CodeRabbit, 1 finding, valid 👍): start a replacement
 Round 3 (head `3d6f69b`, CodeRabbit, 2 findings, valid 👍): start a replacement chain by about
 10:00 so EEX (1 h 42 min clean) and the import end before noon; check that both children are
 closed (Temporal UI or `temporal workflow describe`) before a new chain starts.
+
+Round 4 (head `3a5f027`, CodeRabbit, 1 finding, valid 👍): a replacement chain may also start
+when the old chain or a child does not exist (the 04:00 run never started).
