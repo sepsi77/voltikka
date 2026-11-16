@@ -156,6 +156,10 @@ Reviewer agents: `refactor-reviewer`, `laravel-reviewer`, `pricing-reviewer`, `t
 
 Time-triggered work that is not yet possible. Check this list when the date has passed. Each item says what unblocks it and where the detail lives. **Remove an item once it is done**, and do not add anything here that a scheduled command already surfaces on its own.
 
+### After 2026-11-30 — delete the Voltikka Railway project
+
+Production runs on the VPS since 2026-11-15 19:35 Helsinki. The Railway services `voltikka`, `voltikka-worker` and `MySQL` have no deployment since 2026-11-16 08:31 (volumes and buckets kept), so a rollback is still possible (`tasks/vps-migration/cutover-plan.md`, "Rollback"). Decision 8 keeps the project for at least two weeks. After 2026-11-30, and only with the user's approval, delete the project (it holds the MySQL volume and the old buckets `voltikka-backups` and `voltikka-forecast`). See `tasks/vps-migration/decisions.md`.
+
 ### Before 2028-11-07 — rotate the VPS Temporal API key
 
 The Temporal Cloud API key of namespace `voltikka-prod-vps.lw6f1` (GCP Secret Manager project `breezily-infra`, secret `voltikka-temporal-api-key`) expires on 2028-11-07. After the expiry, the VPS worker cannot connect and no Temporal Schedule runs. About one month before, make a new key in Temporal Cloud, add it as a new secret version, redeploy the worker role, then delete the old key. If the namespace has changed after the cut-over, update this item. See `tasks/vps-migration/decisions.md`.
