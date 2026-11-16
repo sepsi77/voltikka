@@ -24,6 +24,7 @@ TEMP_DATABASE=''
 CONFIG_CACHE=''
 BACKUP_PATH=''
 TUNNEL_PID=''
+COPY_PID=''
 
 usage() {
     cat <<'EOF'
@@ -51,7 +52,19 @@ close_tunnel() {
     fi
 }
 
+# Bash runs a signal trap only after a foreground command ends, so the copy runs as a tracked
+# background child (exec: its PID is the PHP process) and the wrapper waits for it with `wait`,
+# which a signal interrupts. Cleanup then stops the copy before it closes the tunnel.
+stop_copy() {
+    if [[ -n "$COPY_PID" ]]; then
+        kill "$COPY_PID" 2>/dev/null || true
+        wait "$COPY_PID" 2>/dev/null || true
+        COPY_PID=''
+    fi
+}
+
 cleanup() {
+    stop_copy
     close_tunnel
 
     if [[ -n "$TEMP_DATABASE" ]]; then
@@ -242,7 +255,7 @@ printf 'Copy production application data in a read-only transaction.\n'
     cd "$LARAVEL_DIR"
     # A prefix assignment puts the source URL in the child environment only, not in its arguments.
     PRODUCTION_MYSQL_URL="mysql://$DB_USER:$ENCODED_PASSWORD@127.0.0.1:$LOCAL_TUNNEL_PORT/$DB_NAME" \
-    env \
+    exec env \
         APP_CONFIG_CACHE="$CONFIG_CACHE" \
         APP_ENV=local \
         DB_URL= \
@@ -250,9 +263,14 @@ printf 'Copy production application data in a read-only transaction.\n'
         DB_DATABASE="$TEMP_DATABASE" \
         VOLTIKKA_LOCAL_DATABASE_SYNC=1 \
         php artisan development:sync-production-database --target="$TEMP_DATABASE"
-)
+) &
+COPY_PID=$!
+copy_status=0
+wait "$COPY_PID" || copy_status=$?
+COPY_PID=''
 ENCODED_PASSWORD=''
 close_tunnel
+((copy_status == 0)) || fail "The production data copy failed (exit $copy_status)."
 
 checkpoint_database "$TEMP_DATABASE"
 validate_sqlite_database "$TEMP_DATABASE"

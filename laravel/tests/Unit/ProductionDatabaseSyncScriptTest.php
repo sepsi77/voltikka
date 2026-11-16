@@ -91,10 +91,10 @@ class ProductionDatabaseSyncScriptTest extends TestCase
 
         $this->assertSame(1, substr_count($script, 'PRODUCTION_MYSQL_URL='));
         $this->assertStringContainsString(
-            "    PRODUCTION_MYSQL_URL=\"mysql://\$DB_USER:\$ENCODED_PASSWORD@127.0.0.1:\$LOCAL_TUNNEL_PORT/\$DB_NAME\" \\\n    env \\\n",
+            "    PRODUCTION_MYSQL_URL=\"mysql://\$DB_USER:\$ENCODED_PASSWORD@127.0.0.1:\$LOCAL_TUNNEL_PORT/\$DB_NAME\" \\\n    exec env \\\n",
             $script,
         );
-        $this->assertMatchesRegularExpression('/PRODUCTION_MYSQL_URL=[^\n]+\n    env \\\\\n(        [A-Z_]+=[^\n]*\n)+        php artisan development:sync-production-database --target=/', $script);
+        $this->assertMatchesRegularExpression('/PRODUCTION_MYSQL_URL=[^\n]+\n    exec env \\\\\n(        [A-Z_]+=[^\n]*\n)+        php artisan development:sync-production-database --target=/', $script);
         $this->assertDoesNotMatchRegularExpression('/\bexport\b/', $script);
         $this->assertStringContainsString('SYNC_PASSWORD="$DB_PASSWORD_VALUE" php -r', $script);
         $this->assertStringContainsString("DB_PASSWORD_VALUE=''", $script);
@@ -145,7 +145,12 @@ class ProductionDatabaseSyncScriptTest extends TestCase
             '/close_tunnel\(\) \{\n    if \[\[ -n "\$TUNNEL_PID" \]\]; then\n        kill "\$TUNNEL_PID" 2>\/dev\/null \|\| true\n        wait "\$TUNNEL_PID" 2>\/dev\/null \|\| true\n        TUNNEL_PID=\'\'\n/',
             $script,
         );
-        $this->assertMatchesRegularExpression('/cleanup\(\) \{\n    close_tunnel\n/', $script);
+        $this->assertMatchesRegularExpression('/cleanup\(\) \{\n    stop_copy\n    close_tunnel\n/', $script);
+        // A signal must stop a running copy: bash defers a trap during a foreground command, so the
+        // copy is a tracked background child (exec makes its PID the PHP process) that stop_copy kills.
+        $this->assertStringContainsString("stop_copy() {\n    if [[ -n \"\$COPY_PID\" ]]; then\n        kill \"\$COPY_PID\" 2>/dev/null || true\n", $script);
+        $this->assertStringContainsString("--target=\"\$TEMP_DATABASE\"\n) &\nCOPY_PID=\$!\ncopy_status=0\nwait \"\$COPY_PID\" || copy_status=\$?\n", $script);
+        $this->assertStringContainsString('((copy_status == 0)) || fail', $script);
         $this->assertStringContainsString("trap 'exit 1' HUP INT TERM", $script);
 
         $trapPosition = strpos($script, 'trap cleanup EXIT');
