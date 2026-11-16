@@ -22,6 +22,21 @@ chown www-data:www-data "$CACHE_DIR"
 # Create storage symlink (for public access to logos)
 php artisan storage:link --force 2>/dev/null || true
 
+# After a server reboot, Docker starts this container and the MySQL and Redis accessories at the
+# same time (VPS, 2026-11-16: migrate got "connection refused", and Docker restarted the container).
+# Wait up to 60 s for each host that the environment names; a missing host is not checked.
+wait_for_tcp() {
+    [ -n "$1" ] || return 0
+    local deadline=$((SECONDS + 60))
+    while [ "$SECONDS" -lt "$deadline" ]; do
+        php -r 'exit(@fsockopen($argv[1], (int) $argv[2], $n, $m, 1) ? 0 : 1);' "$1" "$2" && return 0
+        sleep 1
+    done
+    echo "Warning: $1:$2 did not answer in 60 s, continuing startup"
+}
+wait_for_tcp "${DB_HOST:-}" "${DB_PORT:-3306}"
+wait_for_tcp "${REDIS_HOST:-}" "${REDIS_PORT:-6379}"
+
 # Run migrations
 php artisan migrate --force
 
