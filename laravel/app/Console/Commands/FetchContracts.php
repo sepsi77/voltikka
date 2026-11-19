@@ -26,6 +26,7 @@ use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 use Throwable;
@@ -43,7 +44,14 @@ class FetchContracts extends Command
     /** Serializes every contract store (freshness check, checkpoint takeover, import); see store(). */
     public const STORE_LOCK = 'contract_import_store_v1';
 
-    private const STORE_LOCK_LEASE_SECONDS = 1800;
+    /**
+     * Longer than a store may live (review LAR-201): Temporal kills a store activity's PHP process
+     * after `STORE_TIMEOUT_MINUTES` = 60 (orchestration/src/voltikka_orchestration/staged.py), so
+     * the lease cannot expire under a running store and let a second one pass its freshness check.
+     * Accepted cost: a store killed while it holds the lock blocks the next store for up to 65
+     * minutes; that store waits STORE_LOCK_WAIT_SECONDS, then fails `store_busy` with its payload kept.
+     */
+    private const STORE_LOCK_LEASE_SECONDS = 3900;
 
     private const STORE_LOCK_WAIT_SECONDS = 300;
 
@@ -75,6 +83,9 @@ class FetchContracts extends Command
     /** @var array{path: string, sha256: string}|null the payload the store step reads */
     private ?array $payloadReference = null;
 
+    /** @var array{date: string, uuid: string}|null the `running` owner the separate fetch recorded in the payload */
+    private ?array $fetchRun = null;
+
     /**
      * Staged import (tasks/staged-api-imports/): the fetch step saves the 30 raw product list
      * responses in a payload file, the store step rebuilds the acquisition from that file and runs
@@ -88,6 +99,7 @@ class FetchContracts extends Command
         $this->checkpointDate = null;
         $this->failureRecorded = false;
         $this->payloadReference = null;
+        $this->fetchRun = null;
         $exit = self::FAILURE;
         try {
             $exit = $this->runStaged(
@@ -131,8 +143,12 @@ class FetchContracts extends Command
         $stage = in_array($error, ['fetch_failed', 'store_failed', 'after_commit_failed'], true) ? 'unexpected' : $error;
         $this->failureReporter->step($step);
         $this->failureReporter->fail($stage, $exception);
+        // A refused payload records its closed reason (wrong_date, superseded) as the checkpoint stage.
+        $checkpointStage = $error === 'payload_invalid' && is_string($fields['reason'] ?? null) ? $fields['reason'] : $stage;
         if ($this->runUuid !== null && $this->checkpointDate !== null) {
-            $this->recordFullScopeCheckpoint(true, $this->checkpointDate, DataFreshnessCheckpoint::STATUS_FAILED, ['stage' => $stage] + $this->payloadMetadata());
+            $this->recordFullScopeCheckpoint(true, $this->checkpointDate, DataFreshnessCheckpoint::STATUS_FAILED, ['stage' => $checkpointStage] + $this->payloadMetadata());
+        } else {
+            $this->failFetchRun($checkpointStage);
         }
     }
 
@@ -155,6 +171,11 @@ class FetchContracts extends Command
             $this->failureRecorded = true;
 
             throw new RuntimeException('The contract freshness checkpoint could not be started.');
+        }
+        if ($fullScope && $this->option('fetch-only')) {
+            // The separate store process finishes this owner when it fails before its takeover
+            // (LAR-202). A default-mode run finishes its owner itself, so its payload has no owner.
+            $payload->setFact('checkpoint_run_uuid', $this->runUuid);
         }
 
         $postcodes = $this->getPostcodes();
@@ -199,6 +220,10 @@ class FetchContracts extends Command
         $this->payloadReference = ['path' => $payload->path(), 'sha256' => $payload->sha256()];
         // Before any write: the rows carry the import date, and a replay is for the same day only.
         $date = $payload->fact('effective_date');
+        $fetchRunUuid = $payload->fact('checkpoint_run_uuid');
+        if ($this->option('from-payload') !== null && is_string($date) && is_string($fetchRunUuid)) {
+            $this->fetchRun = ['date' => $date, 'uuid' => $fetchRunUuid];
+        }
         if ($date !== Carbon::now('Europe/Helsinki')->toDateString()) {
             throw ImportPayloadInvalid::because('wrong_date');
         }
@@ -228,6 +253,7 @@ class FetchContracts extends Command
             if ($this->option('from-payload') !== null
                 && ! $this->recordFullScopeCheckpoint($fullScope, $date, DataFreshnessCheckpoint::STATUS_RUNNING, ['stage' => 'started'])) {
                 $this->failureRecorded = true;
+                $this->failFetchRun('checkpoint');
 
                 return new ImportStoreResult(error: 'checkpoint_failed');
             }
@@ -375,6 +401,40 @@ class FetchContracts extends Command
         $newest = ContractSourceObservation::query()->max('last_observed_at');
         if ($newest !== null && Carbon::parse($newest, config('app.timezone'))->gt($fetchedAt)) {
             throw ImportPayloadInvalid::because('superseded');
+        }
+    }
+
+    /**
+     * A `--from-payload` store that fails before its checkpoint takeover (store_busy, superseded,
+     * wrong_date, a failed takeover) finishes the `running` marker its `--fetch-only` fetch wrote,
+     * so that marker is not left running (review LAR-202). Only while that owner still holds the
+     * date and the row is still `running`, compared under the row lock (record() compares the
+     * owner): a newer run or replay keeps the date, and a replay of an old payload changes
+     * nothing. It never starts an owner. A payload the trait refuses before the store step
+     * (changed file, other source or options) is not read, so its owner stays as it is.
+     */
+    private function failFetchRun(string $stage): void
+    {
+        if ($this->runUuid !== null || $this->fetchRun === null) {
+            return;
+        }
+
+        try {
+            DB::transaction(function () use ($stage): void {
+                $status = DataFreshnessCheckpoint::query()->where('key', DataFreshnessCheckpoint::KEY_CONTRACT_IMPORT)
+                    ->where('effective_date', $this->fetchRun['date'])->lockForUpdate()->value('status');
+                if ($status === DataFreshnessCheckpoint::STATUS_RUNNING) {
+                    $this->completion->record(
+                        $this->fetchRun['date'],
+                        $this->fetchRun['uuid'],
+                        DataFreshnessCheckpoint::STATUS_FAILED,
+                        ['stage' => $stage] + $this->payloadMetadata(),
+                    );
+                }
+            });
+        } catch (Throwable $exception) {
+            $this->error('Failed to record the contract freshness checkpoint.');
+            $this->failureReporter->fail('checkpoint', $exception);
         }
     }
 

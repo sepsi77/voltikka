@@ -36,7 +36,15 @@ class FetchSpotForecast extends Command
      */
     protected $description = 'Fetch third-party Finnish spot price forecasts and save them to the database';
 
-    private const STORE_LOCK_LEASE_SECONDS = 300;
+    /**
+     * Longer than a store may live (review LAR-201): Temporal kills a store activity's PHP process
+     * after `STORE_TIMEOUT_MINUTES` = 60 (orchestration/src/voltikka_orchestration/staged.py), so
+     * the lease cannot expire under a running store and let a second one pass its recency check.
+     * Accepted cost: a store killed while it holds the lock blocks the next store of that source
+     * and region for up to 65 minutes; that store waits STORE_LOCK_WAIT_SECONDS, then fails
+     * `store_busy` with its payload kept.
+     */
+    private const STORE_LOCK_LEASE_SECONDS = 3900;
 
     private const STORE_LOCK_WAIT_SECONDS = 60;
 

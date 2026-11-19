@@ -762,13 +762,18 @@ class FetchEexFuturesCommandTest extends TestCase
         $this->assertSame($demand + 1, $lifecycle->demandRevision());
     }
 
-    public function test_a_payload_from_another_helsinki_date_is_refused_and_leaves_the_checkpoint_alone(): void
+    /**
+     * LAR-202: the separate store process of a normal split run is refused before its takeover.
+     * It claims no owner and fails the fetch's still-owned `running` marker with the payload.
+     */
+    public function test_a_payload_from_another_helsinki_date_is_refused_and_fails_its_fetch_owner(): void
     {
+        $this->captureSentryIssues();
         $this->fiBaseTenorInstruments();
         Http::fake(fn (Request $request) => $this->eexResponse($request));
         Artisan::call('futures:fetch-eex', ['--fetch-only' => true]);
         $payload = $this->lastJsonLine()['payload'];
-        $running = DataFreshnessCheckpoint::sole()->only(['status', 'metadata']);
+        $fetchOwner = DataFreshnessCheckpoint::sole()->metadata['run_uuid'];
 
         Carbon::setTestNow(Carbon::create(2026, 5, 23, 0, 30, 0, 'Europe/Helsinki'));
         $this->preventHttp();
@@ -776,7 +781,51 @@ class FetchEexFuturesCommandTest extends TestCase
 
         $this->assertSame(['status' => 'failed', 'step' => 'store', 'error' => 'payload_invalid', 'reason' => 'wrong_date'], $this->lastJsonLine());
         $this->assertSame(0, ElectricityFuturesEodPrice::count());
-        $this->assertSame($running, DataFreshnessCheckpoint::sole()->only(['status', 'metadata']), 'One checkpoint, the fetch day\'s, unchanged.');
+        $checkpoint = DataFreshnessCheckpoint::sole();
+        $this->assertSame('2026-05-22', $checkpoint->effective_date->toDateString(), 'One checkpoint, the fetch day\'s.');
+        $this->assertSame(DataFreshnessCheckpoint::STATUS_FAILED, $checkpoint->status);
+        $this->assertSame([
+            'run_uuid' => $fetchOwner, 'reason' => 'payload_invalid', 'step' => 'store', 'error' => 'payload_invalid',
+            'payload' => ['path' => $payload['path'], 'sha256' => $payload['sha256']], 'payload_reason' => 'wrong_date',
+        ], $checkpoint->metadata);
+        $this->assertImportIssue('eex_futures', 'error', ['payload_invalid' => 1]);
+    }
+
+    /** LAR-202: when a newer fetch owns the date, the old payload's refused store changes nothing. */
+    public function test_a_refused_split_store_leaves_a_newer_fetch_owner_untouched(): void
+    {
+        $this->fiBaseTenorInstruments();
+        Http::fake(fn (Request $request) => $this->eexResponse($request));
+        Artisan::call('futures:fetch-eex', ['--fetch-only' => true]);
+        $oldPayload = $this->lastJsonLine()['payload'];
+        Artisan::call('futures:fetch-eex', ['--fetch-only' => true]);
+        $newer = DataFreshnessCheckpoint::sole()->only(['status', 'metadata']);
+        $this->assertSame(DataFreshnessCheckpoint::STATUS_RUNNING, $newer['status']);
+
+        Carbon::setTestNow(Carbon::create(2026, 5, 23, 0, 30, 0, 'Europe/Helsinki'));
+        $this->preventHttp();
+        $this->assertSame(1, Artisan::call('futures:fetch-eex', ['--from-payload' => $oldPayload['path']]));
+
+        $this->assertSame('wrong_date', $this->lastJsonLine()['reason']);
+        $this->assertSame($newer, DataFreshnessCheckpoint::sole()->only(['status', 'metadata']), 'The newer owner stays running.');
+    }
+
+    /** LAR-202: a refused replay never turns a settled checkpoint of its own fetch run into failed. */
+    public function test_a_refused_replay_of_a_settled_run_keeps_its_checkpoint(): void
+    {
+        $this->fiBaseTenorInstruments();
+        Http::fake(fn (Request $request) => $this->eexResponse($request));
+        $this->assertSame(0, Artisan::call('futures:fetch-eex'));
+        $payload = $this->lastJsonLine()['payload'];
+        $ready = DataFreshnessCheckpoint::sole()->only(['status', 'metadata']);
+        $this->assertSame(DataFreshnessCheckpoint::STATUS_READY, $ready['status']);
+
+        Carbon::setTestNow(Carbon::create(2026, 5, 23, 0, 30, 0, 'Europe/Helsinki'));
+        $this->preventHttp();
+        $this->assertSame(1, Artisan::call('futures:fetch-eex', ['--from-payload' => $payload['path']]));
+
+        $this->assertSame('wrong_date', $this->lastJsonLine()['reason']);
+        $this->assertSame($ready, DataFreshnessCheckpoint::sole()->only(['status', 'metadata']));
     }
 
     public function test_a_replay_whose_store_fails_takes_the_checkpoint_over_as_failed(): void

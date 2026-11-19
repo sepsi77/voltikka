@@ -57,7 +57,11 @@ stale or unsafe result acceptable: report the result and cite the decision.
    network I/O (`Http::`, external APIs) inside a transaction. A retried or repeated run gives the
    same result (`upsert`, unique keys, `updateOrCreate` with the full identity). A claim or
    checkpoint row (`running`, `ready`, `failed`) always reaches a final state or stays visible for
-   inspection; it never silently blocks later runs.
+   inspection; it never silently blocks later runs. A recency or freshness check that guards a
+   later write runs under the same serialization as that write, and that serialization lasts as
+   long as the writer may run (a cache-lock lease above the process's hard timeout, or a database
+   lock held through commit). Example: the staged-import superseded checks first read outside
+   their write, then under a lease shorter than the store timeout (staged-api-imports review).
 4. **Migrations and evidence.** A migration never rewrites observed evidence
    (`contract_price_snapshots`, `price_components`, source snapshots, interpretations) or earlier
    annual method rows. A data migration is deterministic and documented. `down()` does not destroy
