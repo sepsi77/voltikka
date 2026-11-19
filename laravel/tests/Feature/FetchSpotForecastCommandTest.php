@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Console\Commands\FetchSpotForecast;
 use App\Livewire\SpotPrice;
 use App\Models\SpotPriceForecast;
 use App\Models\SpotPriceForecastRun;
@@ -15,7 +16,10 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Sleep;
 use Livewire\Livewire;
+use Symfony\Component\Console\Input\ArrayInput;
+use Symfony\Component\Console\Output\BufferedOutput;
 use Tests\TestCase;
 
 class FetchSpotForecastCommandTest extends TestCase
@@ -25,6 +29,8 @@ class FetchSpotForecastCommandTest extends TestCase
     private const REGION = 'FI';
 
     private const TIMEZONE = 'Europe/Helsinki';
+
+    private const STORE_LOCK = 'spot_forecast_store_v1:nordpool_predict_fi:FI';
 
     protected function setUp(): void
     {
@@ -318,6 +324,87 @@ class FetchSpotForecastCommandTest extends TestCase
         $this->assertSame(['records' => 1, 'display_rows' => 0, 'runs_inserted' => 0], $this->lastJsonLine()['counts']);
         $this->assertEquals(11.0, SpotPriceForecast::query()->sole()->price_with_tax);
         $this->assertSame('2026-11-19 10:00:00', DB::table('spot_price_forecasts')->value('fetched_at'));
+    }
+
+    /**
+     * A store waits for the source/region store lock; while another store holds it past the
+     * wait, it writes neither table and fails with the closed error store_busy. The payload stays.
+     */
+    public function test_a_store_that_cannot_get_the_store_lock_writes_nothing_and_is_busy(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-11-19 10:00:00', 'UTC'));
+        $this->fakeFeed([[1, 11.0]]);
+        $this->assertSame(0, Artisan::call('spot:fetch-forecast', ['--fetch-only' => true]));
+        $payload = $this->lastJsonLine()['payload']['path'];
+
+        $holder = Cache::lock(self::STORE_LOCK, 300);
+        $this->assertTrue($holder->get());
+        Sleep::fake(syncWithCarbon: true);
+        Log::spy();
+        Http::preventStrayRequests();
+        Http::swap(new Factory);
+        Http::fake();
+        $this->assertSame(1, Artisan::call('spot:fetch-forecast', ['--from-payload' => $payload]));
+
+        $line = $this->lastJsonLine();
+        $this->assertSame(['failed', 'store', 'store_busy'], [$line['status'], $line['step'], $line['error']]);
+        $this->assertSame(['records' => 1, 'display_rows' => 0, 'runs_inserted' => 0], $line['counts']);
+        $this->assertSame([[], []], $this->storedRows());
+        $this->assertFileExists($payload);
+        Log::shouldHaveReceived('error')->once()->with('Import failed: spot:fetch-forecast', [
+            'command' => 'spot:fetch-forecast', 'step' => 'store', 'error' => 'store_busy', 'exception_class' => null,
+        ]);
+
+        $holder->release();
+        $this->assertSame(0, Artisan::call('spot:fetch-forecast', ['--from-payload' => $payload]));
+        $this->assertSame(['records' => 1, 'display_rows' => 1, 'runs_inserted' => 1], $this->lastJsonLine()['counts']);
+    }
+
+    /**
+     * PRC-002 under concurrency: replay A (04:00, [8]) starts while another process holds the
+     * store lock, and that process commits the newer feed B (10:00, [11, 12]) before it lets go.
+     * A's recency check must see B, so the display stays [11, 12] and A only archives its run.
+     * The other process is simulated in one PHPUnit process: A's first lock wait (a faked sleep)
+     * stores B with its own command instance and releases the lock. Without the lock, A would not
+     * wait, and B would not be stored before A.
+     */
+    public function test_an_older_replay_after_a_newer_store_under_the_lock_keeps_the_newer_display(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-11-19 04:00:00', 'UTC'));
+        $this->fakeFeed([[1, 8.0]]);
+        $this->assertSame(0, Artisan::call('spot:fetch-forecast', ['--fetch-only' => true]));
+        $older = $this->lastJsonLine()['payload']['path'];
+        Carbon::setTestNow(Carbon::parse('2026-11-19 10:00:00', 'UTC'));
+        $this->fakeFeed([[1, 11.0], [2, 12.0]]);
+        $this->assertSame(0, Artisan::call('spot:fetch-forecast', ['--fetch-only' => true]));
+        $newer = $this->lastJsonLine()['payload']['path'];
+
+        Carbon::setTestNow(Carbon::parse('2026-11-19 12:00:00', 'UTC'));
+        Http::preventStrayRequests();
+        Http::swap(new Factory);
+        Http::fake();
+        $holder = Cache::lock(self::STORE_LOCK, 300);
+        $this->assertTrue($holder->get());
+        $storeB = null;
+        Sleep::fake();
+        Sleep::whenFakingSleep(function () use ($holder, $newer, &$storeB): void {
+            if ($storeB !== null) {
+                return;
+            }
+            $holder->release();
+            $command = $this->app->make(FetchSpotForecast::class);
+            $command->setLaravel($this->app);
+            $storeB = $command->run(new ArrayInput(['--from-payload' => $newer]), new BufferedOutput);
+        });
+
+        $this->assertSame(0, Artisan::call('spot:fetch-forecast', ['--from-payload' => $older]));
+
+        $this->assertSame(0, $storeB, 'B stored while A waited for the lock.');
+        $this->assertSame(['records' => 1, 'display_rows' => 0, 'runs_inserted' => 1], $this->lastJsonLine()['counts']);
+        $this->assertEquals([11.0, 12.0], SpotPriceForecast::query()->orderBy('timestamp')->pluck('price_with_tax')->all());
+        $this->assertSame(['2026-11-19 10:00:00'], DB::table('spot_price_forecasts')->distinct()->pluck('fetched_at')->all(), 'The display keeps B\'s provenance.');
+        $this->assertSame(['2026-11-19 04:00:00', '2026-11-19 10:00:00'], DB::table('spot_price_forecast_runs')->orderBy('fetched_at')->pluck('fetched_at')->all(), 'Both vintages are archived.');
+        $this->assertSame([11.0, 12.0], $this->forecastOnPage()[0], 'The page shows B.');
     }
 
     /**

@@ -22,8 +22,10 @@ use App\Support\DataFetchFailureReporter;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Console\Command;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 use Throwable;
@@ -37,6 +39,13 @@ class FetchContracts extends Command
                             {--skip-logos : Skip downloading company logos}';
 
     protected $description = 'Fetch electricity contracts from Azure Consumer API and save to database';
+
+    /** Serializes every contract store (freshness check, checkpoint takeover, import); see store(). */
+    public const STORE_LOCK = 'contract_import_store_v1';
+
+    private const STORE_LOCK_LEASE_SECONDS = 1800;
+
+    private const STORE_LOCK_WAIT_SECONDS = 300;
 
     private const DEFAULT_POSTCODES = [
         '02230', '00100', '03100', '25660', '22110', '33720', '33680', '20250', '21250', '28120',
@@ -193,61 +202,83 @@ class FetchContracts extends Command
         if ($date !== Carbon::now('Europe/Helsinki')->toDateString()) {
             throw ImportPayloadInvalid::because('wrong_date');
         }
-        $this->refuseSupersededPayload($payload->fetchedAt());
         $fullScope = $this->option('postcodes') === null;
 
-        // A replay of a saved payload owns the checkpoint from here on, with its own run UUID.
-        if ($this->option('from-payload') !== null
-            && ! $this->recordFullScopeCheckpoint($fullScope, $date, DataFreshnessCheckpoint::STATUS_RUNNING, ['stage' => 'started'])) {
+        // The freshness check, the replay's checkpoint takeover and the import transaction run
+        // under one lock that every contract store takes, full or scoped (review PRC-001): the
+        // check then sees every store that committed before this one, and no newer store can
+        // commit between the check and the write. The fetch above and the post-import work below
+        // stay outside; the post-import work has its own lock (ContractImportCompletion::LOCK).
+        $lock = Cache::lock(self::STORE_LOCK, self::STORE_LOCK_LEASE_SECONDS);
+        try {
+            $lock->block(self::STORE_LOCK_WAIT_SECONDS);
+        } catch (LockTimeoutException) {
+            // No write: the payload stays for a replay; failed like any store failure before takeover.
+            $this->error('Another contract store holds the store lock.');
+            $this->reportStagedFailure('store', 'store_busy', null, []);
             $this->failureRecorded = true;
 
-            return new ImportStoreResult(error: 'checkpoint_failed');
+            return new ImportStoreResult(error: 'store_busy');
         }
-
-        $acquisition = $this->acquisitionFromPayload($payload);
-        $counts = ['contracts' => count($acquisition->contracts), 'failed_postcodes' => count($acquisition->failedPostcodes)];
-        $this->failureReporter->count('fetched_contracts', count($acquisition->contracts));
-        if (! $acquisition->complete) {
-            $this->warn('Contract acquisition was incomplete. Failed postcodes: '.implode(', ', $acquisition->failedPostcodes).'.');
-        }
-
-        if ($acquisition->contracts === []) {
-            $this->warn('No contracts fetched from API.');
-            $this->failureReporter->fail('no_contracts');
-            $this->failureRecorded = true;
-            $this->recordFullScopeCheckpoint(
-                $fullScope,
-                $date,
-                DataFreshnessCheckpoint::STATUS_FAILED,
-                ['stage' => 'acquisition', 'reason' => 'no_contracts'] + $this->payloadMetadata(),
-            );
-
-            return new ImportStoreResult($counts, error: $fullScope ? 'no_contracts' : null);
-        }
-
-        $this->info('Fetched '.count($acquisition->contracts).' unique contracts. Processing...');
 
         try {
-            $import = $this->importer->import(
-                contracts: $acquisition->contracts,
-                validPostcodes: Postcode::pluck('postcode')->all(),
-                importDate: $date,
-                complete: $acquisition->complete,
-                observedAt: $payload->fetchedAt(),
-            );
-        } catch (Throwable $exception) {
-            // The importer rolled back; the payload stays for a replay after the fix.
-            $this->error('Error processing contracts.');
-            $this->failureReporter->fail('import', $exception);
-            $this->failureRecorded = true;
-            $this->recordFullScopeCheckpoint(
-                $fullScope,
-                $date,
-                DataFreshnessCheckpoint::STATUS_FAILED,
-                ['stage' => 'import'] + $this->payloadMetadata(),
-            );
+            $this->refuseSupersededPayload($payload->fetchedAt());
 
-            throw $exception;
+            // A replay of a saved payload owns the checkpoint from here on, with its own run UUID.
+            if ($this->option('from-payload') !== null
+                && ! $this->recordFullScopeCheckpoint($fullScope, $date, DataFreshnessCheckpoint::STATUS_RUNNING, ['stage' => 'started'])) {
+                $this->failureRecorded = true;
+
+                return new ImportStoreResult(error: 'checkpoint_failed');
+            }
+
+            $acquisition = $this->acquisitionFromPayload($payload);
+            $counts = ['contracts' => count($acquisition->contracts), 'failed_postcodes' => count($acquisition->failedPostcodes)];
+            $this->failureReporter->count('fetched_contracts', count($acquisition->contracts));
+            if (! $acquisition->complete) {
+                $this->warn('Contract acquisition was incomplete. Failed postcodes: '.implode(', ', $acquisition->failedPostcodes).'.');
+            }
+
+            if ($acquisition->contracts === []) {
+                $this->warn('No contracts fetched from API.');
+                $this->failureReporter->fail('no_contracts');
+                $this->failureRecorded = true;
+                $this->recordFullScopeCheckpoint(
+                    $fullScope,
+                    $date,
+                    DataFreshnessCheckpoint::STATUS_FAILED,
+                    ['stage' => 'acquisition', 'reason' => 'no_contracts'] + $this->payloadMetadata(),
+                );
+
+                return new ImportStoreResult($counts, error: $fullScope ? 'no_contracts' : null);
+            }
+
+            $this->info('Fetched '.count($acquisition->contracts).' unique contracts. Processing...');
+
+            try {
+                $import = $this->importer->import(
+                    contracts: $acquisition->contracts,
+                    validPostcodes: Postcode::pluck('postcode')->all(),
+                    importDate: $date,
+                    complete: $acquisition->complete,
+                    observedAt: $payload->fetchedAt(),
+                );
+            } catch (Throwable $exception) {
+                // The importer rolled back; the payload stays for a replay after the fix.
+                $this->error('Error processing contracts.');
+                $this->failureReporter->fail('import', $exception);
+                $this->failureRecorded = true;
+                $this->recordFullScopeCheckpoint(
+                    $fullScope,
+                    $date,
+                    DataFreshnessCheckpoint::STATUS_FAILED,
+                    ['stage' => 'import'] + $this->payloadMetadata(),
+                );
+
+                throw $exception;
+            }
+        } finally {
+            $lock->release();
         }
 
         $counts += ['active_contracts' => $import->activeContractCount, 'price_components' => $import->priceComponentCount];
@@ -335,9 +366,8 @@ class FetchContracts extends Command
      * An older payload must not roll newer seller evidence back: the import would move source
      * pointers, availability and today's prices to the older fetch. Refused before any write when
      * the newest accepted observation is later than the payload's fetch time; an equal time is
-     * the same payload stored again and stays idempotent. The importer has no global lock (it
-     * locks only the rows of the contracts it imports), so the check runs here, immediately before
-     * the replay's checkpoint takeover and the import transaction.
+     * the same payload stored again and stays idempotent. The caller holds STORE_LOCK, so the
+     * importer's own row locks need not compare source times.
      */
     private function refuseSupersededPayload(CarbonInterface $fetchedAt): void
     {

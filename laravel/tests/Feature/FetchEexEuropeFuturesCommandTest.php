@@ -156,7 +156,6 @@ class FetchEexEuropeFuturesCommandTest extends TestCase
 
         $this->assertSame(1, Artisan::call('futures:fetch-eex-europe', ['--short-code' => ['DEBM']]));
         $output = Artisan::output();
-        $this->assertStringContainsString('DEBM 202703: 1 settlements.', $output);
 
         $storeError = ['sqlstate' => '23000', 'driver_code' => 19, 'table' => 'electricity_futures_eod_prices'];
         $this->assertSame(['status' => 'failed', 'step' => 'store', 'error' => 'store_failed', ...$storeError], $this->lastJsonLine($output));

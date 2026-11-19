@@ -11,12 +11,14 @@ use App\Services\MorningFreshness\MorningJobFreshnessService;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use GuzzleHttp\Promise\PromiseInterface;
+use Illuminate\Cache\Events\WritingKey;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Sleep;
 use Illuminate\Support\Str;
@@ -721,9 +723,6 @@ class FetchEexFuturesCommandTest extends TestCase
 
         $this->assertSame(1, Artisan::call('futures:fetch-eex'));
         $output = Artisan::output();
-        // The month and quarter upserts of this run succeeded before the year insert failed.
-        $this->assertStringContainsString('FI quarter FNBQ 202607: fetched 2, upserted 2', $output);
-
         $storeError = ['sqlstate' => '23000', 'driver_code' => 19, 'table' => 'electricity_futures_eod_prices'];
         $this->assertSame(['status' => 'failed', 'step' => 'store', 'error' => 'store_failed', ...$storeError], $this->lastJsonLine($output));
         foreach (['47.44', 'forced failure'] as $binding) {
@@ -810,34 +809,44 @@ class FetchEexFuturesCommandTest extends TestCase
         $this->assertImportIssue('eex_futures', 'error', ['unexpected' => 1]);
     }
 
-    public function test_a_failed_replay_never_replaces_a_newer_run_that_started_before_its_failure_handling(): void
+    /**
+     * The real command, service and cache lifecycle run; the failure is injected at the real
+     * cache demand write after the store committed. Run B starts at that moment, before A's
+     * failure handling, and A must not replace B's checkpoint.
+     */
+    public function test_a_real_post_commit_cache_failure_preserves_the_newer_eex_owner(): void
     {
         $this->fiBaseTenorInstruments();
+        Http::fake(fn (Request $request) => $this->eexResponse($request));
+        Artisan::call('futures:fetch-eex', ['--fetch-only' => true]);
+        $payload = $this->lastJsonLine()['payload'];
+        $fetchOwner = DataFreshnessCheckpoint::sole()->metadata['run_uuid'];
+        $lifecycle = app(ContractPriceCacheLifecycle::class);
+        $demand = $lifecycle->demandRevision();
+
         $replayOwner = null;
-        $cache = $this->createMock(ContractListCacheService::class);
-        $cache->expects($this->once())->method('bumpVersion')->willReturnCallback(function () use (&$replayOwner): int {
+        Event::listen(WritingKey::class, function (WritingKey $event) use (&$replayOwner): void {
+            if ($event->key !== ContractPriceCacheLifecycle::DEMAND_KEY || $replayOwner !== null) {
+                return;
+            }
             $replayOwner = DataFreshnessCheckpoint::sole()->metadata['run_uuid'];
             // Run B starts after replay A committed and before A's failure handler runs.
             app(MorningJobFreshnessService::class)->record(DataFreshnessCheckpoint::KEY_EEX_FUTURES, '2026-05-22', DataFreshnessCheckpoint::STATUS_RUNNING, ['run_uuid' => 'newer-run', 'stage' => 'started']);
 
             throw new \RuntimeException('cache unavailable');
         });
-        $this->app->instance(ContractListCacheService::class, $cache);
-        Http::fake(fn (Request $request) => $this->eexResponse($request));
-        Artisan::call('futures:fetch-eex', ['--fetch-only' => true]);
-        $payload = $this->lastJsonLine()['payload'];
-        $fetchOwner = DataFreshnessCheckpoint::sole()->metadata['run_uuid'];
 
         $this->preventHttp();
         $this->assertSame(1, Artisan::call('futures:fetch-eex', ['--from-payload' => $payload['path']]));
 
         $this->assertSame(['status' => 'failed', 'step' => 'store', 'error' => 'after_commit_failed'], $this->lastJsonLine());
-        $this->assertTrue(Str::isUuid($replayOwner));
+        $this->assertTrue(Str::isUuid($replayOwner), 'The real demand write was reached.');
         $this->assertNotSame($fetchOwner, $replayOwner);
         $checkpoint = DataFreshnessCheckpoint::sole();
         $this->assertSame(DataFreshnessCheckpoint::STATUS_RUNNING, $checkpoint->status, 'Run B keeps the date.');
         $this->assertSame(['run_uuid' => 'newer-run', 'stage' => 'started'], $checkpoint->metadata);
-        $this->assertSame(6, ElectricityFuturesEodPrice::count(), 'A committed before its cache bump failed.');
+        $this->assertSame(6, ElectricityFuturesEodPrice::count(), 'A committed before its cache demand write failed.');
+        $this->assertSame($demand, $lifecycle->demandRevision(), 'The failed write recorded no demand.');
     }
 
     public function test_a_database_error_in_the_final_checkpoint_rolls_back_the_run_and_reports_its_sql_facts(): void

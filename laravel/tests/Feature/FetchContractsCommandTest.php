@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Console\Commands\FetchContracts;
 use App\Jobs\AnalyzeContractSourceSnapshot;
 use App\Models\ActiveContract;
 use App\Models\Company;
@@ -31,6 +32,8 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
 use Illuminate\Support\Str;
+use Symfony\Component\Console\Input\ArrayInput;
+use Symfony\Component\Console\Output\BufferedOutput;
 use Tests\Concerns\CapturesSentryIssues;
 use Tests\TestCase;
 
@@ -1304,6 +1307,113 @@ class FetchContractsCommandTest extends TestCase
         // The latest payload stored again (equal time) stays idempotent.
         $this->assertSame(0, Artisan::call('contracts:fetch', ['--from-payload' => $payloadB, '--skip-logos' => true]));
         $this->assertSame($rowsAfterB, $this->importedRows());
+    }
+
+    /**
+     * Every contract store, full or scoped, takes the shared store lock before its freshness
+     * check. While another store holds it past the wait, the store writes nothing and fails with
+     * the closed error store_busy; the payload stays and a later replay stores it.
+     */
+    public function test_a_store_that_cannot_get_the_shared_store_lock_writes_nothing_and_is_busy(): void
+    {
+        $this->captureSentryIssues();
+        $this->travelTo(CarbonImmutable::parse('2026-11-19 06:00:00', 'Europe/Helsinki'));
+        Http::fake(['*' => Http::response($this->getSampleApiResponse())]);
+        $this->assertSame(0, Artisan::call('contracts:fetch', ['--fetch-only' => true, '--skip-logos' => true]));
+        $full = $this->lastJsonLine()['payload'];
+        $this->assertSame(0, Artisan::call('contracts:fetch', ['--fetch-only' => true, '--postcodes' => '00100', '--skip-logos' => true]));
+        $scoped = $this->lastJsonLine()['payload'];
+        $fetchRun = DataFreshnessCheckpoint::sole()->getAttributes();
+        $emptyRows = $this->importedRows();
+
+        // Another process holds the lock for longer than the store waits.
+        $holder = Cache::lock(FetchContracts::STORE_LOCK, 1800);
+        $this->assertTrue($holder->get());
+        Sleep::fake(syncWithCarbon: true);
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+
+        foreach ([['--from-payload' => $full['path']], ['--from-payload' => $scoped['path'], '--postcodes' => '00100']] as $options) {
+            $this->sentryIssues = [];
+            $this->assertSame(1, Artisan::call('contracts:fetch', $options + ['--skip-logos' => true]));
+
+            $line = $this->lastJsonLine();
+            $this->assertSame(['failed', 'store', 'store_busy'], [$line['status'], $line['step'], $line['error']]);
+            $this->assertSame($options['--from-payload'], $line['payload']['path'], 'The payload stays for a replay.');
+            $this->assertFileExists($options['--from-payload']);
+            $this->assertSame($emptyRows, $this->importedRows());
+            $this->assertEquals($fetchRun, DataFreshnessCheckpoint::sole()->getAttributes(), 'A busy replay takes no checkpoint.');
+            $this->assertImportIssue('contracts', 'error', ['store_busy' => 1]);
+            $this->assertSame(['store_busy' => 'store'], $this->sentryIssues[0]->getContexts()['data_fetch']['steps']);
+        }
+
+        // In the default mode the fetch's own run fails, as for other store failures before takeover.
+        $this->sentryIssues = [];
+        Http::swap(new Factory);
+        Http::fake(['*' => Http::response($this->getSampleApiResponse())]);
+        $this->assertSame(1, Artisan::call('contracts:fetch', ['--skip-logos' => true]));
+        $this->assertSame('store_busy', $this->lastJsonLine()['error']);
+        $checkpoint = DataFreshnessCheckpoint::sole();
+        $this->assertSame([DataFreshnessCheckpoint::STATUS_FAILED, 'store_busy'], [$checkpoint->status, $checkpoint->metadata['stage']]);
+        $this->assertSame($emptyRows, $this->importedRows());
+        $this->assertImportIssue('contracts', 'error', ['store_busy' => 1]);
+
+        $holder->release();
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        $this->assertSame(0, Artisan::call('contracts:fetch', ['--from-payload' => $scoped['path'], '--postcodes' => '00100', '--skip-logos' => true]));
+        $this->assertSame(5.5, (float) PriceComponent::query()->where('price_component_type', 'General')->sole()->price);
+    }
+
+    /**
+     * PRC-001 under concurrency: replay A (06:00, 8 c/kWh) starts while another process holds the
+     * store lock, and that process commits a newer scoped store B (10:00, 12 c/kWh) before it lets
+     * go. A's freshness check must see B, so it must read after A got the lock. The other process
+     * is simulated in one PHPUnit process: the first lock wait of A (a faked sleep) stores B with
+     * its own command instance and releases the lock. A check before the lock would pass while
+     * no observation exists, and A would then overwrite B with 8 c/kWh.
+     */
+    public function test_the_superseded_check_reads_a_newer_store_that_committed_while_the_store_waited_for_the_lock(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-11-19 06:00:00', 'Europe/Helsinki'));
+        Http::fake(['*' => Http::response($this->sampleWithEnergyPrice(8.0))]);
+        $this->assertSame(0, Artisan::call('contracts:fetch', ['--fetch-only' => true, '--skip-logos' => true]));
+        $payloadA = $this->lastJsonLine()['payload']['path'];
+        $fetchRunA = DataFreshnessCheckpoint::sole()->getAttributes();
+
+        $this->travelTo(CarbonImmutable::parse('2026-11-19 10:00:00', 'Europe/Helsinki'));
+        Http::swap(new Factory);
+        Http::fake(['*' => Http::response($this->sampleWithEnergyPrice(12.0))]);
+        $this->assertSame(0, Artisan::call('contracts:fetch', ['--fetch-only' => true, '--postcodes' => '00100', '--skip-logos' => true]));
+        $payloadB = $this->lastJsonLine()['payload']['path'];
+
+        $this->travelTo(CarbonImmutable::parse('2026-11-19 12:00:00', 'Europe/Helsinki'));
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        $holder = Cache::lock(FetchContracts::STORE_LOCK, 1800);
+        $this->assertTrue($holder->get());
+        $storeB = null;
+        $rowsAfterB = null;
+        Sleep::fake();
+        Sleep::whenFakingSleep(function () use ($holder, $payloadB, &$storeB, &$rowsAfterB): void {
+            if ($storeB !== null) {
+                return;
+            }
+            $holder->release();
+            $command = $this->app->make(FetchContracts::class);
+            $command->setLaravel($this->app);
+            $storeB = $command->run(new ArrayInput(['--from-payload' => $payloadB, '--postcodes' => '00100', '--skip-logos' => true]), new BufferedOutput);
+            $rowsAfterB = $this->importedRows();
+        });
+
+        $this->assertSame(1, Artisan::call('contracts:fetch', ['--from-payload' => $payloadA, '--skip-logos' => true]));
+
+        $this->assertSame(0, $storeB, 'B stored while A waited for the lock.');
+        $this->assertSame(['status' => 'failed', 'step' => 'store', 'error' => 'payload_invalid', 'reason' => 'superseded'], $this->lastJsonLine());
+        $this->assertSame($rowsAfterB, $this->importedRows(), 'Contract fields, price components and observations stay at B.');
+        $this->assertSame(12.0, (float) PriceComponent::query()->where('price_component_type', 'General')->sole()->price);
+        $this->assertEquals($fetchRunA, DataFreshnessCheckpoint::sole()->getAttributes(), 'The refused replay takes no checkpoint.');
+        $this->assertTrue(Cache::lock(FetchContracts::STORE_LOCK, 1)->get(), 'A refused store releases the lock.');
     }
 
     /** @return list<array<string, mixed>> the sample product list with this General energy price */
