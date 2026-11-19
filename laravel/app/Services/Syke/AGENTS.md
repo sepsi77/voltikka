@@ -19,9 +19,10 @@ Task context: `../../../../tasks/own-forecast-model-data/`.
 ## Files
 
 - `SykeHydrologyService.php` – read-only client: one `$filter` per series with all its places and
-  the date range, `$orderby=Paikka_Id,Aika`, follows `odata.nextLink` (the server returns at most
-  500 rows per page; `$top` above 500 is also paged). It follows a nextLink only when it starts
-  with the configured entity URL. Retries HTTP 429, 5xx and connection errors.
+  the date range (`firstPage()`), `$orderby=Paikka_Id,Aika`; `requestPage()` returns one raw page
+  and `parsePage()` reads a saved body (rows and `odata.nextLink`; the server returns at most 500
+  rows per page; `$top` above 500 is also paged). A nextLink is accepted only when it starts with
+  the configured entity URL. Retries HTTP 429, 5xx and connection errors.
 - `SykeHydrologyImporter.php` – upserts into `syke_hydrology_values` on (series, place_id, date).
 - `../../Console/Commands/FetchSykeHydrology.php` – `php artisan syke:fetch`.
 - `../../../config/syke.php` – series, places with names, window and limits.
@@ -56,6 +57,15 @@ Task context: `../../../../tasks/own-forecast-model-data/`.
 - The importer skips a row with a null or non-numeric value, an unknown place or another Jakso.
   It does not fill gaps or carry values forward; a model does that itself.
 - Logs contain the series key and the exception class only (no URL).
+- Staged import (`App\Console\Concerns\StagedImport`, `../ImportPayload/AGENTS.md`;
+  `import-payloads/syke/<date>/`): the fetch step follows `odata.nextLink` and records every page
+  (unit `{series, page}`). The header facts fix `today`, `from`, `to_exclusive` and the request
+  plan per series (entity, Jakso, places); the store uses that plan, not the config. An HTTP
+  failure, an unexpected body, a nextLink outside the API or paging past `syke.max_pages` is a
+  failed unit and ends the series; the store skips every page of that series (stored whole or not
+  at all), stores the others and exits 1 with `fetch_incomplete`. The store upserts all series in
+  one transaction (a backfill too: one paged query per series, not chunks). Not date-bound: a
+  same-day older payload is stored and puts its older values back until the next fetch.
 
 ## Commands
 

@@ -295,6 +295,10 @@ final class ImportPayloadWriter
         $this->requests++;
         if ($failed) {
             $this->failedUnits[] = $unit;
+        } else {
+            // A later answered line of the same unit (an in-run retry pass) recovers it; the store
+            // reads the last answered line of a unit.
+            $this->failedUnits = array_values(array_filter($this->failedUnits, fn (array $failedUnit): bool => $failedUnit != $unit));
         }
     }
 

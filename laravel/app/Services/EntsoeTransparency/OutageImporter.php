@@ -21,17 +21,14 @@ class OutageImporter
     private const INSERT_CHUNK_SIZE = 200;
 
     /**
-     * `needs_history` lists the documents whose previous revision is not stored.
-     *
      * @param  list<string>  $documents
-     * @return array{inserted: int, needs_history: list<array{mrid: string, start: CarbonImmutable}>}
+     * @return int Number of new version rows
      */
-    public function import(string $documentType, string $zone, array $documents, CarbonInterface $fetchedAt): array
+    public function import(string $documentType, string $zone, array $documents, CarbonInterface $fetchedAt): int
     {
         $now = now();
         $fetched = $fetchedAt->copy()->utc()->format('Y-m-d H:i:s');
         $records = [];
-        $versions = [];
 
         foreach ($documents as $document) {
             $xml = new SimpleXMLElement($document);
@@ -49,7 +46,6 @@ class OutageImporter
             $docStatus = (string) $xml->docStatus->value;
             $created = (string) $xml->createdDateTime;
             $documentReasons = $this->reasons($xml);
-            $versions[$mrid.'|'.$revision] = ['mrid' => $mrid, 'revision' => $revision, 'start' => $startTime];
 
             foreach ($xml->TimeSeries as $series) {
                 $curveType = (string) $series->curveType ?: 'A01';
@@ -88,21 +84,48 @@ class OutageImporter
             $inserted += DB::table('entsoe_outages')->insertOrIgnore($chunk);
         }
 
-        return ['inserted' => $inserted, 'needs_history' => $this->missingPreviousRevisions($versions)];
+        return $inserted;
     }
 
     /**
-     * @param  array<string, array{mrid: string, revision: int, start: CarbonImmutable}>  $versions
+     * The version identity of each document (mRID, revision, outage start). The staged fetch step
+     * reads it from the fetched bodies to plan the version-history queries (S19).
+     *
+     * @param  list<string>  $documents
+     * @return array<string, array{mrid: string, revision: int, start: CarbonImmutable}> keyed "mrid|revision"
+     */
+    public function versions(array $documents): array
+    {
+        $versions = [];
+        foreach ($documents as $document) {
+            $xml = new SimpleXMLElement($document);
+            $mrid = (string) $xml->mRID;
+            $start = (string) $xml->{'unavailability_Time_Period.timeInterval'}->start;
+            if ($mrid === '' || $start === '' || (string) $xml->{'unavailability_Time_Period.timeInterval'}->end === '') {
+                continue;
+            }
+            $revision = (int) $xml->revisionNumber;
+            $versions[$mrid.'|'.$revision] = ['mrid' => $mrid, 'revision' => $revision, 'start' => CarbonImmutable::parse($start, 'UTC')->utc()];
+        }
+
+        return $versions;
+    }
+
+    /**
+     * The documents with revision > 1 whose previous revision is neither stored nor among the
+     * given (just fetched) versions. Read-only: the fetch step plans with it and writes nothing.
+     *
+     * @param  array<string, array{mrid: string, revision: int, start: CarbonImmutable}>  $versions  keyed "mrid|revision"
      * @return list<array{mrid: string, start: CarbonImmutable}>
      */
-    private function missingPreviousRevisions(array $versions): array
+    public function missingPreviousRevisions(array $versions): array
     {
         $candidates = array_filter($versions, fn (array $version) => $version['revision'] > 1);
         if ($candidates === []) {
             return [];
         }
 
-        $stored = [];
+        $stored = array_fill_keys(array_keys($versions), true);
         foreach (array_chunk(array_unique(array_column($candidates, 'mrid')), 500) as $mrids) {
             DB::table('entsoe_outages')
                 ->whereIn('document_mrid', $mrids)

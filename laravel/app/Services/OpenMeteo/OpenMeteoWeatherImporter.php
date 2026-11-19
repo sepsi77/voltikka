@@ -17,6 +17,23 @@ class OpenMeteoWeatherImporter
     private const UPSERT_CHUNK_SIZE = 500;
 
     /**
+     * Decode a saved response body (the store step of weather:fetch). A body that is not a JSON
+     * object with a time list in the expected block fails the point.
+     *
+     * @param  'daily'|'hourly'  $block
+     * @return array<string, mixed>
+     */
+    public function decode(?string $body, string $block): array
+    {
+        $payload = json_decode((string) $body, true);
+        if (! is_array($payload) || ! is_array($payload[$block]['time'] ?? null)) {
+            throw new RuntimeException('Open-Meteo returned an unexpected payload.');
+        }
+
+        return $payload;
+    }
+
+    /**
      * @param  array<string, mixed>  $payload  Archive response
      * @return int Number of daily rows written
      */

@@ -3,9 +3,12 @@
 namespace Tests\Feature;
 
 use App\Services\EntsoeTransparency\EntsoeCurve;
+use App\Services\EntsoeTransparency\OutageImporter;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -287,5 +290,214 @@ class FetchEntsoeTransparencyDataCommandTest extends TestCase
             ['start' => '2026-01-09 08:30:00', 'end' => '2026-01-09 09:00:00', 'mw' => 40.0],
             ['start' => '2026-01-09 09:00:00', 'end' => '2026-01-09 10:00:00', 'mw' => 80.0],
         ], EntsoeCurve::segments($period, 'A03'));
+    }
+
+    /** The argument form of the S forecast workflow (orchestration s_forecast.py OUTAGE_FETCH). */
+    private const S_FORECAST_OUTAGES = 'entsoe:fetch --dataset=outages --zone=FI --zone=SE3 --zone=SE1_FI --zone=SE3_FI --zone=EE_FI';
+
+    /**
+     * FI A80 answers rev 7 of Olkiluoto 3 (rev 6 through its mRID history query), SE3 A80 a
+     * cancelled version, reservoirs the NO fixture with $reservoirValue; everything else "no data".
+     */
+    private function fakeEntsoe(?string $reservoirValue = null): void
+    {
+        $noData = $this->fixture('acknowledgement-no-data.xml');
+        $reservoir = $this->fixture('reservoir-a72-no.xml');
+        if ($reservoirValue !== null) {
+            $reservoir = preg_replace('#<quantity>[^<]*</quantity>#', "<quantity>{$reservoirValue}</quantity>", $reservoir, 1);
+        }
+
+        Http::swap(new Factory);
+        Http::fake(function (Request $request) use ($noData, $reservoir) {
+            $q = $this->queryOf($request);
+            if ($q['documentType'] === 'A72') {
+                return Http::response($reservoir, 200);
+            }
+            if (($q['biddingZone_Domain'] ?? null) === '10YFI-1--------U' && $q['documentType'] === 'A80') {
+                return Http::response($this->zip(isset($q['mRID'])
+                    ? ['001.xml' => $this->fixture('outage-a80-ol3-rev7.xml'), '002.xml' => $this->fixture('outage-a80-ol3-rev6.xml')]
+                    : ['001.xml' => $this->fixture('outage-a80-ol3-rev7.xml')]), 200, ['Content-Type' => 'application/zip']);
+            }
+            if (($q['biddingZone_Domain'] ?? null) === '10Y1001A1001A46L' && $q['documentType'] === 'A80') {
+                return Http::response($this->zip(['001.xml' => $this->fixture('outage-a80-se3-cancelled.xml')]), 200);
+            }
+
+            return Http::response($noData, 200, ['Content-Type' => 'text/xml']);
+        });
+    }
+
+    public function test_default_mode_and_fetch_only_then_from_payload_write_the_same_rows(): void
+    {
+        $this->fakeEntsoe();
+        $this->assertSame(0, Artisan::call(self::S_FORECAST_OUTAGES));
+        $line = $this->lastJsonLine();
+        $this->assertSame(['stored', true, ['outages' => 3, 'generation' => 0, 'reservoirs' => 0]], [$line['status'], $line['complete'], $line['counts']]);
+        $defaultRows = $this->storedRows();
+        $this->assertCount(3, $defaultRows[0]);
+
+        DB::table('entsoe_outages')->delete();
+        $this->assertSame(0, Artisan::call(self::S_FORECAST_OUTAGES.' --fetch-only'));
+        $payload = $this->lastJsonLine()['payload'];
+        $this->assertSame(0, DB::table('entsoe_outages')->count(), 'Fetch only writes no rows.');
+
+        // The fetch planned the history of both revision > 1 documents from the parsed first pages
+        // and the empty table (S19).
+        $header = $this->payloadLines($payload['path'])[0];
+        $this->assertSame('2026-11-01T08:30:00Z', $header['facts']['window_minute']);
+        $this->assertSame([
+            ['zone' => 'FI', 'document_type' => 'A80', 'mrid' => 'coo--hR7U1v3g7eOuR4Tzg', 'start' => '2026-09-09T22:00:00Z'],
+            ['zone' => 'SE3', 'document_type' => 'A80', 'mrid' => 'WuQqOp7X1PEypTpXW4_9IA', 'start' => '2026-08-10T05:00:00Z'],
+        ], $header['facts']['history']);
+        // The repeated --zone option round-trips through the header.
+        $this->assertSame(['FI', 'SE3', 'SE1_FI', 'SE3_FI', 'EE_FI'], $header['options']['zone']);
+
+        // A store with other data options is refused.
+        $this->assertSame(1, Artisan::call('entsoe:fetch --dataset=outages --zone=FI --from-payload='.$payload['path']));
+        $refused = $this->lastJsonLine();
+        $this->assertSame(['payload_invalid', 'options_mismatch'], [$refused['error'], $refused['reason']]);
+
+        // The store runs two hours later and keeps the fetch time (S5).
+        Carbon::setTestNow(Carbon::create(2026, 11, 1, 10, 30, 0, 'UTC'));
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        Http::fake();
+        $this->assertSame(0, Artisan::call(self::S_FORECAST_OUTAGES." --from-payload={$payload['path']} --payload-sha256={$payload['sha256']}"));
+        Http::assertNothingSent();
+
+        $this->assertSame($defaultRows, $this->storedRows());
+        $this->assertSame(['2026-11-01 08:30:00'], DB::table('entsoe_outages')->distinct()->pluck('fetched_at')->all());
+    }
+
+    public function test_store_failure_writes_no_row_keeps_the_payload_reports_safe_sql_facts_and_replays(): void
+    {
+        $this->fakeEntsoe();
+        Log::spy();
+        // The reservoir upsert fails after the outage inserts of the same run succeeded.
+        DB::statement("CREATE TRIGGER fail_reservoirs BEFORE INSERT ON entsoe_reservoir_weeks BEGIN SELECT RAISE(ABORT, 'forced failure'); END");
+
+        $this->assertSame(1, Artisan::call('entsoe:fetch --zone=FI'));
+        $output = Artisan::output();
+
+        $this->assertSame(['status' => 'failed', 'step' => 'store', 'error' => 'store_failed', 'sqlstate' => '23000', 'driver_code' => 19, 'table' => 'entsoe_reservoir_weeks'], $this->lastJsonLine($output));
+        foreach (['forced failure', 'Olkiluoto', '55055761'] as $binding) {
+            $this->assertStringNotContainsString($binding, $output);
+        }
+        $this->assertSame(0, DB::table('entsoe_outages')->count() + DB::table('entsoe_reservoir_weeks')->count(), 'A failed store writes no row of the run (S21).');
+        Log::shouldHaveReceived('error')->once()->withArgs(function (string $message, array $context): bool {
+            $this->assertSame('Import failed: entsoe:fetch', $message);
+            $this->assertSame(['store', '23000', 19, 'entsoe_reservoir_weeks'], [$context['step'], $context['sqlstate'], $context['driver_code'], $context['table']]);
+            foreach (['forced failure', 'Olkiluoto', '55055761', 'secret-token'] as $binding) {
+                $this->assertStringNotContainsString($binding, json_encode($context));
+            }
+
+            return true;
+        });
+
+        $payloads = glob(config('import_payloads.path').'/entsoe-transparency/2026-11-01/*.ndjson.gz');
+        $this->assertCount(1, $payloads, 'The payload stays after a failed store.');
+
+        DB::statement('DROP TRIGGER fail_reservoirs'); // the fix
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        Http::fake();
+        $this->assertSame(0, Artisan::call('entsoe:fetch --zone=FI --from-payload='.$payloads[0]));
+        Http::assertNothingSent();
+        $this->assertSame(2, DB::table('entsoe_outages')->count());
+        $this->assertSame(13, DB::table('entsoe_reservoir_weeks')->where('zone', 'FI')->count());
+    }
+
+    public function test_a_stored_previous_revision_means_no_history_request(): void
+    {
+        app(OutageImporter::class)->import('A80', 'FI', [$this->fixture('outage-a80-ol3-rev6.xml')], Carbon::now('UTC'));
+        $this->fakeEntsoe();
+
+        $this->assertSame(0, Artisan::call('entsoe:fetch --dataset=outages --zone=FI --fetch-only'));
+
+        $this->assertSame([], $this->payloadLines($this->lastJsonLine()['payload']['path'])[0]['facts']['history']);
+        Http::assertNotSent(fn (Request $request) => isset($this->queryOf($request)['mRID']));
+        $this->assertSame(1, DB::table('entsoe_outages')->count(), 'The fetch step writes no row.');
+    }
+
+    public function test_the_security_token_never_reaches_the_payload_and_a_failed_unit_keeps_the_others(): void
+    {
+        Http::fake(function (Request $request) {
+            if ($this->queryOf($request)['in_Domain'] === '10YSE-1--------K') {
+                return Http::response('<html>stalled</html>', 503);
+            }
+
+            return Http::response($this->fixture('reservoir-a72-no.xml'), 200);
+        });
+
+        $this->assertSame(1, Artisan::call('entsoe:fetch --dataset=reservoirs'));
+
+        $line = $this->lastJsonLine();
+        $this->assertSame(['failed', 'fetch', 'fetch_incomplete', false], [$line['status'], $line['step'], $line['error'], $line['complete']]);
+        $this->assertSame(26, $line['counts']['reservoirs'], 'NO and FI are stored; SE failed (S10).');
+
+        $decompressed = (string) gzdecode((string) file_get_contents($line['payload']['path']));
+        $this->assertStringNotContainsString('secret-token', $decompressed);
+        $requests = array_values(array_filter($this->payloadLines($line['payload']['path']), fn (array $l) => $l['type'] === 'request'));
+        $this->assertCount(3, $requests);
+        foreach ($requests as $request) {
+            $this->assertSame('A72', $request['query']['documentType'] ?? null);
+            $this->assertArrayNotHasKey('securityToken', $request['query']);
+        }
+        $this->assertSame(503, $requests[1]['status']);
+    }
+
+    /**
+     * S9: not date-bound. An older payload from the same day is accepted. Outages are insert-only,
+     * so it adds only versions that are missing; reservoir and generation rows are upserted, so
+     * they take the older values and fetch time until the next fetch.
+     */
+    public function test_an_older_same_day_payload_is_accepted(): void
+    {
+        Carbon::setTestNow(Carbon::create(2026, 11, 1, 6, 0, 0, 'UTC'));
+        $this->fakeEntsoe('1000');
+        Artisan::call('entsoe:fetch --zone=FI --fetch-only');
+        $older = $this->lastJsonLine()['payload']['path'];
+
+        Carbon::setTestNow(Carbon::create(2026, 11, 1, 9, 0, 0, 'UTC'));
+        $this->fakeEntsoe('2000');
+        $this->assertSame(0, Artisan::call('entsoe:fetch --zone=FI'));
+
+        Carbon::setTestNow(Carbon::create(2026, 11, 1, 12, 0, 0, 'UTC'));
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        $this->assertSame(0, Artisan::call('entsoe:fetch --zone=FI --from-payload='.$older));
+
+        $this->assertSame(['outages' => 0, 'generation' => 0, 'reservoirs' => 13], $this->lastJsonLine()['counts']);
+        $this->assertSame(['2026-11-01 09:00:00'], DB::table('entsoe_outages')->distinct()->pluck('fetched_at')->all());
+        $first = DB::table('entsoe_reservoir_weeks')->orderBy('timestamp')->first();
+        $this->assertEqualsWithDelta(1000.0, $first->stored_energy_mwh, 0.001);
+        $this->assertSame('2026-11-01 06:00:00', $first->fetched_at);
+    }
+
+    /** @return array<int, list<array<string, mixed>>> */
+    private function storedRows(): array
+    {
+        $strip = fn ($row) => array_diff_key((array) $row, array_flip(['id', 'created_at', 'updated_at']));
+
+        return [
+            DB::table('entsoe_outages')->orderBy('document_mrid')->orderBy('revision_number')->get()->map($strip)->all(),
+            DB::table('entsoe_generation_hourly')->orderBy('zone')->orderBy('psr_type')->orderBy('direction')->orderBy('timestamp')->get()->map($strip)->all(),
+            DB::table('entsoe_reservoir_weeks')->orderBy('zone')->orderBy('timestamp')->get()->map($strip)->all(),
+        ];
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function payloadLines(string $path): array
+    {
+        $lines = array_filter(explode("\n", (string) gzdecode((string) file_get_contents($path))));
+
+        return array_values(array_map(fn (string $line) => json_decode($line, true, flags: JSON_THROW_ON_ERROR), $lines));
+    }
+
+    /** @return array<string, mixed> */
+    private function lastJsonLine(?string $output = null): array
+    {
+        $lines = array_values(array_filter(explode("\n", trim($output ?? Artisan::output()))));
+
+        return json_decode(end($lines), true, flags: JSON_THROW_ON_ERROR);
     }
 }

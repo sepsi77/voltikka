@@ -4,27 +4,28 @@ namespace App\Services\Fmi;
 
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 
 /**
  * Read-only client for the FMI open data WFS (https://opendata.fmi.fi/wfs).
  *
  * FMI permits 600 requests per 5 minutes, so every request after the first waits for the
- * configured delay. HTTP 429, 5xx and connection failures are retried. An FMI exception report
- * (HTTP 400 with ExceptionText) becomes an FmiRequestException without the request URL.
+ * configured delay. HTTP 429, 5xx and connection failures are retried. The staged import
+ * (FetchFmiData) records every raw response; failure() turns an FMI exception report (HTTP 400
+ * with ExceptionText) into an FmiRequestException without the request URL.
  */
 class FmiOpenDataService
 {
     private ?float $lastRequestAt = null;
 
     /**
-     * Run one stored query and return the XML body.
+     * The full request URL of one stored query. Built by hand: Laravel's array encoding cannot
+     * repeat a parameter name.
      *
      * @param  list<array{0: string, 1: string}>  $parameters  Name/value pairs; a name can repeat (fmisid, latlon)
-     *
-     * @throws FmiRequestException|RequestException|ConnectionException
      */
-    public function getFeature(string $storedQuery, array $parameters): string
+    public function url(string $storedQuery, array $parameters): string
     {
         $pairs = [
             ['service', 'WFS'],
@@ -33,12 +34,24 @@ class FmiOpenDataService
             ['storedquery_id', $storedQuery],
             ...$parameters,
         ];
-        // Build the query by hand: Laravel's array encoding cannot repeat a parameter name.
-        $query = implode('&', array_map(fn (array $pair) => rawurlencode($pair[0]).'='.rawurlencode($pair[1]), $pairs));
 
+        return rtrim((string) config('fmi.base_url'), '/').'?'
+            .implode('&', array_map(fn (array $pair) => rawurlencode($pair[0]).'='.rawurlencode($pair[1]), $pairs));
+    }
+
+    /**
+     * Run one stored query and return the raw response, also for an HTTP error (the staged
+     * import records it; failure() classifies it). Only a connection failure after retries throws.
+     *
+     * @param  list<array{0: string, 1: string}>  $parameters
+     *
+     * @throws ConnectionException
+     */
+    public function request(string $storedQuery, array $parameters): Response
+    {
         $this->waitForRateLimit();
 
-        $response = Http::accept('application/xml')
+        return Http::accept('application/xml')
             ->connectTimeout((float) config('fmi.connect_timeout', 10))
             ->timeout((float) config('fmi.timeout', 120))
             ->retry((int) config('fmi.retry_times', 3), (int) config('fmi.retry_sleep_ms', 5000), function ($exception) {
@@ -49,17 +62,21 @@ class FmiOpenDataService
                 return $exception instanceof RequestException
                     && ($exception->response->status() === 429 || $exception->response->serverError());
             }, throw: false)
-            ->get(rtrim((string) config('fmi.base_url'), '/').'?'.$query);
+            ->get($this->url($storedQuery, $parameters));
+    }
 
-        $body = $response->body();
-
-        if ($response->clientError() && str_contains($body, 'ExceptionText')) {
-            throw new FmiRequestException($this->exceptionText($body));
+    /**
+     * Why a response cannot be used, or null for a usable one: an FMI exception report (HTTP 4xx
+     * with ExceptionText) becomes an FmiRequestException without the request URL; any other HTTP
+     * error is the RequestException.
+     */
+    public function failure(Response $response): FmiRequestException|RequestException|null
+    {
+        if ($response->clientError() && str_contains($response->body(), 'ExceptionText')) {
+            return new FmiRequestException($this->exceptionText($response->body()));
         }
 
-        $response->throw();
-
-        return $body;
+        return $response->failed() ? $response->toException() : null;
     }
 
     /**

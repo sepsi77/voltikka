@@ -5,6 +5,7 @@ namespace Tests\Unit;
 use App\Services\Caching\ContractPriceCacheConflict;
 use App\Services\Caching\ContractPriceCacheStorageException;
 use App\Services\ContractImport\ContractImportCompletionStopped;
+use App\Services\ImportPayload\ImportPayloadInvalid;
 use App\Support\DataFetchFailureReporter;
 use GuzzleHttp\Psr7\Response;
 use Illuminate\Database\QueryException;
@@ -172,6 +173,17 @@ class DataFetchFailureReporterTest extends TestCase
             ['sqlstate' => null, 'driver_code' => null, 'table' => 't'],
             DataFetchFailureReporter::storeError($this->queryException('insert into t values (?)', ['not a state', 'x'])),
         );
+    }
+
+    public function test_a_refused_payload_names_its_closed_reason(): void
+    {
+        $this->captureSentryIssues();
+        $reporter = new DataFetchFailureReporter('contracts');
+        $reporter->step('store');
+        $reporter->fail('payload_invalid', ImportPayloadInvalid::because('wrong_date'));
+        $reporter->report(true);
+        $context = $this->sentryIssues[0]->getContexts()['data_fetch'];
+        $this->assertSame(['wrong_date' => 1], $context['reasons']['payload_invalid']);
     }
 
     public function test_an_unknown_step_is_refused(): void

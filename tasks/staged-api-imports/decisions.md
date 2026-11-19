@@ -83,3 +83,17 @@ User approved the merge of PR #30 (with PR #26 and #27 from the VPS operations t
 ## 2026-11-19 – Implementation contract
 
 `design.md` fixes the payload format, the shared classes, the command modes and result line, the Temporal contract and the per-command tests, so the parallel implementation of 15 commands stays uniform. Work order: the shared foundation and one reference command (`spot:fetch-forecast`) first, then the command groups in parallel, then Temporal, documentation, spec review and the PR.
+
+## 2026-11-19 – Implementation (manager)
+
+Phase 1 (shared foundation and `spot:fetch-forecast`) by one executor, reviewed and committed as `41da647`. Then seven executors in parallel on disjoint files: contracts, EEX, spot, ENTSO-E/Fingrid, FMI/Syke/GIE/JAO/NVE, Open-Meteo weather, Temporal. Each reported its tests; the manager reviewed the shared code, made the shared-file changes the groups asked for, and ran the full suites. Implementation notes that change or extend `design.md` are in its section 7a.
+
+Choices worth keeping:
+
+- **Replay ownership.** A `--from-payload` store of `contracts:fetch` and `futures:fetch-eex` starts its own `running` marker with a new run UUID before writing. Resuming the fetch's UUID would let two concurrent stores of one payload both resume.
+- **Failed-unit recovery.** A later answered line of the same unit (EEX retry pass) removes it from `failed_units`, so a fully recovered EEX run reports `complete: true`.
+- **Patching.** `EEX_STEP`, `CONTRACTS_STEP` and the S forecast fetches change behind `workflow.patched("staged-api-imports")`, with replay tests on recorded pre-change histories. A deploy-time rule could not work: hourly staged jobs and a manual `MorningChain` recovery can run at any hour. `ArtisanJob` steps read `staged` from the Schedule input, so the collector and spot jobs become staged only when their Schedules are re-applied (`schedules.py --apply --group collectors|spot|maintenance`, a production change that needs approval). Until then they run the default one-process mode, which also saves payloads.
+- **Contract fetch failure.** The fetch fails only when every postcode failed. Before, it failed when the last postcode failed and nothing had been parsed. A full-scope run with no contracts still fails (`no_contracts`); only a manual postcode-scoped run whose earlier postcodes answered empty and whose last one failed now exits 0 with a warning instead of 1.
+- **Window facts in `weather:fetch`.** The windows are computed from the clock just before the writer reads `fetched_at`, and both are recorded in the header; the store reads only the header, so S5 holds.
+
+Not acted on: `ContractReplacementLinker` writes `replaced_by_linked_on` from the clock, not from `effective_date`; the two differ only for a store that runs across midnight, which S9 already refuses for a replay. Contract `ImportReplay` runs the completion loop but not the forecast evaluation.

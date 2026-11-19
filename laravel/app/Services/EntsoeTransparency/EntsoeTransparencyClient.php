@@ -4,6 +4,7 @@ namespace App\Services\EntsoeTransparency;
 
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 use SimpleXMLElement;
@@ -12,9 +13,10 @@ use ZipArchive;
 /**
  * Read-only client for the ENTSO-E Transparency Platform API (market-review datasets).
  *
- * Returns the XML documents of one query. Unavailability answers are ZIP files with one XML
- * document per outage version; other answers are one XML document. An acknowledgement with
- * reason 999 means "no matching data" and returns no documents.
+ * get() returns the raw answer of one query (the staged fetch step records it); documents() reads
+ * it. Unavailability answers are ZIP files with one XML document per outage version; other answers
+ * are one XML document. An acknowledgement with reason 999 means "no matching data" and returns no
+ * documents.
  *
  * Exception messages can contain the request URL with the securityToken: callers must log the
  * exception class only.
@@ -25,23 +27,35 @@ class EntsoeTransparencyClient
     public const OUTAGE_PAGE_SIZE = 200;
 
     /** The API rejects an offset above 4800. */
-    private const MAX_OFFSET = 4800;
+    public const MAX_OFFSET = 4800;
 
     private ?float $lastRequestAt = null;
 
+    /** Fail the whole run before any request when the key is missing. */
+    public function assertConfigured(): void
+    {
+        if ((string) config('services.entsoe.api_key') === '') {
+            throw new RuntimeException('ENTSOE_API_KEY is not configured.');
+        }
+    }
+
+    public function baseUrl(): string
+    {
+        return (string) config('services.entsoe.base_url', 'https://web-api.tp.entsoe.eu/api');
+    }
+
     /**
+     * One answered request with retries. The raw body goes into the import payload; parse it with
+     * documents(). The staged fetch step pages unavailability queries itself (offset), because the
+     * next page depends on the size of this one.
+     *
      * @param  array<string, string>  $params  Query parameters without the securityToken
-     * @return list<string> XML documents
      *
      * @throws RequestException|ConnectionException
      */
-    public function fetchDocuments(array $params): array
+    public function get(array $params): Response
     {
-        $apiKey = (string) config('services.entsoe.api_key');
-        if ($apiKey === '') {
-            throw new RuntimeException('ENTSOE_API_KEY is not configured.');
-        }
-
+        $this->assertConfigured();
         $this->waitForRateLimit();
 
         // Retry every failed attempt. ENTSO-E sometimes holds a request for 18-30 s and then answers
@@ -51,41 +65,27 @@ class EntsoeTransparencyClient
             ->retry(3, (int) config('entsoe_transparency.retry_sleep_ms', 2000), function ($exception) {
                 return $exception instanceof ConnectionException || $exception instanceof RequestException;
             })
-            ->get((string) config('services.entsoe.base_url', 'https://web-api.tp.entsoe.eu/api'), ['securityToken' => $apiKey] + $params);
+            ->get($this->baseUrl(), ['securityToken' => (string) config('services.entsoe.api_key')] + $params);
 
-        $response->throw();
+        return $response->throw();
+    }
 
-        $body = $response->body();
-
-        return str_starts_with($body, "PK\x03\x04") ? $this->unzip($body) : $this->xmlDocuments($body);
+    /** Unavailability answers are ZIP files (binary; the payload keeps them base64). */
+    public static function isZip(string $body): bool
+    {
+        return str_starts_with($body, "PK\x03\x04");
     }
 
     /**
-     * Fetch every page of an unavailability query (offset paging, 200 documents per page).
+     * The XML documents of one answer body: the files of a ZIP, else the body itself. An
+     * acknowledgement with reason 999 ("no matching data") gives no documents; any other
+     * acknowledgement or an unreadable ZIP throws.
      *
-     * @param  array<string, string>  $params
      * @return list<string>
-     *
-     * @throws RequestException|ConnectionException
      */
-    public function fetchAllOutageDocuments(array $params): array
+    public function documents(string $body): array
     {
-        $documents = [];
-        $offset = 0;
-
-        while (true) {
-            $page = $this->fetchDocuments($params + ['offset' => (string) $offset]);
-            array_push($documents, ...$page);
-
-            if (count($page) < self::OUTAGE_PAGE_SIZE) {
-                return $documents;
-            }
-
-            $offset += self::OUTAGE_PAGE_SIZE;
-            if ($offset > self::MAX_OFFSET) {
-                throw new RuntimeException('ENTSO-E unavailability query has more than 5000 documents; use a shorter period.');
-            }
-        }
+        return self::isZip($body) ? $this->unzip($body) : $this->xmlDocuments($body);
     }
 
     /**

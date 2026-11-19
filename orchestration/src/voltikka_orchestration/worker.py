@@ -14,7 +14,7 @@ from temporalio.worker import Worker
 
 from . import sentry
 from .activities import Activities
-from .jobs import ArtisanJob, ContractImport, EexFutures, MorningChain
+from .jobs import ArtisanJob, ContractImport, EexFutures, ImportReplay, MorningChain
 from .s_forecast import SDailyForecast, SWeeklyRefit
 from .settings import Settings
 
@@ -29,7 +29,7 @@ GRACEFUL_SHUTDOWN = timedelta(minutes=65)
 # make a new worker look healthy.
 READY_FILE = Path("/tmp/voltikka-worker-ready")
 
-WORKFLOWS = [SDailyForecast, SWeeklyRefit, ArtisanJob, MorningChain, EexFutures, ContractImport]
+WORKFLOWS = [SDailyForecast, SWeeklyRefit, ArtisanJob, MorningChain, EexFutures, ContractImport, ImportReplay]
 
 
 async def connect(settings: Settings) -> Client:

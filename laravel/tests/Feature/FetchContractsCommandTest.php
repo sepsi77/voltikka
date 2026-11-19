@@ -17,12 +17,19 @@ use App\Services\ContractImport\ContractImportCompletion;
 use App\Services\ContractListCacheService;
 use App\Services\ContractReplacement\ContractReplacementLinker;
 use App\Services\ContractStatistics\ContractPriceStatisticsService;
+use Carbon\CarbonImmutable;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\Factory;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Sleep;
 use Illuminate\Support\Str;
 use Tests\Concerns\CapturesSentryIssues;
 use Tests\TestCase;
@@ -1056,6 +1063,240 @@ class FetchContractsCommandTest extends TestCase
             ->expectsOutput('Fetching contracts for postcode: 00100')
             ->expectsOutput('Contracts fetched successfully!')
             ->assertExitCode(0);
+    }
+
+    public function test_default_mode_and_fetch_only_then_from_payload_write_the_same_rows(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-11-19 06:00:00', 'Europe/Helsinki'));
+        $this->fakeProductLists([
+            '00100' => $this->getSampleApiResponse(),
+            '02230' => array_merge($this->getSampleApiResponse('contract-67890', 'Toinen'), $this->getSampleApiResponse()),
+        ]);
+        $options = ['--postcodes' => '00100,02230', '--skip-logos' => true];
+
+        // The default run inside a rolled-back savepoint, so the staged run starts from the same database.
+        DB::beginTransaction();
+        $this->assertSame(0, Artisan::call('contracts:fetch', $options));
+        $line = $this->lastJsonLine();
+        $this->assertSame(['stored', 'store', true], [$line['status'], $line['step'], $line['complete']]);
+        $this->assertSame(['contracts' => 2, 'failed_postcodes' => 0, 'active_contracts' => 2, 'price_components' => 4], $line['counts']);
+        $defaultRows = $this->importedRows();
+        DB::rollBack();
+        Cache::flush();
+        $this->assertSame(0, ElectricityContract::count());
+
+        $this->assertSame(0, Artisan::call('contracts:fetch', ['--fetch-only' => true] + $options));
+        $payload = $this->lastJsonLine()['payload'];
+        $this->assertSame([2, 0, true], [$payload['requests'], $payload['failed_units'], $payload['complete']]);
+        $this->assertSame(0, ElectricityContract::count() + ContractSourceSnapshot::count() + PriceComponent::count(), 'Fetch only writes no import rows.');
+
+        // The store runs two hours later and keeps the fetch time and date (S5).
+        $this->travelTo(CarbonImmutable::parse('2026-11-19 08:00:00', 'Europe/Helsinki'));
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        $this->assertSame(0, Artisan::call('contracts:fetch', [
+            '--from-payload' => $payload['path'], '--payload-sha256' => $payload['sha256'],
+        ] + $options));
+        $this->assertSame('stored', $this->lastJsonLine()['status']);
+
+        $this->assertSame($defaultRows, $this->importedRows());
+        $fetchedAt = $this->appWallTime('2026-11-19 06:00:00');
+        $this->assertSame([$fetchedAt], DB::table('contract_source_observations')->distinct()->pluck('last_observed_at')->all());
+        $this->assertSame([$fetchedAt], DB::table('contract_source_snapshots')->distinct()->pluck('first_observed_at')->all());
+        $this->assertSame(['2026-11-19'], PriceComponent::query()->distinct()->pluck('price_date')->map(fn ($date) => substr((string) $date, 0, 10))->all());
+    }
+
+    public function test_store_failure_writes_no_row_reports_safe_sql_facts_and_a_replay_takes_over_the_checkpoint(): void
+    {
+        // 2026-11-19: Helen's 455-character ProductLink did not fit varchar(255) under MySQL strict mode.
+        $this->captureSentryIssues();
+        Log::spy();
+        $this->travelTo(CarbonImmutable::parse('2026-11-19 06:00:00', 'Europe/Helsinki'));
+        $longLink = 'https://www.helen.fi/sahko/'.str_repeat('x', 428);
+        $response = $this->getSampleApiResponse();
+        $response[0]['Details']['ProductLink'] = $longLink;
+        Http::fake(['*' => Http::response($response)]);
+        $columnFits = false;
+        ElectricityContract::creating(function (ElectricityContract $contract) use (&$columnFits): void {
+            if (! $columnFits && strlen((string) $contract->product_link) > 255) {
+                throw $this->dataTooLong($contract);
+            }
+        });
+
+        $this->assertSame(1, Artisan::call('contracts:fetch', ['--skip-logos' => true]));
+        $output = Artisan::output();
+
+        $this->assertSame(['status' => 'failed', 'step' => 'store', 'error' => 'store_failed', 'sqlstate' => '22001', 'driver_code' => 1406, 'table' => 'electricity_contracts'], $this->lastJsonLine($output));
+        $this->assertStringNotContainsString(str_repeat('x', 100), $output);
+        foreach (['companies', 'electricity_contracts', 'contract_source_snapshots', 'contract_source_observations', 'price_components', 'active_contracts', 'spot_futures'] as $table) {
+            $this->assertSame(0, DB::table($table)->count(), "A failed store writes no {$table} row (S21).");
+        }
+        $failed = DataFreshnessCheckpoint::sole();
+        $payloads = glob(config('import_payloads.path').'/azure-consumer-api/2026-11-19/*.ndjson.gz');
+        $this->assertCount(1, $payloads, 'The payload stays after a failed store.');
+        $this->assertSame(DataFreshnessCheckpoint::STATUS_FAILED, $failed->status);
+        $this->assertSame('import', $failed->metadata['stage']);
+        $this->assertSame(['path' => $payloads[0], 'sha256' => trim(file_get_contents(str_replace('.ndjson.gz', '.sha256', $payloads[0])))], $failed->metadata['payload']);
+
+        $this->assertImportIssue('contracts', 'error', ['import' => 1]);
+        $context = $this->sentryIssues[0]->getContexts()['data_fetch'];
+        $this->assertSame(['sqlstate' => '22001', 'driver_code' => 1406, 'table' => 'electricity_contracts'], $context['store_error']);
+        $this->assertSame(['import' => 'store'], $context['steps']);
+        $this->assertSame(['import' => ['sqlstate_22001' => 1]], $context['reasons']);
+        $this->assertStringNotContainsString(str_repeat('x', 100), json_encode($context));
+        $this->assertStringNotContainsString('contract-12345', json_encode($context));
+        Log::shouldHaveReceived('log')->once()->with('error', 'Data fetch failed: contracts', $context);
+
+        // After the fix, the same payload is stored two hours later without an API call.
+        $columnFits = true;
+        $this->travelTo(CarbonImmutable::parse('2026-11-19 08:00:00', 'Europe/Helsinki'));
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        $this->assertSame(0, Artisan::call('contracts:fetch', ['--from-payload' => $payloads[0], '--skip-logos' => true]));
+
+        $line = $this->lastJsonLine();
+        $this->assertSame(['stored', true], [$line['status'], $line['complete']]);
+        $this->assertSame($longLink, ElectricityContract::sole()->product_link);
+        $this->assertSame($this->appWallTime('2026-11-19 06:00:00'), DB::table('contract_source_snapshots')->value('first_observed_at'));
+        $ready = DataFreshnessCheckpoint::sole();
+        $this->assertSame(DataFreshnessCheckpoint::STATUS_READY, $ready->status);
+        $this->assertNotSame($failed->metadata['run_uuid'], $ready->metadata['run_uuid'], 'The replay owns the checkpoint with its own run.');
+        // Bookkeeping stays real time: the completion deadline starts at the replay, not at the fetch.
+        $this->assertTrue(CarbonImmutable::parse($ready->metadata['deadline'])->eq(now()->addHours(2)));
+        $this->assertCount(1, $this->sentryIssues, 'The replay sends no Issue.');
+    }
+
+    public function test_store_refuses_a_payload_from_another_helsinki_date_before_any_write(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-11-18 23:30:00', 'Europe/Helsinki'));
+        Http::fake(['*' => Http::response($this->getSampleApiResponse())]);
+        $this->assertSame(0, Artisan::call('contracts:fetch', ['--fetch-only' => true, '--skip-logos' => true]));
+        $payload = $this->lastJsonLine()['payload'];
+        $fetchRun = DataFreshnessCheckpoint::sole();
+
+        $this->travelTo(CarbonImmutable::parse('2026-11-19 06:00:00', 'Europe/Helsinki'));
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        $this->assertSame(1, Artisan::call('contracts:fetch', ['--from-payload' => $payload['path'], '--skip-logos' => true]));
+
+        $this->assertSame(['status' => 'failed', 'step' => 'store', 'error' => 'payload_invalid', 'reason' => 'wrong_date'], $this->lastJsonLine());
+        $this->assertSame(0, ElectricityContract::count() + Company::count() + ContractSourceSnapshot::count());
+        // The fetch's own checkpoint is untouched, and today's date gets none.
+        $this->assertEquals($fetchRun->getAttributes(), DataFreshnessCheckpoint::sole()->getAttributes());
+        $this->assertSame(DataFreshnessCheckpoint::STATUS_RUNNING, $fetchRun->status);
+        $this->assertSame('2026-11-18', $fetchRun->effective_date->toDateString());
+    }
+
+    public function test_partial_fetch_keeps_its_failed_postcode_through_the_payload(): void
+    {
+        $this->captureSentryIssues();
+        Sleep::fake();
+        $this->travelTo(CarbonImmutable::parse('2026-11-19 06:00:00', 'Europe/Helsinki'));
+        Company::create(['name' => 'Regional Energy Oy', 'name_slug' => 'regional-energy-oy']);
+        $regional = ElectricityContract::create([
+            'id' => 'regional-contract', 'api_id' => 'regional-api', 'name' => 'Regional Contract',
+            'company_name' => 'Regional Energy Oy', 'contract_type' => 'FixedTerm', 'metering' => 'General',
+            'availability_is_national' => false,
+        ]);
+        ActiveContract::create(['id' => $regional->id]);
+        Http::fake(fn ($request) => str_ends_with($request->url(), '/02230')
+            ? Http::response(['error' => 'Server Error'], 500)
+            : Http::response($this->getSampleApiResponse()));
+
+        $this->assertSame(0, Artisan::call('contracts:fetch', ['--fetch-only' => true, '--skip-logos' => true]));
+        $payload = $this->lastJsonLine()['payload'];
+        $this->assertSame([30, 1, false], [$payload['requests'], $payload['failed_units'], $payload['complete']]);
+        $this->assertSame(DataFreshnessCheckpoint::STATUS_RUNNING, DataFreshnessCheckpoint::sole()->status, 'The store sets the final status.');
+        // The fetch process reports the failed postcode, as the one process did before.
+        $this->assertImportIssue('contracts', 'warning', ['acquisition' => 1]);
+
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        $this->assertSame(0, Artisan::call('contracts:fetch', ['--from-payload' => $payload['path'], '--skip-logos' => true]));
+        $output = Artisan::output();
+
+        $this->assertStringContainsString('Contract acquisition was incomplete. Failed postcodes: 02230.', $output);
+        $line = $this->lastJsonLine($output);
+        $this->assertSame(['stored', false, 1], [$line['status'], $line['complete'], $line['counts']['failed_postcodes']]);
+        $this->assertSame(DataFreshnessCheckpoint::STATUS_INCOMPLETE, DataFreshnessCheckpoint::sole()->status);
+        $this->assertDatabaseHas('active_contracts', ['id' => $regional->id]);
+        $this->assertDatabaseHas('electricity_contracts', ['api_id' => 'contract-12345']);
+        $this->assertCount(1, $this->sentryIssues, 'The store of a partial payload sends no second Issue.');
+    }
+
+    public function test_failed_fetch_writes_the_failed_checkpoint_and_no_payload(): void
+    {
+        $this->captureSentryIssues();
+        Sleep::fake();
+        $this->travelTo(CarbonImmutable::parse('2026-11-19 06:00:00', 'Europe/Helsinki'));
+        Http::fake(['*' => Http::response(['error' => 'Server Error'], 503)]);
+
+        $this->assertSame(1, Artisan::call('contracts:fetch', ['--skip-logos' => true]));
+
+        $this->assertSame(['status' => 'failed', 'step' => 'fetch', 'error' => 'fetch_failed'], $this->lastJsonLine());
+        $checkpoint = DataFreshnessCheckpoint::sole();
+        $this->assertSame(DataFreshnessCheckpoint::STATUS_FAILED, $checkpoint->status);
+        $this->assertSame(['run_uuid' => $checkpoint->metadata['run_uuid'], 'stage' => 'acquisition'], $checkpoint->metadata);
+        $this->assertSame([], glob(config('import_payloads.path').'/azure-consumer-api/2026-11-19/*'));
+        $this->assertImportIssue('contracts', 'error', ['acquisition' => 30]);
+        $this->assertSame(['acquisition' => 'fetch'], $this->sentryIssues[0]->getContexts()['data_fetch']['steps']);
+    }
+
+    /** @param array<string, list<array<string, mixed>>> $responses  postcode => product list */
+    private function fakeProductLists(array $responses): void
+    {
+        Http::fake(array_combine(
+            array_map(fn (string $postcode) => "ev-shv-prod-app-wa-consumerapi1.azurewebsites.net/api/productlist/{$postcode}", array_keys($responses)),
+            array_map(fn (array $contracts) => Http::response($contracts), $responses),
+        ));
+    }
+
+    /** @return array<string, list<array<string, mixed>>> every import table, without write times */
+    private function importedRows(): array
+    {
+        $tables = ['companies', 'electricity_contracts', 'price_components', 'electricity_sources', 'contract_source_snapshots',
+            'contract_source_observations', 'active_contracts', 'contract_postcode', 'contract_dso', 'dsos', 'spot_futures'];
+        // A new contract's ID has a random prefix, so rows name contracts by their API ID.
+        $apiIds = DB::table('electricity_contracts')->pluck('api_id', 'id')->all();
+        $rows = [];
+        foreach ($tables as $table) {
+            $rows[$table] = DB::table($table)->get()
+                ->map(fn ($row) => array_map(
+                    fn ($value) => is_string($value) && isset($apiIds[$value]) ? 'contract:'.$apiIds[$value] : $value,
+                    array_diff_key((array) $row, array_flip(['created_at', 'updated_at'])),
+                ))
+                ->sortBy(fn (array $row) => json_encode($row))->values()->all();
+        }
+
+        return $rows;
+    }
+
+    /** A Helsinki time as the application stores it (wall time in the app timezone, like now()). */
+    private function appWallTime(string $helsinki): string
+    {
+        return CarbonImmutable::parse($helsinki, 'Europe/Helsinki')->setTimezone(config('app.timezone'))->format('Y-m-d H:i:s');
+    }
+
+    /** MySQL strict mode's answer to a too-long varchar value, with the value among the bindings. */
+    private function dataTooLong(ElectricityContract $contract): QueryException
+    {
+        $driver = new \PDOException("SQLSTATE[22001]: String data, right truncated: 1406 Data too long for column 'product_link' at row 1");
+        $driver->errorInfo = ['22001', 1406, "Data too long for column 'product_link' at row 1"];
+
+        return new QueryException(
+            'mysql',
+            'insert into `electricity_contracts` (`id`, `api_id`, `product_link`) values (?, ?, ?)',
+            [$contract->id, $contract->api_id, $contract->product_link],
+            $driver,
+        );
+    }
+
+    /** @return array<string, mixed> */
+    private function lastJsonLine(?string $output = null): array
+    {
+        $lines = array_values(array_filter(explode("\n", trim($output ?? Artisan::output()))));
+
+        return json_decode(end($lines), true, flags: JSON_THROW_ON_ERROR);
     }
 
     /**

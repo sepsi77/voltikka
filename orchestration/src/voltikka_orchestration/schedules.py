@@ -54,27 +54,30 @@ def job(*steps: Step) -> list[Step]:
 # Phase 2 jobs (phase2-plan.md), moved from laravel/routes/console.php with the same Helsinki times
 # unless a chain replaced the time. Groups are cut over one at a time (`--group`).
 JOBS: dict[str, tuple[str, list[ScheduleCalendarSpec], list[Step]]] = {
-    # A. Market-review and own-model collectors (no cache writes).
-    "fingrid-fetch": ("collectors", [at([10], 20)], job(Step(["fingrid:fetch"], 60))),
-    "gas-storage-fetch": ("collectors", [at([10], 35)], job(Step(["gas-storage:fetch", "--if-configured"]))),
-    "weather-fetch": ("collectors", [at([10], 40)], job(Step(["weather:fetch"], 60))),
-    "weather-fetch-ec46": ("collectors", [at([10], 50, weekday=1)], job(Step(["weather:fetch", "--only=ecmwf_ec46"], 60))),
-    "weather-fetch-seas5": ("collectors", [at([11], 0, day=8)], job(Step(["weather:fetch", "--only=ecmwf_seas5"], 60))),
-    "entsoe-fetch": ("collectors", [at([10], 50)], job(Step(["entsoe:fetch"], 60))),
-    "fmi-fetch": ("collectors", [at([11], 5)], job(Step(["fmi:fetch"]))),
-    "fmi-fetch-forecast": ("collectors", [at([23], 5)], job(Step(["fmi:fetch", "--only=forecast"]))),
-    "weather-fetch-solar-ghi": ("collectors", [at([11, 23], 5)], job(Step(["weather:fetch", "--only=solar_ghi"]))),
+    # A. Market-review and own-model collectors (no cache writes). Every external API import is staged
+    # (fetch, then store from the payload file; tasks/staged-api-imports/).
+    "fingrid-fetch": ("collectors", [at([10], 20)], job(Step(["fingrid:fetch"], 60, staged=True))),
+    "gas-storage-fetch": ("collectors", [at([10], 35)], job(Step(["gas-storage:fetch", "--if-configured"], staged=True))),
+    "weather-fetch": ("collectors", [at([10], 40)], job(Step(["weather:fetch"], 60, staged=True))),
+    "weather-fetch-ec46": ("collectors", [at([10], 50, weekday=1)], job(Step(["weather:fetch", "--only=ecmwf_ec46"], 60, staged=True))),
+    "weather-fetch-seas5": ("collectors", [at([11], 0, day=8)], job(Step(["weather:fetch", "--only=ecmwf_seas5"], 60, staged=True))),
+    "entsoe-fetch": ("collectors", [at([10], 50)], job(Step(["entsoe:fetch"], 60, staged=True))),
+    "fmi-fetch": ("collectors", [at([11], 5)], job(Step(["fmi:fetch"], staged=True))),
+    "fmi-fetch-forecast": ("collectors", [at([23], 5)], job(Step(["fmi:fetch", "--only=forecast"], staged=True))),
+    "weather-fetch-solar-ghi": ("collectors", [at([11, 23], 5)], job(Step(["weather:fetch", "--only=solar_ghi"], staged=True))),
     # Every hour 09:15-14:15: each tick stores only the points still missing.
-    "weather-fetch-ecmwf-00z": ("collectors", [at(list(range(9, 15)), 15)], job(Step(["weather:fetch", "--only=ecmwf_00z"]))),
+    "weather-fetch-ecmwf-00z": ("collectors", [at(list(range(9, 15)), 15)], job(Step(["weather:fetch", "--only=ecmwf_00z"], staged=True))),
     # Before both S cuts (Fingrid 10:00 and 14:00).
-    "weather-fetch-ecmwf-prev-day1": ("collectors", [at([9, 13], 40)], job(Step(["weather:fetch", "--only=ecmwf_prev_day1"]))),
-    "fingrid-forecast-vintages": ("collectors", [at(None, 45)], job(Step(["fingrid:fetch-forecast-vintages"], 10))),
-    "syke-fetch": ("collectors", [at([11], 10)], job(Step(["syke:fetch"]))),
-    "eex-europe-fetch": ("collectors", [at([12], 30)], job(Step(["futures:fetch-eex-europe"]))),
-    "jao-fetch": ("collectors", [at([12], 40)], job(Step(["jao:fetch"]))),
-    "nve-fetch-reservoirs": ("collectors", [at([15], 30, weekday=3)], job(Step(["nve:fetch-reservoirs"]))),
+    "weather-fetch-ecmwf-prev-day1": ("collectors", [at([9, 13], 40)], job(Step(["weather:fetch", "--only=ecmwf_prev_day1"], staged=True))),
+    "fingrid-forecast-vintages": ("collectors", [at(None, 45)], job(Step(["fingrid:fetch-forecast-vintages"], 10, staged=True))),
+    "syke-fetch": ("collectors", [at([11], 10)], job(Step(["syke:fetch"], staged=True))),
+    "eex-europe-fetch": ("collectors", [at([12], 30)], job(Step(["futures:fetch-eex-europe"], staged=True))),
+    "jao-fetch": ("collectors", [at([12], 40)], job(Step(["jao:fetch"], staged=True))),
+    "nve-fetch-reservoirs": ("collectors", [at([15], 30, weekday=3)], job(Step(["nve:fetch-reservoirs"], staged=True))),
     # B. Maintenance and other scheduled work.
     "feedback-purge-text": ("maintenance", [at([2], 15)], job(Step(["feedback:purge-text"]))),
+    # Payload files of the staged imports: 14-day retention and temporary files of killed fetches (S6).
+    "import-payloads-cleanup": ("maintenance", [at([3], 20)], job(Step(["import-payloads:cleanup", "--apply"]))),
     # Chain: clean and monitor after the backup, also when it failed (monitor reports a missing backup).
     "backup-nightly": ("maintenance", [at([3], 0)], job(
         Step(["backup:run", "--only-db"], 60),
@@ -94,13 +97,13 @@ JOBS: dict[str, tuple[str, list[ScheduleCalendarSpec], list[Step]]] = {
     )),
     # C. Spot. Publication follows the hourly import (it checks complete data itself).
     "spot-hourly": ("spot", [at(None, 0)], job(
-        Step(["spot:fetch"], 55, self_reports=True),
+        Step(["spot:fetch"], 55, self_reports=True, staged=True),
         Step(["social:publish-daily-spot"], 15, always=True, max_attempts=1, interruptible=False),
     )),
     # Independent watchdog: it must run even when spot:fetch hangs.
     "spot-check-freshness": ("spot", [at(None, 10)], job(Step(["spot:check-freshness"], 5))),
-    "spot-fetch-neighbours": ("spot", [at(None, 25)], job(Step(["spot:fetch-neighbours"]))),
-    "spot-fetch-forecast": ("spot", [at([0, 6, 12, 18], 0)], job(Step(["spot:fetch-forecast"]))),
+    "spot-fetch-neighbours": ("spot", [at(None, 25)], job(Step(["spot:fetch-neighbours"], staged=True))),
+    "spot-fetch-forecast": ("spot", [at([0, 6, 12, 18], 0)], job(Step(["spot:fetch-forecast"], staged=True))),
 }
 
 

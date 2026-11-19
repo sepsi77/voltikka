@@ -122,6 +122,18 @@ Every other command states in a test whether an older same-day payload is accept
   counterpart (the group tests keep both sides equal), daily at 03:20 Helsinki. Applying the new
   Temporal Schedule to production is a separate approved step.
 
+## 7a. Additions during implementation (2026-11-19)
+
+- The header is still the first line, but the writer writes it at `finish()`: request lines stream into a temporary compressed body file and are copied behind the header as one gzip member, so `setFact()` works until the end.
+- `record(..., failed: true)` marks an answered request as a failed unit; a later answered line of the same unit recovers it (EEX retry passes).
+- A fetch that throws leaves no file; a multi-request fetch records its failures and does not throw, so the payload stays (S10). A fetch in which every unit failed still writes the payload, so the error bodies are kept.
+- Store result class `ImportStoreResult(counts, afterCommit, error, errorStep)`: with a closed `error`, the rows are committed and the command exits 1 (for example `fetch_incomplete` with step `fetch` after a partial fetch).
+- Extra closed keys: `invalid_options`, `invalid_config`, `after_commit_failed`, `unsupported_source`, `options_mismatch` (reader reason), `no_contracts`, `post_import_failed`, `checkpoint_failed`, `missing_current_run_prior_fi`, `no_instruments`, `no_complete_hour`, `forecast_points_missing`, `reference_period_unproved`, `not_configured`.
+- `{"status":"skipped","step":"fetch","reason":"not_configured"}` (exit 0, no file): `gas-storage:fetch --if-configured` without a key. Temporal treats it as a successful step with nothing to store.
+- `stagedDataOptions()` defaults to every non-global option; `contracts:fetch` keeps only `postcodes` (`--skip-logos` changes no row) and `gas-storage:fetch` leaves out `--if-configured`. Temporal passes the fetch's args to the store anyway.
+- Checkpoint commands (`contracts:fetch`, `futures:fetch-eex`): a `--from-payload` store starts its own `running` marker with a new run UUID before writing, so a superseded or concurrent store never overwrites a newer run. Default mode keeps one UUID.
+- Temporal patching: `EEX_STEP`, `CONTRACTS_STEP` and the S forecast fetches change behind `workflow.patched("staged-api-imports")` with replay tests; `ArtisanJob` reads `staged` from its Schedule input, so running jobs are unaffected and the collector/spot jobs become staged only when their Schedules are re-applied.
+
 ## 8. Tests per command (D1, D2, D3, D6)
 
 Use `Http::fake` with fixed bodies and `Storage`-free real files under a temporary storage path.

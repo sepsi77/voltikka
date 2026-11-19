@@ -162,6 +162,21 @@ class ImportPayloadWriterReaderTest extends TestCase
         );
     }
 
+    public function test_a_later_answered_line_recovers_a_failed_unit(): void
+    {
+        Http::fake(['api.test/*' => Http::sequence()->push('busy', 503)->push('[]')->push('[]', 500)]);
+        $writer = ImportPayloadWriter::open('test-source', 'test:fetch');
+        $writer->record(['maturity' => '202612'], Http::get('https://api.test/a'), failed: true);
+        $writer->record(['maturity' => '202612'], Http::get('https://api.test/a'));
+        $writer->record(['maturity' => '202701'], Http::get('https://api.test/b'), failed: true);
+        $reference = $writer->finish();
+
+        $reader = ImportPayloadReader::open($reference->path);
+        $this->assertSame([['maturity' => '202701']], $reader->end()['failed_units']);
+        $this->assertSame(3, $reference->requests);
+        $this->assertSame(1, $reference->failedUnits);
+    }
+
     private function finishedPayload(): ImportPayloadReference
     {
         Http::fake(['api.test/*' => Http::response('[]')]);

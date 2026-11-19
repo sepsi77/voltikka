@@ -4,12 +4,23 @@ This directory owns the authoritative contract import and its post-import work.
 
 ## Primary classes
 
-- `ContractAcquisitionResult` carries deduplicated API contracts, failed postcodes, and completeness.
+- `ContractAcquisitionResult` carries deduplicated API contracts, failed postcodes, and completeness. The store step builds it from the payload file.
 - `ContractImporter` owns all database mutations for one contract import.
 - `ContractImportResult` carries import counts, replacement data, active IDs, company names, changed observation IDs, and all pointed observation IDs observed in the run.
 - `ContractPostImportCoordinator` captures exact dispatcher-returned target IDs and runs optional work after the import transaction commits.
 - `ContractImportCompletion` owns required statistics/cache work and bounded same-day completion in the existing checkpoint JSON. This domain-local helper is needed because both the initial command and later ticks must use the same ownership and statistics fence.
 - `ContractPostImportResult` separates required failures from optional failures and carries the exact nullable statistics start and completion timestamps. Its `requiredExceptions` map also retains each caught required-stage Throwable for safe class/reason extraction in the command. The compatibility message maps must never enter Log or Sentry context.
+
+## Staged import (fetch, then store)
+
+`contracts:fetch` (`app/Console/Commands/FetchContracts.php`) is a staged import (`../ImportPayload/AGENTS.md`, `tasks/staged-api-imports/`). Payload source `azure-consumer-api`.
+
+- **Fetch** (`--fetch-only`, or the first half of the default mode): starts the `running` checkpoint of a full run, then saves one raw `GET /api/productlist/<postcode>` response per postcode (`AzureConsumerApiClient::fetchProductList()`, unchanged retry policy). A postcode that fails after the retries is a `recordFailure` line (S10). Header facts: `effective_date` (Helsinki date of `fetched_at`) and the `postcodes` plan. Only when every postcode failed does the fetch fail: checkpoint `failed`, stage `acquisition`, no payload file. Partial acquisition failures are reported by the fetch process (warning Issue), not again by the store.
+- **Store** (`--from-payload=<path>`, or the second half of the default mode): rebuilds the duplicate-by-`Id` merge (postcode order, first wins) and `complete` flag from the payload, then runs `ContractImporter::import()` and the post-import coordinator unchanged. `$transactional = false`: the importer owns its transaction. The import date is `effective_date`, and snapshot/observation `first_observed_at`/`last_observed_at` are `fetched_at` (`import(..., observedAt:)`); completion deadlines, claims, statistics times and `recorded_at` stay real time, so a replay two hours later still gets a two-hour completion window.
+- **S9**: the store refuses a payload whose `effective_date` is not today's Helsinki date (`payload_invalid`, reason `wrong_date`) before any write, including the checkpoint.
+- **Checkpoint**: a failed store records `failed` with its stage (`import`, `post_import`, `acquisition`/`no_contracts`, `unexpected`) and `payload: {path, sha256}` in the metadata. A `--from-payload` run starts its own run UUID `running` marker (`ContractImportCompletion::start()`) before writing and then owns the checkpoint: the normal Temporal store after a separate fetch and a replay after a failed store both take over by the existing UUID compare-and-set, so a superseded store can never overwrite a newer run.
+- `--skip-logos` is not a data option (logos run after the import, outside the payload), so a replay may differ from the fetch in it. `--postcodes` is: a replay must give the same value, and a scoped run never touches the global checkpoint.
+- JSON result line: `stored` with `counts` (`contracts`, `failed_postcodes`, `active_contracts`, `price_components`) and `complete`; closed store errors `store_failed` (+ `sqlstate`, `driver_code`, `table`), `post_import_failed`, `checkpoint_failed`, `no_contracts` (full scope only; a scoped empty run stays exit 0 with a warning). Partial acquisition keeps exit 0 with `"complete":false`. One `DataFetchFailureReporter` Issue per process, its stages carrying the step.
 
 ## Import rules
 
@@ -45,7 +56,7 @@ One interpretation failure must not stop a later observation. Required work stop
 
 No cache store is flushed or truncated. Price-cache replacement uses `ContractListCacheService::refresh()` and `Caching/ContractPriceCacheLifecycle`; see `../Caching/AGENTS.md`. Partial imports and statistics failures never start replacement. Interpretation dispatch remains before statistics and can independently invalidate unsafe prices immediately; a failed refresh does not undo those safety invalidations. The coordinator does not call nested Artisan commands and does not use `app()` service location.
 
-`contracts:fetch` installs a new full-run UUID in a `running` start marker before acquisition. Both initial row acquisition and replacement use this status; confirmed unexpected command exceptions mark the owned checkpoint failed. All later writes compare that UUID under the same checkpoint row lock. A superseded command cannot replace the newer fact. EEX now uses the same small start-UUID/final-owner-check pattern; it has no deferred producer retry. Acquisition/import/required-stage failures stay failed; partial acquisition stays incomplete. Scoped imports neither insert nor overwrite global facts. A scoped statistics fence locks the same-date row if it exists; if it is absent, it remains absent. Only a full import can create this checkpoint.
+`contracts:fetch` installs a new full-run UUID in a `running` start marker before acquisition (and a `--from-payload` store installs its own before writing; see "Staged import"). Both initial row acquisition and replacement use this status; confirmed unexpected command exceptions mark the owned checkpoint failed. All later writes compare that UUID under the same checkpoint row lock. A superseded command cannot replace the newer fact. EEX now uses the same small start-UUID/final-owner-check pattern; it has no deferred producer retry. Acquisition/import/required-stage failures stay failed; partial acquisition stays incomplete. Scoped imports neither insert nor overwrite global facts. A scoped statistics fence locks the same-date row if it exists; if it is absent, it remains absent. Only a full import can create this checkpoint.
 
 ## Durable deferred completion
 

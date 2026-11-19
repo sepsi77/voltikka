@@ -6,8 +6,8 @@ use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
-use RuntimeException;
 use Throwable;
 
 /**
@@ -16,22 +16,23 @@ use Throwable;
  * Every request after the first waits for the given delay, because the free tier allows fewer
  * than 600 calls per minute and 5,000 per hour, and a long or wide request counts as several
  * calls. HTTP 429, 5xx and connection failures are retried.
+ *
+ * The client only sends requests and returns raw responses: weather:fetch saves them in a payload
+ * file (tasks/staged-api-imports/), and the store step parses the saved bodies.
  */
 class OpenMeteoService
 {
     private ?float $lastRequestAt = null;
 
     /**
-     * Observed daily values for one point and an inclusive range of local days.
+     * Request of observed daily values for one point and an inclusive range of local days.
      *
      * @param  array{latitude: float, longitude: float}  $point
-     * @return array<string, mixed> Decoded response with a 'daily' block
-     *
-     * @throws RequestException|ConnectionException
+     * @return array{0: string, 1: array<string, mixed>} URL and query for fetch()
      */
-    public function fetchArchive(array $point, CarbonInterface $from, CarbonInterface $to, float $delaySeconds): array
+    public function archiveRequest(array $point, CarbonInterface $from, CarbonInterface $to): array
     {
-        return $this->getBlock((string) config('open_meteo.archive_url'), [
+        return [(string) config('open_meteo.archive_url'), [
             'latitude' => $point['latitude'],
             'longitude' => $point['longitude'],
             'start_date' => $from->format('Y-m-d'),
@@ -40,21 +41,19 @@ class OpenMeteoService
             'models' => (string) config('open_meteo.observed_model'),
             'timezone' => (string) config('open_meteo.timezone'),
             'wind_speed_unit' => 'ms',
-        ], $delaySeconds, 'daily');
+        ]];
     }
 
     /**
-     * All ensemble members of one outlook product for one point.
+     * Request of all ensemble members of one outlook product for one point.
      *
      * @param  array{url: string, model: string, forecast_days: int, variables: list<string>}  $product
      * @param  array{latitude: float, longitude: float}  $point
-     * @return array<string, mixed>
-     *
-     * @throws RequestException|ConnectionException
+     * @return array{0: string, 1: array<string, mixed>}
      */
-    public function fetchOutlook(array $product, array $point, float $delaySeconds): array
+    public function outlookRequest(array $product, array $point): array
     {
-        return $this->getBlock($product['url'], [
+        return [$product['url'], [
             'latitude' => $point['latitude'],
             'longitude' => $point['longitude'],
             'models' => $product['model'],
@@ -62,20 +61,18 @@ class OpenMeteoService
             'forecast_days' => $product['forecast_days'],
             'timezone' => (string) config('open_meteo.timezone'),
             'wind_speed_unit' => 'ms',
-        ], $delaySeconds, 'daily');
+        ]];
     }
 
     /**
-     * Observed hourly values for one point and an inclusive range of UTC days (ERA5).
+     * Request of observed hourly values for one point and an inclusive range of UTC days (ERA5).
      *
      * @param  array{latitude: float, longitude: float}  $point
-     * @return array<string, mixed> Decoded response with an 'hourly' block (unix-second times)
-     *
-     * @throws RequestException|ConnectionException
+     * @return array{0: string, 1: array<string, mixed>}
      */
-    public function fetchArchiveHourly(array $point, CarbonInterface $from, CarbonInterface $to, float $delaySeconds): array
+    public function archiveHourlyRequest(array $point, CarbonInterface $from, CarbonInterface $to): array
     {
-        return $this->getBlock((string) config('open_meteo.archive_url'), [
+        return [(string) config('open_meteo.archive_url'), [
             'latitude' => $point['latitude'],
             'longitude' => $point['longitude'],
             'start_date' => $from->format('Y-m-d'),
@@ -85,19 +82,17 @@ class OpenMeteoService
             'timezone' => 'GMT',
             'timeformat' => 'unixtime',
             'wind_speed_unit' => 'ms',
-        ], $delaySeconds, 'hourly');
+        ]];
     }
 
     /**
-     * One hourly forecast product (single model) for one point, in UTC hours.
+     * Request of one hourly forecast product (single model) for one point, in UTC hours.
      *
      * @param  array{url: string, model: string, forecast_days: int, variables: list<string>}  $product
      * @param  array{latitude: float, longitude: float}  $point
-     * @return array<string, mixed>
-     *
-     * @throws RequestException|ConnectionException
+     * @return array{0: string, 1: array<string, mixed>}
      */
-    public function fetchHourlyForecast(array $product, array $point, float $delaySeconds, ?string $run = null): array
+    public function hourlyForecastRequest(array $product, array $point, ?string $run = null): array
     {
         $query = [
             'latitude' => $point['latitude'],
@@ -116,47 +111,18 @@ class OpenMeteoService
             $query['run'] = $run; // Single Runs API: one model run, e.g. 2026-11-06T00:00
         }
 
-        return $this->getBlock($product['url'], $query, $delaySeconds, 'hourly');
+        return [$product['url'], $query];
     }
 
     /**
-     * True when the Single Runs API answered that the requested run is not available yet
-     * (HTTP 400, reason "The requested model run is not available", checked 2026-11-06).
-     */
-    public static function isRunNotAvailable(Throwable $e): bool
-    {
-        return $e instanceof RequestException
-            && $e->response->status() === 400
-            && str_contains(strtolower((string) $e->response->json('reason')), 'not available');
-    }
-
-    /**
-     * Initialisation time of the latest model run (UTC 'Y-m-d H:i:s'), or null when the
-     * metadata cannot be read. Best effort: the metadata file is not a documented API.
-     */
-    public function fetchModelRunAt(string $metaUrl, float $delaySeconds): ?string
-    {
-        try {
-            $this->waitForRateLimit($delaySeconds);
-            $response = Http::acceptJson()
-                ->connectTimeout((float) config('open_meteo.connect_timeout', 5))
-                ->timeout((float) config('open_meteo.timeout', 60))
-                ->get($metaUrl);
-            $initialisedAt = $response->successful() ? $response->json('last_run_initialisation_time') : null;
-        } catch (Throwable) {
-            return null;
-        }
-
-        return is_int($initialisedAt) && $initialisedAt > 0
-            ? Carbon::createFromTimestampUTC($initialisedAt)->format('Y-m-d H:i:s')
-            : null;
-    }
-
-    /**
+     * Send one data request and return the answered response with its raw body (the fetch step
+     * saves it; OpenMeteoWeatherImporter::decode() parses it in the store step).
+     *
      * @param  array<string, mixed>  $query
-     * @return array<string, mixed>
+     *
+     * @throws RequestException|ConnectionException
      */
-    private function getBlock(string $url, array $query, float $delaySeconds, string $block): array
+    public function fetch(string $url, array $query, float $delaySeconds): Response
     {
         $this->waitForRateLimit($delaySeconds);
 
@@ -173,14 +139,60 @@ class OpenMeteoService
             })
             ->get($url, $query);
 
-        $response->throw();
+        return $response->throw();
+    }
 
-        $payload = $response->json();
-        if (! is_array($payload) || ! is_array($payload[$block]['time'] ?? null)) {
-            throw new RuntimeException('Open-Meteo returned an unexpected payload.');
+    /**
+     * True when the Single Runs API answered that the requested run is not available yet
+     * (HTTP 400, reason "The requested model run is not available", checked 2026-11-06).
+     */
+    public static function isRunNotAvailable(Throwable $e): bool
+    {
+        return $e instanceof RequestException
+            && self::isRunNotAvailableAnswer($e->response->status(), $e->response->body());
+    }
+
+    /** The same check on a saved status and body (the store step). */
+    public static function isRunNotAvailableAnswer(int $status, ?string $body): bool
+    {
+        $decoded = json_decode((string) $body, true);
+
+        return $status === 400
+            && is_array($decoded)
+            && str_contains(strtolower((string) ($decoded['reason'] ?? '')), 'not available');
+    }
+
+    /**
+     * The model-run metadata file, answered with any status (no retry, no throw). Best effort: the
+     * file is not a documented API. modelRunAt() reads the saved answer.
+     *
+     * @throws ConnectionException
+     */
+    public function fetchMeta(string $metaUrl, float $delaySeconds): Response
+    {
+        $this->waitForRateLimit($delaySeconds);
+
+        return Http::acceptJson()
+            ->connectTimeout((float) config('open_meteo.connect_timeout', 5))
+            ->timeout((float) config('open_meteo.timeout', 60))
+            ->get($metaUrl);
+    }
+
+    /**
+     * Initialisation time of the latest model run (UTC 'Y-m-d H:i:s') from a saved metadata
+     * answer, or null when it was not answered, not successful or has no usable time.
+     */
+    public static function modelRunAt(?int $status, ?string $body): ?string
+    {
+        if ($status === null || $status < 200 || $status >= 300) {
+            return null;
         }
+        $decoded = json_decode((string) $body, true);
+        $initialisedAt = is_array($decoded) ? ($decoded['last_run_initialisation_time'] ?? null) : null;
 
-        return $payload;
+        return is_int($initialisedAt) && $initialisedAt > 0
+            ? Carbon::createFromTimestampUTC($initialisedAt)->format('Y-m-d H:i:s')
+            : null;
     }
 
     private function waitForRateLimit(float $delaySeconds): void

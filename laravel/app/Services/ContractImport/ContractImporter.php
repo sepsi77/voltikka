@@ -16,6 +16,7 @@ use App\Services\ContractInterpretation\CanonicalPriceComponentWriter;
 use App\Services\ContractInterpretation\ContractSourceCanonicalizer;
 use App\Services\ContractReplacement\ContractReplacementLinker;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -39,26 +40,31 @@ class ContractImporter
     /**
      * @param  list<array<string, mixed>>  $contracts
      * @param  list<string>  $validPostcodes
+     * @param  CarbonInterface|null  $observedAt  when the source was fetched (the staged payload's
+     *                                            fetched_at, S5); null means now
      */
     public function import(
         array $contracts,
         array $validPostcodes,
         CarbonInterface|string $importDate,
         bool $complete,
+        ?CarbonInterface $observedAt = null,
     ): ContractImportResult {
         $date = $importDate instanceof CarbonInterface
             ? $importDate->toDateString()
             : $importDate;
+        // Stored as wall time in the application timezone, like now().
+        $observedAt = $observedAt === null ? now() : Carbon::instance($observedAt)->setTimezone(config('app.timezone'));
         $this->changedObservationIds = [];
         $this->observedObservationIds = [];
         $this->currentSnapshotIdsByContractId = [];
 
-        return DB::transaction(function () use ($contracts, $validPostcodes, $date, $complete): ContractImportResult {
+        return DB::transaction(function () use ($contracts, $validPostcodes, $date, $complete, $observedAt): ContractImportResult {
             $companyNames = $this->processCompanies($contracts);
             $existingContracts = $this->lockExistingImportedContracts($contracts);
             $this->processContracts($contracts, $existingContracts);
             $lockedContracts = $this->lockImportedContracts($contracts);
-            $this->processContractSourceSnapshots($contracts, $lockedContracts);
+            $this->processContractSourceSnapshots($contracts, $lockedContracts, $observedAt);
             $activeContractIds = $this->updateActiveContracts($contracts, $complete);
             $priceComponentCount = $this->processPriceComponents($contracts, $date);
             $this->processElectricitySources($contracts);
@@ -259,9 +265,8 @@ class ContractImporter
      * @param  list<array<string, mixed>>  $contracts
      * @param  array<string, ElectricityContract>  $lockedContracts
      */
-    private function processContractSourceSnapshots(array $contracts, array $lockedContracts): void
+    private function processContractSourceSnapshots(array $contracts, array $lockedContracts, CarbonInterface $observedAt): void
     {
-        $observedAt = now();
 
         foreach ($contracts as $sourcePayload) {
             $contract = $lockedContracts[$sourcePayload['Id']] ?? null;

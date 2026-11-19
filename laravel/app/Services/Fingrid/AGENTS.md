@@ -7,12 +7,15 @@ Nothing public reads these rows yet. Task context: `../../../../market-review/`
 
 ## Files
 
-- `FingridOpenDataService.php` – read-only API client: pagination (`pageSize` 20000), one request
-  per `fingrid.request_delay_seconds` (default 2.5 s), retries on HTTP 429, 5xx and connection errors.
+- `FingridOpenDataService.php` – read-only API client: `recordPages()` records every page of one
+  range on the import payload, following `nextPage` (`pageSize` 20000); `page()` reads a recorded
+  body. One request per `fingrid.request_delay_seconds` (default 2.5 s), retries on HTTP 429, 5xx
+  and connection errors.
 - `FingridHourlyImporter.php` – hourly mean per dataset + series key, upserted into
   `fingrid_hourly_values`.
-- `FingridForecastVintageImporter.php` – one append-only `hourly_forecast_runs` row per distinct
-  forecast vintage (source `fingrid`, product = dataset ID, point '').
+- `FingridForecastVintageImporter.php` – `series()` builds the hourly series; `store()` inserts one
+  append-only `hourly_forecast_runs` row per distinct forecast vintage (source `fingrid`, product =
+  dataset ID, point '').
 - `../../Console/Commands/FetchFingridData.php` – `php artisan fingrid:fetch`.
 - `../../Console/Commands/FetchFingridForecastVintages.php` –
   `php artisan fingrid:fetch-forecast-vintages`.
@@ -60,6 +63,25 @@ Nothing public reads these rows yet. Task context: `../../../../market-review/`
 - Datahub (358, 361, 364) arrives about 4 days late and is corrected for 11 days, so the daily run
   fetches the last 16 days for them and the last 3 days for real-time series.
 
+## Staged import (fetch, then store)
+
+Both commands follow `../ImportPayload/AGENTS.md` (source directory `fingrid`). The key travels in
+the `x-api-key` header, which a payload never records (tests prove the key is not in the file).
+
+- `fingrid:fetch`: unit `{dataset, window, page}`. Header fact `current_hour` (the window end).
+  The store aggregates and upserts each dataset window with the header `fetched_at`: one
+  transaction for the daily run, one per 7-day window for a backfill (`--from`). A window with a
+  failed page is left out; failed datasets make the store exit 1 with `fetch_incomplete` after
+  the commit (S10).
+- `fingrid:fetch-forecast-vintages`: unit `{dataset, page}`. Header facts `first_hour` and
+  `hours` (horizon per dataset). The store inserts each vintage with the header `fetched_at` as
+  its vintage time (`issued_at` stays null), so a replay never moves a vintage past the S model's
+  `fetched_at <= cut` filter. A response without a complete hour exits 1 with `no_complete_hour`
+  (step store).
+- Not date-bound (S9): an older same-day payload is accepted. `fingrid:fetch` upserts its older
+  values and fetch time until the next run; the vintage command inserts its vintage only when that
+  payload hash is not stored yet.
+
 ## Commands
 
 ```bash
@@ -67,11 +89,14 @@ php artisan fingrid:fetch                                  # daily window (sched
 php artisan fingrid:fetch --dataset=188 --dataset=75       # only some datasets
 php artisan fingrid:fetch --from=2025-10-01 --to=2026-10-31 # backfill in 7-day pieces
 php artisan fingrid:fetch-forecast-vintages                # one 245 vintage (1 request)
+php artisan fingrid:fetch --fetch-only                     # payload only, prints its reference
+php artisan fingrid:fetch --from-payload=<path>            # store a saved payload, no API call
 ```
 
 The vintage command has no backfill: past vintages cannot be fetched again. Cost: one request
 (288 rows, one page) per run. Hourly runs are 24 requests per day of the 10,000 per key and add
 about 8,760 rows (about 6 MB) per year.
 
-A failed dataset does not stop the others; the run then exits 1, and the scheduler failure
-listener logs it. Logs contain the dataset ID and exception class only (no URL or key).
+A failed dataset does not stop the others; the run then exits 1, and the last stdout line is the
+closed JSON result (`fetch_incomplete`). Logs contain the dataset ID and exception class only (no
+URL or key).

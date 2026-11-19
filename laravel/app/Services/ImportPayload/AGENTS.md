@@ -38,7 +38,7 @@ Request lines stream into a compressed `<run-id>.body.ndjson.gz.tmp` while the f
 - **S5** The store step takes data-meaning times from the header (`fetchedAt()`, `fact()`), never from the clock. Bookkeeping times (`created_at`, claims, leases, deadlines) stay real time.
 - **S19** The fetch step may read the database to plan its requests and records the plan in `facts`; it never writes import rows.
 - **S21** `StagedImport` runs the store closure in one `DB::transaction` (unless the command passes `$transactional = false` and owns its transactions); after-commit closures run only after the commit. A failed store writes nothing and leaves the payload in place.
-- **S6** `import-payloads:cleanup` (dry run unless `--apply`): payload and `.sha256` files whose date directory is older than 14 days, `*.tmp` files older than 24 hours, then expired date directories left empty and source directories left empty. A current date directory is never removed. Payload files are not backed up. The schedule is wired with the Temporal maintenance group (`design.md` section 7), not yet.
+- **S6** `import-payloads:cleanup` (dry run unless `--apply`): payload and `.sha256` files whose date directory is older than 14 days, `*.tmp` files older than 24 hours, then expired date directories left empty and source directories left empty. A current date directory is never removed. Payload files are not backed up. It runs daily at 03:20 Helsinki as the Temporal maintenance job `import-payloads-cleanup` (`orchestration/src/voltikka_orchestration/schedules.py`), with its `routes/console.php` counterpart in the maintenance group.
 
 ## Command contract (`StagedImport`)
 
@@ -54,3 +54,12 @@ Request lines stream into a compressed `<run-id>.body.ndjson.gz.tmp` while the f
 ## Converted commands
 
 - `spot:fetch-forecast` (reference conversion; `../SpotForecasts/AGENTS.md`).
+- `spot:fetch`, `spot:fetch-neighbours` (source `entsoe-day-ahead`; `../SpotPriceImport/AGENTS.md`).
+- `contracts:fetch` (source `azure-consumer-api`; `../ContractImport/AGENTS.md`).
+- `futures:fetch-eex` (source `eex`), `futures:fetch-eex-europe` (source `eex-europe`) (`../ElectricityFutures/AGENTS.md`).
+- `entsoe:fetch` (source `entsoe-transparency`; `../EntsoeTransparency/AGENTS.md`).
+- `fingrid:fetch`, `fingrid:fetch-forecast-vintages` (source `fingrid`; `../Fingrid/AGENTS.md`).
+- `fmi:fetch` (`fmi`), `syke:fetch` (`syke`), `gas-storage:fetch` (`gie-agsi`), `jao:fetch` (`jao`), `nve:fetch-reservoirs` (`nve`) (each service directory's `AGENTS.md`).
+- `weather:fetch`, every `--only` source (source `open-meteo`; `../OpenMeteo/AGENTS.md`).
+
+A later answered line of a unit that failed earlier in the run (an in-run retry pass, EEX) removes it from `failed_units`; the store reads the last answered line of each unit.

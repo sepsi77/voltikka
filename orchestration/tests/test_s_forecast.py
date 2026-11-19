@@ -24,13 +24,26 @@ from voltikka_orchestration.s_forecast import (
 QUEUE = "test-queue"
 OUTAGES = " ".join(OUTAGE_FETCH)
 HELSINKI = ZoneInfo("Europe/Helsinki")
+PAYLOAD_PATH = "/app/storage/app/import-payloads/entsoe/2026-11-19/run-1.ndjson.gz"
+SHA256 = "cd" * 32
+
+
+def fetch(command: str) -> str:
+    return f"{command} --fetch-only"
+
+
+def store(command: str) -> str:
+    return f"{command} --from-payload={PAYLOAD_PATH} --payload-sha256={SHA256}"
 
 
 class FakeCommands:
     """Records every command; readiness answers come from the scenario."""
 
-    def __init__(self, *, morning_ready=True, afternoon_ready_after=0, failing=()):
+    def __init__(self, *, morning_ready=True, afternoon_ready_after=0, failing=(), fetch_result=None):
         self.calls: list[tuple[str, list[str], str]] = []
+        self.requests: list[CommandRequest] = []
+        self.fetch_result = fetch_result or {"status": "fetched", "step": "fetch",
+                                             "payload": {"path": PAYLOAD_PATH, "sha256": SHA256, "size": 9}}
         self.reports: list[IssueReport] = []
         self.morning_ready = morning_ready
         self.afternoon_ready_after = afternoon_ready_after
@@ -41,9 +54,12 @@ class FakeCommands:
     async def run_command(self, request: CommandRequest) -> CommandResult:
         now = activity.info().current_attempt_scheduled_time.astimezone(HELSINKI).strftime("%H:%M")
         self.calls.append((request.kind, request.args, now))
+        self.requests.append(request)
         name = request.args[0]
         if " ".join(request.args) in self.failing or name in self.failing:
             raise ApplicationError(f"{name} failed", "test_error", non_retryable=True)
+        if "--fetch-only" in request.args:
+            return CommandResult(0, self.fetch_result, 0.1)
         if name == "orchestration:readiness":
             view = request.args[-1].removeprefix("--view=")
             if view == "morning":
@@ -109,11 +125,13 @@ async def test_runs_model_only_after_every_input_is_ready(env):
     assert result.forecast == {"status": "stored", "vintage_id": 7}
     assert fake.reports == []
     names = fake.names()
-    assert names[0] == OUTAGES
+    # Every input fetch is staged: fetch, then store from the payload reference only.
+    assert names[:2] == [fetch(OUTAGES), store(OUTAGES)]
     assert fake.calls[0][2] == "11:00"
-    assert names[1] == f"orchestration:readiness s-forecast --issue-date={issue} --view=morning"
-    assert fake.calls[1][2] == "11:30"
-    assert names[2:4] == ["fingrid:fetch", OUTAGES]
+    assert [request.interruptible for request in fake.requests[:2]] == [True, False]
+    assert names[2] == f"orchestration:readiness s-forecast --issue-date={issue} --view=morning"
+    assert fake.calls[2][2] == "11:30"
+    assert names[3:7] == [fetch("fingrid:fetch"), store("fingrid:fetch"), fetch(OUTAGES), store(OUTAGES)]
     afternoon = [c for c in fake.calls if c[1][-1] == "--view=afternoon"]
     assert [c[2] for c in afternoon] == ["14:30", "14:35", "14:40"]
     predict = next(c for c in fake.calls if c[1][0] == "predict")
@@ -132,6 +150,7 @@ async def test_missing_morning_input_ends_at_the_cut_with_one_issue(env):
     assert result.missing == ["fingrid_morning"]
     assert [r.reason for r in fake.reports] == ["inputs_missing"]
     assert not any(args[0] in ("predict", "fingrid:fetch") for _, args, _ in fake.calls)
+    assert fake.names()[:2] == [fetch(OUTAGES), store(OUTAGES)]
 
 
 async def test_deadline_without_ready_inputs_gives_no_forecast(env):
@@ -147,13 +166,26 @@ async def test_deadline_without_ready_inputs_gives_no_forecast(env):
     assert not any(args[0] == "predict" for _, args, _ in fake.calls)
 
 
-async def test_failed_morning_outage_fetch_is_a_missing_input(env):
-    fake = FakeCommands(failing={OUTAGES})
+@pytest.mark.parametrize("failing", [fetch(OUTAGES), store(OUTAGES)])
+async def test_failed_morning_outage_fetch_or_store_is_a_missing_input(env, failing):
+    fake = FakeCommands(failing={failing})
 
     result = await run_daily(env, fake, SForecastInput(await tomorrow(env)))
 
     assert result.status == "no_forecast"
     assert result.missing == ["entsoe_outages_morning"]
+    # A failed fetch skips the store; a failed store never starts a new fetch.
+    assert fake.names() == ([fetch(OUTAGES)] if failing == fetch(OUTAGES) else [fetch(OUTAGES), store(OUTAGES)])
+    assert [r.reason for r in fake.reports] == ["inputs_missing"]
+
+
+async def test_a_fetch_without_a_payload_reference_is_a_missing_input(env):
+    fake = FakeCommands(fetch_result={"status": "fetched"})
+
+    result = await run_daily(env, fake, SForecastInput(await tomorrow(env)))
+
+    assert result.missing == ["entsoe_outages_morning"]
+    assert fake.names() == [fetch(OUTAGES)]
 
 
 async def test_manual_start_after_the_morning_cut_needs_explicit_skip(env):
@@ -199,7 +231,8 @@ async def test_refit_runs_after_the_fingrid_fetch_and_keeps_the_old_version_on_f
     fake = FakeCommands()
     result = await run_refit(env, fake, day)
     assert result.status == "activated"
-    assert [args[0] for _, args, _ in fake.calls] == ["fingrid:fetch", "train", "activate"]
+    assert fake.names()[:2] == [fetch("fingrid:fetch"), store("fingrid:fetch")]
+    assert [args[0] for _, args, _ in fake.calls[2:]] == ["train", "activate"]
     assert fake.calls[0][2] == "10:45"
     assert fake.names()[-1] == "activate --candidate=s-test"
 
@@ -217,3 +250,12 @@ async def test_refit_never_activates_after_its_deadline(env):
     result = await run_refit(env, fake, yesterday)
     assert result.status == "failed" and result.error == "refit_deadline_passed"
     assert fake.calls == []
+
+
+async def test_a_refit_whose_fingrid_store_fails_keeps_the_old_version(env):
+    for failing, key in ((store("fingrid:fetch"), "test_error"), (None, "fetch_result_invalid")):
+        fake = FakeCommands(failing={failing} if failing else (), fetch_result=None if failing else {"status": "x"})
+        result = await run_refit(env, fake, await tomorrow(env))
+        assert result.status == "failed" and result.error == key
+        assert not any(args[0] in ("train", "activate") for _, args, _ in fake.calls)
+        assert fake.names().count(fetch("fingrid:fetch")) == 1

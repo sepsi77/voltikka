@@ -8,6 +8,7 @@ version; a failed refit keeps the active version.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta, timezone
 
@@ -17,6 +18,8 @@ from temporalio.exceptions import ActivityError, ApplicationError
 
 with workflow.unsafe.imports_passed_through():
     from .activities import CommandRequest, CommandResult, IssueReport
+    from .staged import PATCH as STAGED_PATCH
+    from .staged import fetch_args, fetch_skipped, payload_reference, store_args
 
 MORNING_OUTAGE_FETCH = time(11, 0)
 MORNING_CUT = time(11, 30)
@@ -116,10 +119,28 @@ async def sleep_until(instant: datetime) -> None:
         await workflow.sleep(delay)
 
 
-async def run(kind: str, args: list[str], options: dict) -> CommandResult:
+async def run(kind: str, args: list[str], options: dict, interruptible: bool = True) -> CommandResult:
     return await workflow.execute_activity(
-        "run_command", CommandRequest(kind, args), result_type=CommandResult, **options
+        "run_command", CommandRequest(kind, args, interruptible), result_type=CommandResult, **options
     )
+
+
+async def staged_fetch(args: list[str], options: Callable[[], dict]) -> None:
+    """An input fetch as two activities: `--fetch-only`, then `--from-payload` (not interruptible)
+    with the same args. `options()` gives each activity the budget left at its start. Raises
+    ActivityError for a failed command and ApplicationError `fetch_result_invalid` for a fetch
+    without a payload reference; a failed store never starts a new fetch."""
+    if not workflow.patched(STAGED_PATCH):
+        # Started before staged imports: replay the one-process command.
+        await run("artisan", args, options())
+        return
+    fetched = (await run("artisan", fetch_args(args), options())).result
+    if fetch_skipped(fetched):
+        return
+    reference = payload_reference(fetched)
+    if reference is None:
+        raise ApplicationError(f"{args[0]} fetch returned no payload reference", "fetch_result_invalid")
+    await run("artisan", store_args(args, reference), options(), interruptible=False)
 
 
 async def report(issue: IssueReport) -> None:
@@ -218,14 +239,20 @@ class SDailyForecast:
         return SForecastResult(issue, "forecast_stored", forecast=forecast.result, score=score)
 
     async def _fetch(self, args: list[str], until: datetime) -> bool:
-        """Run one fetch command; it must succeed before `until`. A failure is a missing input, not a workflow error."""
-        budget = until - workflow.now()
-        if budget <= timedelta(0):
+        """Run one input fetch (fetch, then store); both must succeed before `until`. A failure is a missing
+        input, not a workflow error."""
+        if until <= workflow.now():
             return False
-        options = dict(FETCH_OPTIONS, schedule_to_close_timeout=budget)
+
+        def options() -> dict:
+            budget = until - workflow.now()
+            if budget <= timedelta(0):
+                raise ApplicationError(f"{args[0]}: no time left before {until}", "fetch_deadline_passed")
+            return dict(FETCH_OPTIONS, schedule_to_close_timeout=budget)
+
         try:
-            await run("artisan", args, options)
-        except ActivityError:
+            await staged_fetch(args, options)
+        except (ActivityError, ApplicationError):
             return False
         return True
 
@@ -291,7 +318,7 @@ class SWeeklyRefit:
 
         as_of = None
         try:
-            await run("artisan", ["fingrid:fetch"], budget(FETCH_OPTIONS))
+            await staged_fetch(["fingrid:fetch"], lambda: budget(FETCH_OPTIONS))
             as_of = iso_utc(workflow.now())
             trained = await run("model", ["train", f"--as-of={as_of}"], budget(TRAIN_OPTIONS))
             candidate = (trained.result or {}).get("candidate_version")

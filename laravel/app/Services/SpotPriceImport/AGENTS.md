@@ -1,6 +1,6 @@
 # Official Spot price import
 
-`SpotPriceImporter` is the single source of truth for persisting official ENTSO-E Spot prices used by `spot:fetch` and `spot:backfill`.
+`SpotPriceImporter` is the single source of truth for persisting official ENTSO-E Spot prices used by `spot:fetch`, `spot:fetch-neighbours`, `spot:backfill` and `spot:repair-history`.
 
 Important semantics:
 - normalize API records and select electricity VAT from the record's Helsinki local time
@@ -16,6 +16,16 @@ An older defect also exists: in 2022–2024 every second month (Feb, Apr, Jun, A
 `SpotPriceHistoryRepair` + `php artisan spot:repair-history --from=YYYY-MM --to=YYYY-MM [--region=FI] [--apply]` repair this. It is a dry run by default. It fetches one Helsinki month per ENTSO-E request, builds rows through `SpotPriceImporter::prepare()` (the same VAT and hourly-mean rules as `import()`), inserts missing quarter/hour rows, updates rows that differ by more than 0.0001 c/kWh (hours; `price_without_tax` is a MySQL single-precision FLOAT) or 0.00005 (quarters, DECIMAL(10,4)), and never deletes a row. After an FI apply it recalculates daily/monthly/yearly averages; the hourly `spot:fetch` would also do that, because `calculateAllAverages()` recalculates all of them. Past rolling 30/365-day rows are deliberately NOT recalculated: stored contract statistics used them as dated evidence, and `calculateAllAverages()` writes only today's rolling rows. Local dry run 2022-01..2026-10 (copy of 2026-10-28): 13,110 missing hours, 663 changed hours, 1,961 missing quarters; 46 of 58 monthly means move by at least 0.01 c/kWh. A production apply is a production data write: it needs explicit approval and a fresh dry run on production first. A01 series are parsed as before. When a zone publishes several sequences (DE-LU), only `classificationSequence` position 1 is kept: it is the coupled SDAC price (matched SMARD/Energy-Charts exactly on 2026-10-31).
 
 Neighbour zones (`services.entsoe.bidding_zones`: SE1, SE3, EE, DE-LU) are stored in the same tables with their own `region` code by `spot:fetch-neighbours` (hourly at minute 25) and `spot:backfill --region=`. They get `vat_rate` 0, because Finnish VAT applies only to FI; their `price_with_tax` equals the VAT0 price. Every public reader filters `region = 'FI'` (checked 2026-11-01); keep that filter in any new reader. Neighbour runs never calculate averages or warm caches.
+
+## Staged imports (`spot:fetch`, `spot:fetch-neighbours`)
+
+Both commands use `App\Console\Concerns\StagedImport` (`../ImportPayload/AGENTS.md`, `tasks/staged-api-imports/`): the fetch step saves the raw A44 XML in a payload file under source `entsoe-day-ahead`, the store step parses that file with `EntsoeService::parseDayAheadPrices()` and inserts with `SpotPriceImporter::import()` in one transaction. `EntsoeService::fetchDayAheadResponse()` returns the raw response after the same timeouts and retry policy as `fetchDayAheadPrices()`; `dayAheadRequest()` gives the base URL and query for a failure line. The query holds the `securityToken`: the payload writer removes it, and a test per command proves the key value appears nowhere in the decompressed file. Never log an ENTSO-E exception message.
+
+- The window (Helsinki today through the day after tomorrow, half-open, UTC) is computed from the payload's `fetched_at` and recorded as header facts `period_start` and `period_end`.
+- `spot:fetch`: one request, unit `{"region":"FI"}`. A failed request fails the fetch (`fetch_failed`, Issue stage `acquisition`) and leaves no payload. An empty or acknowledgement body is stored as 0 records with the warning Issue `empty_response` (exit 0). A store or after-commit failure keeps the Issue stage `save_or_post_import`; the Issue context gains `steps` and, for a `QueryException`, `store_error`. `calculateAllAverages()` and the nested `contracts:warm-price-statistics-cache` run after the commit.
+- `spot:fetch-neighbours`: one request per configured zone, unit `{"region":"SE1"}` etc. A failed zone is a failed unit; the other zones are still stored and the run exits 1 with `fetch_incomplete` (`complete:false`), as before. A store failure in one zone writes no row of any zone.
+- Not date-bound (S9): an older payload from the same day is accepted. Rows are insert-only, so a same-day replay inserts nothing that an earlier store wrote. Replay is for the same Helsinki day only: the averages after `spot:fetch` use today's date.
+- `spot:backfill` and `spot:repair-history` still call `fetchDayAheadPrices()` and are not staged.
 
 Commands keep responsibility for date ranges, ENTSO-E retries and errors, progress, delays, averages, output, and cache warming. Do not turn this service into a generic import framework or add a result DTO.
 

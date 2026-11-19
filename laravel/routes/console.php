@@ -167,6 +167,17 @@ if ($inWebScheduler('maintenance')) {
         ->onOneServer();
 }
 
+// Delete staged-import payload files after 14 days and temporary files of killed fetches
+// (tasks/staged-api-imports/, S6). Payload files are not backed up.
+if ($inWebScheduler('maintenance')) {
+    Schedule::command('import-payloads:cleanup --apply')
+        ->dailyAt('03:20')
+        ->timezone('Europe/Helsinki')
+        ->withoutOverlapping()
+        ->onOneServer()
+        ->appendOutputTo(storage_path('logs/import-payloads-cleanup.log'));
+}
+
 // Schedule EEX electricity futures settlement price collection overnight, after EEX FI data is reliably available.
 if ($inWebScheduler('morning')) {
     Schedule::command('futures:fetch-eex')

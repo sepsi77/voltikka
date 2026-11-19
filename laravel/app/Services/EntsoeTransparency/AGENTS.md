@@ -7,10 +7,12 @@ G23). Day-ahead prices are not here: they stay in `../EntsoeService.php` and `..
 ## Files
 
 - `EntsoeTransparencyClient.php` – read-only HTTP client. Key, base URL and connect timeout come from
-  `services.entsoe`; other limits from `config/entsoe_transparency.php`. Unzips ZIP answers, treats
-  an acknowledgement with reason 999 as "no data", pages unavailability queries with `offset`.
+  `services.entsoe`; other limits from `config/entsoe_transparency.php`. `get()` returns the raw
+  answer of one request; `documents()` unzips ZIP answers and treats an acknowledgement with reason
+  999 as "no data". The command pages unavailability queries with `offset`.
 - `EntsoeCurve.php` – reads Period points (A01 and A03) as slots or as constant segments.
-- `OutageImporter.php` – A77/A78/A80 → `entsoe_outages` (insert-only versions).
+- `OutageImporter.php` – A77/A78/A80 → `entsoe_outages` (insert-only versions). `versions()` and
+  `missingPreviousRevisions()` (read-only) plan the version-history queries in the fetch step.
 - `GenerationImporter.php` – A75 → `entsoe_generation_hourly` (hourly mean MW, upsert).
 - `ReservoirImporter.php` – A72 → `entsoe_reservoir_weeks` (MWh per week, upsert).
 - `../../Console/Commands/FetchEntsoeTransparencyData.php` – `php artisan entsoe:fetch`.
@@ -53,8 +55,9 @@ G23). Day-ahead prices are not here: they stay in `../EntsoeService.php` and `..
   `{start, end, mw}` segments (UTC, adjacent equal values merged), never one row per minute.
   `min_available_mw` is the lowest segment value. `reasons` lists TimeSeries reasons, then document
   reasons.
-- Version history: after each query, a document with revision > 1 whose previous revision is not
-  stored gets one `mRID` query (one year around its start). This fills skipped versions. Revision
+- Version history: after a unit's main queries, a document with revision > 1 whose previous
+  revision is neither stored nor in the fetched pages gets one `mRID` query (one year around its
+  start). This fills skipped versions. Revision
   numbers can have gaps upstream; then the query repeats while the document is in the window.
 - Generation and reservoir rows are **upserted** (ENTSO-E revises). A frozen review figure must be
   copied when the review is published. Generation stores the mean of the slots in each UTC hour and
@@ -69,6 +72,33 @@ G23). Day-ahead prices are not here: they stay in `../EntsoeService.php` and `..
   and exception class. A failed unit (dataset + zone/border + document type) does not stop others;
   the run then exits 1.
 
+## Staged import (fetch, then store)
+
+`entsoe:fetch` follows `../ImportPayload/AGENTS.md` (source directory `entsoe-transparency`):
+
+- **Fetch** records every request: unit `{dataset, zone, document_type, query, kind, offset}`
+  (`kind` is `main` or `history`; `query` numbers the queries of one unit). Outage ZIP answers are
+  `body_base64`. The fetch parses each page to decide whether the next offset page exists and to
+  read the outage versions. After a unit's main queries it reads `entsoe_outages` to find the
+  missing previous revisions (S19) and fetches their history. Header facts: `window_minute` (outage
+  windows), `current_hour` (generation and reservoir window end) and `history` (the planned mRID
+  queries per zone and document type). The fetch never writes rows.
+- **Store** parses every recorded body and imports query by query with the header `fetched_at`
+  (S5), so a replay keeps the fetch time that `SForecastReadiness` and the S model compare with
+  their cuts. A query with a failed page is left out, as before. Daily run: one transaction for
+  all datasets. Backfill (`--from`): one transaction per query window, because a multi-year
+  backfill is too large for one transaction; a fault keeps the earlier windows.
+- A failed unit (request failed after retries, or an answer the client cannot read) is logged
+  with the class only, listed in `failed_units`, and the store exits 1 with `fetch_incomplete`
+  after committing the other units (S10). A missing key fails the whole fetch (`fetch_failed`).
+- Not date-bound (S9): an older same-day payload is accepted. Outages add only missing versions;
+  generation and reservoirs take the older values and fetch time until the next run.
+- The S forecast workflow form `entsoe:fetch --dataset=outages --zone=FI --zone=SE3 ...` works in
+  all three modes: the repeated options are stored in the header `options` and must be given
+  again with `--from-payload`.
+- The `securityToken` travels in the query string; the payload writer removes it from `url` and
+  `query` (test `test_the_security_token_never_reaches_the_payload...`).
+
 ## Commands
 
 ```bash
@@ -76,6 +106,8 @@ php artisan entsoe:fetch                                   # daily window, all d
 php artisan entsoe:fetch --dataset=outages --zone=FI       # one dataset, one zone or border key
 php artisan entsoe:fetch --dataset=outages --from=2025-01-01           # backfill to today + 365 days
 php artisan entsoe:fetch --dataset=generation --from=2025-10-01 --to=2026-10-31  # 7-day pieces
+php artisan entsoe:fetch --zone=FI --fetch-only            # payload only, prints its reference
+php artisan entsoe:fetch --zone=FI --from-payload=<path>   # store a saved payload, no API call
 ```
 
 Daily windows: outages updated in the last 3 days with an outage period from today − 365 to

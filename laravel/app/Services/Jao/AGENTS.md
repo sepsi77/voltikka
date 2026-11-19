@@ -20,7 +20,7 @@ not a guaranteed simultaneous import.
   with `dateTimeUtc`, `lastModifiedOn` and one `border_<FROM>_<TO>` field per Nordic border.
   The range is half-open and at most 2 days: a longer range is HTTP 400 "The requested range
   exceeds 2 day(s)". One request per `jao.request_delay_seconds` (2 s); retries 429, 5xx and
-  connection errors.
+  connection errors. `requestMaxBorderFlows()` returns the raw response; `parse()` reads a saved body.
 - `JaoMaxBorderFlowImporter.php` – hourly mean (`capacity_mw`) and minimum (`min_capacity_mw`) per
   border, upserted into `jao_max_border_flows` on (border, timestamp).
 - `../../Console/Commands/FetchJaoMaxBorderFlows.php` – `php artisan jao:fetch`.
@@ -39,6 +39,13 @@ not a guaranteed simultaneous import.
   is not a failure.
 - Each 48-hour window is one unit: a failed window does not stop the others; the run then exits 1.
   Logs contain the window and exception class only.
+- Staged import (`App\Console\Concerns\StagedImport`, `../ImportPayload/AGENTS.md`;
+  `import-payloads/jao/<date>/`): the fetch step records one line per window (unit
+  `{from, to}`) and fixes `today`, `start` and `end` in the header. A failed or unexpected window
+  is a failed unit; the store skips it and exits 1 with `fetch_incomplete`. The default run stores
+  in one transaction; a `--from` backfill commits once per window, so a store failure keeps the
+  earlier windows. Not date-bound: a same-day older payload is stored and puts its older values
+  back until the next fetch.
 - Live check 2026-10-30 (CET day): SE1→FI 1,799–1,884 MW (mean 1,809), SE3→FI 1,200, EE→FI 1,016,
   NO4→FI 48–57; FI→SE1 1,698–1,773.
 

@@ -2,8 +2,13 @@
 
 namespace App\Console\Commands;
 
+use App\Console\Concerns\StagedImport;
 use App\Models\ElectricityFuturesEodPrice;
 use App\Services\ElectricityFutures\EexFuturesService;
+use App\Services\ImportPayload\ImportPayloadInvalid;
+use App\Services\ImportPayload\ImportPayloadReader;
+use App\Services\ImportPayload\ImportPayloadWriter;
+use App\Services\ImportPayload\ImportStoreResult;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
 use InvalidArgumentException;
@@ -15,11 +20,14 @@ use Throwable;
  *
  * Separate from `futures:fetch-eex` on purpose: it never writes the EEX freshness checkpoint,
  * never bumps the contract pricing caches, and uses explicit maturities instead of price-ticker
- * discovery. About 21 throttled requests (about 5 minutes). See
+ * discovery. About 21 throttled requests (about 5 minutes). Staged: the fetch saves every answer in
+ * a payload file, the store parses it in one transaction (StagedImport). See
  * app/Services/ElectricityFutures/AGENTS.md.
  */
 class FetchEexEuropeFutures extends Command
 {
+    use StagedImport;
+
     protected $signature = 'futures:fetch-eex-europe
         {--start-date= : First trade date (YYYY-MM-DD). Capped to the EEX history window.}
         {--end-date= : Last trade date (YYYY-MM-DD). Defaults to today (Europe/Helsinki).}
@@ -42,7 +50,7 @@ class FetchEexEuropeFutures extends Command
         if ($unknown !== []) {
             $this->error('Unknown short code(s): '.implode(', ', $unknown));
 
-            return Command::FAILURE;
+            return $this->stagedFailure('fetch', 'invalid_options');
         }
 
         // Pricing readers select rows by area (FI) and product (Base). A Nordic area here could
@@ -52,7 +60,7 @@ class FetchEexEuropeFutures extends Command
             if (in_array($instrument['area'], $nordicAreas, true)) {
                 $this->error("Europe instrument {$instrument['short_code']} uses Nordic area {$instrument['area']}.");
 
-                return Command::FAILURE;
+                return $this->stagedFailure('fetch', 'invalid_config');
             }
         }
 
@@ -66,7 +74,7 @@ class FetchEexEuropeFutures extends Command
         } catch (Throwable) {
             $this->error('Invalid date. Use YYYY-MM-DD.');
 
-            return Command::FAILURE;
+            return $this->stagedFailure('fetch', 'invalid_options');
         }
 
         $windowDays = max(1, (int) config('eex_futures.history_window_days', 45));
@@ -75,23 +83,42 @@ class FetchEexEuropeFutures extends Command
             $startDate = $earliestStart;
         }
 
-        $failed = 0;
-        $saved = 0;
+        $selected = array_values(array_filter(
+            $instruments,
+            fn (array $instrument) => $requested === [] || in_array(strtoupper((string) $instrument['short_code']), $requested, true),
+        ));
+
+        return $this->runStaged(
+            fn (ImportPayloadWriter $payload) => $this->fetchStep($payload, $selected, $startDate, $endDate),
+            fn (ImportPayloadReader $payload): ImportStoreResult => $this->storeStep($payload),
+        );
+    }
+
+    protected function stagedImportSource(): string
+    {
+        return 'eex-europe';
+    }
+
+    /**
+     * Every request is recorded, answered or failed; a failed request does not stop the others.
+     *
+     * @param  list<array<string, mixed>>  $instruments
+     */
+    private function fetchStep(ImportPayloadWriter $payload, array $instruments, CarbonImmutable $startDate, CarbonImmutable $endDate): void
+    {
+        // S5/S9: the store step takes the date and window from the header, never from the clock.
+        $payload->setFact('effective_date', $payload->fetchedAt()->setTimezone('Europe/Helsinki')->toDateString());
+        $payload->setFact('start_date', $startDate->toDateString());
+        $payload->setFact('end_date', $endDate->toDateString());
+        $payload->setFact('instruments', $instruments);
 
         foreach ($instruments as $instrument) {
-            if ($requested !== [] && ! in_array(strtoupper((string) $instrument['short_code']), $requested, true)) {
-                continue;
-            }
-
             foreach ($this->maturities($instrument, $endDate) as $maturity) {
+                $unit = ['short_code' => $instrument['short_code'], 'maturity' => $maturity];
                 try {
-                    $payload = $this->eex->fetchEndOfDayData($instrument, $maturity, $startDate, $endDate);
-                    $points = $this->eex->extractPricePoints($payload, $instrument, $maturity);
-                    $this->save($points);
-                    $saved += count($points);
-                    $this->line("{$instrument['short_code']} {$maturity}: ".count($points).' settlements.');
+                    $payload->record($unit, $this->eex->fetchEndOfDay($instrument, $maturity, $startDate, $endDate));
                 } catch (Throwable $e) {
-                    $failed++;
+                    $payload->recordFailure($unit, 'GET', (string) config('eex_futures.endpoint'), $this->eex->endOfDayQuery($instrument, $maturity, $startDate, $endDate), $e);
                     // An HTTP exception message can contain the response body; log only the class.
                     logger()->error('EEX Europe futures fetch failed', [
                         'short_code' => $instrument['short_code'],
@@ -102,10 +129,46 @@ class FetchEexEuropeFutures extends Command
                 }
             }
         }
+    }
 
-        $this->info("EEX Europe futures: {$saved} settlements upserted, {$failed} failed requests ({$startDate->toDateString()} to {$endDate->toDateString()}).");
+    /** Runs inside the StagedImport store transaction; rows of answered requests stay after a partial fetch. */
+    private function storeStep(ImportPayloadReader $payload): ImportStoreResult
+    {
+        if ($payload->fact('effective_date') !== CarbonImmutable::now('Europe/Helsinki')->toDateString()) {
+            throw ImportPayloadInvalid::because('wrong_date');
+        }
 
-        return $failed === 0 ? Command::SUCCESS : Command::FAILURE;
+        $instruments = [];
+        foreach ((array) $payload->fact('instruments', []) as $instrument) {
+            $instruments[strtoupper((string) $instrument['short_code'])] = $instrument;
+        }
+
+        $failed = 0;
+        $saved = 0;
+        foreach ($payload->requests() as $line) {
+            $status = $line['status'] ?? null;
+            $instrument = $instruments[strtoupper((string) ($line['unit']['short_code'] ?? ''))] ?? null;
+            if (! is_int($status) || $status < 200 || $status >= 300 || $instrument === null) {
+                $failed++;
+
+                continue;
+            }
+
+            $maturity = (string) $line['unit']['maturity'];
+            $points = $this->eex->extractPricePoints($this->eex->decode(ImportPayloadReader::body($line)), $instrument, $maturity);
+            $this->save($points);
+            $saved += count($points);
+            $this->line("{$instrument['short_code']} {$maturity}: ".count($points).' settlements.');
+        }
+
+        $this->info("EEX Europe futures: {$saved} settlements upserted, {$failed} failed requests ({$payload->fact('start_date')} to {$payload->fact('end_date')}).");
+
+        return new ImportStoreResult(
+            ['saved_points' => $saved, 'failures' => $failed],
+            [],
+            $failed === 0 ? null : 'fetch_incomplete',
+            'fetch',
+        );
     }
 
     /**

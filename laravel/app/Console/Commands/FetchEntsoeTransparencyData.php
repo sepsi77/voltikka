@@ -2,12 +2,19 @@
 
 namespace App\Console\Commands;
 
+use App\Console\Concerns\StagedImport;
 use App\Services\EntsoeTransparency\EntsoeTransparencyClient;
 use App\Services\EntsoeTransparency\GenerationImporter;
 use App\Services\EntsoeTransparency\OutageImporter;
 use App\Services\EntsoeTransparency\ReservoirImporter;
+use App\Services\ImportPayload\ImportPayloadReader;
+use App\Services\ImportPayload\ImportPayloadWriter;
+use App\Services\ImportPayload\ImportStoreResult;
 use Carbon\Carbon;
+use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -20,10 +27,17 @@ use Throwable;
  * days. Reservoirs: the last 8 weeks. With --from/--to: a backfill in pieces (outages: one
  * year, the API limit, ending by default one year ahead; generation: 7 days; reservoirs: 364
  * days). Generation and reservoir windows end at the start of the current UTC hour.
- * Read-only towards ENTSO-E; writes locally.
+ *
+ * Staged import (StagedImport, tasks/staged-api-imports/design.md): the fetch step records every
+ * page and plans the outage version history from the fetched bodies and the stored revisions
+ * (S19); it writes no rows. The store step parses the recorded bodies: one transaction for the
+ * daily run, one per query (window) for a backfill. Not date-bound (S9). Read-only towards
+ * ENTSO-E.
  */
 class FetchEntsoeTransparencyData extends Command
 {
+    use StagedImport;
+
     protected $signature = 'entsoe:fetch
                             {--dataset=* : outages, generation or reservoirs (default: all)}
                             {--zone=* : Only these zone or border keys (default: all configured)}
@@ -55,51 +69,39 @@ class FetchEntsoeTransparencyData extends Command
         if ($unknown !== []) {
             $this->error('Unknown dataset(s): '.implode(', ', $unknown));
 
-            return Command::FAILURE;
+            return $this->stagedFailure('fetch', 'invalid_options');
         }
         $datasets = $requested !== [] ? array_values($requested) : self::DATASETS;
 
         $units = $this->units($datasets, (array) $this->option('zone'));
         if ($units === null) {
-            return Command::FAILURE;
+            return $this->stagedFailure('fetch', 'invalid_options');
         }
 
         try {
             $from = $this->option('from') !== null
-                ? Carbon::createFromFormat('!Y-m-d', (string) $this->option('from'), 'UTC')
+                ? CarbonImmutable::createFromFormat('!Y-m-d', (string) $this->option('from'), 'UTC')
                 : null;
             $to = $this->option('to') !== null
-                ? Carbon::createFromFormat('!Y-m-d', (string) $this->option('to'), 'UTC')->addDay()
+                ? CarbonImmutable::createFromFormat('!Y-m-d', (string) $this->option('to'), 'UTC')->addDay()
                 : null;
         } catch (Throwable) {
             $this->error('Invalid date. Use YYYY-MM-DD.');
 
-            return Command::FAILURE;
+            return $this->stagedFailure('fetch', 'invalid_options');
         }
 
-        $failed = [];
-        foreach ($units as $unit) {
-            try {
-                $written = match ($unit['dataset']) {
-                    'outages' => $this->fetchOutages($unit, $from, $to),
-                    'generation' => $this->fetchSeries($unit, $from, $to, 'generation'),
-                    'reservoirs' => $this->fetchSeries($unit, $from, $to, 'reservoirs'),
-                };
-                $this->info("{$unit['dataset']} {$unit['zone']} {$unit['params']['documentType']}: {$written} rows.");
-            } catch (Throwable $e) {
-                $failed[] = $unit;
-                // Exception messages can contain the request URL with the securityToken.
-                logger()->error('ENTSO-E transparency fetch failed', [
-                    'dataset' => $unit['dataset'],
-                    'zone' => $unit['zone'],
-                    'document_type' => $unit['params']['documentType'],
-                    'exception_class' => $e::class,
-                ]);
-                $this->error("{$unit['dataset']} {$unit['zone']} {$unit['params']['documentType']}: fetch failed (".$e::class.').');
-            }
-        }
+        return $this->runStaged(
+            fn (ImportPayloadWriter $payload) => $this->fetch($payload, $units, $from, $to),
+            fn (ImportPayloadReader $payload): ImportStoreResult => $this->store($payload, perQuery: $from !== null),
+            // A backfill commits per query window (S21); the daily run is one transaction.
+            transactional: $from === null,
+        );
+    }
 
-        return $failed === [] ? Command::SUCCESS : Command::FAILURE;
+    protected function stagedImportSource(): string
+    {
+        return 'entsoe-transparency';
     }
 
     /**
@@ -160,76 +162,229 @@ class FetchEntsoeTransparencyData extends Command
     }
 
     /**
-     * @param  array{dataset: string, zone: string, params: array<string, string>}  $unit
+     * Fetch step: record every page of every unit. The windows come from the fetch time (S5). For
+     * outages, the version-history queries depend on the fetched documents and the stored
+     * revisions; the plan is recorded in the header facts (S19). Nothing is written.
+     *
+     * @param  list<array{dataset: string, zone: string, params: array<string, string>}>  $units
      */
-    private function fetchOutages(array $unit, ?Carbon $from, ?Carbon $to): int
+    private function fetch(ImportPayloadWriter $payload, array $units, ?CarbonImmutable $from, ?CarbonImmutable $to): void
     {
-        $config = (array) config('entsoe_transparency.outages');
-        $now = Carbon::now('UTC')->startOfMinute();
+        $this->client->assertConfigured();
+        $minute = $payload->fetchedAt()->startOfMinute();
+        $hour = $payload->fetchedAt()->startOfHour();
+        $payload->setFact('window_minute', $minute->format('Y-m-d\TH:i:s\Z'));
+        $payload->setFact('current_hour', $hour->format('Y-m-d\TH:i:s\Z'));
 
-        if ($from === null) {
-            $queries = [[
-                'periodStart' => $this->format($now->copy()->subDays((int) $config['past_days'])),
-                'periodEnd' => $this->format($now->copy()->addDays((int) $config['future_days'])),
-                'periodStartUpdate' => $this->format($now->copy()->subDays((int) $config['update_lookback_days'])),
-                'periodEndUpdate' => $this->format($now),
-            ]];
-        } else {
-            $end = $to ?? $now->copy()->startOfDay()->addDays((int) $config['backfill_future_days']);
-            $queries = array_map(fn (array $chunk) => [
-                'periodStart' => $this->format($chunk[0]),
-                'periodEnd' => $this->format($chunk[1]),
-            ], $this->chunks($from, $end, self::OUTAGE_BACKFILL_CHUNK_DAYS));
-        }
-
-        $written = 0;
         $history = [];
-        foreach ($queries as $query) {
-            $documents = $this->client->fetchAllOutageDocuments($unit['params'] + $query);
-            $result = $this->outages->import($unit['params']['documentType'], $unit['zone'], $documents, Carbon::now('UTC'));
-            $written += $result['inserted'];
-            foreach ($result['needs_history'] as $document) {
-                $history[$document['mrid']] = $document;
+        foreach ($units as $unit) {
+            $queries = $unit['dataset'] === 'outages'
+                ? $this->outageQueries($minute, $from, $to)
+                : $this->seriesQueries($unit['dataset'], $hour, $from, $to);
+
+            $query = 0;
+            $versions = [];
+            foreach ($queries as $window) {
+                $fetched = $this->fetchQuery($payload, $unit, $query++, 'main', $unit['params'] + $window, $versions);
+                if (! $fetched) {
+                    continue 2; // the unit failed; the others go on
+                }
+            }
+            if ($unit['dataset'] !== 'outages') {
+                continue;
+            }
+
+            // A plain query returns only the latest version of each document. Earlier versions
+            // (what was known before) need one query per mRID.
+            $unused = [];
+            foreach ($this->outages->missingPreviousRevisions($versions) as $document) {
+                $history[] = [
+                    'zone' => $unit['zone'], 'document_type' => $unit['params']['documentType'],
+                    'mrid' => $document['mrid'], 'start' => $document['start']->format('Y-m-d\TH:i:s\Z'),
+                ];
+                $fetched = $this->fetchQuery($payload, $unit, $query++, 'history', $unit['params'] + [
+                    'mRID' => $document['mrid'],
+                    'periodStart' => $this->format($document['start']->subDays(self::HISTORY_HALF_WINDOW_DAYS)),
+                    'periodEnd' => $this->format($document['start']->addDays(self::HISTORY_HALF_WINDOW_DAYS)),
+                ], $unused);
+                if (! $fetched) {
+                    break;
+                }
             }
         }
-
-        // The query above returns only the latest version of each document. Earlier versions
-        // (what was known before) need one query per mRID.
-        foreach ($history as $document) {
-            $documents = $this->client->fetchAllOutageDocuments($unit['params'] + [
-                'mRID' => $document['mrid'],
-                'periodStart' => $this->format($document['start']->subDays(self::HISTORY_HALF_WINDOW_DAYS)),
-                'periodEnd' => $this->format($document['start']->addDays(self::HISTORY_HALF_WINDOW_DAYS)),
-            ]);
-            $written += $this->outages->import($unit['params']['documentType'], $unit['zone'], $documents, Carbon::now('UTC'))['inserted'];
-        }
-
-        return $written;
+        $payload->setFact('history', $history);
     }
 
     /**
+     * Record one query: every offset page for outages (the next page exists only when this one
+     * is full), one request otherwise. Returns false when the unit failed; the failed request is
+     * recorded and logged with the class only.
+     *
      * @param  array{dataset: string, zone: string, params: array<string, string>}  $unit
+     * @param  array<string, string>  $params
+     * @param  array<string, array{mrid: string, revision: int, start: CarbonImmutable}>  $versions  outage versions seen
      */
-    private function fetchSeries(array $unit, ?Carbon $from, ?Carbon $to, string $dataset): int
+    private function fetchQuery(ImportPayloadWriter $payload, array $unit, int $query, string $kind, array $params, array &$versions): bool
     {
-        $currentHour = Carbon::now('UTC')->startOfHour();
-        $end = $to !== null && $to->lessThan($currentHour) ? $to : $currentHour->copy();
+        $paged = $unit['dataset'] === 'outages';
+        $offset = 0;
 
-        $windows = $from === null
-            ? [[$currentHour->copy()->subDays((int) config("entsoe_transparency.{$dataset}.lookback_days")), $currentHour->copy()]]
-            : $this->chunks($from, $end, (int) config("entsoe_transparency.{$dataset}.backfill_chunk_days"));
+        while (true) {
+            $requestParams = $paged ? $params + ['offset' => (string) $offset] : $params;
+            $key = [
+                'dataset' => $unit['dataset'], 'zone' => $unit['zone'], 'document_type' => $unit['params']['documentType'],
+                'query' => $query, 'kind' => $kind, 'offset' => $offset,
+            ];
 
-        $written = 0;
-        foreach ($windows as [$start, $windowEnd]) {
-            $documents = $this->client->fetchDocuments($unit['params'] + [
-                'periodStart' => $this->format($start),
-                'periodEnd' => $this->format($windowEnd),
-            ]);
-            $importer = $dataset === 'generation' ? $this->generation : $this->reservoirs;
-            $written += $importer->import($unit['zone'], $documents, Carbon::now('UTC'));
+            try {
+                $response = $this->client->get($requestParams);
+            } catch (Throwable $e) {
+                $payload->recordFailure($key, 'GET', $this->client->baseUrl(), $requestParams, $e);
+
+                return $this->unitFailed($unit, $e);
+            }
+
+            $encoding = EntsoeTransparencyClient::isZip($response->body()) ? 'base64' : null;
+            try {
+                $documents = $this->client->documents($response->body());
+                if ($paged) {
+                    $versions += $this->outages->versions($documents);
+                }
+                $full = $paged && count($documents) >= EntsoeTransparencyClient::OUTAGE_PAGE_SIZE;
+                if ($full && $offset + EntsoeTransparencyClient::OUTAGE_PAGE_SIZE > EntsoeTransparencyClient::MAX_OFFSET) {
+                    throw new RuntimeException('ENTSO-E unavailability query has more than 5000 documents; use a shorter period.');
+                }
+            } catch (Throwable $e) {
+                // An answer the store step cannot use (acknowledgement, unreadable ZIP, too many pages).
+                $payload->record($key, $response, $encoding, failed: true);
+
+                return $this->unitFailed($unit, $e);
+            }
+            $payload->record($key, $response, $encoding);
+
+            if (! $full) {
+                return true;
+            }
+            $offset += EntsoeTransparencyClient::OUTAGE_PAGE_SIZE;
+        }
+    }
+
+    /** @param  array{dataset: string, zone: string, params: array<string, string>}  $unit */
+    private function unitFailed(array $unit, Throwable $e): bool
+    {
+        // Exception messages can contain the request URL with the securityToken.
+        logger()->error('ENTSO-E transparency fetch failed', [
+            'dataset' => $unit['dataset'],
+            'zone' => $unit['zone'],
+            'document_type' => $unit['params']['documentType'],
+            'exception_class' => $e::class,
+        ]);
+        $this->error("{$unit['dataset']} {$unit['zone']} {$unit['params']['documentType']}: fetch failed (".$e::class.').');
+
+        return false;
+    }
+
+    /**
+     * Store step: parse every recorded body and write it, query by query. A query with a failed
+     * page is left out, as before (the unit stopped there). Failed units make the run exit 1 after
+     * the commit; their rows from earlier queries stay (S10).
+     */
+    private function store(ImportPayloadReader $payload, bool $perQuery): ImportStoreResult
+    {
+        $fetchedAt = $payload->fetchedAt();
+        $failedQueries = [];
+        foreach ($payload->end()['failed_units'] as $failed) {
+            $failedQueries[self::queryKey($failed)] = true;
         }
 
-        return $written;
+        $written = [];
+        $flush = function (?array $query, array $documents) use (&$written, $fetchedAt, $perQuery): void {
+            if ($query === null || isset($query['failed'])) {
+                return;
+            }
+            $write = fn (): int => match ($query['dataset']) {
+                'outages' => $this->outages->import($query['document_type'], $query['zone'], $documents, $fetchedAt),
+                'generation' => $this->generation->import($query['zone'], $documents, $fetchedAt),
+                'reservoirs' => $this->reservoirs->import($query['zone'], $documents, $fetchedAt),
+            };
+            $label = "{$query['dataset']} {$query['zone']} {$query['document_type']}";
+            $written[$label] = ($written[$label] ?? 0) + ($perQuery ? DB::transaction($write) : $write());
+        };
+
+        $query = null;
+        $documents = [];
+        foreach ($payload->requests() as $request) {
+            $unit = $request['unit'];
+            $key = self::queryKey($unit);
+            if ($query === null || $query['key'] !== $key) {
+                $flush($query, $documents);
+                $query = $unit + ['key' => $key] + (isset($failedQueries[$key]) ? ['failed' => true] : []);
+                $documents = [];
+            }
+            if (! isset($query['failed'])) {
+                array_push($documents, ...$this->client->documents((string) ImportPayloadReader::body($request)));
+            }
+        }
+        $flush($query, $documents);
+
+        $counts = ['outages' => 0, 'generation' => 0, 'reservoirs' => 0];
+        foreach ($written as $label => $rows) {
+            $this->info("{$label}: {$rows} rows.");
+            $counts[strtok($label, ' ')] += $rows;
+        }
+
+        return new ImportStoreResult(
+            $counts,
+            error: $payload->complete() ? null : 'fetch_incomplete',
+            errorStep: 'fetch',
+        );
+    }
+
+    /** @param  array<string, mixed>  $unit */
+    private static function queryKey(array $unit): string
+    {
+        return "{$unit['dataset']}|{$unit['zone']}|{$unit['document_type']}|{$unit['query']}";
+    }
+
+    /**
+     * @return list<array<string, string>>
+     */
+    private function outageQueries(CarbonImmutable $now, ?CarbonImmutable $from, ?CarbonImmutable $to): array
+    {
+        $config = (array) config('entsoe_transparency.outages');
+
+        if ($from === null) {
+            return [[
+                'periodStart' => $this->format($now->subDays((int) $config['past_days'])),
+                'periodEnd' => $this->format($now->addDays((int) $config['future_days'])),
+                'periodStartUpdate' => $this->format($now->subDays((int) $config['update_lookback_days'])),
+                'periodEndUpdate' => $this->format($now),
+            ]];
+        }
+
+        $end = $to ?? $now->startOfDay()->addDays((int) $config['backfill_future_days']);
+
+        return array_map(fn (array $chunk) => [
+            'periodStart' => $this->format($chunk[0]),
+            'periodEnd' => $this->format($chunk[1]),
+        ], $this->chunks($from, $end, self::OUTAGE_BACKFILL_CHUNK_DAYS));
+    }
+
+    /**
+     * @return list<array<string, string>>
+     */
+    private function seriesQueries(string $dataset, CarbonImmutable $currentHour, ?CarbonImmutable $from, ?CarbonImmutable $to): array
+    {
+        $end = $to !== null && $to->lessThan($currentHour) ? $to : $currentHour;
+
+        $windows = $from === null
+            ? [[$currentHour->subDays((int) config("entsoe_transparency.{$dataset}.lookback_days")), $currentHour]]
+            : $this->chunks($from, $end, (int) config("entsoe_transparency.{$dataset}.backfill_chunk_days"));
+
+        return array_map(fn (array $window) => [
+            'periodStart' => $this->format($window[0]),
+            'periodEnd' => $this->format($window[1]),
+        ], $windows);
     }
 
     private function format(\DateTimeInterface $time): string
@@ -238,19 +393,19 @@ class FetchEntsoeTransparencyData extends Command
     }
 
     /**
-     * @return list<array{0: Carbon, 1: Carbon}>
+     * @return list<array{0: CarbonImmutable, 1: CarbonImmutable}>
      */
-    private function chunks(Carbon $start, Carbon $end, int $days): array
+    private function chunks(CarbonImmutable $start, CarbonImmutable $end, int $days): array
     {
         $chunks = [];
-        $cursor = $start->copy();
+        $cursor = $start;
 
         while ($cursor->lessThan($end)) {
-            $chunkEnd = $cursor->copy()->addDays($days);
+            $chunkEnd = $cursor->addDays($days);
             if ($chunkEnd->greaterThan($end)) {
-                $chunkEnd = $end->copy();
+                $chunkEnd = $end;
             }
-            $chunks[] = [$cursor->copy(), $chunkEnd];
+            $chunks[] = [$cursor, $chunkEnd];
             $cursor = $chunkEnd;
         }
 

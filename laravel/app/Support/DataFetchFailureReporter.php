@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Services\Caching\ContractPriceCacheConflict;
 use App\Services\Caching\ContractPriceCacheStorageException;
 use App\Services\ContractImport\ContractImportCompletionStopped;
+use App\Services\ImportPayload\ImportPayloadInvalid;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Log;
@@ -56,7 +57,7 @@ class DataFetchFailureReporter
             }
             $reason = match (true) {
                 $exception instanceof ContractPriceCacheConflict, $exception instanceof ContractPriceCacheStorageException,
-                $exception instanceof ContractImportCompletionStopped => $exception->reason,
+                $exception instanceof ContractImportCompletionStopped, $exception instanceof ImportPayloadInvalid => $exception->reason,
                 // The numeric status only; the response body and URL can contain upstream text and tokens.
                 $exception instanceof RequestException && $exception->response !== null => 'http_'.$exception->response->status(),
                 ($storeError['sqlstate'] ?? null) !== null => 'sqlstate_'.$storeError['sqlstate'],

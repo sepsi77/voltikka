@@ -40,7 +40,10 @@ scheduler would run its `contracts:complete-import`).
   `../tasks/temporal-orchestration/s-workflow-interface.md` and
   `../tasks/own-forecast-model-data/s-model-freeze.md`.
 - `jobs.py` (phase 2): `ArtisanJob` (a list of `php artisan` steps for one Schedule) and the morning
-  chain `MorningChain` → children `EexFutures` and `ContractImport`. Rules below.
+  chain `MorningChain` → children `EexFutures` and `ContractImport`; `ImportReplay` (manual store of
+  a saved payload). Rules below.
+- `staged.py`: the staged-import contract shared by `jobs.py` and `s_forecast.py` (patch ID, fetch
+  and store args, payload reference parsing, payload date). See "Staged imports" below.
 - `worker.py`: worker entrypoint (`python -m voltikka_orchestration.worker`). Logs go to stdout
   (Railway showed every stderr line as "error"; keep stdout).
 - `sentry.py`: Sentry init and `SentryInterceptor`. Any exception that leaves workflow code (a bug,
@@ -144,6 +147,78 @@ scheduler would run its `contracts:complete-import`).
   and the queue retries it (`--tries=3`). A separate `queue` role is a later option.
   The morning chain also moves `logos:download` to the web scheduler (the worker import uses
   `--skip-logos`).
+
+## Staged imports (external API imports; `../tasks/staged-api-imports/`)
+
+User decision 2026-11-19: every scheduled import from an external API runs as two activities, so a
+parse or database failure loses no fetched data and the same payload can be stored again after a fix.
+The PHP side (`StagedImport`, payload format, retention) is in
+`../laravel/app/Services/ImportPayload/AGENTS.md`. **Every new external import step must be staged.**
+
+- **Two activities per step** (`Step.staged=True`; `run_step()` in `jobs.py`, `staged_fetch()` in
+  `s_forecast.py`): `run_command(args + ["--fetch-only"])` with the step's `interruptible`, then
+  `run_command(args + ["--from-payload=<path>", "--payload-sha256=<hex>"])`. The store gets the same
+  data args, because PHP compares them with the payload header. Only `path` and `sha256` of the
+  fetch's last JSON line reach the store; the payload never passes through Temporal.
+- **Retry rules stay** (S13): a failed fetch skips the store; a failed store never starts a new
+  fetch. A lost attempt repeats the same activity (a lost store repeats the store). A fetch result
+  without a valid reference (`status` `fetched`, `payload.path`, 64-hex `payload.sha256`) fails the
+  step with `fetch_result_invalid` and one Issue, also for a self-reporting command (it printed no
+  reference, so it reported nothing). `{"status": "skipped"}` (for example `gas-storage:fetch
+  --if-configured` without an API key) succeeds with nothing to store.
+- **Deploy drain** (S14): the fetch keeps the step's `interruptible` (EEX: interruptible, so a
+  deploy restarts the fetch; `contracts:fetch`: not interruptible, as before). Every store is not
+  interruptible and has a timeout of at most `STORE_TIMEOUT_MINUTES` (60), below the 65-minute
+  drain; `test_claim_based_steps_finish_during_a_deploy_drain` checks it.
+- **Issues and outcomes:** `self_reports` holds for both activities (the PHP command reports its own
+  fetch and store failures). A workflow Issue for a staged step names `step` (`fetch` or `store`)
+  and, for a store, `payload_path`/`payload_sha256` for a replay. One `StepOutcome` per step: its
+  `result` is the store's JSON line; a failed store keeps `{"payload": {path, sha256}}`.
+- **Payload volume** (S12): Temporal does not guarantee that the fetch and its store run on the
+  same worker. Every container that polls the task queue must mount the `voltikka-storage` volume
+  on `/app/storage` (today one worker; the web role mounts it too and can read the files). A new
+  worker or queue role without the volume breaks every store.
+- **What is staged:** every `JOBS` step whose command is in the spec scope table, `EEX_STEP`,
+  `CONTRACTS_STEP`, the S forecast `entsoe:fetch` outage fetches and both `fingrid:fetch` runs
+  (`SDailyForecast`, `SWeeklyRefit`). `test_exactly_the_external_api_imports_are_staged` holds the
+  list. `ContractImport` runs fetch, store, then its unchanged completion loop
+  (`complete_contract_import()`); `MorningChain` is unchanged.
+- **The Schedules carry the `staged` flag** in their `ArtisanJobInput`, so collector and spot jobs
+  become staged only after `schedules.py --apply --group collectors|spot` with the new code (a
+  production change, approval needed). Until then they run the one-process command, which the PHP
+  commands keep as their default mode.
+- **Patching** (`staged.PATCH`, `workflow.patched("staged-api-imports")`): the code, not the input,
+  decides staging for `EEX_STEP`, `CONTRACTS_STEP` and the S forecast fetches, so a `MorningChain`
+  child, `SDailyForecast` or `SWeeklyRefit` that started before the deploy would otherwise schedule
+  different activities on replay. With the patch it keeps its one-process commands (the patch is
+  memoized per run, so the whole run stays on one path); a run that starts after the deploy is
+  staged. No deploy-time rule is needed. Replay tests: `tests/histories/*.json` (recorded from the
+  code before this change) replay on the new code (`test_a_workflow_from_before_staged_imports_*`);
+  without the patch four of them fail. Remove the patch branches (`workflow.deprecate_patch`) only in
+  a later release, after every run that started before this one has closed.
+
+### `ImportReplay` (spec S16)
+
+Started by hand, after a fix, with the user's approval; it has no Schedule. Input
+`ImportReplayInput(command, args, payload_path, sha256, date=None)`: `args` are the data args of the
+original fetch without the command (`["--skip-logos"]` for the contract import). It runs only the
+store activity (never a fetch), not interruptible. For `contracts:fetch`, `futures:fetch-eex` and
+`futures:fetch-eex-europe` (spec S9) it refuses before PHP starts, with one `wrong_date` Issue, when
+`date` or the payload path date (`…/<source>/<YYYY-MM-DD>/<run-id>.ndjson.gz`) is not today's
+Helsinki date or the two differ; it passes the date to `CommandRequest.date`. A contract replay then
+runs the `ContractImport` completion loop (not the forecast evaluation). A running `MorningChain`
+needs nothing else: its consumer lanes tick until noon and pass once the checkpoint is `ready`.
+
+```bash
+temporal workflow start --type ImportReplay --task-queue voltikka-main --workflow-id import-replay-<date>-<n> \
+  --input '{"command":"contracts:fetch","args":["--skip-logos"],"payload_path":"/app/storage/app/import-payloads/<source>/<date>/<run>.ndjson.gz","sha256":"<hex>"}'
+```
+
+### Payload cleanup
+
+`import-payloads:cleanup --apply` runs daily at 03:20 Helsinki as the maintenance job
+`import-payloads-cleanup` (and in `laravel/routes/console.php` while maintenance is not on Temporal).
+Applying the new Schedule is part of `schedules.py --apply --group maintenance` (approval needed).
 
 ## S model command
 
