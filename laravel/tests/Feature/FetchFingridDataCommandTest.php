@@ -5,8 +5,12 @@ namespace Tests\Feature;
 use App\Services\Fingrid\FingridHourlyImporter;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Factory;
+use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 class FetchFingridDataCommandTest extends TestCase
@@ -142,5 +146,247 @@ class FetchFingridDataCommandTest extends TestCase
         ]);
 
         $this->assertSame('CustomerType=AB02|ProductionType=AV06', $key);
+    }
+
+    /** Every dataset answers one row per listed start time inside the requested range, value dataset ID + $offset. */
+    private function fakeFingrid(float $offset = 0.0, array $starts = ['2026-10-31T10:00:00.000Z']): void
+    {
+        Http::swap(new Factory);
+        Http::fake(function (Request $request) use ($offset, $starts) {
+            preg_match('#/datasets/(\d+)/data#', $request->url(), $match);
+            $dataset = (int) $match[1];
+            parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
+            $inRange = fn (string $start) => Carbon::parse($start)->betweenIncluded(Carbon::parse($query['startTime']), Carbon::parse($query['endTime']));
+
+            return Http::response([
+                'data' => array_values(array_map(fn (string $start) => $this->row($dataset, $start, $dataset + $offset), array_filter($starts, $inRange))),
+                'pagination' => ['nextPage' => null],
+            ]);
+        });
+    }
+
+    public function test_default_mode_and_fetch_only_then_from_payload_write_the_same_rows(): void
+    {
+        // The plain form of the S forecast workflow and the collectors schedule: every dataset.
+        $this->fakeFingrid();
+        $this->assertSame(0, Artisan::call('fingrid:fetch'));
+        $datasets = count(config('fingrid.datasets'));
+        $line = $this->lastJsonLine();
+        $this->assertSame(['stored', ['hourly_rows' => $datasets]], [$line['status'], $line['counts']]);
+        $defaultRows = $this->storedRows();
+        $this->assertCount($datasets, $defaultRows);
+
+        DB::table('fingrid_hourly_values')->delete();
+        $this->assertSame(0, Artisan::call('fingrid:fetch', ['--fetch-only' => true]));
+        $payload = $this->lastJsonLine()['payload'];
+        $this->assertSame(0, DB::table('fingrid_hourly_values')->count(), 'Fetch only writes no rows.');
+        $this->assertSame('2026-11-01T08:00:00Z', $this->payloadLines($payload['path'])[0]['facts']['current_hour']);
+
+        // The store runs two hours later and keeps the fetch time (S5).
+        Carbon::setTestNow(Carbon::create(2026, 11, 1, 10, 30, 0, 'UTC'));
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        Http::fake();
+        $this->assertSame(0, Artisan::call('fingrid:fetch', ['--from-payload' => $payload['path'], '--payload-sha256' => $payload['sha256']]));
+        Http::assertNothingSent();
+
+        $this->assertSame($defaultRows, $this->storedRows());
+        $this->assertSame(['2026-11-01 08:30:00'], DB::table('fingrid_hourly_values')->distinct()->pluck('fetched_at')->all());
+    }
+
+    public function test_store_failure_writes_no_row_keeps_the_payload_reports_safe_sql_facts_and_replays(): void
+    {
+        $this->fakeFingrid(0.25);
+        Log::spy();
+        // Dataset 191 fails after dataset 124 was upserted in the same transaction.
+        DB::statement("CREATE TRIGGER fail_hydro BEFORE INSERT ON fingrid_hourly_values WHEN NEW.dataset_id = 191 BEGIN SELECT RAISE(ABORT, 'forced failure'); END");
+
+        $this->assertSame(1, Artisan::call('fingrid:fetch --dataset=124 --dataset=191'));
+        $output = Artisan::output();
+        $payloads = glob(config('import_payloads.path').'/fingrid/2026-11-01/*.ndjson.gz');
+        $this->assertCount(1, $payloads, 'The payload stays after a failed store.');
+
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'store_failed',
+            'payload_path' => $payloads[0], 'payload_sha256' => hash_file('sha256', $payloads[0]),
+            'sqlstate' => '23000', 'driver_code' => 19, 'table' => 'fingrid_hourly_values',
+        ], $this->lastJsonLine($output));
+        foreach (['forced failure', '191.25', '124.25'] as $binding) {
+            $this->assertStringNotContainsString($binding, $output);
+        }
+        $this->assertSame(0, DB::table('fingrid_hourly_values')->count(), 'A failed store writes no row of the run (S21).');
+        Log::shouldHaveReceived('error')->once()->withArgs(function (string $message, array $context): bool {
+            $this->assertSame('Import failed: fingrid:fetch', $message);
+            $this->assertSame(['store', '23000', 19, 'fingrid_hourly_values'], [$context['step'], $context['sqlstate'], $context['driver_code'], $context['table']]);
+            foreach (['forced failure', '191.25', '124.25', 'test-key'] as $binding) {
+                $this->assertStringNotContainsString($binding, json_encode($context));
+            }
+
+            return true;
+        });
+
+        DB::statement('DROP TRIGGER fail_hydro'); // the fix
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        Http::fake();
+        $this->assertSame(0, Artisan::call('fingrid:fetch --dataset=124 --dataset=191 --from-payload='.$payloads[0]));
+        Http::assertNothingSent();
+        $this->assertSame([124, 191], DB::table('fingrid_hourly_values')->orderBy('dataset_id')->pluck('dataset_id')->map(fn ($id) => (int) $id)->all());
+    }
+
+    /** A backfill commits once per 7-day window (S21): a later window's store fault keeps the earlier window. */
+    public function test_a_backfill_store_commits_per_window(): void
+    {
+        $this->fakeFingrid(0.0, ['2026-10-02T10:00:00.000Z', '2026-10-10T10:00:00.000Z']);
+        $second = Carbon::parse('2026-10-10 10:00:00', 'UTC')->timestamp;
+        DB::statement("CREATE TRIGGER fail_second_window BEFORE INSERT ON fingrid_hourly_values WHEN NEW.timestamp = {$second} BEGIN SELECT RAISE(ABORT, 'forced failure'); END");
+
+        $this->assertSame(1, Artisan::call('fingrid:fetch --dataset=124 --from=2026-10-01 --to=2026-10-14'));
+        $this->assertSame('store_failed', $this->lastJsonLine()['error']);
+        $this->assertSame(1, DB::table('fingrid_hourly_values')->count(), 'The first window is committed.');
+
+        DB::statement('DROP TRIGGER fail_second_window');
+        $path = glob(config('import_payloads.path').'/fingrid/2026-11-01/*.ndjson.gz')[0];
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        $this->assertSame(0, Artisan::call('fingrid:fetch --dataset=124 --from=2026-10-01 --to=2026-10-14 --from-payload='.$path));
+        $this->assertSame(2, DB::table('fingrid_hourly_values')->count());
+    }
+
+    public function test_the_api_key_never_reaches_the_payload(): void
+    {
+        $this->fakeFingrid();
+
+        $this->assertSame(0, Artisan::call('fingrid:fetch --dataset=188 --fetch-only'));
+
+        $path = $this->lastJsonLine()['payload']['path'];
+        $this->assertStringNotContainsString('test-key', (string) gzdecode((string) file_get_contents($path)));
+        $request = $this->payloadLines($path)[1];
+        $this->assertSame(['dataset' => 188, 'window' => 0, 'page' => 1], $request['unit']);
+        $this->assertSame('2026-11-01T08:00:00Z', $request['query']['endTime']);
+    }
+
+    /**
+     * Replay stores only the newest payload: an older same-day payload is refused (superseded)
+     * while a newer payload of the same options exists, so its values cannot replace the newer
+     * upserted rows.
+     */
+    public function test_an_older_same_day_payload_is_refused_when_a_newer_payload_exists(): void
+    {
+        $this->fakeFingrid(0.5);
+        Artisan::call('fingrid:fetch --dataset=188 --fetch-only');
+        $older = $this->lastJsonLine()['payload'];
+
+        Carbon::setTestNow(Carbon::create(2026, 11, 1, 9, 30, 0, 'UTC'));
+        $this->fakeFingrid(0.75);
+        $this->assertSame(0, Artisan::call('fingrid:fetch --dataset=188'));
+
+        Carbon::setTestNow(Carbon::create(2026, 11, 1, 12, 0, 0, 'UTC'));
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        $this->assertSame(1, Artisan::call('fingrid:fetch --dataset=188 --from-payload='.$older['path']));
+
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'payload_invalid', 'reason' => 'superseded',
+            'payload_path' => $older['path'], 'payload_sha256' => $older['sha256'],
+        ], $this->lastJsonLine());
+        $row = DB::table('fingrid_hourly_values')->sole();
+        $this->assertEqualsWithDelta(188.75, $row->value, 0.0001);
+        $this->assertSame('2026-11-01 09:30:00', $row->fetched_at);
+    }
+
+    /** The payload identity holds normalized dataset IDs: `0188` and `188` are one option set. */
+    public function test_dataset_ids_compare_normalized_for_supersede_and_replay(): void
+    {
+        $this->fakeFingrid(0.5);
+        $this->assertSame(0, Artisan::call('fingrid:fetch --dataset=0188 --fetch-only'));
+        $older = $this->lastJsonLine()['payload'];
+        $this->assertSame([188], $this->payloadLines($older['path'])[0]['options']['dataset']);
+
+        Carbon::setTestNow(Carbon::create(2026, 11, 1, 9, 30, 0, 'UTC'));
+        $this->fakeFingrid(0.75);
+        $this->assertSame(0, Artisan::call('fingrid:fetch --dataset=188'));
+
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        // Not options_mismatch: the older payload is refused only because the newer one supersedes it.
+        $this->assertSame(1, Artisan::call('fingrid:fetch --dataset=188 --from-payload='.$older['path']));
+        $line = $this->lastJsonLine();
+        $this->assertSame(['payload_invalid', 'superseded'], [$line['error'], $line['reason']]);
+        $this->assertEqualsWithDelta(188.75, DB::table('fingrid_hourly_values')->sole()->value, 0.0001);
+    }
+
+    public function test_a_payload_replays_after_its_dataset_was_removed_from_config(): void
+    {
+        $this->fakeFingrid(0.5);
+        $this->assertSame(0, Artisan::call('fingrid:fetch --dataset=188 --fetch-only'));
+        $payload = $this->lastJsonLine()['payload'];
+
+        config(['fingrid.datasets' => []]);
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        $this->assertSame(0, Artisan::call('fingrid:fetch --dataset=188 --from-payload='.$payload['path']));
+        $this->assertSame(1, DB::table('fingrid_hourly_values')->count());
+        // A new fetch still needs a configured dataset.
+        $this->assertSame(1, Artisan::call('fingrid:fetch --dataset=188'));
+        $this->assertSame('invalid_options', $this->lastJsonLine()['error']);
+    }
+
+    /**
+     * A repeated or differently written dataset ID (188, 0188) is fetched once: a second copy
+     * would merge its samples into the same window and a failed copy would hide the answered one.
+     */
+    public function test_a_repeated_dataset_option_fetches_the_dataset_once(): void
+    {
+        $calls = 0;
+        Http::fake(function () use (&$calls) {
+            return ++$calls === 1
+                ? Http::response(['data' => [$this->row(188, '2026-10-31T10:00:00.000Z', 1000.0)], 'pagination' => ['nextPage' => null]])
+                : Http::response(['message' => 'boom'], 500);
+        });
+
+        $this->assertSame(0, Artisan::call('fingrid:fetch --dataset=188 --dataset=0188'));
+
+        $this->assertSame(1, $calls);
+        $row = DB::table('fingrid_hourly_values')->sole();
+        $this->assertSame([1000.0, 1], [(float) $row->value, (int) $row->sample_count]);
+    }
+
+    public function test_a_failed_dataset_prints_fetch_incomplete_and_keeps_the_others(): void
+    {
+        Http::fake([
+            'data.fingrid.fi/api/datasets/188/data*' => Http::response(['data' => [$this->row(188, '2026-10-31T10:00:00.000Z', 1.0)], 'pagination' => ['nextPage' => null]]),
+            'data.fingrid.fi/api/datasets/191/data*' => Http::response(['message' => 'boom'], 500),
+        ]);
+
+        $this->assertSame(1, Artisan::call('fingrid:fetch --dataset=188 --dataset=191'));
+
+        $line = $this->lastJsonLine();
+        $this->assertSame(['failed', 'fetch', 'fetch_incomplete', false, ['hourly_rows' => 1]], [$line['status'], $line['step'], $line['error'], $line['complete'], $line['counts']]);
+        $this->assertSame(1, DB::table('fingrid_hourly_values')->where('dataset_id', 188)->count());
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function storedRows(): array
+    {
+        $strip = fn ($row) => array_diff_key((array) $row, array_flip(['id', 'created_at', 'updated_at']));
+
+        return DB::table('fingrid_hourly_values')->orderBy('dataset_id')->orderBy('series_key')->orderBy('timestamp')->get()->map($strip)->all();
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function payloadLines(string $path): array
+    {
+        $lines = array_filter(explode("\n", (string) gzdecode((string) file_get_contents($path))));
+
+        return array_values(array_map(fn (string $line) => json_decode($line, true, flags: JSON_THROW_ON_ERROR), $lines));
+    }
+
+    /** @return array<string, mixed> */
+    private function lastJsonLine(?string $output = null): array
+    {
+        $lines = array_values(array_filter(explode("\n", trim($output ?? Artisan::output()))));
+
+        return json_decode(end($lines), true, flags: JSON_THROW_ON_ERROR);
     }
 }

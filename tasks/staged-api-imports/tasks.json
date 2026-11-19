@@ -1,15 +1,60 @@
 [
-  {"name": "Confirm the open decisions (retention, contract interpretation scope)", "status": "done"},
-  {"name": "Completion defers on a busy price-cache producer lock (S17), own PR fix/completion-producer-lock", "status": "in_review"},
-  {"name": "Shared payload store: NDJSON gzip file, secret removal, atomic write, SHA-256 check, cleanup command and schedule (S1-S4, S6)", "status": "pending"},
-  {"name": "Shared command modes, one store transaction, JSON result line, failure reporting with step, SQLSTATE and driver code (S7, S8, S20, S21)", "status": "pending"},
-  {"name": "contracts:fetch on the payload store; date refusal, partial fetch, checkpoints (S5, S9-S11)", "status": "pending"},
-  {"name": "futures:fetch-eex and futures:fetch-eex-europe on the payload store", "status": "pending"},
-  {"name": "spot:fetch, spot:fetch-neighbours, spot:fetch-forecast on the payload store", "status": "pending"},
-  {"name": "entsoe:fetch (S19 outage history), fingrid:fetch, fingrid:fetch-forecast-vintages on the payload store", "status": "pending"},
-  {"name": "fmi:fetch, syke:fetch, weather:fetch (S19 ecmwf_00z), gas-storage:fetch, jao:fetch, nve:fetch-reservoirs on the payload store", "status": "pending"},
-  {"name": "Temporal: two activities per step, ContractImport order, S forecast fetches, ImportReplay workflow (S12-S16)", "status": "pending"},
-  {"name": "Documentation (S18)", "status": "pending"},
-  {"name": "Spec review, PR review loop (one PR for all but S17)", "status": "pending"},
-  {"name": "Production: deploy, first payload per job, SEAS5 manual --fetch-only, one approved ImportReplay trial (D7)", "status": "pending"}
+  {
+    "name": "Confirm the open decisions (retention, contract interpretation scope)",
+    "status": "done"
+  },
+  {
+    "name": "Completion defers on a busy price-cache producer lock (S17): PR #30 merged, deployed as deploy-000030-3ed8b55f31b3",
+    "status": "done"
+  },
+  {
+    "name": "Shared design contract (design.md)",
+    "status": "done"
+  },
+  {
+    "name": "Shared payload store: NDJSON gzip file, secret removal, atomic write, SHA-256 check, cleanup command and schedule (S1-S4, S6)",
+    "status": "done",
+    "note": "Done except the cleanup schedule, which the Temporal step wires on both sides (design.md section 7)."
+  },
+  {
+    "name": "Shared command modes, one store transaction, JSON result line, failure reporting with step, SQLSTATE and driver code (S7, S8, S20, S21)",
+    "status": "done"
+  },
+  {
+    "name": "contracts:fetch on the payload store; date refusal, partial fetch, checkpoints (S5, S9-S11)",
+    "status": "done"
+  },
+  {
+    "name": "futures:fetch-eex and futures:fetch-eex-europe on the payload store",
+    "status": "done"
+  },
+  {
+    "name": "spot:fetch, spot:fetch-neighbours, spot:fetch-forecast on the payload store",
+    "status": "done",
+    "note": "spot:fetch-forecast converted as the reference command."
+  },
+  {
+    "name": "entsoe:fetch (S19 outage history), fingrid:fetch, fingrid:fetch-forecast-vintages on the payload store",
+    "status": "done"
+  },
+  {
+    "name": "fmi:fetch, syke:fetch, weather:fetch (S19 ecmwf_00z), gas-storage:fetch, jao:fetch, nve:fetch-reservoirs on the payload store",
+    "status": "done"
+  },
+  {
+    "name": "Temporal: two activities per step, ContractImport order, S forecast fetches, ImportReplay workflow (S12-S16)",
+    "status": "done"
+  },
+  {
+    "name": "Documentation (S18)",
+    "status": "done"
+  },
+  {
+    "name": "Spec review (2026-11-19T12-19, ACCEPT), PR #31 review loop (clean at 242983f)",
+    "status": "done"
+  },
+  {
+    "name": "Production: deploy, first payload per job, SEAS5 manual --fetch-only, one approved ImportReplay trial (D7)",
+    "status": "pending"
+  }
 ]

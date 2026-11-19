@@ -5,7 +5,7 @@ namespace App\Services\Fingrid;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
-use RuntimeException;
+use InvalidArgumentException;
 
 /**
  * Store one vintage of a rolling Fingrid forecast (e.g. dataset 245) as one append-only row in
@@ -18,17 +18,14 @@ use RuntimeException;
 class FingridForecastVintageImporter
 {
     /**
+     * The hourly series from the first hour: the mean of four numeric quarters, else null;
+     * trailing null hours are trimmed. An empty list means the response has no complete hour.
+     *
      * @param  list<array<string, mixed>>  $rows  Raw 15-minute rows
-     * @return bool False when the same payload is already stored
+     * @return list<float|null>
      */
-    public function store(
-        int $datasetId,
-        string $variable,
-        array $rows,
-        CarbonInterface $firstHour,
-        int $hours,
-        CarbonInterface $fetchedAt
-    ): bool {
+    public function series(array $rows, CarbonInterface $firstHour, int $hours): array
+    {
         $firstTimestamp = $firstHour->copy()->utc()->startOfHour()->timestamp;
         $quarters = [];
 
@@ -55,10 +52,21 @@ class FingridForecastVintageImporter
             array_pop($series);
         }
 
-        if ($series === []) {
-            throw new RuntimeException("Fingrid dataset {$datasetId} forecast has no complete hour.");
-        }
+        return $series;
+    }
 
+    /**
+     * Insert one vintage. `fetched_at` is the vintage time (the fetch time, never the store time).
+     *
+     * @param  non-empty-list<float|null>  $series  from series()
+     * @return bool False when the same payload is already stored
+     */
+    public function store(int $datasetId, string $variable, array $series, CarbonInterface $firstHour, CarbonInterface $fetchedAt): bool
+    {
+        if ($series === []) {
+            throw new InvalidArgumentException("Fingrid dataset {$datasetId} forecast has no complete hour.");
+        }
+        $firstTimestamp = $firstHour->copy()->utc()->startOfHour()->timestamp;
         $values = [$variable => $series];
         $now = now();
 

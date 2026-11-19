@@ -2,8 +2,12 @@
 
 namespace App\Console\Commands;
 
+use App\Console\Concerns\StagedImport;
 use App\Services\GasStorage\GasStorageImporter;
 use App\Services\GasStorage\GieAgsiService;
+use App\Services\ImportPayload\ImportPayloadReader;
+use App\Services\ImportPayload\ImportPayloadWriter;
+use App\Services\ImportPayload\ImportStoreResult;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Throwable;
@@ -14,10 +18,19 @@ use Throwable;
  * Without --from: the last `gas_storage.lookback_days` gas days, because GIE confirms estimated
  * days later. With --from/--to: a backfill (AGSI paginates, 300 days per call). Read-only
  * towards GIE; upserts locally. Needs GIE_API_KEY. The scheduled run passes --if-configured, so a
- * missing optional key skips the run instead of creating a daily failure.
+ * missing optional key skips the run (in every mode, without a payload file) instead of creating
+ * a daily failure.
+ *
+ * Staged import (StagedImport): the fetch step records every page, the store step upserts all
+ * areas in one transaction. A failed page fails its whole area; the other areas are stored and
+ * the run exits 1 (fetch_incomplete); so does an area cut off by the page limit. Not date-bound (S9).
  */
 class FetchGasStorage extends Command
 {
+    use StagedImport {
+        stagedDataOptions as private allDataOptions;
+    }
+
     protected $signature = 'gas-storage:fetch
                             {--from= : Backfill start gas day (YYYY-MM-DD)}
                             {--to= : Backfill end gas day, inclusive (YYYY-MM-DD; default today)}
@@ -39,11 +52,14 @@ class FetchGasStorage extends Command
             if ($this->option('if-configured')) {
                 $this->info('GIE_API_KEY is not set; gas storage collection is not enabled. Skipped.');
 
-                return Command::SUCCESS;
+                return $this->stagedResult(['status' => 'skipped', 'step' => 'fetch', 'reason' => 'not_configured']);
             }
-            $this->error('GIE_API_KEY is not set. Register for a free key at https://agsi.gie.eu/account.');
+            // A store from a saved payload needs no key.
+            if ($this->option('from-payload') === null) {
+                $this->error('GIE_API_KEY is not set. Register for a free key at https://agsi.gie.eu/account.');
 
-            return Command::FAILURE;
+                return $this->stagedFailure('fetch', 'not_configured');
+            }
         }
 
         $configured = (array) config('gas_storage.areas', []);
@@ -53,7 +69,7 @@ class FetchGasStorage extends Command
         if ($unknown !== []) {
             $this->error('Unknown area(s): '.implode(', ', $unknown));
 
-            return Command::FAILURE;
+            return $this->stagedFailure('fetch', 'invalid_options');
         }
 
         try {
@@ -66,33 +82,127 @@ class FetchGasStorage extends Command
         } catch (Throwable) {
             $this->error('Invalid date. Use YYYY-MM-DD.');
 
-            return Command::FAILURE;
+            return $this->stagedFailure('fetch', 'invalid_options');
         }
 
         if ($from->greaterThan($to)) {
             $this->error('--from must not be after --to.');
 
-            return Command::FAILURE;
+            return $this->stagedFailure('fetch', 'invalid_options');
         }
 
-        $failed = [];
+        $areas = $requested !== [] ? $requested : array_keys($configured);
 
-        foreach ($requested !== [] ? $requested : array_keys($configured) as $area) {
+        return $this->runStaged(
+            function (ImportPayloadWriter $payload) use ($areas, $configured, $from, $to): void {
+                // The gas-day range is fixed here (S5), so a later store keeps the fetch's window.
+                $payload->setFact('from', $from->toDateString());
+                $payload->setFact('to', $to->toDateString());
+                $payload->setFact('areas', $areas);
+                foreach ($areas as $area) {
+                    $this->fetchArea($payload, (string) $area, (array) $configured[$area]['params'], $from->toDateString(), $to->toDateString());
+                }
+            },
+            fn (ImportPayloadReader $payload): ImportStoreResult => $this->store($payload),
+        );
+    }
+
+    protected function stagedImportSource(): string
+    {
+        return 'gie-agsi';
+    }
+
+    /** --if-configured changes no row, so a replay need not repeat it. */
+    protected function stagedDataOptions(): array
+    {
+        return array_diff_key($this->allDataOptions(), ['if-configured' => true]);
+    }
+
+    /**
+     * Record every page of one area. An HTTP failure, an AGSI error body (HTTP 200 with `error`)
+     * or an unexpected body is recorded as a failed unit and ends the area. So is the page limit:
+     * when GieAgsiService::MAX_PAGES pages are read and `last_page` says there are more, the
+     * last page read is recorded as failed, so the area is never stored with days missing.
+     *
+     * @param  array<string, string>  $areaParams
+     */
+    private function fetchArea(ImportPayloadWriter $payload, string $area, array $areaParams, string $from, string $to): void
+    {
+        $page = 1;
+
+        do {
+            $unit = ['area' => $area, 'page' => $page];
+            $query = $this->client->pageQuery($areaParams, $from, $to, $page);
+
             try {
-                $rows = $this->client->fetchDays((array) $configured[$area]['params'], $from->toDateString(), $to->toDateString());
-                $written = $this->importer->import($area, $rows, Carbon::now('UTC'));
-                $this->info("Area {$area}: {$written} gas days.");
+                $response = $this->client->requestPage($query);
             } catch (Throwable $e) {
-                $failed[] = $area;
-                // The exception message can contain the request URL; log only the class.
-                logger()->error('GIE gas storage fetch failed', [
-                    'area' => $area,
-                    'exception_class' => $e::class,
-                ]);
-                $this->error("Area {$area}: fetch failed (".$e::class.').');
+                $payload->recordFailure($unit, 'GET', $this->client->url(), $query, $e);
+                $this->reportAreaFailure($area, $e);
+
+                return;
             }
+
+            try {
+                $lastPage = GieAgsiService::parsePage($response->body())['last_page'];
+            } catch (Throwable $e) {
+                $payload->record($unit, $response, failed: true);
+                $this->reportAreaFailure($area, $e);
+
+                return;
+            }
+
+            if ($page >= GieAgsiService::MAX_PAGES && $lastPage > $page) {
+                $payload->record($unit, $response, failed: true);
+                logger()->error('GIE gas storage fetch failed', ['area' => $area, 'reason' => 'page_limit']);
+                $this->error("Area {$area}: fetch failed (more than ".GieAgsiService::MAX_PAGES.' pages).');
+
+                return;
+            }
+
+            $payload->record($unit, $response);
+            $page++;
+        } while ($page <= $lastPage);
+    }
+
+    /** Runs inside the StagedImport store transaction. */
+    private function store(ImportPayloadReader $payload): ImportStoreResult
+    {
+        $failedAreas = array_values(array_unique(array_map(fn (array $unit) => (string) $unit['area'], $payload->end()['failed_units'])));
+        $rows = [];
+
+        foreach ($payload->requests() as $request) {
+            $area = (string) $request['unit']['area'];
+            if (in_array($area, $failedAreas, true)) {
+                continue;
+            }
+            $rows[$area] = [...($rows[$area] ?? []), ...GieAgsiService::parsePage((string) ImportPayloadReader::body($request))['rows']];
         }
 
-        return $failed === [] ? Command::SUCCESS : Command::FAILURE;
+        $written = [];
+        foreach ($rows as $area => $areaRows) {
+            $written[$area] = $this->importer->import((string) $area, $areaRows, $payload->fetchedAt());
+        }
+
+        return new ImportStoreResult(
+            ['gas_days' => array_sum($written), 'failed_areas' => count($failedAreas)],
+            [function () use ($written): void {
+                foreach ($written as $area => $count) {
+                    $this->info("Area {$area}: {$count} gas days.");
+                }
+            }],
+            $failedAreas === [] ? null : 'fetch_incomplete',
+            'fetch',
+        );
+    }
+
+    private function reportAreaFailure(string $area, Throwable $e): void
+    {
+        // The exception message can contain the request URL; log only the class.
+        logger()->error('GIE gas storage fetch failed', [
+            'area' => $area,
+            'exception_class' => $e::class,
+        ]);
+        $this->error("Area {$area}: fetch failed (".$e::class.').');
     }
 }

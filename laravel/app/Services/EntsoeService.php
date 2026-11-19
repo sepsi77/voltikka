@@ -5,59 +5,86 @@ namespace App\Services;
 use Carbon\Carbon;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use InvalidArgumentException;
 use SimpleXMLElement;
+use Throwable;
 
 class EntsoeService
 {
     private const MAX_RETRIES = 3;
+
     private const RETRY_DELAY_MS = 1000;
 
     /**
      * Fetch day-ahead prices from ENTSO-E Transparency Platform API.
      *
-     * @param Carbon $startDate Start of the period (UTC)
-     * @param Carbon $endDate End of the period (UTC)
-     * @param string $region Bidding-zone code from `services.entsoe.bidding_zones` (default 'FI')
+     * @param  Carbon  $startDate  Start of the period (UTC)
+     * @param  Carbon  $endDate  End of the period (UTC)
+     * @param  string  $region  Bidding-zone code from `services.entsoe.bidding_zones` (default 'FI')
      * @return array Array of price data with keys:
      *               - region: string (the requested region code)
      *               - timestamp: int (Unix timestamp)
      *               - utc_datetime: Carbon
      *               - price_without_tax: float (c/kWh)
+     *
      * @throws RequestException|ConnectionException
      * @throws InvalidArgumentException for a region without a configured EIC code
      */
     public function fetchDayAheadPrices(Carbon $startDate, Carbon $endDate, string $region = 'FI'): array
     {
-        $baseUrl = config('services.entsoe.base_url', 'https://web-api.tp.entsoe.eu/api');
-        $apiKey = config('services.entsoe.api_key');
-        $eic = $this->eicFor($region);
+        return $this->parseDayAheadPrices($this->fetchDayAheadResponse($startDate, $endDate, $region)->body(), $region);
+    }
 
-        $params = [
-            'securityToken' => $apiKey,
-            'documentType' => 'A44', // Day-ahead prices
-            'in_Domain' => $eic,
-            'out_Domain' => $eic,
-            'periodStart' => $startDate->utc()->format('YmdHi'),
-            'periodEnd' => $endDate->utc()->format('YmdHi'),
-        ];
-
-        $url = $baseUrl . '?' . http_build_query($params);
+    /**
+     * Fetch one raw A44 day-ahead response, for staged imports that save the body before parsing.
+     * The effective URI holds the securityToken: record it only through ImportPayloadWriter.
+     *
+     * @throws RequestException|ConnectionException after the retry policy; also for any non-2xx answer
+     * @throws InvalidArgumentException for a region without a configured EIC code
+     */
+    public function fetchDayAheadResponse(Carbon $startDate, Carbon $endDate, string $region = 'FI'): Response
+    {
+        [$baseUrl, $params] = $this->dayAheadRequest($startDate, $endDate, $region);
 
         // Retry every failed attempt. ENTSO-E sometimes holds a request for 18-30 s and then answers
-        // with a non-5xx error (about 1.6 KB); the next hourly run succeeds (October 2026).
-        $response = Http::connectTimeout((int) config('services.entsoe.connect_timeout', 5))
-            ->timeout((int) config('services.entsoe.timeout', 30))
-            ->retry(self::MAX_RETRIES, self::RETRY_DELAY_MS, function ($exception) {
-                return $exception instanceof ConnectionException || $exception instanceof RequestException;
-            })->get($url);
+        // with a non-5xx error (about 1.6 KB); the next hourly run succeeds (October 2026). Any answer
+        // outside 2xx is a failed attempt (S10), also a 3xx that failed() does not cover (a 302
+        // without Location is not followed), so it is retried too; after the last attempt a staged
+        // fetch records it as a failed unit with its body.
+        return retry(self::MAX_RETRIES, function () use ($baseUrl, $params): Response {
+            $response = Http::connectTimeout((int) config('services.entsoe.connect_timeout', 5))
+                ->timeout((int) config('services.entsoe.timeout', 30))
+                ->get($baseUrl.'?'.http_build_query($params));
+            if (! $response->successful()) {
+                throw new RequestException($response);
+            }
 
-        if ($response->failed()) {
-            throw new RequestException($response);
-        }
+            return $response;
+        }, self::RETRY_DELAY_MS, fn (Throwable $exception): bool => $exception instanceof ConnectionException || $exception instanceof RequestException);
+    }
 
-        return $this->parseXmlResponse($response->body(), $region);
+    /**
+     * The base URL and query of one A44 request. The query holds the securityToken.
+     *
+     * @return array{0: string, 1: array<string, string|null>}
+     */
+    public function dayAheadRequest(Carbon $startDate, Carbon $endDate, string $region = 'FI'): array
+    {
+        $eic = $this->eicFor($region);
+
+        return [
+            (string) config('services.entsoe.base_url', 'https://web-api.tp.entsoe.eu/api'),
+            [
+                'securityToken' => config('services.entsoe.api_key'),
+                'documentType' => 'A44', // Day-ahead prices
+                'in_Domain' => $eic,
+                'out_Domain' => $eic,
+                'periodStart' => $startDate->utc()->format('YmdHi'),
+                'periodEnd' => $endDate->utc()->format('YmdHi'),
+            ],
+        ];
     }
 
     /**
@@ -79,13 +106,14 @@ class EntsoeService
     }
 
     /**
-     * Parse ENTSO-E XML response and extract price data.
+     * Parse an ENTSO-E A44 XML body into price records (the same records fetchDayAheadPrices returns).
+     * An acknowledgement, empty or unparsable document gives an empty list.
      *
-     * @param string $xmlContent Raw XML response
-     * @param string $region Region code written to each record
+     * @param  string  $xmlContent  Raw XML response
+     * @param  string  $region  Region code written to each record
      * @return array Parsed price data
      */
-    private function parseXmlResponse(string $xmlContent, string $region): array
+    public function parseDayAheadPrices(string $xmlContent, string $region): array
     {
         // Check for empty or acknowledgement response (no data)
         if ($this->isNoDataResponse($xmlContent)) {
@@ -149,7 +177,7 @@ class EntsoeService
         }
 
         // Sort by timestamp
-        usort($prices, fn($a, $b) => $a['timestamp'] <=> $b['timestamp']);
+        usort($prices, fn ($a, $b) => $a['timestamp'] <=> $b['timestamp']);
 
         return $prices;
     }
@@ -163,8 +191,8 @@ class EntsoeService
      * time interval. ENTSO-E sends A03 for FI and its neighbours since the 15-minute MTU.
      * Without this fill, whole hours were missing and hourly means used 3 of 4 quarters.
      *
-     * @param SimpleXMLElement $period Period XML element
-     * @param string $ns Namespace URI
+     * @param  SimpleXMLElement  $period  Period XML element
+     * @param  string  $ns  Namespace URI
      * @return array Price data from this period with 'resolution_minutes' key
      */
     private function parsePeriod(SimpleXMLElement $period, string $ns, string $region, string $curveType = 'A01'): array
@@ -175,13 +203,13 @@ class EntsoeService
         $startElement = $ns
             ? $period->xpath('ns:timeInterval/ns:start')
             : $period->xpath('timeInterval/start');
-        $start = (string)($startElement[0] ?? '');
+        $start = (string) ($startElement[0] ?? '');
 
         // Get resolution
         $resolutionElement = $ns
             ? $period->xpath('ns:resolution')
             : $period->xpath('resolution');
-        $resolution = (string)($resolutionElement[0] ?? 'PT60M');
+        $resolution = (string) ($resolutionElement[0] ?? 'PT60M');
 
         if (empty($start)) {
             return [];
@@ -215,8 +243,8 @@ class EntsoeService
                 ? $point->xpath('ns:price.amount')
                 : $point->xpath('price.amount');
 
-            $position = (int)($positionElement[0] ?? 0);
-            $priceEurMwh = (float)($priceElement[0] ?? 0);
+            $position = (int) ($positionElement[0] ?? 0);
+            $priceEurMwh = (float) ($priceElement[0] ?? 0);
 
             $pointTime = $periodStart->copy()->addMinutes(($position - 1) * $resolutionMinutes);
             $priceCentsKwh = $priceEurMwh / 10;
@@ -236,7 +264,7 @@ class EntsoeService
     /**
      * Expand A03 points so that every slot of the time interval has a price.
      *
-     * @param array<int, SimpleXMLElement> $points
+     * @param  array<int, SimpleXMLElement>  $points
      */
     private function parseVariableBlockPoints(
         array $points,
@@ -296,17 +324,17 @@ class EntsoeService
     /**
      * Parse ISO 8601 duration to minutes.
      *
-     * @param string $resolution Resolution string (e.g., 'PT60M', 'PT15M')
+     * @param  string  $resolution  Resolution string (e.g., 'PT60M', 'PT15M')
      * @return int Resolution in minutes
      */
     private function parseResolution(string $resolution): int
     {
         if (preg_match('/PT(\d+)M/', $resolution, $matches)) {
-            return (int)$matches[1];
+            return (int) $matches[1];
         }
 
         if (preg_match('/PT(\d+)H/', $resolution, $matches)) {
-            return (int)$matches[1] * 60;
+            return (int) $matches[1] * 60;
         }
 
         // Default to 60 minutes
@@ -316,7 +344,7 @@ class EntsoeService
     /**
      * Check if the XML response indicates no data available.
      *
-     * @param string $xmlContent XML content
+     * @param  string  $xmlContent  XML content
      * @return bool True if response indicates no data
      */
     private function isNoDataResponse(string $xmlContent): bool
@@ -328,7 +356,7 @@ class EntsoeService
 
         // Check for empty Publication_MarketDocument
         if (str_contains($xmlContent, 'Publication_MarketDocument')
-            && !str_contains($xmlContent, '<TimeSeries>')) {
+            && ! str_contains($xmlContent, '<TimeSeries>')) {
             return true;
         }
 

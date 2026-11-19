@@ -2,19 +2,26 @@
 
 namespace App\Console\Commands;
 
+use App\Console\Concerns\StagedImport;
 use App\Models\SpotPriceForecast;
 use App\Models\SpotPriceForecastRun;
+use App\Services\ImportPayload\ImportPayloadReader;
+use App\Services\ImportPayload\ImportPayloadWriter;
+use App\Services\ImportPayload\ImportStoreResult;
 use App\Services\SpotForecasts\NordpoolPredictFiService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Carbon as SupportCarbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Throwable;
+use UnexpectedValueException;
 
 class FetchSpotForecast extends Command
 {
+    use StagedImport;
+
     /**
      * The name and signature of the console command.
      *
@@ -29,96 +36,175 @@ class FetchSpotForecast extends Command
      */
     protected $description = 'Fetch third-party Finnish spot price forecasts and save them to the database';
 
+    /**
+     * Longer than a store may live (review LAR-201): Temporal kills a store activity's PHP process
+     * after `STORE_TIMEOUT_MINUTES` = 60 (orchestration/src/voltikka_orchestration/staged.py), so
+     * the lease cannot expire under a running store and let a second one pass its recency check.
+     * Accepted cost: a store killed while it holds the lock blocks the next store of that source
+     * and region for up to 65 minutes; that store waits STORE_LOCK_WAIT_SECONDS, then fails
+     * `store_busy` with its payload kept.
+     */
+    private const STORE_LOCK_LEASE_SECONDS = 3900;
+
+    private const STORE_LOCK_WAIT_SECONDS = 60;
+
     public function __construct(private readonly NordpoolPredictFiService $nordpoolPredictFiService)
     {
         parent::__construct();
     }
 
     /**
-     * Execute the console command.
+     * Execute the console command: fetch the feed into a payload file, then store from that file
+     * (StagedImport). Not date-bound (S9): a payload from earlier the same day is accepted; it
+     * adds its run row but leaves the display rows of a newer feed in place.
      */
     public function handle(): int
     {
         $source = (string) $this->option('source');
 
-        if (!in_array($source, ['nordpool-predict-fi', SpotPriceForecast::SOURCE_NORDPOOL_PREDICT_FI], true)) {
+        if (! in_array($source, ['nordpool-predict-fi', SpotPriceForecast::SOURCE_NORDPOOL_PREDICT_FI], true)) {
             $this->error("Unsupported forecast source: {$source}");
-            return Command::FAILURE;
+
+            return $this->stagedFailure('fetch', 'unsupported_source');
         }
 
-        $this->info('Fetching spot price forecasts from nordpool-predict-fi...');
+        return $this->runStaged(
+            function (ImportPayloadWriter $payload): void {
+                $this->info('Fetching spot price forecasts from nordpool-predict-fi...');
+                $payload->record(['feed' => 'prediction'], $this->nordpoolPredictFiService->fetchFeed());
+            },
+            fn (ImportPayloadReader $payload): ImportStoreResult => $this->store($payload),
+            // The store opens its transaction inside its lock, so the commit precedes the release.
+            transactional: false,
+        );
+    }
 
-        try {
-            $records = $this->nordpoolPredictFiService->fetchForecasts();
-        } catch (Throwable $e) {
-            $this->error('Failed to fetch spot price forecasts.');
-            Log::error('FetchSpotForecast command failed while fetching forecasts', [
-                'source' => SpotPriceForecast::SOURCE_NORDPOOL_PREDICT_FI,
-                'exception_class' => $e::class,
-                'exception' => $e->getMessage(),
-            ]);
+    protected function stagedImportSource(): string
+    {
+        return 'nordpool-predict-fi';
+    }
 
-            return Command::FAILURE;
+    /**
+     * Parses the payload, then writes under the source/region store lock in one transaction. The
+     * display upsert is skipped when a newer feed is already stored; the cache is forgotten after
+     * the commit only when the display changed. A lock timeout is the closed error `store_busy`.
+     */
+    private function store(ImportPayloadReader $payload): ImportStoreResult
+    {
+        $requests = iterator_to_array($payload->requests(), false);
+        $status = $requests[0]['status'] ?? null;
+        if (count($requests) !== 1 || ! is_int($status) || $status < 200 || $status >= 300) {
+            throw new UnexpectedValueException('The forecast payload holds no answered feed request.');
         }
+
+        $records = $this->nordpoolPredictFiService->parseFeed(
+            (string) ImportPayloadReader::body($requests[0]),
+            $payload->fetchedAt(),
+            $requests[0]['url'] ?? $this->nordpoolPredictFiService->feedUrl(),
+        );
 
         if (empty($records)) {
             $this->warn('No forecast points fetched.');
-            return Command::SUCCESS;
+
+            return new ImportStoreResult(['records' => 0, 'display_rows' => 0, 'runs_inserted' => 0]);
         }
 
         $now = now();
-        $upsertRows = array_map(function (array $record) use ($now) {
-            return array_merge($record, [
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]);
-        }, $records);
-
+        // One lock per source and region around the recency check and both writes (review
+        // PRC-002), and the transaction commits before the lock is released: the check sees every
+        // store that committed before it, and no newer store can commit between check and write.
+        $lock = Cache::lock("spot_forecast_store_v1:{$records[0]['source']}:{$records[0]['region']}", self::STORE_LOCK_LEASE_SECONDS);
         try {
-            DB::transaction(function () use ($upsertRows, $records, $now) {
-                foreach (array_chunk($upsertRows, 500) as $chunk) {
-                    SpotPriceForecast::upsert(
-                        $chunk,
-                        ['source', 'region', 'timestamp'],
-                        [
-                            'utc_datetime',
-                            'price_with_tax',
-                            'vat_rate',
-                            'source_url',
-                            'fetched_at',
-                            'metadata',
-                            'updated_at',
-                        ]
-                    );
-                }
+            [$displayCurrent, $runsInserted] = $lock->block(
+                self::STORE_LOCK_WAIT_SECONDS,
+                fn (): array => DB::transaction(fn (): array => $this->write($records, $now)),
+            );
+        } catch (LockTimeoutException) {
+            // No write; the payload stays for a replay.
+            $this->reportStagedFailure('store', 'store_busy', null, []);
 
-                SpotPriceForecastRun::insertOrIgnore($this->runRow($records, $now));
-            });
-
-            Cache::forget('spot_price:forecast:nordpool_predict_fi:v1');
-
-            $this->info('Spot price forecasts fetched successfully! Processed ' . count($records) . ' records.');
-            Log::info('Successfully fetched spot price forecasts', [
-                'source' => SpotPriceForecast::SOURCE_NORDPOOL_PREDICT_FI,
-                'count' => count($records),
-            ]);
-
-            return Command::SUCCESS;
-        } catch (Throwable $e) {
-            $this->error('Error saving spot price forecasts: ' . $e->getMessage());
-            Log::error('FetchSpotForecast command failed while saving forecasts', [
-                'source' => SpotPriceForecast::SOURCE_NORDPOOL_PREDICT_FI,
-                'exception_class' => $e::class,
-                'exception' => $e->getMessage(),
-            ]);
-
-            return Command::FAILURE;
+            return new ImportStoreResult(['records' => count($records), 'display_rows' => 0, 'runs_inserted' => 0], error: 'store_busy');
         }
+
+        $counts = ['records' => count($records), 'display_rows' => $displayCurrent ? count($records) : 0, 'runs_inserted' => $runsInserted];
+
+        return new ImportStoreResult($counts, [
+            ...($displayCurrent ? [fn () => Cache::forget('spot_price:forecast:nordpool_predict_fi:v1')] : []),
+            function () use ($records): void {
+                $this->info('Spot price forecasts fetched successfully! Processed '.count($records).' records.');
+                Log::info('Successfully fetched spot price forecasts', [
+                    'source' => SpotPriceForecast::SOURCE_NORDPOOL_PREDICT_FI,
+                    'count' => count($records),
+                ]);
+            },
+        ]);
+    }
+
+    /**
+     * The display upsert, skipped when a newer feed is already stored, and the append-only run
+     * row. The caller holds the source/region store lock and the transaction.
+     *
+     * @param  list<array<string, mixed>>  $records
+     * @return array{0: bool, 1: int} whether the display was written, and the inserted run rows
+     */
+    private function write(array $records, SupportCarbon $now): array
+    {
+        // The display table shows the latest stored feed: an older replay must not overwrite it.
+        $displayCurrent = ! $this->newerFeedStored($records[0]);
+        if ($displayCurrent) {
+            $upsertRows = array_map(function (array $record) use ($now) {
+                return array_merge($record, [
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]);
+            }, $records);
+
+            foreach (array_chunk($upsertRows, 500) as $chunk) {
+                SpotPriceForecast::upsert(
+                    $chunk,
+                    ['source', 'region', 'timestamp'],
+                    [
+                        'utc_datetime',
+                        'price_with_tax',
+                        'vat_rate',
+                        'source_url',
+                        'fetched_at',
+                        'metadata',
+                        'updated_at',
+                    ]
+                );
+            }
+        } else {
+            $this->warn('A newer forecast feed is already stored; only the append-only run is kept.');
+        }
+
+        // The append-only vintage is kept for every feed, also an older one.
+        return [$displayCurrent, SpotPriceForecastRun::insertOrIgnore($this->runRow($records, $now))];
+    }
+
+    /**
+     * Whether a feed fetched after this payload is already stored for the same source and region:
+     * as a run row, or as display rows (an unchanged feed fetched again adds no run row but
+     * refreshes the display rows' fetched_at). Runs under the store lock, inside the transaction.
+     *
+     * @param  array<string, mixed>  $record
+     */
+    private function newerFeedStored(array $record): bool
+    {
+        foreach ([SpotPriceForecastRun::query(), SpotPriceForecast::query()] as $query) {
+            if ($query->where('source', $record['source'])->where('region', $record['region'])
+                ->where('fetched_at', '>', $record['fetched_at'])->exists()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
      * Build the append-only vintage row. The feed hash is the importer's SHA-256 of the raw
-     * response body, so an unchanged upstream feed is stored once (unique source + hash).
+     * response body, so an unchanged upstream feed is stored once (unique source + hash), also
+     * when the same payload is stored again.
      *
      * @param  list<array<string, mixed>>  $records
      * @return array<string, mixed>

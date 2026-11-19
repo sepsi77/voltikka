@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import os
+import re
 import sys
 import uuid
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -13,30 +15,54 @@ import sentry_sdk
 from temporalio import activity
 from temporalio.client import Schedule, ScheduleOverlapPolicy, WorkflowFailureError
 from temporalio.exceptions import ApplicationError
+from temporalio.client import WorkflowHistory
 from temporalio.testing import ActivityEnvironment
-from temporalio.worker import UnsandboxedWorkflowRunner, Worker
+from temporalio.worker import Replayer, UnsandboxedWorkflowRunner, Worker
 
-from voltikka_orchestration import jobs, sentry
+from voltikka_orchestration import jobs, s_forecast, sentry
 from voltikka_orchestration.activities import Activities, CommandRequest, CommandResult, IssueReport
 from voltikka_orchestration.jobs import (
     ArtisanJob,
     ArtisanJobInput,
     ContractImport,
     EexFutures,
+    ImportReplay,
+    ImportReplayInput,
     MorningChain,
     MorningInput,
     Step,
 )
 from voltikka_orchestration.schedules import GROUPS, parse_args, schedules, select
 from voltikka_orchestration.settings import Settings
+from voltikka_orchestration.staged import RETENTION_DAYS, STORE_SCHEDULE_TO_CLOSE, payload_expired
 from voltikka_orchestration.worker import GRACEFUL_SHUTDOWN
 from voltikka_orchestration.worker import WORKFLOWS as PRODUCTION_WORKFLOWS
 
 QUEUE = "jobs-test-queue"
 HELSINKI = ZoneInfo("Europe/Helsinki")
-WORKFLOWS = [ArtisanJob, MorningChain, EexFutures, ContractImport]
+WORKFLOWS = [ArtisanJob, MorningChain, EexFutures, ContractImport, ImportReplay]
 RETAIL = "retail-premiums:collect --scheduled"
 FORECAST = "forecasting:run-fixed-contracts --scheduled"
+# No date directory, so never expired: the session's time-skipping clock jumps by decades, and a store
+# never starts on a payload that cleanup could delete during it (staged.payload_expired; own tests).
+PAYLOAD_PATH = "/app/storage/app/import-payloads/test/run-1.ndjson.gz"
+SHA256 = "ab" * 32
+STORE_ARGS = f"--from-payload={PAYLOAD_PATH} --payload-sha256={SHA256}"
+
+
+def fetch(command: str) -> str:
+    return f"{command} --fetch-only"
+
+
+def store(command: str) -> str:
+    return f"{command} {STORE_ARGS}"
+
+
+def fetched(path: str = PAYLOAD_PATH) -> dict:
+    """The last stdout line of `--fetch-only` (StagedImport), with more facts than the reference."""
+    return {"status": "fetched", "step": "fetch", "payload": {
+        "path": path, "sha256": SHA256, "size": 1234, "fetched_at": "2026-11-19T08:20:01Z", "source": "test",
+        "run_id": "run-1", "requests": 3, "failed_units": 0, "complete": True}}
 
 
 class FakeArtisan:
@@ -48,8 +74,15 @@ class FakeArtisan:
     consumer."""
 
     def __init__(self, *, failing=(), retail=("ready_after", 2), forecast=("ready_after", 1),
-                 completion_ticks=2, consumer_seconds=0.0, import_state="pending_completion", readiness_failures=0):
+                 completion_ticks=2, consumer_seconds=0.0, import_state="pending_completion", readiness_failures=0,
+                 fetch_result=None, lost_once=()):
         self.calls: list[tuple[str, str]] = []
+        self.requests: list[CommandRequest] = []
+        self.schedule_to_close: dict[str, timedelta | None] = {}
+        # The `--fetch-only` result line (default: a valid reference); a fetch writes `running` (S11).
+        self.fetch_result = fetch_result or fetched()
+        # Commands whose first attempt is lost (a retryable activity failure, not a command failure).
+        self.lost_once = set(lost_once)
         self.attempts: dict[str, int] = {}
         self.reports: list[IssueReport] = []
         self.failing = set(failing)
@@ -82,14 +115,24 @@ class FakeArtisan:
                                      "deadline_alerted": dict(self.alerted)}, 0.1)
         at = activity.info().current_attempt_scheduled_time.astimezone(HELSINKI).strftime("%H:%M")
         self.calls.append((name, at))
+        self.requests.append(request)
+        self.schedule_to_close[name] = activity.info().schedule_to_close_timeout
         self.attempts[name] = self.attempts.get(name, 0) + 1
         if name in self.failing:
             # Retryable by itself: only the workflow retry policy may stop the retry.
             raise ApplicationError(f"{name} exited 1 (boom)", "boom", type="CommandFailed")
+        if name in self.lost_once:
+            self.lost_once.discard(name)
+            raise ApplicationError(f"{name} attempt lost", type="WorkerShutdown")
         command = request.args[0]
+        if "--fetch-only" in request.args:
+            if command in ("futures:fetch-eex", "contracts:fetch"):
+                self.checkpoints["eex_futures" if command == "futures:fetch-eex" else "contract_import"] = "running"
+            return CommandResult(0, self.fetch_result, 0.1)
         if command == "futures:fetch-eex":
             self.checkpoints["eex_futures"] = "ready"
-        elif command == "contracts:fetch":
+        elif command == "contracts:fetch" and not any(arg.startswith("--postcodes") for arg in request.args):
+            # A scoped import (--postcodes) never writes the global import checkpoint.
             self.checkpoints["contract_import"] = self.import_state
         elif command == "contracts:complete-import":
             self.completion_ticks -= 1
@@ -97,6 +140,8 @@ class FakeArtisan:
                 self.checkpoints["contract_import"] = "ready"
         elif name in self.behaviour:
             await self._consumer(name, at)
+        if any(arg.startswith("--from-payload=") for arg in request.args):
+            return CommandResult(0, {"status": "stored", "step": "store", "counts": {"rows": 7}}, 0.1)
         return CommandResult(0, None, 0.1)
 
     async def _consumer(self, name: str, at: str) -> None:
@@ -218,8 +263,9 @@ async def test_consumers_start_together_when_both_producers_have_ended(env):
 
     assert (result.eex, result.contracts) == ("succeeded", "succeeded")
     assert result.consumers == {"morning_retail": "complete", "morning_forecast": "complete"}
-    assert fake.names()[0] == "futures:fetch-eex"  # starts with the workflow (Schedule 04:00)
-    assert fake.times("contracts:fetch --skip-logos") == ["06:00"]
+    assert fake.names()[:2] == [fetch("futures:fetch-eex"), store("futures:fetch-eex")]  # starts with the workflow (Schedule 04:00)
+    assert fake.times(fetch("contracts:fetch --skip-logos")) == ["06:00"]
+    assert fake.times(store("contracts:fetch --skip-logos")) == ["06:00"]
     assert fake.times("contracts:complete-import") == ["06:01", "06:02"]
     names = fake.names()
     assert names.index("forecasting:evaluate-fixed-contracts") > names.index("contracts:complete-import")
@@ -261,12 +307,13 @@ async def test_a_failed_claim_gets_only_the_noon_tick_and_the_morning_fails_with
 
 
 async def test_failed_eex_leaves_consumers_waiting_until_one_noon_tick(env):
-    fake = FakeArtisan(failing={"futures:fetch-eex"}, retail=("never",), forecast=("never",))
+    fake = FakeArtisan(failing={fetch("futures:fetch-eex")}, retail=("never",), forecast=("never",))
 
     with pytest.raises(WorkflowFailureError):
         await execute(env, fake, MorningChain.run, MorningInput(await tomorrow(env)))
 
-    assert fake.attempts["futures:fetch-eex"] == 1
+    assert fake.attempts[fetch("futures:fetch-eex")] == 1
+    assert store("futures:fetch-eex") not in fake.names()
     retail = fake.times(RETAIL)
     assert retail[0] == "06:02" and retail[-1] == "12:00"
     assert all(at <= "12:00" for at in retail)
@@ -286,7 +333,7 @@ async def test_the_noon_tick_does_not_wait_for_a_producer_that_still_runs(env, m
 
     assert set(fake.times(RETAIL)) == {"05:00"}
     assert set(fake.times(FORECAST)) == {"05:00"}
-    assert fake.names().index(RETAIL) < fake.names().index("contracts:fetch --skip-logos")
+    assert fake.names().index(RETAIL) < fake.names().index(fetch("contracts:fetch --skip-logos"))
 
 
 async def test_a_scheduled_run_that_finishes_after_noon_is_a_late_morning(env):
@@ -356,6 +403,319 @@ async def test_an_import_that_exits_0_without_a_ready_checkpoint_fails(env, stat
     assert [r.reason for r in fake.reports] == reports
 
 
+# Staged imports (fetch, then store from the payload file; tasks/staged-api-imports/)
+
+
+async def test_a_staged_step_runs_fetch_then_store_and_passes_only_the_reference(env):
+    fake = FakeArtisan()
+    params = ArtisanJobInput("fingrid-fetch", [Step(["fingrid:fetch", "--days=3"], 60, staged=True)])
+
+    result = await execute(env, fake, ArtisanJob.run, params)
+
+    fetch_request, store_request = fake.requests
+    assert fetch_request.args == ["fingrid:fetch", "--days=3", "--fetch-only"]
+    # Only path and SHA-256 reach the store; the same data args, so the store matches the header.
+    assert store_request.args == ["fingrid:fetch", "--days=3", f"--from-payload={PAYLOAD_PATH}",
+                                  f"--payload-sha256={SHA256}"]
+    assert (fetch_request.interruptible, store_request.interruptible) == (True, False)
+    # One outcome per step: the store's result line.
+    assert [(o.command, o.status, o.result) for o in result.outcomes] == [
+        ("fingrid:fetch", "succeeded", {"status": "stored", "step": "store", "counts": {"rows": 7}})]
+    assert fake.reports == []
+
+
+async def test_a_failed_fetch_skips_the_store_with_one_issue(env):
+    fake = FakeArtisan(failing={fetch("jao:fetch")})
+
+    with pytest.raises(WorkflowFailureError):
+        await execute(env, fake, ArtisanJob.run, ArtisanJobInput("jao-fetch", [Step(["jao:fetch"], staged=True)]))
+
+    assert fake.names() == [fetch("jao:fetch")]
+    assert [(r.reason, r.facts) for r in fake.reports] == [
+        ("command_failed", {"command": "jao:fetch", "error": "boom", "step": "fetch"})]
+
+
+async def test_a_failed_store_never_starts_a_new_fetch(env):
+    fake = FakeArtisan(failing={store("syke:fetch")})
+
+    with pytest.raises(WorkflowFailureError):
+        await execute(env, fake, ArtisanJob.run, ArtisanJobInput("syke-fetch", [Step(["syke:fetch"], staged=True)]))
+
+    assert fake.names() == [fetch("syke:fetch"), store("syke:fetch")]
+    # The Issue names the store and the payload to replay.
+    assert [r.facts for r in fake.reports] == [{"command": "syke:fetch", "error": "boom", "step": "store",
+                                                "payload_path": PAYLOAD_PATH, "payload_sha256": SHA256}]
+
+
+async def test_a_lost_store_attempt_repeats_the_store_not_the_fetch(env):
+    fake = FakeArtisan(lost_once={store("spot:fetch")})
+
+    result = await execute(env, fake, ArtisanJob.run,
+                           ArtisanJobInput("spot-hourly", [Step(["spot:fetch"], self_reports=True, staged=True)]))
+
+    assert fake.names() == [fetch("spot:fetch"), store("spot:fetch"), store("spot:fetch")]
+    assert result.outcomes[0].status == "succeeded"
+
+
+async def test_a_self_reporting_staged_command_reports_its_own_fetch_and_store_failures(env):
+    for failing in (fetch("spot:fetch"), store("spot:fetch")):
+        fake = FakeArtisan(failing={failing})
+        with pytest.raises(WorkflowFailureError):
+            await execute(env, fake, ArtisanJob.run,
+                          ArtisanJobInput("spot-hourly", [Step(["spot:fetch"], self_reports=True, staged=True)]))
+        assert fake.names()[-1] == failing and fake.reports == []
+
+
+@pytest.mark.parametrize("line", [None, {"status": "stored"}, {"status": "fetched", "payload": {"path": PAYLOAD_PATH}},
+                                  {"status": "fetched", "payload": {"path": "", "sha256": SHA256}}])
+async def test_a_fetch_without_a_payload_reference_fails_the_step_with_one_issue(env, line):
+    class NoReference(FakeArtisan):
+        @activity.defn(name="run_command")
+        async def run_command(self, request: CommandRequest) -> CommandResult:
+            result = await super().run_command(request)
+            return CommandResult(0, line, 0.1) if "--fetch-only" in request.args else result
+
+    fake = NoReference()
+    with pytest.raises(WorkflowFailureError):
+        # A self-reporting command printed no reference, so it reported nothing: the workflow does.
+        await execute(env, fake, ArtisanJob.run,
+                      ArtisanJobInput("spot-hourly", [Step(["spot:fetch"], self_reports=True, staged=True)]))
+
+    assert fake.names() == [fetch("spot:fetch")]
+    assert [(r.reason, r.facts["error"], r.facts["step"]) for r in fake.reports] == [
+        ("command_failed", "fetch_result_invalid", "fetch")]
+
+
+async def test_a_skipped_fetch_has_nothing_to_store(env):
+    fake = FakeArtisan(fetch_result={"status": "skipped", "step": "fetch", "reason": "not_configured"})
+
+    result = await execute(env, fake, ArtisanJob.run, ArtisanJobInput(
+        "gas-storage-fetch", [Step(["gas-storage:fetch", "--if-configured"], staged=True)]))
+
+    assert fake.names() == [fetch("gas-storage:fetch --if-configured")]
+    assert result.outcomes[0].status == "succeeded" and fake.reports == []
+
+
+async def test_the_contract_import_runs_fetch_store_then_the_completion_loop(env):
+    fake = FakeArtisan()
+
+    await execute(env, fake, ContractImport.run, MorningInput(await tomorrow(env)))
+
+    assert fake.names() == [fetch("contracts:fetch --skip-logos"), store("contracts:fetch --skip-logos"),
+                            "contracts:complete-import", "contracts:complete-import",
+                            "forecasting:evaluate-fixed-contracts"]
+    fetch_request, store_request = fake.requests[:2]
+    # The fetch holds the import's checkpoint and lock like the one-process import: both finish in the drain.
+    assert (fetch_request.interruptible, store_request.interruptible) == (False, False)
+    assert fetch_request.date == store_request.date
+
+
+# ImportReplay (by hand, after a fix): the store activity only
+
+
+async def helsinki_today(env) -> str:
+    return (await env.get_current_time()).astimezone(HELSINKI).date().isoformat()
+
+
+def payload_of(day: str, source: str = "azure-consumer-api") -> str:
+    return f"/app/storage/app/import-payloads/{source}/{day}/run-1.ndjson.gz"
+
+
+async def test_a_replay_runs_only_the_store(env):
+    fake = FakeArtisan()
+
+    outcome = await execute(env, fake, ImportReplay.run,
+                            ImportReplayInput("fingrid:fetch", ["--days=3"], PAYLOAD_PATH, SHA256))
+
+    assert fake.names() == [f"fingrid:fetch --days=3 {STORE_ARGS}"]
+    assert fake.requests[0].interruptible is False and fake.requests[0].date is None
+    assert outcome.status == "succeeded" and fake.reports == []
+
+
+async def test_a_contract_replay_runs_the_completion_loop(env):
+    fake = FakeArtisan()
+    today = await helsinki_today(env)
+    path = payload_of(today)
+
+    outcome = await execute(env, fake, ImportReplay.run,
+                            ImportReplayInput("contracts:fetch", ["--skip-logos"], path, SHA256))
+
+    assert fake.names() == [f"contracts:fetch --skip-logos --from-payload={path} --payload-sha256={SHA256}",
+                            "contracts:complete-import", "contracts:complete-import"]
+    assert fake.requests[0].date == today
+    assert outcome.status == "succeeded" and fake.checkpoints["contract_import"] == "ready"
+
+
+async def test_a_scoped_contract_replay_ends_after_its_store(env):
+    """A scoped payload never creates the full-import checkpoint, so the completion loop would end a
+    successful replay with a false `import_not_ready` Issue."""
+    fake = FakeArtisan()
+    today = await helsinki_today(env)
+    path = payload_of(today)
+
+    outcome = await execute(env, fake, ImportReplay.run,
+                            ImportReplayInput("contracts:fetch", ["--postcodes=00100,33100"], path, SHA256))
+
+    assert fake.names() == [f"contracts:fetch --postcodes=00100,33100 --from-payload={path} --payload-sha256={SHA256}"]
+    assert outcome.status == "succeeded" and fake.reports == []
+    assert fake.checkpoints["contract_import"] is None
+
+
+def test_only_a_contract_import_without_postcodes_is_full_scope():
+    assert jobs.full_contract_scope(["--skip-logos"]) is True
+    assert jobs.full_contract_scope([]) is True
+    assert jobs.full_contract_scope(["--postcodes=00100"]) is False
+    assert jobs.full_contract_scope(["--postcodes", "00100"]) is False
+    assert jobs.full_contract_scope(["--postcodes="]) is False  # '' is not null in FetchContracts
+    # A bare --postcodes before another option, or last, parses as null: full scope.
+    assert jobs.full_contract_scope(["--postcodes", "--skip-logos"]) is True
+    assert jobs.full_contract_scope(["--skip-logos", "--postcodes"]) is True
+    # The last occurrence wins: a final bare --postcodes replaces an earlier value with null.
+    assert jobs.full_contract_scope(["--postcodes=00100", "--postcodes"]) is True
+    assert jobs.full_contract_scope(["--postcodes", "--postcodes=00100"]) is False
+
+
+async def test_a_failed_replay_store_fails_the_workflow_without_a_fetch(env):
+    path = PAYLOAD_PATH
+    fake = FakeArtisan(failing={f"jao:fetch --from-payload={path} --payload-sha256={SHA256}"})
+
+    with pytest.raises(WorkflowFailureError) as failure:
+        await execute(env, fake, ImportReplay.run, ImportReplayInput("jao:fetch", [], path, SHA256))
+
+    assert failure.value.cause.type == "ReportedFailure"
+    assert len(fake.calls) == 1
+    # The one Issue names the store and the payload, as for a scheduled staged step.
+    assert [(r.reason, r.facts) for r in fake.reports] == [("command_failed", {
+        "command": "jao:fetch", "error": "boom", "step": "store", "payload_path": path, "payload_sha256": SHA256})]
+
+
+# Retention (spec S6): cleanup never deletes a payload that an open run still stores. No reference
+# registry: every store ends within STORE_SCHEDULE_TO_CLOSE of being scheduled, and no store is
+# scheduled on a payload whose date directory could pass retention before then.
+
+CLEANUP = Path(__file__).resolve().parents[2] / "laravel" / "app" / "Services" / "ImportPayload" / "ImportPayloadCleanup.php"
+
+
+def test_retention_days_equal_the_php_cleanup():
+    assert re.search(r"const RETENTION_DAYS = (\d+);", CLEANUP.read_text()).group(1) == str(RETENTION_DAYS)
+    assert STORE_SCHEDULE_TO_CLOSE == timedelta(days=STORE_SCHEDULE_TO_CLOSE.days) >= timedelta(days=1)
+    assert STORE_SCHEDULE_TO_CLOSE.days < RETENTION_DAYS // 2
+
+
+def test_a_payload_expires_when_cleanup_could_delete_it_before_a_store_scheduled_today_ends():
+    today = date(2026, 11, 19)
+
+    def path(day: date) -> str:
+        return f"/app/storage/app/import-payloads/fingrid/{day.isoformat()}/run-1.ndjson.gz"
+
+    # A store scheduled today ends by tomorrow; tomorrow's cleanup deletes date directories before
+    # tomorrow - RETENTION_DAYS (ImportPayloadCleanup keeps `basename >= now - 14 days`).
+    oldest_kept_tomorrow = today + STORE_SCHEDULE_TO_CLOSE - timedelta(days=RETENTION_DAYS)
+    assert not payload_expired(path(oldest_kept_tomorrow), today)
+    assert payload_expired(path(oldest_kept_tomorrow - timedelta(days=1)), today)
+    assert not payload_expired(path(today), today)
+    assert not payload_expired("/manual/copy.ndjson.gz", today)  # outside the date directories of cleanup
+
+
+async def test_every_store_activity_ends_well_within_payload_retention(env):
+    fake = FakeArtisan()
+    await execute(env, fake, ArtisanJob.run, ArtisanJobInput("syke-fetch", [Step(["syke:fetch"], staged=True)]))
+    await execute(env, fake, ContractImport.run, MorningInput(await tomorrow(env)))
+    await execute(env, fake, ImportReplay.run, ImportReplayInput("jao:fetch", [], PAYLOAD_PATH, SHA256))
+
+    stores = {name: timeout for name, timeout in fake.schedule_to_close.items() if "--from-payload=" in name}
+    assert len(stores) == 3
+    assert all(timeout is not None and timeout <= STORE_SCHEDULE_TO_CLOSE for timeout in stores.values()), stores
+    assert STORE_SCHEDULE_TO_CLOSE < timedelta(days=RETENTION_DAYS)
+
+
+async def test_a_store_never_starts_on_an_expired_payload(env):
+    expired = "/app/storage/app/import-payloads/syke/2000-01-01/run-1.ndjson.gz"
+    fake = FakeArtisan(fetch_result=fetched(expired))
+
+    with pytest.raises(WorkflowFailureError):
+        await execute(env, fake, ArtisanJob.run, ArtisanJobInput("syke-fetch", [Step(["syke:fetch"], staged=True)]))
+
+    assert fake.names() == [fetch("syke:fetch")]
+    assert [(r.reason, r.facts) for r in fake.reports] == [("command_failed", {
+        "command": "syke:fetch", "error": "payload_expired", "step": "store", "payload_path": expired,
+        "payload_sha256": SHA256})]
+
+
+async def test_a_replay_of_an_expired_payload_is_refused_before_php(env):
+    expired = "/app/storage/app/import-payloads/jao/2000-01-01/run-1.ndjson.gz"
+    fake = FakeArtisan()
+
+    with pytest.raises(WorkflowFailureError) as failure:
+        await execute(env, fake, ImportReplay.run, ImportReplayInput("jao:fetch", [], expired, SHA256))
+
+    assert failure.value.cause.type == "ReportedFailure"
+    assert fake.calls == []
+    assert [(r.workflow, r.facts["error"], r.facts["step"]) for r in fake.reports] == [
+        ("ImportReplay", "payload_expired", "store")]
+
+
+@pytest.mark.parametrize("command", ["contracts:fetch", "futures:fetch-eex", "futures:fetch-eex-europe"])
+@pytest.mark.parametrize("case", ["path_yesterday", "explicit_yesterday", "path_and_date_differ", "no_date"])
+async def test_a_date_bound_replay_of_another_date_is_refused_before_php(env, command, case):
+    today = await helsinki_today(env)
+    yesterday = (datetime.fromisoformat(today) - timedelta(days=1)).date().isoformat()
+    path, day = {
+        "path_yesterday": (payload_of(yesterday), None),
+        "explicit_yesterday": ("/manual/copy.ndjson.gz", yesterday),
+        "path_and_date_differ": (payload_of(yesterday), today),
+        "no_date": ("/manual/copy.ndjson.gz", None),
+    }[case]
+    fake = FakeArtisan()
+
+    with pytest.raises(WorkflowFailureError) as failure:
+        await execute(env, fake, ImportReplay.run, ImportReplayInput(command, [], path, SHA256, day))
+
+    assert failure.value.cause.type == "ReportedFailure"
+    assert fake.calls == []
+    assert [(r.workflow, r.reason) for r in fake.reports] == [("ImportReplay", "wrong_date")]
+
+
+async def test_a_date_bound_replay_of_today_passes_the_date_to_the_store(env):
+    today = await helsinki_today(env)
+    fake = FakeArtisan()
+
+    await execute(env, fake, ImportReplay.run,
+                  ImportReplayInput("futures:fetch-eex-europe", [], "/manual/copy.ndjson.gz", SHA256, today))
+
+    assert [request.date for request in fake.requests] == [today]
+
+
+# Patching: workflows that started before staged imports replay their one-process commands.
+# The histories in tests/histories/ were recorded from the code before this change (FakeArtisan /
+# FakeCommands of these tests): ArtisanJob spot-hourly, EexFutures, ContractImport, SDailyForecast
+# and SWeeklyRefit.
+
+HISTORIES = Path(__file__).parent / "histories"
+# No workflow_failure_exception_types here: with [Exception], a nondeterminism error fails the
+# replayed workflow instead of raising, and replay_workflow() never returns.
+
+
+@pytest.mark.parametrize("name", sorted(path.stem for path in HISTORIES.glob("*.json")))
+async def test_a_workflow_from_before_staged_imports_replays_on_the_new_code(name):
+    history = WorkflowHistory.from_json(name, (HISTORIES / f"{name}.json").read_text())
+    replayer = Replayer(workflows=PRODUCTION_WORKFLOWS)
+    await replayer.replay_workflow(history)
+
+
+async def test_a_new_staged_contract_import_replays_deterministically(env):
+    fake = FakeArtisan()
+    async with Worker(env.client, task_queue=QUEUE, workflows=WORKFLOWS,
+                      activities=[fake.run_command, fake.report_issue],
+                      workflow_failure_exception_types=[Exception]):
+        handle = await env.client.start_workflow(ContractImport.run, MorningInput(await tomorrow(env)),
+                                                 id=f"jobs-test-{uuid.uuid4()}", task_queue=QUEUE)
+        await handle.result()
+    replayer = Replayer(workflows=PRODUCTION_WORKFLOWS)
+    await replayer.replay_workflow(await handle.fetch_history())
+    assert fake.names()[:2] == [fetch("contracts:fetch --skip-logos"), store("contracts:fetch --skip-logos")]
+
+
 # Schedules (independent of the JOBS table: the approved plan and the old Helsinki times)
 
 EXPECTED_SCHEDULES = {
@@ -377,6 +737,7 @@ EXPECTED_SCHEDULES = {
     "jao-fetch": ("collectors", [["jao:fetch"]], [([12], 40, None, None)]),
     "nve-fetch-reservoirs": ("collectors", [["nve:fetch-reservoirs"]], [([15], 30, 3, None)]),
     "feedback-purge-text": ("maintenance", [["feedback:purge-text"]], [([2], 15, None, None)]),
+    "import-payloads-cleanup": ("maintenance", [["import-payloads:cleanup", "--apply"]], [([3], 20, None, None)]),
     "backup-nightly": ("maintenance", [["backup:run", "--only-db"], ["backup:clean"], ["backup:monitor"]], [([3], 0, None, None)]),
     "price-cache-maintenance": ("maintenance", [["contracts:warm-cache", "--pending"], ["contracts:cleanup-price-cache"]], "every-5-minutes"),
     "retail-premiums-calibrate": ("maintenance", [["retail-premiums:calibrate"]], [([8], 0, None, 2)]),
@@ -434,6 +795,29 @@ def test_apply_needs_an_explicit_group_and_selects_only_that_group():
     assert set(select(wanted, None, None)) == set(wanted)
 
 
+# The external API imports of tasks/staged-api-imports/spec.md (scope table).
+STAGED_COMMANDS = {
+    "contracts:fetch", "futures:fetch-eex", "futures:fetch-eex-europe", "spot:fetch", "spot:fetch-neighbours",
+    "spot:fetch-forecast", "entsoe:fetch", "fingrid:fetch", "fingrid:fetch-forecast-vintages", "fmi:fetch",
+    "syke:fetch", "weather:fetch", "gas-storage:fetch", "jao:fetch", "nve:fetch-reservoirs",
+}
+
+
+def all_steps() -> list[Step]:
+    wanted = schedules(Settings.from_env())
+    steps = [step for schedule in wanted.values() if schedule.action.workflow == "ArtisanJob"
+             for step in schedule.action.args[0].steps]
+    return steps + [jobs.EEX_STEP, jobs.CONTRACTS_STEP, jobs.COMPLETION_STEP, jobs.EVALUATION_STEP]
+
+
+def test_exactly_the_external_api_imports_are_staged():
+    steps = all_steps()
+    assert {step.args[0] for step in steps if step.staged} == STAGED_COMMANDS
+    assert all(step.staged for step in steps if step.args[0] in STAGED_COMMANDS)
+    # ImportReplay's self-reporting set is the same as the steps'.
+    assert jobs.SELF_REPORTING_COMMANDS == {step.args[0] for step in steps if step.staged and step.self_reports}
+
+
 def test_claim_based_steps_finish_during_a_deploy_drain():
     wanted = schedules(Settings.from_env())
     steps = {tuple(step.args): step for schedule in wanted.values() if schedule.action.workflow == "ArtisanJob"
@@ -446,6 +830,11 @@ def test_claim_based_steps_finish_during_a_deploy_drain():
     # Every claim-based step ends within the drain, or the end of the drain still kills it.
     protected = [step for step in steps.values() if not step.interruptible] + [jobs.COMPLETION_STEP, jobs.CONTRACTS_STEP]
     limits = [timedelta(minutes=step.timeout_minutes) for step in protected] + [timedelta(minutes=jobs.CONSUMER_TIMEOUT_MINUTES)]
+    # Every store is claim-based (not interruptible); the EEX fetch (6 h) stays interruptible.
+    stores = [jobs.store_step(step, {"path": "p", "sha256": "s"}) for step in all_steps() if step.staged]
+    assert all(not store.interruptible for store in stores)
+    limits += [timedelta(minutes=store.timeout_minutes) for store in stores]
+    assert jobs.EEX_STEP.interruptible is True
     assert max(limits) < GRACEFUL_SHUTDOWN
 
 
@@ -482,6 +871,14 @@ def real_worker(env, activities: Activities, **options) -> Worker:
     return Worker(env.client, task_queue=QUEUE, workflows=WORKFLOWS,
                   activities=[activities.run_command, activities.report_issue],
                   workflow_failure_exception_types=[Exception], max_cached_workflows=0, **options)
+
+
+def activity_env(start_to_close: timedelta | None = None) -> ActivityEnvironment:
+    """ActivityEnvironment's default info has a 1-second start-to-close, which is also run_command's
+    local deadline; None means no deadline."""
+    environment = ActivityEnvironment()
+    environment.info = dataclasses.replace(environment.info, start_to_close_timeout=start_to_close)
+    return environment
 
 
 def calls(path: Path) -> list[str]:
@@ -524,13 +921,41 @@ async def test_a_morning_activity_that_starts_after_its_date_is_refused_before_p
     today = datetime.now(HELSINKI).date()
 
     with pytest.raises(ApplicationError) as refused:
-        await ActivityEnvironment().run(activities.run_command,
-                                        CommandRequest("artisan", ["short"], date=(today - timedelta(days=1)).isoformat()))
+        await activity_env().run(activities.run_command,
+                                 CommandRequest("artisan", ["short"], date=(today - timedelta(days=1)).isoformat()))
 
     assert refused.value.type == "DatePassed" and refused.value.non_retryable
     assert not (tmp_path / "calls.log").exists()
-    result = await ActivityEnvironment().run(activities.run_command,
-                                             CommandRequest("artisan", ["short"], date=today.isoformat()))
+    result = await activity_env().run(activities.run_command,
+                                      CommandRequest("artisan", ["short"], date=today.isoformat()))
+    assert result.result == {"ok": True}
+
+
+async def test_a_command_past_its_start_to_close_is_killed_without_the_server(tmp_path, monkeypatch):
+    """A worker that lost its Temporal connection receives no cancellation: the local deadline still
+    stops a store before its PHP store-lock lease (65 min) can expire under it."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "artisan").write_text(ARTISAN)
+    activities = Activities(real_settings(tmp_path))
+    environment = activity_env(timedelta(seconds=1))  # nothing ever cancels the activity here
+
+    with pytest.raises(ApplicationError) as stopped:
+        # The child sleeps 30 s; without a local deadline this run would end only then.
+        await asyncio.wait_for(environment.run(activities.run_command,
+                                               CommandRequest("artisan", ["sleep-once"], interruptible=False)), 10)
+
+    assert stopped.value.type == "LocalTimeout" and not stopped.value.non_retryable
+    assert not alive(await wait_for(tmp_path / "pid"))
+    # Retried like a server start-to-close timeout (a lost attempt), never as a failed command.
+    for options in (jobs.step_options(Step(["x"])), s_forecast.FETCH_OPTIONS):
+        assert "LocalTimeout" not in options["retry_policy"].non_retryable_error_types
+
+
+async def test_a_command_without_a_start_to_close_has_no_local_deadline(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "artisan").write_text(ARTISAN)
+    result = await activity_env(None).run(Activities(real_settings(tmp_path)).run_command,
+                                          CommandRequest("artisan", ["short"]))
     assert result.result == {"ok": True}
 
 

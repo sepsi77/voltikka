@@ -2,10 +2,15 @@
 
 namespace App\Console\Commands;
 
+use App\Console\Concerns\StagedImport;
 use App\Services\Fingrid\FingridHourlyImporter;
 use App\Services\Fingrid\FingridOpenDataService;
-use Carbon\Carbon;
+use App\Services\ImportPayload\ImportPayloadReader;
+use App\Services\ImportPayload\ImportPayloadWriter;
+use App\Services\ImportPayload\ImportStoreResult;
+use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Throwable;
 
 /**
@@ -14,10 +19,19 @@ use Throwable;
  * Without --from: the daily window (real-time series: last 3 days; Datahub: last 16 days,
  * because Datahub arrives 4 days late and is corrected for 11 days). With --from/--to: a
  * backfill in 7-day pieces. Both end at the start of the current UTC hour, so a partial
- * hour is never stored. Read-only towards Fingrid; upserts locally.
+ * hour is never stored.
+ *
+ * Staged import (StagedImport, tasks/staged-api-imports/design.md): the fetch step records every
+ * page and fixes the window end (`current_hour`) from the fetch time; the store step upserts in
+ * one transaction (a backfill: one per dataset window). Not date-bound (S9). Read-only towards
+ * Fingrid.
  */
 class FetchFingridData extends Command
 {
+    use StagedImport {
+        stagedDataOptions as private allDataOptions;
+    }
+
     protected $signature = 'fingrid:fetch
                             {--from= : Backfill start date (YYYY-MM-DD, UTC)}
                             {--to= : Backfill end date, inclusive (YYYY-MM-DD, UTC; default today)}
@@ -37,82 +51,164 @@ class FetchFingridData extends Command
     public function handle(): int
     {
         $configured = (array) config('fingrid.datasets', []);
-        $requested = array_map('intval', (array) $this->option('dataset'));
+        $requested = $this->requestedDatasetIds();
         $unknown = array_diff($requested, array_keys($configured));
 
-        if ($unknown !== []) {
+        // A replay stores the recorded datasets; only a new fetch needs them in the config.
+        if ($unknown !== [] && $this->option('from-payload') === null) {
             $this->error('Unknown dataset ID(s): '.implode(', ', $unknown));
 
-            return Command::FAILURE;
+            return $this->stagedFailure('fetch', 'invalid_options');
         }
 
         $datasetIds = $requested !== [] ? $requested : array_keys($configured);
-        $currentHour = Carbon::now('UTC')->startOfHour();
 
         try {
             $backfillStart = $this->option('from') !== null
-                ? Carbon::createFromFormat('!Y-m-d', (string) $this->option('from'), 'UTC')
+                ? CarbonImmutable::createFromFormat('!Y-m-d', (string) $this->option('from'), 'UTC')
                 : null;
             $backfillEnd = $this->option('to') !== null
-                ? Carbon::createFromFormat('!Y-m-d', (string) $this->option('to'), 'UTC')->addDay()
-                : $currentHour->copy();
+                ? CarbonImmutable::createFromFormat('!Y-m-d', (string) $this->option('to'), 'UTC')->addDay()
+                : null;
         } catch (Throwable) {
             $this->error('Invalid date. Use YYYY-MM-DD.');
 
-            return Command::FAILURE;
+            return $this->stagedFailure('fetch', 'invalid_options');
         }
 
-        if ($backfillEnd->greaterThan($currentHour)) {
-            $backfillEnd = $currentHour->copy();
-        }
+        return $this->runStaged(
+            fn (ImportPayloadWriter $payload) => $this->fetch($payload, $datasetIds, $backfillStart, $backfillEnd),
+            fn (ImportPayloadReader $payload): ImportStoreResult => $this->store($payload, perWindow: $backfillStart !== null),
+            // A backfill commits per dataset window (S21); the daily run is one transaction.
+            transactional: $backfillStart === null,
+        );
+    }
 
-        $failed = [];
+    protected function stagedImportSource(): string
+    {
+        return 'fingrid';
+    }
 
-        foreach ($datasetIds as $datasetId) {
-            $isDatahub = ($configured[$datasetId]['group'] ?? null) === 'datahub';
-
-            if ($backfillStart !== null) {
-                $windows = $this->chunks($backfillStart, $backfillEnd);
-            } else {
-                $lookback = (int) config($isDatahub ? 'fingrid.datahub_lookback_days' : 'fingrid.realtime_lookback_days');
-                $windows = [[$currentHour->copy()->subDays($lookback), $currentHour->copy()]];
-            }
-
-            $written = 0;
-            try {
-                foreach ($windows as [$start, $end]) {
-                    $rows = $this->client->fetchRows($datasetId, $start, $end);
-                    $written += $this->importer->import($datasetId, $rows, Carbon::now('UTC'));
-                }
-                $this->info("Dataset {$datasetId} ({$configured[$datasetId]['name']}): {$written} hourly rows.");
-            } catch (Throwable $e) {
-                $failed[] = $datasetId;
-                // The exception message can contain the request URL; log only the class.
-                logger()->error('Fingrid fetch failed', [
-                    'dataset_id' => $datasetId,
-                    'exception_class' => $e::class,
-                ]);
-                $this->error("Dataset {$datasetId}: fetch failed (".$e::class.').');
-            }
-        }
-
-        return $failed === [] ? Command::SUCCESS : Command::FAILURE;
+    /** The payload identity holds the dataset IDs as fetched: `0124` and `124` are one dataset. */
+    protected function stagedDataOptions(): array
+    {
+        return [...$this->allDataOptions(), 'dataset' => $this->requestedDatasetIds()];
     }
 
     /**
-     * @return list<array{0: Carbon, 1: Carbon}>
+     * Normalized, once each and sorted: a repeated ID would merge its pages into one window (double
+     * samples) and its failed copy would hide the answered one.
+     *
+     * @return list<int>
      */
-    private function chunks(Carbon $start, Carbon $end): array
+    private function requestedDatasetIds(): array
+    {
+        $ids = array_values(array_unique(array_map('intval', (array) $this->option('dataset'))));
+        sort($ids);
+
+        return $ids;
+    }
+
+    /**
+     * Fetch step: one range per dataset (a backfill: 7-day windows), every page recorded. A failed
+     * dataset stops at its failed request and does not stop the others.
+     *
+     * @param  list<int>  $datasetIds
+     */
+    private function fetch(ImportPayloadWriter $payload, array $datasetIds, ?CarbonImmutable $backfillStart, ?CarbonImmutable $backfillEnd): void
+    {
+        $this->client->assertConfigured();
+        $currentHour = $payload->fetchedAt()->startOfHour();
+        $payload->setFact('current_hour', $currentHour->format('Y-m-d\TH:i:s\Z'));
+        $end = $backfillEnd !== null && $backfillEnd->lessThan($currentHour) ? $backfillEnd : $currentHour;
+
+        foreach ($datasetIds as $datasetId) {
+            if ($backfillStart !== null) {
+                $windows = $this->chunks($backfillStart, $end);
+            } else {
+                $isDatahub = (config("fingrid.datasets.{$datasetId}.group")) === 'datahub';
+                $lookback = (int) config($isDatahub ? 'fingrid.datahub_lookback_days' : 'fingrid.realtime_lookback_days');
+                $windows = [[$currentHour->subDays($lookback), $currentHour]];
+            }
+
+            foreach ($windows as $window => [$start, $windowEnd]) {
+                $failure = $this->client->recordPages($payload, ['dataset' => $datasetId, 'window' => $window], $datasetId, $start, $windowEnd);
+                if ($failure !== null) {
+                    // The exception message can contain the request URL; log only the class.
+                    logger()->error('Fingrid fetch failed', [
+                        'dataset_id' => $datasetId,
+                        'exception_class' => $failure::class,
+                    ]);
+                    $this->error("Dataset {$datasetId}: fetch failed (".$failure::class.').');
+
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
+     * Store step: aggregate and upsert each dataset window from its recorded pages. A window with
+     * a failed page is left out, as before (the dataset stopped there); failed datasets make the
+     * run exit 1 after the commit, and their earlier windows stay (S10).
+     */
+    private function store(ImportPayloadReader $payload, bool $perWindow): ImportStoreResult
+    {
+        $fetchedAt = $payload->fetchedAt();
+        $failedWindows = [];
+        foreach ($payload->end()['failed_units'] as $failed) {
+            $failedWindows["{$failed['dataset']}|{$failed['window']}"] = true;
+        }
+
+        $written = [];
+        $flush = function (?string $key, array $rows) use (&$written, $failedWindows, $fetchedAt, $perWindow): void {
+            if ($key === null || isset($failedWindows[$key])) {
+                return;
+            }
+            $datasetId = (int) strtok($key, '|');
+            $write = fn (): int => $this->importer->import($datasetId, $rows, $fetchedAt);
+            $written[$datasetId] = ($written[$datasetId] ?? 0) + ($perWindow ? DB::transaction($write) : $write());
+        };
+
+        $window = null;
+        $rows = [];
+        foreach ($payload->requests() as $request) {
+            $key = "{$request['unit']['dataset']}|{$request['unit']['window']}";
+            if ($key !== $window) {
+                $flush($window, $rows);
+                [$window, $rows] = [$key, []];
+            }
+            if (! isset($failedWindows[$key])) {
+                array_push($rows, ...FingridOpenDataService::page((string) ImportPayloadReader::body($request))['rows']);
+            }
+        }
+        $flush($window, $rows);
+
+        foreach ($written as $datasetId => $count) {
+            $this->info("Dataset {$datasetId} (".config("fingrid.datasets.{$datasetId}.name")."): {$count} hourly rows.");
+        }
+
+        return new ImportStoreResult(
+            ['hourly_rows' => array_sum($written)],
+            error: $payload->complete() ? null : 'fetch_incomplete',
+            errorStep: 'fetch',
+        );
+    }
+
+    /**
+     * @return list<array{0: CarbonImmutable, 1: CarbonImmutable}>
+     */
+    private function chunks(CarbonImmutable $start, CarbonImmutable $end): array
     {
         $chunks = [];
-        $cursor = $start->copy();
+        $cursor = $start;
 
         while ($cursor->lessThan($end)) {
-            $chunkEnd = $cursor->copy()->addDays(self::BACKFILL_CHUNK_DAYS);
+            $chunkEnd = $cursor->addDays(self::BACKFILL_CHUNK_DAYS);
             if ($chunkEnd->greaterThan($end)) {
-                $chunkEnd = $end->copy();
+                $chunkEnd = $end;
             }
-            $chunks[] = [$cursor->copy(), $chunkEnd];
+            $chunks[] = [$cursor, $chunkEnd];
             $cursor = $chunkEnd;
         }
 

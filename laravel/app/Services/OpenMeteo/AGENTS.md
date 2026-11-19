@@ -24,11 +24,16 @@ long HTTP 503 "overloaded" periods on 2026-11-02 (archive and previous-runs abou
 
 ## Files
 
-- `OpenMeteoService.php` – read-only client (no key): archive (daily and hourly), forecast
-  (hourly), ensemble/seasonal outlooks, and best-effort model-run metadata. Waits between calls; retries 429, 5xx and connection errors.
-- `OpenMeteoWeatherImporter.php` – upserts observed days and hours; stores one outlook row and
-  one hourly forecast row per distinct payload; checks every response unit.
-- `../../Console/Commands/FetchWeather.php` – `php artisan weather:fetch`.
+- `OpenMeteoService.php` – read-only client (no key): builds the archive (daily and hourly),
+  forecast (hourly) and ensemble/seasonal outlook requests, sends them (`fetch()`, raw
+  `Response`) and reads the best-effort model-run metadata (`fetchMeta()`, any status;
+  `modelRunAt()` parses a saved answer). Waits between calls; retries 429, 5xx and connection
+  errors. It never parses a data body.
+- `OpenMeteoWeatherImporter.php` – `decode()` parses a saved body; upserts observed days and
+  hours; stores one outlook row and one hourly forecast row per distinct payload; checks every
+  response unit.
+- `../../Console/Commands/FetchWeather.php` – `php artisan weather:fetch`, a staged import (see
+  "Staged import").
 - `../../Console/Commands/ImportResearchWeatherRuns.php` – one-time import of the S model training
   weather (`ecmwf_00z` runs, `ecmwf_prev_day1` southern temperature) from the git-ignored research
   cache through the same importer; dry run by default (user approval of the import 2026-11-06).
@@ -145,6 +150,50 @@ long HTTP 503 "overloaded" periods on 2026-11-02 (archive and previous-runs abou
   day (09:40 and 13:40 Helsinki), before both Fingrid cuts. Do not change the model, variable,
   points or weights without a new model version.
 
+## Staged import (2026-11-19, `tasks/staged-api-imports/`)
+
+`weather:fetch` uses `App\Console\Concerns\StagedImport` (`../ImportPayload/AGENTS.md`): the
+fetch step saves every answer of one run in one payload file
+(`storage/app/import-payloads/open-meteo/<Helsinki date>/<run-id>.ndjson.gz`), the store step
+parses that file and writes the rows. Modes: default (fetch, then store from the file),
+`--fetch-only`, and `--from-payload=<path>` (no API call, no backfill pause). Every scheduled form
+(default, `--only=ecmwf_ec46|ecmwf_seas5|solar_ghi|ecmwf_00z|ecmwf_prev_day1`) works in all three.
+
+- Units: `{part, point, from, to}` for observed pieces, `{part, point}` for outlook and hourly
+  forecast points, `{part, meta: run|before|after}` for the metadata answers.
+- Header facts (S5): `yesterday`, `windows` (the observed window or the backfill year pieces),
+  `models` (per selected part: `kind` (`observed`, `observed_hourly`, `outlook`,
+  `hourly_forecast`), `model`, `variables`, and for an hourly forecast `time_shift_seconds` and
+  `run_hour_utc`; the store writes these, never the current config, so a config change cannot
+  relabel saved answers; a header without the model of a saved part, as in a payload written
+  before 2026-11-19's fix, is refused `payload_invalid`/`incomplete` before any write),
+  `single_runs` (the `ecmwf_00z` plan: `run_date` (Helsinki day of `fetched_at`), `issued_at`,
+  `already_stored`, `requested`), and `request_fetched_at` (unit key → UTC time right after each
+  answered data request). Stored `fetched_at` is that time, as before the staged import, never the
+  store time; `SForecastReadiness` selects `issued_at`-null vintages by `fetched_at <= cut`.
+- `issued_at`/`model_run_at` are decided in the store from the saved metadata bodies:
+  `solar_ghi` only when `before` equals `after`; outlooks from `run`; `ecmwf_00z` from the plan;
+  `ecmwf_prev_day1` null.
+- S19: the `ecmwf_00z` fetch reads `hourly_forecast_runs` and requests only the points missing
+  for the run; a replay stores what the file holds (duplicates are ignored by `payload_hash`).
+  Its HTTP 400 "not available" answer is saved with its body as an answered request (not a failed
+  unit); the store reports the wait and exits 0.
+- Failures keep today's exit codes: a failed data request is a failed unit (`fetch_incomplete`,
+  step `fetch`, exit 1, after the other points are stored); a body with a wrong unit or shape
+  fails its point in the store (`invalid_response`, exit 1). A metadata request without an answer
+  is also a failed unit, so the line says `complete: false`, but the exit stays 0 and issued_at is
+  null, as before. A database error fails the whole store (`store_failed` with SQLSTATE, driver
+  code and table) and nothing of the run is written.
+- Transactions (S21): one per store step; a `--from/--to` backfill commits once per point and
+  calendar-year piece, so a failed piece keeps the earlier pieces (all upserts, so a replay of the
+  whole file is safe).
+- A failed data request is counted in `failed_points` even after a parser error earlier in the
+  same point (the invalid-point skip comes after the status check), so such a run stays
+  `fetch_incomplete`.
+- S9: not date-bound, and a stored vintage keeps its own `fetched_at`/`issued_at`. A replay
+  stores only the newest payload: an older one is refused `superseded` when a newer payload of
+  the same options exists (shared rule, `../ImportPayload/AGENTS.md`).
+
 ## API budget (free tier: < 10,000 calls/day, 5,000/hour, 600/minute)
 
 A request with more than 10 variables or more than 2 weeks of data counts as several calls
@@ -194,6 +243,6 @@ php artisan weather:fetch --from=2023-01-01 --only=observed_hourly  # hourly win
 ```
 
 `--point` limits every selected part to those keys; a part without any of them is skipped, and a
-point that no selected part uses is an error. A failed point does not stop the others; the run
-then exits 1. Logs contain the part, point,
-date range and exception class only (no URL).
+point that no selected part uses is an error (`invalid_options`). A failed point does not stop the
+others; the run then exits 1. Logs contain the part, point, date range and exception class only
+(no URL). Add `--fetch-only` or `--from-payload=<path>` to any of these (see "Staged import").

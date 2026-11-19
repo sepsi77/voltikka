@@ -4,6 +4,7 @@ namespace App\Services\Nve;
 
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
@@ -11,37 +12,29 @@ use RuntimeException;
  * Read-only client for NVE Magasinstatistikk (https://biapi.nve.no/magasinstatistikk).
  *
  * Two endpoints: the full weekly history from 1995 (about 4 MB, one request) and the
- * min/median/max per ISO week for the last twenty years. Every request after the first waits
- * for the configured delay. HTTP 429, 5xx and connection failures are retried.
+ * min/median/max per ISO week for the last twenty years. The staged import
+ * (FetchNveReservoirs) records each raw response; parse() reads a saved body. Every request
+ * after the first waits for the configured delay. HTTP 429, 5xx and connection failures are retried.
  */
 class NveReservoirService
 {
+    public const WEEKS = 'HentOffentligData';
+
+    public const REFERENCES = 'HentOffentligDataMinMaxMedian';
+
     private ?float $lastRequestAt = null;
 
-    /**
-     * @return list<array<string, mixed>>
-     *
-     * @throws RequestException|ConnectionException
-     */
-    public function fetchWeeks(): array
+    public function url(string $endpoint): string
     {
-        return $this->get('HentOffentligData');
+        return rtrim((string) config('nve.base_url'), '/').'/'.$endpoint;
     }
 
     /**
-     * @return list<array<string, mixed>>
+     * The raw response of one endpoint; a failed status after retries throws.
      *
      * @throws RequestException|ConnectionException
      */
-    public function fetchReferences(): array
-    {
-        return $this->get('HentOffentligDataMinMaxMedian');
-    }
-
-    /**
-     * @return list<array<string, mixed>>
-     */
-    private function get(string $endpoint): array
+    public function request(string $endpoint): Response
     {
         $this->waitForRateLimit();
 
@@ -56,11 +49,21 @@ class NveReservoirService
                 return $exception instanceof RequestException
                     && ($exception->response->status() === 429 || $exception->response->serverError());
             })
-            ->get(rtrim((string) config('nve.base_url'), '/').'/'.$endpoint);
+            ->get($this->url($endpoint));
 
-        $response->throw();
+        return $response->throw();
+    }
 
-        $payload = $response->json();
+    /**
+     * The rows of one saved response body.
+     *
+     * @return list<array<string, mixed>>
+     *
+     * @throws RuntimeException
+     */
+    public function parse(string $endpoint, string $body): array
+    {
+        $payload = json_decode($body, true);
         if (! is_array($payload) || ! array_is_list($payload)) {
             throw new RuntimeException("NVE {$endpoint} returned an unexpected payload.");
         }

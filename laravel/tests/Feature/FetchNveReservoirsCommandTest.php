@@ -2,10 +2,16 @@
 
 namespace Tests\Feature;
 
+use App\Services\ImportPayload\ImportPayloadReader;
+use App\Services\Nve\NveReservoirService;
 use Carbon\Carbon;
+use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Factory;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 class FetchNveReservoirsCommandTest extends TestCase
@@ -136,5 +142,199 @@ class FetchNveReservoirsCommandTest extends TestCase
 
         $this->assertSame(1, DB::table('nve_reservoir_weeks')->count());
         $this->assertEqualsWithDelta(0.70, DB::table('nve_reservoir_weeks')->value('filling_ratio'), 0.0000001);
+    }
+
+    public function test_default_mode_and_fetch_only_then_from_payload_write_the_same_rows(): void
+    {
+        $this->fakeNve($this->history());
+
+        $this->assertSame(0, Artisan::call('nve:fetch-reservoirs'));
+        $defaultRows = $this->storedRows();
+        $this->assertSame(['weeks' => 2, 'references' => 2], $this->lastJsonLine()['counts']);
+
+        DB::table('nve_reservoir_weeks')->delete();
+        DB::table('nve_reservoir_week_references')->delete();
+        $this->assertSame(0, Artisan::call('nve:fetch-reservoirs', ['--fetch-only' => true]));
+        $payload = $this->lastJsonLine()['payload'];
+        $this->assertSame([0, 0], [DB::table('nve_reservoir_weeks')->count(), DB::table('nve_reservoir_week_references')->count()], 'Fetch only writes no rows.');
+
+        // A store in the next ISO year keeps the fetch's current year and fetch time (S5): the
+        // reference period stays 2006-2025 and the default range stays from 2025.
+        Carbon::setTestNow(Carbon::create(2027, 1, 6, 9, 0, 0, 'UTC'));
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        $this->assertSame(0, Artisan::call('nve:fetch-reservoirs', ['--from-payload' => $payload['path'], '--payload-sha256' => $payload['sha256']]));
+        Http::assertNothingSent();
+
+        $this->assertSame($defaultRows, $this->storedRows());
+        $this->assertSame(['2026-11-01 07:30:00'], DB::table('nve_reservoir_weeks')->distinct()->pluck('fetched_at')->all());
+    }
+
+    public function test_store_failure_writes_no_row_keeps_the_payload_reports_safe_sql_facts_and_replays(): void
+    {
+        $this->fakeNve($this->history());
+        Log::spy();
+        // The reference upsert fails after the weekly upsert succeeded inside the same transaction.
+        DB::statement("CREATE TRIGGER fail_nve_reference BEFORE INSERT ON nve_reservoir_week_references BEGIN SELECT RAISE(ABORT, 'forced failure'); END");
+
+        $this->assertSame(1, Artisan::call('nve:fetch-reservoirs'));
+        $output = Artisan::output();
+        $payloads = glob(config('import_payloads.path').'/nve/2026-11-01/*.ndjson.gz');
+        $this->assertCount(1, $payloads, 'The payload stays after a failed store.');
+
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'store_failed',
+            'payload_path' => $payloads[0], 'payload_sha256' => hash_file('sha256', $payloads[0]),
+            'sqlstate' => '23000', 'driver_code' => 19, 'table' => 'nve_reservoir_week_references',
+        ], $this->lastJsonLine($output));
+        foreach (['forced failure', '0.715', '0.69537306'] as $binding) {
+            $this->assertStringNotContainsString($binding, $output);
+        }
+        $this->assertSame(0, DB::table('nve_reservoir_weeks')->count(), 'A failed store writes no row of the run (S21).');
+        Log::shouldHaveReceived('error')->once()->withArgs(function (string $message, array $context): bool {
+            $this->assertSame('Import failed: nve:fetch-reservoirs', $message);
+            $this->assertSame(['23000', 19, 'nve_reservoir_week_references', 'store'], [$context['sqlstate'], $context['driver_code'], $context['table'], $context['step']]);
+            $this->assertStringNotContainsString('forced failure', json_encode($context));
+            $this->assertStringNotContainsString('0.715', json_encode($context));
+
+            return true;
+        });
+
+        DB::statement('DROP TRIGGER fail_nve_reference'); // the fix
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        $this->assertSame(0, Artisan::call('nve:fetch-reservoirs', ['--from-payload' => $payloads[0]]));
+        $this->assertSame([2, 2], [DB::table('nve_reservoir_weeks')->count(), DB::table('nve_reservoir_week_references')->count()]);
+        Http::assertNothingSent();
+    }
+
+    public function test_a_rejected_history_stays_in_the_payload_and_a_corrected_parser_stores_it_without_http(): void
+    {
+        Http::fake([
+            self::REFERENCES_URL => Http::response($this->references()),
+            // A changed envelope that today's parser rejects.
+            self::WEEKS_URL => Http::response(['items' => $this->history()]),
+        ]);
+
+        // Both answers are recorded unparsed; no unit failed in the fetch.
+        $this->assertSame(0, Artisan::call('nve:fetch-reservoirs', ['--fetch-only' => true]));
+        $reference = $this->lastJsonLine()['payload'];
+        $this->assertSame([2, 0, true], [$reference['requests'], $reference['failed_units'], $reference['complete']]);
+        $saved = collect(ImportPayloadReader::open($reference['path'])->requests())->firstWhere('unit.dataset', 'weeks');
+        $this->assertSame(200, $saved['status']);
+        $this->assertStringContainsString('"items"', ImportPayloadReader::body($saved));
+
+        // The current parser rejects the history in the store step: no weeks, and without the
+        // history the reference period cannot be proved, so no reference either. The request was
+        // answered, so this is a store failure, not a fetch failure.
+        Log::spy();
+        $this->assertSame(1, Artisan::call('nve:fetch-reservoirs', ['--from-payload' => $reference['path']]));
+        $line = $this->lastJsonLine();
+        $this->assertSame(['failed', 'store', 'invalid_response'], [$line['status'], $line['step'], $line['error']]);
+        Log::shouldHaveReceived('error')->withArgs(fn (string $message, array $context) => $message === 'NVE reservoir store failed'
+            && $context['unit'] === 'weeks')->once();
+        $this->assertSame(['weeks' => 0, 'references' => 0], $line['counts']);
+        $this->assertSame([0, 0], [DB::table('nve_reservoir_weeks')->count(), DB::table('nve_reservoir_week_references')->count()]);
+
+        // After a parser fix, the same file stores both without a new request.
+        $this->app->instance(NveReservoirService::class, new class extends NveReservoirService
+        {
+            public function parse(string $endpoint, string $body): array
+            {
+                $rows = json_decode($body, true)['items'] ?? null;
+
+                return is_array($rows) ? $rows : parent::parse($endpoint, $body);
+            }
+        });
+        $this->app[Kernel::class]->setArtisan(null); // resolve the command again with the fixed parser
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        $this->assertSame(0, Artisan::call('nve:fetch-reservoirs', ['--from-payload' => $reference['path']]));
+        Http::assertNothingSent();
+        $this->assertSame(['weeks' => 2, 'references' => 2], $this->lastJsonLine()['counts']);
+        $this->assertSame([2, 2], [DB::table('nve_reservoir_weeks')->count(), DB::table('nve_reservoir_week_references')->count()]);
+    }
+
+    public function test_rejects_an_invalid_year_without_requests(): void
+    {
+        Http::fake();
+
+        $this->assertSame(1, Artisan::call('nve:fetch-reservoirs', ['--from-year' => '20x5']));
+
+        $this->assertSame(['status' => 'failed', 'step' => 'fetch', 'error' => 'invalid_options'], $this->lastJsonLine());
+        Http::assertNothingSent();
+        $this->assertSame([], glob(config('import_payloads.path').'/nve/*'));
+    }
+
+    public function test_an_unproved_reference_period_keeps_the_weeks_and_fails_with_its_own_key(): void
+    {
+        Http::fake([
+            self::REFERENCES_URL => Http::response($this->references(0.70)),
+            self::WEEKS_URL => Http::response($this->history()),
+        ]);
+
+        $this->assertSame(1, Artisan::call('nve:fetch-reservoirs'));
+
+        $line = $this->lastJsonLine();
+        $this->assertSame(['failed', 'store', 'reference_period_unproved', true], [$line['status'], $line['step'], $line['error'], $line['complete']]);
+        $this->assertSame(['weeks' => 2, 'references' => 0], $line['counts']);
+        $this->assertSame(2, DB::table('nve_reservoir_weeks')->count());
+    }
+
+    /**
+     * A replay stores only the newest payload: an older same-day payload is refused as
+     * superseded and writes nothing, so the newer revised week stays.
+     */
+    public function test_an_older_same_day_payload_is_refused_as_superseded_and_writes_nothing(): void
+    {
+        $this->fakeNve($this->history());
+        Artisan::call('nve:fetch-reservoirs', ['--from-year' => '2026']);
+        $older = $this->lastJsonLine()['payload']['path'];
+
+        $revised = $this->history();
+        $revised[22] = $this->week(2026, 0.70);
+        Carbon::setTestNow(Carbon::create(2026, 11, 1, 15, 0, 0, 'UTC'));
+        $this->fakeNve($revised);
+        Artisan::call('nve:fetch-reservoirs', ['--from-year' => '2026']);
+
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        $this->assertSame(1, Artisan::call('nve:fetch-reservoirs', ['--from-year' => '2026', '--from-payload' => $older]));
+
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'payload_invalid', 'reason' => 'superseded',
+            'payload_path' => $older, 'payload_sha256' => hash_file('sha256', $older),
+        ], $this->lastJsonLine());
+        $row = DB::table('nve_reservoir_weeks')->sole();
+        $this->assertEqualsWithDelta(0.70, $row->filling_ratio, 0.0000001);
+        $this->assertSame('2026-11-01 15:00:00', $row->fetched_at);
+    }
+
+    private function fakeNve(array $history): void
+    {
+        Http::swap(new Factory);
+        Http::fake([
+            self::REFERENCES_URL => Http::response($this->references()),
+            self::WEEKS_URL => Http::response($history),
+        ]);
+    }
+
+    /** @return array<string, list<array<string, mixed>>> */
+    private function storedRows(): array
+    {
+        $strip = fn ($row) => array_diff_key((array) $row, array_flip(['id', 'created_at', 'updated_at']));
+
+        return [
+            'weeks' => DB::table('nve_reservoir_weeks')->orderBy('area_type')->orderBy('iso_year')->orderBy('iso_week')->get()->map($strip)->all(),
+            'references' => DB::table('nve_reservoir_week_references')->orderBy('area_type')->orderBy('iso_week')->get()->map($strip)->all(),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function lastJsonLine(?string $output = null): array
+    {
+        $lines = array_values(array_filter(explode("\n", trim($output ?? Artisan::output()))));
+
+        return json_decode(end($lines), true, flags: JSON_THROW_ON_ERROR);
     }
 }

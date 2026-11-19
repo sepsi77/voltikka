@@ -5,11 +5,16 @@ namespace Tests\Feature;
 use App\Console\Commands\FetchEexEuropeFutures;
 use App\Models\DataFreshnessCheckpoint;
 use App\Models\ElectricityFuturesEodPrice;
+use App\Services\ImportPayload\ImportPayloadReader;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 class FetchEexEuropeFuturesCommandTest extends TestCase
@@ -108,6 +113,127 @@ class FetchEexEuropeFuturesCommandTest extends TestCase
         $this->artisan('futures:fetch-eex-europe')->assertExitCode(1);
 
         Http::assertNothingSent();
+    }
+
+    public function test_default_mode_and_fetch_only_then_from_payload_write_the_same_rows(): void
+    {
+        Http::fake(fn (Request $request) => Http::response($this->eodResponse($request)));
+        $options = ['--short-code' => ['DEBM', 'FEUA']];
+
+        $this->assertSame(0, Artisan::call('futures:fetch-eex-europe', $options));
+        $this->assertSame(['saved_points' => 8, 'failures' => 0], $this->lastJsonLine()['counts']);
+        $defaultRows = $this->storedRows();
+        $this->assertCount(8, $defaultRows);
+
+        ElectricityFuturesEodPrice::query()->delete();
+        $this->assertSame(0, Artisan::call('futures:fetch-eex-europe', [...$options, '--fetch-only' => true]));
+        $payload = $this->lastJsonLine()['payload'];
+        $this->assertSame(0, ElectricityFuturesEodPrice::count(), 'Fetch only writes no rows.');
+        $this->assertSame('2026-11-01', ImportPayloadReader::open($payload['path'])->fact('effective_date'));
+
+        Carbon::setTestNow(Carbon::create(2026, 11, 1, 15, 0, 0, 'Europe/Helsinki'));
+        $this->preventHttp();
+        $this->assertSame(0, Artisan::call('futures:fetch-eex-europe', [
+            ...$options, '--from-payload' => $payload['path'], '--payload-sha256' => $payload['sha256'],
+        ]));
+        Http::assertNothingSent();
+        $this->assertSame($defaultRows, $this->storedRows());
+        $this->assertSame(0, DataFreshnessCheckpoint::count());
+    }
+
+    public function test_store_failure_writes_no_row_logs_safe_sql_facts_and_replays(): void
+    {
+        Http::fake(fn (Request $request) => Http::response($this->eodResponse($request)));
+        Log::spy();
+        // A row from before the run with the key of the run's first point, at another price.
+        DB::table('electricity_futures_eod_prices')->insert([
+            'exchange' => 'EEX', 'commodity' => 'POWER', 'pricing' => 'F', 'product' => 'Base', 'area' => 'DE',
+            'short_code' => 'DEBM', 'maturity' => '202611', 'maturity_type' => 'month', 'trade_date' => '2026-10-30', 'settlement_price' => 1.0,
+        ]);
+        $preRun = $this->storedRows();
+        // The last of the six DEBM maturities fails after the first five upserts succeeded.
+        DB::statement("CREATE TRIGGER fail_eex_prices BEFORE INSERT ON electricity_futures_eod_prices WHEN NEW.maturity = '202704' BEGIN SELECT RAISE(ABORT, 'forced failure'); END");
+
+        $this->assertSame(1, Artisan::call('futures:fetch-eex-europe', ['--short-code' => ['DEBM']]));
+        $output = Artisan::output();
+
+        $payloads = glob(config('import_payloads.path').'/eex-europe/2026-11-01/*.ndjson.gz');
+        $this->assertCount(1, $payloads, 'The payload stays after a failed store.');
+        $file = ['payload_path' => $payloads[0], 'payload_sha256' => hash_file('sha256', $payloads[0])];
+        $storeError = ['sqlstate' => '23000', 'driver_code' => 19, 'table' => 'electricity_futures_eod_prices'];
+        $this->assertSame(['status' => 'failed', 'step' => 'store', 'error' => 'store_failed', ...$file, ...$storeError], $this->lastJsonLine($output));
+        foreach (['223.04', 'forced failure'] as $binding) {
+            $this->assertStringNotContainsString($binding, $output);
+        }
+        $this->assertSame($preRun, $this->storedRows(), 'A failed store writes no row of the run, and the pre-run row keeps its price (S21).');
+        Log::shouldHaveReceived('error')->once()->withArgs(function (string $message, array $context) use ($storeError): bool {
+            $this->assertSame('Import failed: futures:fetch-eex-europe', $message);
+            $this->assertSame(['step' => 'store', ...$storeError], array_intersect_key($context, ['step' => true, ...$storeError]));
+            $this->assertStringNotContainsString('223.04', json_encode($context));
+            $this->assertStringNotContainsString('forced failure', json_encode($context));
+
+            return true;
+        });
+
+        DB::statement('DROP TRIGGER fail_eex_prices'); // the fix
+        $this->preventHttp();
+        $this->assertSame(0, Artisan::call('futures:fetch-eex-europe', ['--short-code' => ['DEBM'], '--from-payload' => $payloads[0]]));
+        Http::assertNothingSent();
+        $this->assertSame(6, ElectricityFuturesEodPrice::count(), 'The run overwrites the pre-run row.');
+        $this->assertEqualsWithDelta(223.04, ElectricityFuturesEodPrice::query()->where('maturity', '202611')->sole()->settlement_price, 0.0001);
+    }
+
+    public function test_a_payload_from_another_helsinki_date_is_refused(): void
+    {
+        Http::fake(fn (Request $request) => Http::response($this->eodResponse($request)));
+        Artisan::call('futures:fetch-eex-europe', ['--short-code' => ['FEUA'], '--fetch-only' => true]);
+        $path = $this->lastJsonLine()['payload']['path'];
+
+        Carbon::setTestNow(Carbon::create(2026, 11, 2, 0, 10, 0, 'Europe/Helsinki'));
+        $this->preventHttp();
+        $this->assertSame(1, Artisan::call('futures:fetch-eex-europe', ['--short-code' => ['FEUA'], '--from-payload' => $path]));
+
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'payload_invalid', 'reason' => 'wrong_date',
+            'payload_path' => $path, 'payload_sha256' => hash_file('sha256', $path),
+        ], $this->lastJsonLine());
+        $this->assertSame(0, ElectricityFuturesEodPrice::count());
+    }
+
+    public function test_a_partial_fetch_stores_the_answered_requests_and_says_fetch_incomplete(): void
+    {
+        Http::fake(fn (Request $request) => $request['shortCode'] === 'DEBY'
+            ? Http::response('private body', 400)
+            : Http::response($this->eodResponse($request)));
+
+        $this->assertSame(1, Artisan::call('futures:fetch-eex-europe', ['--short-code' => ['DEBY', 'FEUA']]));
+
+        $line = $this->lastJsonLine();
+        $this->assertSame(['failed', 'fetch', 'fetch_incomplete', false], [$line['status'], $line['step'], $line['error'], $line['complete']]);
+        $this->assertSame(['saved_points' => 2, 'failures' => 3], $line['counts']);
+        $this->assertSame(2, ElectricityFuturesEodPrice::count());
+    }
+
+    private function preventHttp(): void
+    {
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        Http::fake([]);
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function storedRows(): array
+    {
+        return DB::table('electricity_futures_eod_prices')->orderBy('short_code')->orderBy('maturity')->orderBy('trade_date')->get()
+            ->map(fn ($row) => array_diff_key((array) $row, array_flip(['id', 'created_at', 'updated_at'])))->all();
+    }
+
+    /** @return array<string, mixed> */
+    private function lastJsonLine(?string $output = null): array
+    {
+        $lines = array_values(array_filter(explode("\n", trim($output ?? Artisan::output()))));
+
+        return json_decode(end($lines), true, flags: JSON_THROW_ON_ERROR);
     }
 
     public function test_maturity_rules(): void

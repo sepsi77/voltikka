@@ -7,12 +7,15 @@ Nothing public reads these rows yet. Task context: `../../../../market-review/`
 
 ## Files
 
-- `FingridOpenDataService.php` – read-only API client: pagination (`pageSize` 20000), one request
-  per `fingrid.request_delay_seconds` (default 2.5 s), retries on HTTP 429, 5xx and connection errors.
+- `FingridOpenDataService.php` – read-only API client: `recordPages()` records every page of one
+  range on the import payload, following `nextPage` (`pageSize` 20000); `page()` reads a recorded
+  body. One request per `fingrid.request_delay_seconds` (default 2.5 s), retries on HTTP 429, 5xx
+  and connection errors.
 - `FingridHourlyImporter.php` – hourly mean per dataset + series key, upserted into
   `fingrid_hourly_values`.
-- `FingridForecastVintageImporter.php` – one append-only `hourly_forecast_runs` row per distinct
-  forecast vintage (source `fingrid`, product = dataset ID, point '').
+- `FingridForecastVintageImporter.php` – `series()` builds the hourly series; `store()` inserts one
+  append-only `hourly_forecast_runs` row per distinct forecast vintage (source `fingrid`, product =
+  dataset ID, point '').
 - `../../Console/Commands/FetchFingridData.php` – `php artisan fingrid:fetch`.
 - `../../Console/Commands/FetchFingridForecastVintages.php` –
   `php artisan fingrid:fetch-forecast-vintages`.
@@ -60,6 +63,44 @@ Nothing public reads these rows yet. Task context: `../../../../market-review/`
 - Datahub (358, 361, 364) arrives about 4 days late and is corrected for 11 days, so the daily run
   fetches the last 16 days for them and the last 3 days for real-time series.
 
+## Staged import (fetch, then store)
+
+Both commands follow `../ImportPayload/AGENTS.md` (source directory `fingrid`). The key travels in
+the `x-api-key` header, which a payload never records (tests prove the key is not in the file).
+
+- `fingrid:fetch`: unit `{dataset, window, page}`. Header fact `current_hour` (the window end).
+  The store aggregates and upserts each dataset window with the header `fetched_at`: one
+  transaction for the daily run, one per 7-day window for a backfill (`--from`). A window with a
+  failed page is left out; failed datasets make the store exit 1 with `fetch_incomplete` after
+  the commit (S10).
+- `fingrid:fetch-forecast-vintages`: unit `{dataset, page}`. Header facts `first_hour`, `hours`
+  (horizon per dataset) and `variables` (the `values` key per dataset, from
+  `fingrid.forecast_vintages.<id>.variable` at fetch time; PR #31 review). The store labels each
+  vintage with the recorded variable, never the current config, so a config rename cannot relabel
+  a replay; a payload with rows for a dataset but no recorded variable (files written before this
+  fact) or no positive recorded horizon is refused `payload_invalid`, reason `incomplete`, with no
+  write. Only a new fetch checks `--dataset` against `fingrid.forecast_vintages`; a `--from-payload`
+  store needs no configured dataset, because it reads only the recorded facts, so a payload stays
+  replayable after its dataset left the config (CodeRabbit round 3, PR #31;
+  `test_a_payload_replays_after_its_dataset_was_removed_from_config`). `fingrid:fetch` keeps the
+  configured-dataset check in every mode. The store inserts each vintage with the header `fetched_at` as
+  its vintage time (`issued_at` stays null), so a replay never moves a vintage past the S model's
+  `fetched_at <= cut` filter. A response without a complete hour exits 1 with `no_complete_hour`
+  (step store).
+- Not date-bound (S9), but a `--from-payload` store of an older payload is refused
+  (`payload_invalid`, `superseded`, no write) while a newer usable payload of the same options
+  exists (shared rule, `../ImportPayload/AGENTS.md`). The newest payload of a failed store still
+  replays. Without a newer file, `fingrid:fetch` upserts the payload's values and fetch time; the
+  vintage command inserts its vintage only when that payload hash is not stored yet.
+- `--dataset` IDs are normalized (`intval`) and deduplicated before planning in both commands
+  (review PR #31): a repeated ID (`--dataset=188 --dataset=0188`) shared one unit key, so its
+  pages merged into one window (double samples) and a failed copy hid the answered one. Tests
+  `test_a_repeated_dataset_option_fetches_the_dataset_once` in both command tests. The same
+  normalized list (unique integer IDs, sorted) is the payload's `dataset` option: both commands
+  override `stagedDataOptions()`, so the header records `[245]` for `--dataset=0245`, and the
+  `options_mismatch` and `superseded` checks treat `0245` and `245` as one option set (CodeRabbit
+  round 3, PR #31; `test_dataset_ids_compare_normalized_for_supersede_and_replay` in both tests).
+
 ## Commands
 
 ```bash
@@ -67,11 +108,14 @@ php artisan fingrid:fetch                                  # daily window (sched
 php artisan fingrid:fetch --dataset=188 --dataset=75       # only some datasets
 php artisan fingrid:fetch --from=2025-10-01 --to=2026-10-31 # backfill in 7-day pieces
 php artisan fingrid:fetch-forecast-vintages                # one 245 vintage (1 request)
+php artisan fingrid:fetch --fetch-only                     # payload only, prints its reference
+php artisan fingrid:fetch --from-payload=<path>            # store a saved payload, no API call
 ```
 
 The vintage command has no backfill: past vintages cannot be fetched again. Cost: one request
 (288 rows, one page) per run. Hourly runs are 24 requests per day of the 10,000 per key and add
 about 8,760 rows (about 6 MB) per year.
 
-A failed dataset does not stop the others; the run then exits 1, and the scheduler failure
-listener logs it. Logs contain the dataset ID and exception class only (no URL or key).
+A failed dataset does not stop the others; the run then exits 1, and the last stdout line is the
+closed JSON result (`fetch_incomplete`). Logs contain the dataset ID and exception class only (no
+URL or key).

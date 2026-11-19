@@ -43,6 +43,7 @@ class WebSchedulerTest extends TestCase
             'backup:clean',
             'backup:monitor',
             'feedback:purge-text',
+            'import-payloads:cleanup --apply',
             'retail-premiums:calibrate',
             'social:weekly-offers-video',
         ],

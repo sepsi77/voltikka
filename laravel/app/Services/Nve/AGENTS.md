@@ -6,7 +6,8 @@ public reads these rows yet. Task context: `../../../../market-review/` (G10).
 
 ## Files
 
-- `NveReservoirService.php` – read-only client for
+- `NveReservoirService.php` – read-only client (`request()` returns the raw response, `parse()`
+  reads a saved body) for
   `https://biapi.nve.no/magasinstatistikk/api/Magasinstatistikk/` (no key; Swagger at
   `/magasinstatistikk/swagger/v1/swagger.json`):
   - `HentOffentligData` – full weekly history from 1995 (about 4 MB, ~15,000 rows for 9 areas).
@@ -38,6 +39,21 @@ public reads these rows yet. Task context: `../../../../market-review/` (G10).
   reports quote another median (about 84.6 %); cite NVE's own figure and its period.
 - A failed weekly fetch also fails the reference unit (no proof possible); the run exits 1. Logs
   contain the unit and exception class only.
+- Staged import (`App\Console\Concerns\StagedImport`, `../ImportPayload/AGENTS.md`;
+  `import-payloads/nve/<date>/`): the fetch step always requests both endpoints (units
+  `{dataset: weeks|references}`) and fixes the ISO `current_year` and `from_year` in the header,
+  so a store in a later year keeps the fetch's reference candidates and default range. The fetch
+  does not parse: only a transport or HTTP failure is a failed unit. The store step alone parses
+  both bodies and writes weeks and reference in one transaction. A failed unit exits 1 with
+  `fetch_incomplete`, step `fetch`. A body the parser rejects in the store step is a store
+  failure: log line `NVE reservoir store failed` (unit and class only), exit 1 with
+  `invalid_response`, step `store` (`fetch_incomplete` wins when both occur). A rejected weekly
+  history also withholds the reference, as a failed one does. The rejected body
+  stays in the file, so after a parser fix `--from-payload` stores it without a new request
+  (decision "Raw bodies, parsed in the store step"). An unproved reference period keeps the weeks
+  and exits 1 with `reference_period_unproved`. Not date-bound (S9), but a replay stores only the
+  newest payload: an older one is refused `superseded` when a newer payload of the same options
+  exists (shared rule, `../ImportPayload/AGENTS.md`).
 
 ## Licence (open)
 

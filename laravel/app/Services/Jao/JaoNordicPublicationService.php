@@ -5,6 +5,7 @@ namespace App\Services\Jao;
 use Carbon\CarbonInterface;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use InvalidArgumentException;
 use RuntimeException;
@@ -12,21 +13,35 @@ use RuntimeException;
 /**
  * Read-only client for the JAO Nordic flow-based publication tool.
  *
- * Every request after the first waits for the configured delay. HTTP 429, 5xx and connection
- * failures are retried. The API rejects a range over 2 days (HTTP 400), so callers split.
+ * The staged import (FetchJaoMaxBorderFlows) records each raw window response; parse() reads a
+ * saved body. Every request after the first waits for the configured delay. HTTP 429, 5xx and
+ * connection failures are retried. The API rejects a range over 2 days (HTTP 400), so callers split.
  */
 class JaoNordicPublicationService
 {
     private ?float $lastRequestAt = null;
 
+    public function url(): string
+    {
+        return rtrim((string) config('jao.base_url'), '/').'/maxBorderFlow';
+    }
+
+    /** @return array{FromUtc: string, ToUtc: string} */
+    public function windowQuery(CarbonInterface $start, CarbonInterface $end): array
+    {
+        return [
+            'FromUtc' => $start->copy()->utc()->format('Y-m-d\TH:i:s.000\Z'),
+            'ToUtc' => $end->copy()->utc()->format('Y-m-d\TH:i:s.000\Z'),
+        ];
+    }
+
     /**
-     * Fetch maxBorderFlow rows (one per MTU) for a half-open UTC range of at most 48 hours.
-     *
-     * @return list<array<string, mixed>>
+     * Request maxBorderFlow rows (one per MTU) for a half-open UTC range of at most 48 hours.
+     * The response is returned raw; a failed status after retries throws.
      *
      * @throws RequestException|ConnectionException
      */
-    public function fetchMaxBorderFlows(CarbonInterface $start, CarbonInterface $end): array
+    public function requestMaxBorderFlows(CarbonInterface $start, CarbonInterface $end): Response
     {
         $maxHours = (int) config('jao.max_window_hours', 48);
         if ($start->diffInHours($end) > $maxHours) {
@@ -46,14 +61,21 @@ class JaoNordicPublicationService
                 return $exception instanceof RequestException
                     && ($exception->response->status() === 429 || $exception->response->serverError());
             })
-            ->get(rtrim((string) config('jao.base_url'), '/').'/maxBorderFlow', [
-                'FromUtc' => $start->copy()->utc()->format('Y-m-d\TH:i:s.000\Z'),
-                'ToUtc' => $end->copy()->utc()->format('Y-m-d\TH:i:s.000\Z'),
-            ]);
+            ->get($this->url(), $this->windowQuery($start, $end));
 
-        $response->throw();
+        return $response->throw();
+    }
 
-        $payload = $response->json();
+    /**
+     * The MTU rows of one saved response body.
+     *
+     * @return list<array<string, mixed>>
+     *
+     * @throws RuntimeException
+     */
+    public function parse(string $body): array
+    {
+        $payload = json_decode($body, true);
         if (! is_array($payload) || ! is_array($payload['data'] ?? null)) {
             throw new RuntimeException('JAO maxBorderFlow returned an unexpected payload.');
         }

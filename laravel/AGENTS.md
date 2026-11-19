@@ -482,6 +482,10 @@ php artisan tinker --execute="\\Illuminate\\Support\\Facades\\Log::channel('sent
 
 When using `tinker --execute` from a single-quoted shell string, PHP namespace separators should be written with a single backslash (for example `use Livewire\Livewire;`). Double-escaping them (`use Livewire\\Livewire;`) sends two literal backslashes to PsySH and causes `unexpected T_NAME_FULLY_QUALIFIED` parse errors before any application code runs.
 
+## Staged external API imports
+
+Every scheduled import from an external API (`contracts:fetch`, `futures:fetch-eex`, `futures:fetch-eex-europe`, `spot:fetch`, `spot:fetch-neighbours`, `spot:fetch-forecast`, `entsoe:fetch`, `fingrid:fetch`, `fingrid:fetch-forecast-vintages`, `fmi:fetch`, `syke:fetch`, `weather:fetch`, `gas-storage:fetch`, `jao:fetch`, `nve:fetch-reservoirs`) uses the `App\Console\Concerns\StagedImport` trait: fetch writes a payload file with `ImportPayloadWriter`, store reads it with `ImportPayloadReader` inside one transaction (a chunked backfill and `contracts:fetch` own their transactions). Modes: default, `--fetch-only`, `--from-payload=<path> [--payload-sha256=<hex>]`; the store refuses a payload whose data options differ from the command line (`options_mismatch`). `contracts:fetch` and the two EEX commands refuse a payload from another Helsinki date. `import-payloads:cleanup --apply` deletes files older than 14 days. Format, classes, result line and the rule that every new external import follows this pattern: `app/Services/ImportPayload/AGENTS.md`; per-source units and facts: each service directory's `AGENTS.md`.
+
 ## Spot price imports
 
 Primary files:
@@ -493,6 +497,7 @@ Primary files:
 - `app/Models/SpotPriceForecast.php`
 - `app/Services/SpotForecasts/AGENTS.md`
 - `app/Console/Commands/FetchSpotForecast.php`
+- `app/Console/Commands/FetchNeighbourSpot.php`
 
 Important semantics:
 - `SpotPriceImporter` is the source of truth for official record normalization, Helsinki-local historical VAT, direct hourly persistence, and region+UTC-hour arithmetic aggregation from quarter-hour records. It uses insert-only `insertOrIgnore()` chunks of 500.

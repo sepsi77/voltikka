@@ -4,84 +4,100 @@ namespace App\Services\GasStorage;
 
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
 /**
  * Read-only client for GIE AGSI+ aggregated gas storage data (https://agsi.gie.eu/api).
  *
- * AGSI answers an invalid key or bad query with HTTP 200 and an `error` field, so the payload
- * is checked as well as the status. GIE allows 60 calls per minute; every call after the first
- * waits for the configured delay.
+ * The staged import (FetchGasStorage) requests one page at a time and records the raw response;
+ * parsePage() reads a saved body. AGSI answers an invalid key or bad query with HTTP 200 and an
+ * `error` field, so parsePage() checks the payload as well as the status. GIE allows 60 calls per
+ * minute; every call after the first waits for the configured delay. The key goes in the `x-key`
+ * header, never in the query, so a payload file never holds it.
  */
 class GieAgsiService
 {
-    private const MAX_PAGES = 100;
+    public const MAX_PAGES = 100;
 
     private ?float $lastRequestAt = null;
 
+    public function url(): string
+    {
+        return (string) config('gas_storage.base_url');
+    }
+
     /**
-     * Fetch all daily rows for one area (AGSI `type`/`country` parameters) and an inclusive
-     * gas-day range, following pagination.
+     * Query of one page for one area (AGSI `type`/`country` parameters) and an inclusive gas-day range.
      *
      * @param  array<string, string>  $areaParams
-     * @return list<array<string, mixed>>
+     * @return array<string, mixed>
+     */
+    public function pageQuery(array $areaParams, string $from, string $to, int $page): array
+    {
+        return $areaParams + [
+            'from' => $from,
+            'to' => $to,
+            'size' => (int) config('gas_storage.page_size', 300),
+            'page' => $page,
+        ];
+    }
+
+    /**
+     * One page request. The response is returned raw; a failed status after retries throws.
+     *
+     * @param  array<string, mixed>  $query  from pageQuery()
      *
      * @throws RequestException|ConnectionException|RuntimeException
      */
-    public function fetchDays(array $areaParams, string $from, string $to): array
+    public function requestPage(array $query): Response
     {
         $apiKey = (string) config('gas_storage.api_key');
         if ($apiKey === '') {
             throw new RuntimeException('GIE_API_KEY is not configured.');
         }
 
-        $rows = [];
-        $page = 1;
+        $this->waitForRateLimit();
 
-        do {
-            $this->waitForRateLimit();
-
-            $response = Http::withHeaders(['x-key' => $apiKey])
-                ->acceptJson()
-                ->connectTimeout((float) config('gas_storage.connect_timeout', 5))
-                ->timeout((float) config('gas_storage.timeout', 30))
-                ->retry(3, (int) config('gas_storage.retry_sleep_ms', 5000), function ($exception) {
-                    if ($exception instanceof ConnectionException) {
-                        return true;
-                    }
-
-                    return $exception instanceof RequestException
-                        && ($exception->response->status() === 429 || $exception->response->serverError());
-                })
-                ->get((string) config('gas_storage.base_url'), $areaParams + [
-                    'from' => $from,
-                    'to' => $to,
-                    'size' => (int) config('gas_storage.page_size', 300),
-                    'page' => $page,
-                ]);
-
-            $response->throw();
-
-            $payload = $response->json();
-            if (! is_array($payload) || ! is_array($payload['data'] ?? null)) {
-                throw new RuntimeException('GIE AGSI returned an unexpected payload.');
-            }
-            if (! empty($payload['error'])) {
-                throw new RuntimeException('GIE AGSI returned an error response.');
-            }
-
-            foreach ($payload['data'] as $row) {
-                if (is_array($row)) {
-                    $rows[] = $row;
+        $response = Http::withHeaders(['x-key' => $apiKey])
+            ->acceptJson()
+            ->connectTimeout((float) config('gas_storage.connect_timeout', 5))
+            ->timeout((float) config('gas_storage.timeout', 30))
+            ->retry(3, (int) config('gas_storage.retry_sleep_ms', 5000), function ($exception) {
+                if ($exception instanceof ConnectionException) {
+                    return true;
                 }
-            }
 
-            $lastPage = (int) ($payload['last_page'] ?? 1);
-            $page++;
-        } while ($page <= $lastPage && $page <= self::MAX_PAGES);
+                return $exception instanceof RequestException
+                    && ($exception->response->status() === 429 || $exception->response->serverError());
+            })
+            ->get($this->url(), $query);
 
-        return $rows;
+        return $response->throw();
+    }
+
+    /**
+     * The daily rows and the last page number of one page body.
+     *
+     * @return array{rows: list<array<string, mixed>>, last_page: int}
+     *
+     * @throws RuntimeException an unexpected payload or an AGSI error response
+     */
+    public static function parsePage(string $body): array
+    {
+        $payload = json_decode($body, true);
+        if (! is_array($payload) || ! is_array($payload['data'] ?? null)) {
+            throw new RuntimeException('GIE AGSI returned an unexpected payload.');
+        }
+        if (! empty($payload['error'])) {
+            throw new RuntimeException('GIE AGSI returned an error response.');
+        }
+
+        return [
+            'rows' => array_values(array_filter($payload['data'], 'is_array')),
+            'last_page' => (int) ($payload['last_page'] ?? 1),
+        ];
     }
 
     private function waitForRateLimit(): void

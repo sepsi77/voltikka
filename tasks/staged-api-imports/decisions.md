@@ -75,3 +75,78 @@ Spec-review lesson: owner `laravel-reviewer`; cause: no spec review ran for this
 ## 2026-11-19 – PR #30 review, round 2 (head 8af878a)
 
 CodeRabbit: no actionable comments. The round-1 finding of both reviewers is fixed and covered by this CodeRabbit review. Threads resolved. Full Laravel suite on the worktree: 3183 passed, 44 failed; the same 44 fail without this PR's changes (the worktree has no Vite build and no local `database.sqlite`). The review loop is clean; the merge waits for the user's request.
+
+## 2026-11-19 – S17 merged and deployed
+
+User approved the merge of PR #30 (with PR #26 and #27 from the VPS operations thread) and the deploy of both roles. PR #30 merged as `72465ae`; `deploy-000030-3ed8b55f31b3` (origin/main `3ed8b55`, PHP 8.4.27) deployed to web and worker at 11:40 Helsinki after today's morning checkpoints were all `ready`. Both containers healthy, `/up` 200. The worker had lagged at `deploy-000028`; both roles now run the same image.
+
+## 2026-11-19 – Implementation contract
+
+`design.md` fixes the payload format, the shared classes, the command modes and result line, the Temporal contract and the per-command tests, so the parallel implementation of 15 commands stays uniform. Work order: the shared foundation and one reference command (`spot:fetch-forecast`) first, then the command groups in parallel, then Temporal, documentation, spec review and the PR.
+
+## 2026-11-19 – Implementation (manager)
+
+Phase 1 (shared foundation and `spot:fetch-forecast`) by one executor, reviewed and committed as `41da647`. Then seven executors in parallel on disjoint files: contracts, EEX, spot, ENTSO-E/Fingrid, FMI/Syke/GIE/JAO/NVE, Open-Meteo weather, Temporal. Each reported its tests; the manager reviewed the shared code, made the shared-file changes the groups asked for, and ran the full suites. Implementation notes that change or extend `design.md` are in its section 7a.
+
+Choices worth keeping:
+
+- **Replay ownership.** A `--from-payload` store of `contracts:fetch` and `futures:fetch-eex` starts its own `running` marker with a new run UUID before writing. Resuming the fetch's UUID would let two concurrent stores of one payload both resume.
+- **Failed-unit recovery.** A later answered line of the same unit (EEX retry pass) removes it from `failed_units`, so a fully recovered EEX run reports `complete: true`.
+- **Patching.** `EEX_STEP`, `CONTRACTS_STEP` and the S forecast fetches change behind `workflow.patched("staged-api-imports")`, with replay tests on recorded pre-change histories. A deploy-time rule could not work: hourly staged jobs and a manual `MorningChain` recovery can run at any hour. `ArtisanJob` steps read `staged` from the Schedule input, so the collector and spot jobs become staged only when their Schedules are re-applied (`schedules.py --apply --group collectors|spot|maintenance`, a production change that needs approval). Until then they run the default one-process mode, which also saves payloads.
+- **Contract fetch failure.** The fetch fails only when every postcode failed (`ImportFetchFailed`, payload kept). A full-scope run with no contracts fails (`no_contracts`); a postcode-scoped run with no contracts and failed postcodes exits 1 with `fetch_incomplete`, as before the staged change (PR #31 round 1 restored it).
+- **Window facts in `weather:fetch`.** The windows are computed from the clock just before the writer reads `fetched_at`, and both are recorded in the header; the store reads only the header, so S5 holds.
+
+Not acted on: `ContractReplacementLinker` writes `replaced_by_linked_on` from the clock, not from `effective_date`; the two differ only for a store that runs across midnight, which S9 already refuses for a replay. Contract `ImportReplay` runs the completion loop but not the forecast evaluation.
+
+## 2026-11-19 – Spec review round 2026-11-19T12-19
+
+Reviewers: refactor, Laravel, pricing, test, platform (Pi). Frontend and copy skipped: no views or public copy. 19 findings; all must-fix and small items fixed by six executors on disjoint files, each fix with a test that fails without it. Details and dispositions: `reviews/2026-11-19T12-19/summary.md` and `actions.md`.
+
+Manager decisions under delegated authority:
+
+- **S6 without a reference registry.** Every store activity has a schedule-to-close of at most one day, and Temporal refuses to schedule a store on a payload whose date directory is older than today − 13 days. Cleanup deletes only date directories older than 14 days, so no open run can use a deleted file. A registry of open references would add a table and a closing protocol for the same guarantee.
+- **Paged sources keep fetch-side parsing (LAR-006 part).** GIE, Syke, Fingrid and ENTSO-E parse each page during the fetch because the next request depends on it. A page that fails to parse leaves the run genuinely incomplete; replaying it cannot invent the missing pages. JAO and NVE (not paged) now parse only in the store, so a parser fix replays their saved bodies.
+- **Spot averages inside the store transaction, date identity unchanged (LAR-001).** The averages recompute from the stored rows; their rolling date stays today, which a same-day replay shares.
+- **Superseded contract payloads (PRC-001).** The store refuses a payload older than the newest stored source observation. The check, the replay takeover and the importer transaction run under one shared cache lock, `contract_import_store_v1` (lease 65 min, wait 5 min; Redis is shared by web and worker), so a newer store cannot commit between the check and the write (verification residual). A lock timeout is the closed store error `store_busy`: nothing written, payload kept, one Issue. Accepted side effect: if a manual scoped import finishes during the few seconds of a morning fetch, that morning store is refused as superseded.
+- **Spot-forecast display (PRC-002).** An older replay still archives its vintage but leaves the display alone when a newer feed (run row or display row) is stored. The recency check, the display upsert and the run insert run in one transaction inside the lock `spot_forecast_store_v1:<source>:<region>`, which commits before the lock is released (lease 65 min, wait 60 s); timeout → `store_busy`. SQLite tests prove the order (the check reads after the lock is held), not cross-process blocking; the shared lock provides that.
+- **`SpotPriceAverageService` row lookup.** Its `updateOrCreate` keys now match `period_start` with `whereDate`: on SQLite the date cast stores `Y-m-d H:i:s`, so the old `Y-m-d` key missed the row and a second calculation hit the unique index. MySQL `DATE` columns behave as before.
+- **Lock leases (LAR-201).** Both store-lock leases are 65 minutes, above the 60-minute Temporal store timeout at which `run_command` kills the PHP process, so a lease cannot expire under a live scheduled writer. Accepted cost: a store killed while holding the lock blocks the next store up to 65 minutes, which then fails `store_busy` with its payload kept. A transaction-scoped database mutex was the alternative; it would move the superseded check inside the importer transaction for the same guarantee.
+- **Fetch owner in the payload (LAR-202).** A `--fetch-only` fetch of `contracts:fetch` and `futures:fetch-eex` writes its checkpoint owner UUID into the header (`checkpoint_run_uuid`). A split store that fails before its takeover marks only that owner failed, and only while its row is still `running`, so a newer owner or a settled run is never changed. Deferred: a payload refused by the shared reader before the store step (`sha256_mismatch`, `incomplete`, `missing`, `wrong_source`, `options_mismatch`) still leaves the fetch's `running` marker; only a corrupted or foreign file causes that, and the Temporal Issue names it.
+
+## 2026-11-19 – PR #31 external review, round 1 (head e0515a2; Greptile Plus, score 4/5)
+
+CodeRabbit: 6 inline, 4 outside the diff, 24 minor. Greptile: 1. Manager verdicts:
+
+- **Fixed — generic replay rule (manager decision):** a `--from-payload` store is refused as `superseded` when a newer usable payload (same command and data options; not one in which every request failed) exists. This answers the "older payload replaces newer data" findings for EEX (4628088410, outside-diff EEX checkpoint), continental EEX and the collectors in one place; the contract observation check and the forecast display check stay for default-mode overlap. The S9 tests that accepted an older same-day payload now assert the refusal.
+- **Fixed — checkpoint takeover (4628088395 and the EEX twin):** a replay may take over only an absent, non-running or own-fetch-owned checkpoint; a live newer run gives `checkpoint_busy`.
+- **Fixed:** EEX lost-owner rollback (4628088416), ENTSO-E unreadable unit keeps the others (4628088422), FI spot store lock around prices and averages (4628088426), contracts date recheck under the lock, reader requires the `.sha256` file, FMI parameters and weather model identity from the header, scoped contract exit code restored, repeated-option dedupe (ENTSO-E, Fingrid), store-detected parser errors named `invalid_response`/`store` (FMI, NVE, JAO), GIE page limit, NeighbourSpot non-2xx as failed regions, Syke links against the recorded base URL, weather failed-request count, header source/command check, payload reference in store failure lines, Greptile scoped `ImportReplay` (completion loop only for full scope), local hard deadline in `run_command`, root `AGENTS.md` wording (exceptions to one transaction; replay after the chain closed), three test fixes.
+- **Rejected (👎 with reply):** same-second contract fetches (4628088404) and same-second forecast feeds: Temporal overlap SKIP and the store locks exclude two fetches of one source in the same second.
+
+Round 1, implementation notes: `EntsoeService::fetchDayAheadResponse()` now throws for any non-2xx answer, so a 3xx is a failed unit for `spot:fetch`, `spot:fetch-neighbours` and `spot:backfill` alike (before, a 3xx was stored as an answered request and skipped silently). The FI spot store lock `spot_store_v1:FI` covers `spot:fetch` only; `spot:backfill` and `spot:averages` are manual and do not take it. A fetch that fails as a whole (`ImportFetchFailed`) is marked `fetch_failed` in its header and never supersedes an older payload. Payloads fetched before this round cannot be replayed for FMI, Syke and weather (no recorded parameters, base URL or models); none exist in production yet.
+
+## 2026-11-19 – PR #31 external review, round 2 (head 566d0c0)
+
+CodeRabbit: 8 inline, 1 outside the diff, 1 minor; all valid, all fixed (👍).
+
+- **One store lock per command** (`staged_import_store_v1:<command>`, lease 65 min, wait 5 min) held from a replay's newest-payload check through the store commit, for default and replay stores. "An older payload never rolls newer data back" now holds for every source (weather, reservoirs and every other upsert source included). Accepted side effect: two stores of the same command wait for each other, also with different options (scheduled stores of one command run at different times; backfills are manual). The command-level locks of `contracts:fetch`, `spot:fetch` and `spot:fetch-forecast` stay as inner locks; they are now redundant, and removing them is a later cleanup.
+- **Recovery of an abandoned store:** a replay of the same payload (same SHA-256 recorded in the `running` checkpoint at takeover) may take over a `running` row; holding the command's store lock proves the old store ended. Deferred: a store killed in one-process default mode leaves `running` under the fetch owner without a payload SHA, so a replay of its payload gets `checkpoint_busy`; Temporal always runs split mode.
+- Also fixed: set-valued options compare as sets; a damaged newer payload never supersedes; trait-level `store_busy`/`superseded` finalize the fetch owner; ENTSO-E retries a 3xx inside the retry loop; Fingrid vintages record the variable; `full_contract_scope` uses the last `--postcodes` occurrence.
+
+## 2026-11-19 – PR #31 external review, round 3 (head 1273097)
+
+CodeRabbit: 3 inline, 3 outside the diff, 2 minor (all Minor).
+
+- **Fixed:** lock-backend errors in `runStaged()` give the closed `store_failed` line; `SpotPriceImport/AGENTS.md` names `recordFailure()` for the neighbours only; a non-2xx EEX answer is a failed unit that enters the bounded retry pass; Fingrid `--dataset` values are normalized in the payload identity; a Fingrid vintage payload stays replayable after its dataset left the config.
+- **Rejected (👎 with reply), 4629143870:** an older weather replay with a manual option subset can overwrite newer observed rows. The replay must give its payload's options, so this needs a rare manual option set; the daily default run re-fetches the 21-day window and restores the values.
+- **Not fixed (review-body minors, no thread; CodeRabbit rated both "poor tradeoff"):** a repeated store attempt after a dead store fails `store_busy` instead of waiting out the 65-minute lease (the payload stays; a replay after the lease recovers), and `ImportReplay`'s completion outcome can read a newer run's checkpoint in a narrow window. Rule added to `.greptile/rules.md` so both reviewers stop flagging narrow manual-replay races.
+
+## 2026-11-19 – PR #31 external review, round 4 (head 0437182)
+
+CodeRabbit: 2 outside the diff.
+
+- **Fixed:** a failed store-lock release no longer replaces the store outcome; it logs one safe warning with the payload reference, and the lease frees the lock.
+- **Rejected:** "`fingrid:fetch` runs from both `console.php` and Temporal". `console.php` skips every group listed in `TEMPORAL_SCHEDULE_GROUPS`, and production lists `collectors`; `WebSchedulerTest` and `test_console_groups.py` keep both sides equal on purpose. Added to `.greptile/rules.md` (no thread for outside-diff comments).
+
+## 2026-11-19 – PR #31 external review, round 5 (head 242983f): clean
+
+CodeRabbit: no actionable comments. Every CodeRabbit thread is fixed or answered (threads resolved); the PR's one Greptile finding (scoped `ImportReplay`) was fixed in round 1 and covered by the later CodeRabbit reviews. Ready to merge on the user's request; the deploy, the Schedule re-apply and D7 need separate approval.

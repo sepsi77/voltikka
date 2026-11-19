@@ -7,11 +7,12 @@ spot price models. Nothing public reads these rows yet. Task context:
 
 ## Files
 
-- `FmiOpenDataService.php` – read-only WFS client. Builds the query by hand, because `fmisid`
-  and `latlon` repeat. One request per `fmi.request_delay_seconds` (default 1 s); retries
-  HTTP 429, 5xx and connection errors. An FMI exception report (HTTP 400 with `ExceptionText`)
-  becomes `FmiRequestException` with the first ExceptionText only: FMI repeats the full request
-  URI in a second ExceptionText ("URI: ..."), which is never used.
+- `FmiOpenDataService.php` – read-only WFS client. Builds the query by hand (`url()`), because
+  `fmisid` and `latlon` repeat. `request()` returns the raw response, also for an HTTP error. One
+  request per `fmi.request_delay_seconds` (default 1 s); retries HTTP 429, 5xx and connection
+  errors. `failure()` turns an FMI exception report (HTTP 400 with `ExceptionText`) into
+  `FmiRequestException` with the first ExceptionText only: FMI repeats the full request URI in a
+  second ExceptionText ("URI: ..."), which is never used.
 - `FmiMultiPointCoverageParser.php` – parses `multipointcoverage` XML with DOM: no DTD load, no
   entity substitution, `LIBXML_NONET`, and any DOCTYPE is rejected. Output is columnar per
   position (timestamps + one list per field; `NaN` → null), because one PHP array per row used
@@ -104,6 +105,39 @@ the value describes, like `spot_prices_hour`.
   URL-free message. Never log other exception messages: Laravel HTTP exceptions contain the URL.
 - A failed piece (one request) does not stop the other pieces or parts; the run then exits 1.
 - Forecasts have no backfill: FMI serves only the current forecast.
+
+## Staged import (tasks/staged-api-imports/)
+
+`fmi:fetch` uses `App\Console\Concerns\StagedImport` (see `../ImportPayload/AGENTS.md`):
+fetch, then store from `import-payloads/fmi/<date>/`.
+
+- The fetch step records every raw XML response, one line per request piece (unit
+  `{part, from, to}`, forecasts also `product`). The header facts fix `current_hour`, `parts`,
+  `observation_window`, `forecast_points` (every configured point of each product with its
+  coordinates) and the FMI parameters of each fetched part: `observed_parameters` (the hourly
+  fields kept), `radiation_parameters` (`parameter`, `stored_parameter`) and
+  `forecast_parameters` (per product the field → value-key map and `speed_from`). The store uses
+  these, never the current config, so a config change cannot drop a field or rename a value key
+  on replay (S5; PR #31 review). A header without the parameters of a fetched part (a payload
+  written before 2026-11-19's fix) is refused `payload_invalid`/`incomplete` before any write.
+  Forecast `issued_at` stays `om:resultTime` from the response; `fetched_at` is the header's.
+- A connection failure, an HTTP error or an FMI exception report is a failed unit, recorded with
+  its body and logged at fetch time as before (`FMI fetch failed`); the run exits 1 with
+  `fetch_incomplete`, step `fetch`. An answered piece that the parser or importer rejects in the
+  store step (`FmiRequestException`: bad XML, missing field, unknown position) fails only that
+  piece before any write of it, is logged as `FMI store failed` (same safe fields) and exits 1
+  with `invalid_response`, step `store`: the fix is in code, then a replay of the same file. With
+  both kinds in one run, `fetch_incomplete` wins. A configured forecast point without values
+  exits 1 with `forecast_points_missing`.
+- Memory: the store reads one request line at a time and releases its parsed XML before the
+  next. Measured 2026-11-19 with a synthetic 2.5 MB radiation piece (7 stations × 10,080
+  minutes): parse alone peak +20.9 MB, the whole staged run +29.2 MB.
+- Transactions: the default run writes observations (upsert) and forecast vintages
+  (insert-only) in one transaction. A `--from` backfill commits once per request piece, so a store
+  failure keeps the earlier pieces and a replay of the same file upserts them again.
+- Not date-bound (S9), but a replay stores only the newest payload: `--from-payload` refuses an
+  older payload when a newer one of the same options exists (`superseded`, no write; shared rule
+  in `../ImportPayload/AGENTS.md`).
 
 ## Commands
 
