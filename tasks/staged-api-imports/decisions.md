@@ -71,3 +71,7 @@ Measured size: the 11-19 contract payload is 2.6 MB uncompressed. Measure the ot
 Fix: `ContractListCacheService::refresh()` acquires the producer lease outside the build and throws the new `ContractPriceCacheProducerBusy` (a `LockTimeoutException` subclass, so other callers see no change) only when that acquisition times out. The completion defers only on that type. New test `test_lock_timeout_inside_the_cache_build_stays_terminal` fails with the round-1 code.
 
 Spec-review lesson: owner `laravel-reviewer`; cause: no spec review ran for this PR (S17 shipped before the task's spec review), and the checklist did not name the class. Changed: `.pi/agents/laravel-reviewer.md` item 5 (and its `.claude/agents/` copy): a `catch` that turns a failure into a deferral, retry or success matches only its intended source.
+
+## 2026-11-19 – PR #30 review, round 2 (head 8af878a)
+
+CodeRabbit: no actionable comments. The round-1 finding of both reviewers is fixed and covered by this CodeRabbit review. Threads resolved. Full Laravel suite on the worktree: 3183 passed, 44 failed; the same 44 fail without this PR's changes (the worktree has no Vite build and no local `database.sqlite`). The review loop is clean; the merge waits for the user's request.
