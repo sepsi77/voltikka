@@ -12,15 +12,13 @@ scripts/sync-production-database.sh
 scripts/sync-production-database.sh --yes
 ```
 
-The script reads Voltikka production MySQL through Railway and replaces the ignored local `laravel/database/database.sqlite` file with a fresh SQLite snapshot. It never writes to production.
-
-**Not usable since 2026-11-16:** production moved to the Breezily VPS on 2026-11-15, and the Railway MySQL service has no deployment. Do not run the script until it reads the VPS database (`voltikka-db`, reachable only on the Kamal network of `breezily-vps`). The safety rules below stay for that port.
+The script reads Voltikka production MySQL on the Breezily VPS (`voltikka-db`, a Kamal accessory that only the Docker network `kamal` reaches) through an SSH tunnel to `breezily-vps`, and replaces the ignored local `laravel/database/database.sqlite` file with a fresh SQLite snapshot. It never writes to production. It replaced the Railway transport on 2026-11-16. A full run on 2026-11-16 took about 6 minutes and gave a 3.5 GB file.
 
 Important safety rules:
 - Stop local Laravel servers, queue workers, SQLite shells, and database tools for the full sync. The script checks the database and its sidecars with `lsof`, but that check is advisory.
-- Use the explicit Railway project, production environment, and MySQL service IDs already stored in the script. Do not rely on the linked Railway shell context.
-- Keep `RAILWAY_CALLER=skill:use-railway@1.2.2` and one stable `RAILWAY_AGENT_SESSION` on the Railway call.
-- Never print Railway variables, `MYSQL_PUBLIC_URL`, or other database credentials.
+- On the server, run only the `docker inspect` address read, the `DB_PASSWORD` read from the Kamal web role env file, and the `ssh -N -L` tunnel. Read the password only into a shell variable.
+- Give the source URL (`PRODUCTION_MYSQL_URL`) to the copy child only, as a prefix assignment, never as an argument or an exported variable. Never print it, the password, or the env file.
+- Close the tunnel after the copy and in the `EXIT` cleanup trap. Keep `ControlPath=none` on the tunnel so that the kill closes the forward.
 - Keep every local Artisan child isolated from cached configuration and `DB_URL`. It must prove that the effective connection is the explicit temporary SQLite target before migration.
 - Production reads must stay in one read-only consistent transaction.
 - Do not copy authentication, cache, session, queue, social-publication, or freshness-ledger rows.
@@ -35,8 +33,9 @@ Implementation details and tests:
 - `../laravel/tests/Feature/ProductionSchemaLagDatabaseSyncTest.php`
 - `../laravel/tests/Unit/DevelopmentDatabaseSynchronizerTest.php`
 - `../laravel/tests/Unit/ProductionDatabaseSyncScriptTest.php`
+- `../laravel/tests/Unit/ProductionMySqlConnectionTest.php`
 
-Prerequisites are PHP with `pdo_sqlite` and `pdo_mysql`, an authenticated Railway CLI, `sqlite3`, and `lsof`.
+Prerequisites are PHP with `pdo_sqlite` and `pdo_mysql`, `ssh` access to `breezily-vps` (Tailscale, user `deploy`, key without a prompt because the script uses `BatchMode=yes`), `sqlite3`, and `lsof`.
 
 ## Production image build and deploy (image since 2026-10-21; Kamal on the VPS since 2026-11-15)
 

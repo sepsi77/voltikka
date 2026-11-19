@@ -7,6 +7,8 @@ use Throwable;
 
 class ProductionMySqlConnection
 {
+    private const URL_VARIABLE = 'PRODUCTION_MYSQL_URL';
+
     public function connect(): PDO
     {
         [$dsn, $user, $password] = $this->connectionParameters();
@@ -49,87 +51,44 @@ class ProductionMySqlConnection
     }
 
     /**
+     * The wrapper script gives the source as PRODUCTION_MYSQL_URL in this process environment only.
+     * It points to the local end of its SSH tunnel to the VPS database.
+     *
      * @return array{string, string, string}
      */
     private function connectionParameters(): array
     {
-        $url = $this->value('MYSQL_PUBLIC_URL');
+        $url = getenv(self::URL_VARIABLE);
 
-        if ($url !== null) {
-            $parts = parse_url($url);
-
-            if (
-                $parts === false
-                || ($parts['scheme'] ?? null) !== 'mysql'
-                || ! isset($parts['host'], $parts['user'], $parts['pass'])
-            ) {
-                throw new DatabaseSyncException('MYSQL_PUBLIC_URL is not a valid MySQL URL.');
-            }
-
-            $database = ltrim((string) ($parts['path'] ?? ''), '/');
-
-            if ($database === '') {
-                throw new DatabaseSyncException('MYSQL_PUBLIC_URL does not contain a database name.');
-            }
-
-            $port = isset($parts['port']) ? (int) $parts['port'] : 3306;
-
-            return [
-                $this->dsn((string) $parts['host'], $port, rawurldecode($database)),
-                rawurldecode((string) $parts['user']),
-                rawurldecode((string) $parts['pass']),
-            ];
+        if (! is_string($url) || $url === '') {
+            throw new DatabaseSyncException(self::URL_VARIABLE.' is not set. Run scripts/sync-production-database.sh.');
         }
 
-        $proxyHost = $this->value('RAILWAY_TCP_PROXY_DOMAIN');
-        $proxyPort = $this->value('RAILWAY_TCP_PROXY_PORT');
+        $parts = parse_url($url);
 
-        if (($proxyHost === null) !== ($proxyPort === null)) {
-            throw new DatabaseSyncException('The injected Railway TCP proxy fields are incomplete.');
+        if (
+            $parts === false
+            || ($parts['scheme'] ?? null) !== 'mysql'
+            || ! isset($parts['host'], $parts['port'], $parts['user'], $parts['pass'])
+        ) {
+            throw new DatabaseSyncException(self::URL_VARIABLE.' is not a valid MySQL URL.');
         }
 
-        $host = $proxyHost ?? $this->firstValue(['MYSQLHOST', 'MYSQL_HOST']);
-        $port = $proxyPort ?? $this->firstValue(['MYSQLPORT', 'MYSQL_PORT']);
-        $user = $this->firstValue(['MYSQLUSER', 'MYSQL_USER']);
-        $password = $this->firstValue(['MYSQLPASSWORD', 'MYSQL_PASSWORD']);
-        $database = $this->firstValue(['MYSQLDATABASE', 'MYSQL_DATABASE']);
+        $database = ltrim((string) ($parts['path'] ?? ''), '/');
 
-        if ($host === null || $port === null || $user === null || $password === null || $database === null) {
-            throw new DatabaseSyncException('The injected MySQL connection fields are incomplete.');
+        if ($database === '') {
+            throw new DatabaseSyncException(self::URL_VARIABLE.' does not contain a database name.');
         }
 
-        if (filter_var($port, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 65535]]) === false) {
-            throw new DatabaseSyncException('The injected MySQL port is not valid.');
-        }
-
-        return [$this->dsn($host, (int) $port, $database), $user, $password];
+        return [
+            $this->dsn((string) $parts['host'], (int) $parts['port'], rawurldecode($database)),
+            rawurldecode((string) $parts['user']),
+            rawurldecode((string) $parts['pass']),
+        ];
     }
 
     private function dsn(string $host, int $port, string $database): string
     {
         return sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', $host, $port, $database);
-    }
-
-    /**
-     * @param  list<string>  $names
-     */
-    private function firstValue(array $names): ?string
-    {
-        foreach ($names as $name) {
-            $value = $this->value($name);
-
-            if ($value !== null) {
-                return $value;
-            }
-        }
-
-        return null;
-    }
-
-    private function value(string $name): ?string
-    {
-        $value = getenv($name);
-
-        return is_string($value) && $value !== '' ? $value : null;
     }
 }

@@ -8,22 +8,31 @@ readonly LARAVEL_DIR="$ROOT_DIR/laravel"
 readonly DATABASE_DIR="$LARAVEL_DIR/database"
 readonly LOCAL_DATABASE="$DATABASE_DIR/database.sqlite"
 
-readonly RAILWAY_PROJECT_ID="6d8cae01-1006-409f-8108-1d51f1abc676"
-readonly RAILWAY_ENVIRONMENT_ID="9245cef8-41d0-486e-862f-193726511dba"
-readonly RAILWAY_MYSQL_SERVICE_ID="beb2ba12-4a7b-416b-b4b1-596434dc3215"
-readonly SYNC_RAILWAY_AGENT_SESSION="${RAILWAY_AGENT_SESSION:-voltikka-local-db-sync-$(date +%s)-$$}"
+# Production MySQL is the Kamal accessory voltikka-db on the VPS. It is not published on the
+# host, so the script tunnels to its address on the Docker network kamal. The database and user
+# names are the clear DB_DATABASE and DB_USERNAME values in config/deploy.yml; the password is the
+# DB_PASSWORD secret in the Kamal web role env file on the server.
+readonly SSH_HOST="breezily-vps"
+readonly DB_CONTAINER="voltikka-db"
+readonly DB_NAME="voltikka"
+readonly DB_USER="voltikka"
+readonly REMOTE_ENV_FILE='~/.kamal/apps/voltikka/env/roles/web.env'
+readonly TUNNEL_WAIT_SECONDS=20
 
 ASSUME_YES=0
 TEMP_DATABASE=''
 CONFIG_CACHE=''
 BACKUP_PATH=''
+TUNNEL_PID=''
+COPY_PID=''
 
 usage() {
     cat <<'EOF'
 Usage: scripts/sync-production-database.sh [--yes]
 
 Build a fresh local SQLite database from public production application data.
-The script reads production in a read-only transaction. It does not write to production.
+The script reads production MySQL on the VPS through an SSH tunnel, in a read-only
+transaction. It does not write to production.
 
   --yes   Do not ask for confirmation.
   --help  Show this help.
@@ -35,7 +44,29 @@ fail() {
     exit 1
 }
 
+close_tunnel() {
+    if [[ -n "$TUNNEL_PID" ]]; then
+        kill "$TUNNEL_PID" 2>/dev/null || true
+        wait "$TUNNEL_PID" 2>/dev/null || true
+        TUNNEL_PID=''
+    fi
+}
+
+# Bash runs a signal trap only after a foreground command ends, so the copy runs as a tracked
+# background child (exec: its PID is the PHP process) and the wrapper waits for it with `wait`,
+# which a signal interrupts. Cleanup then stops the copy before it closes the tunnel.
+stop_copy() {
+    if [[ -n "$COPY_PID" ]]; then
+        kill "$COPY_PID" 2>/dev/null || true
+        wait "$COPY_PID" 2>/dev/null || true
+        COPY_PID=''
+    fi
+}
+
 cleanup() {
+    stop_copy
+    close_tunnel
+
     if [[ -n "$TEMP_DATABASE" ]]; then
         rm -f -- "$TEMP_DATABASE" "$TEMP_DATABASE-wal" "$TEMP_DATABASE-shm" "$TEMP_DATABASE-journal"
     fi
@@ -91,6 +122,31 @@ validate_sqlite_database() {
         || fail "SQLite integrity validation failed for [$database]."
 }
 
+free_local_port() {
+    php -r '$server = stream_socket_server("tcp://127.0.0.1:0"); if ($server === false) { exit(1); } echo substr(strrchr(stream_socket_get_name($server, false), ":"), 1);'
+}
+
+open_tunnel() {
+    local container_ip="$1"
+    local local_port="$2"
+    local deadline=$((SECONDS + TUNNEL_WAIT_SECONDS))
+
+    # ControlPath=none keeps the forward in this ssh process, so the kill in cleanup closes it.
+    ssh -N \
+        -o BatchMode=yes \
+        -o ExitOnForwardFailure=yes \
+        -o ControlPath=none \
+        -L "127.0.0.1:$local_port:$container_ip:3306" \
+        "$SSH_HOST" </dev/null &
+    TUNNEL_PID=$!
+
+    until lsof -nP -a -p "$TUNNEL_PID" -iTCP:"$local_port" -sTCP:LISTEN >/dev/null 2>&1; do
+        kill -0 "$TUNNEL_PID" 2>/dev/null || fail 'The SSH tunnel to the production database did not start.'
+        ((SECONDS < deadline)) || fail 'The SSH tunnel to the production database did not open in time.'
+        sleep 0.2
+    done
+}
+
 remove_database_sidecars() {
     local database="$1"
 
@@ -114,7 +170,7 @@ for argument in "$@"; do
 done
 
 require_command php
-require_command railway
+require_command ssh
 require_command lsof
 require_command sqlite3
 require_php_extension pdo_sqlite
@@ -144,6 +200,7 @@ TEMP_DATABASE="$(mktemp "$DATABASE_DIR/.production-sync-XXXXXX")"
 CONFIG_CACHE="$TEMP_DATABASE.config.php"
 [[ ! -e "$CONFIG_CACHE" ]] || fail 'The isolated Laravel config-cache path already exists.'
 trap cleanup EXIT
+trap 'exit 1' HUP INT TERM
 
 printf 'Verify the fresh SQLite target through Laravel.\n'
 (
@@ -172,25 +229,48 @@ printf 'Build the fresh SQLite schema.\n'
         php artisan migrate --force --no-interaction
 )
 
+printf 'Open the SSH tunnel to the production database.\n'
+DB_CONTAINER_IP="$(ssh -o BatchMode=yes "$SSH_HOST" \
+    "docker inspect -f '{{(index .NetworkSettings.Networks \"kamal\").IPAddress}}' $DB_CONTAINER")" \
+    || fail "The address of [$DB_CONTAINER] could not be read on [$SSH_HOST]."
+[[ "$DB_CONTAINER_IP" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] \
+    || fail "The address of [$DB_CONTAINER] on the Docker network kamal is not valid."
+
+# Read the password only into this variable. Never print it.
+DB_PASSWORD_VALUE="$(ssh -o BatchMode=yes "$SSH_HOST" "sed -n 's/^DB_PASSWORD=//p' $REMOTE_ENV_FILE")" \
+    || fail 'The production database password could not be read on the server.'
+[[ -n "$DB_PASSWORD_VALUE" && "$DB_PASSWORD_VALUE" != *$'\n'* ]] \
+    || fail 'The server env file does not contain exactly one DB_PASSWORD value.'
+
+LOCAL_TUNNEL_PORT="$(free_local_port)" || fail 'No free local port was found for the SSH tunnel.'
+open_tunnel "$DB_CONTAINER_IP" "$LOCAL_TUNNEL_PORT"
+
+# Give the password to PHP in the environment, not as an argument, so ps does not show it.
+ENCODED_PASSWORD="$(SYNC_PASSWORD="$DB_PASSWORD_VALUE" php -r 'echo rawurlencode((string) getenv("SYNC_PASSWORD"));')" \
+    || fail 'The production database password could not be encoded.'
+DB_PASSWORD_VALUE=''
+
 printf 'Copy production application data in a read-only transaction.\n'
 (
     cd "$LARAVEL_DIR"
-    RAILWAY_CALLER=skill:use-railway@1.2.2 \
-    RAILWAY_AGENT_SESSION="$SYNC_RAILWAY_AGENT_SESSION" \
-        railway run \
-            --project "$RAILWAY_PROJECT_ID" \
-            --environment "$RAILWAY_ENVIRONMENT_ID" \
-            --service "$RAILWAY_MYSQL_SERVICE_ID" \
-            --no-local \
-            -- env \
-                APP_CONFIG_CACHE="$CONFIG_CACHE" \
-                APP_ENV=local \
-                DB_URL= \
-                DB_CONNECTION=sqlite \
-                DB_DATABASE="$TEMP_DATABASE" \
-                VOLTIKKA_LOCAL_DATABASE_SYNC=1 \
-                php artisan development:sync-production-database --target="$TEMP_DATABASE"
-)
+    # A prefix assignment puts the source URL in the child environment only, not in its arguments.
+    PRODUCTION_MYSQL_URL="mysql://$DB_USER:$ENCODED_PASSWORD@127.0.0.1:$LOCAL_TUNNEL_PORT/$DB_NAME" \
+    exec env \
+        APP_CONFIG_CACHE="$CONFIG_CACHE" \
+        APP_ENV=local \
+        DB_URL= \
+        DB_CONNECTION=sqlite \
+        DB_DATABASE="$TEMP_DATABASE" \
+        VOLTIKKA_LOCAL_DATABASE_SYNC=1 \
+        php artisan development:sync-production-database --target="$TEMP_DATABASE"
+) &
+COPY_PID=$!
+copy_status=0
+wait "$COPY_PID" || copy_status=$?
+COPY_PID=''
+ENCODED_PASSWORD=''
+close_tunnel
+((copy_status == 0)) || fail "The production data copy failed (exit $copy_status)."
 
 checkpoint_database "$TEMP_DATABASE"
 validate_sqlite_database "$TEMP_DATABASE"

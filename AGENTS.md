@@ -90,7 +90,7 @@ Do not deploy the worker role between 04:00 and about 09:00 Europe/Helsinki. Sin
 
 ### Local production database snapshot
 
-`scripts/sync-production-database.sh` still reads the Railway MySQL service, which has had no deployment since 2026-11-16, so it does not work now. It must move to the VPS database (`voltikka-db` is reachable only on the Kamal network) before the next use; until then, do not run it. Its safety rules stay: production read-only, one read-only consistent transaction, isolated Laravel config, validation before an atomic replacement, and no copy of authentication, runtime and ledger rows. See `scripts/AGENTS.md` and `laravel/app/Services/DevelopmentDatabase/AGENTS.md`.
+Run `scripts/sync-production-database.sh` from the repository root (`--yes` skips the prompt) to replace the ignored local SQLite database with current production application data. Since 2026-11-16 it reads the VPS database `voltikka-db` through an SSH tunnel to `breezily-vps` (the database is reachable only on the Kamal network). On the server it only reads the container address and `DB_PASSWORD` and holds the tunnel; the password reaches only the copy child environment. Safety rules: production read-only, one read-only consistent transaction, isolated Laravel config, validation before an atomic replacement, and no copy of authentication, runtime and ledger rows. Stop local Laravel, queue and database processes for the full run. Prerequisites: PHP `pdo_sqlite` and `pdo_mysql`, `ssh` access to `breezily-vps`, `sqlite3`, `lsof`. See `scripts/AGENTS.md` and `laravel/app/Services/DevelopmentDatabase/AGENTS.md`.
 
 ### Production backups and disaster recovery
 
