@@ -126,8 +126,14 @@ class FetchWeatherStagedCommandTest extends TestCase
 
         $this->assertSame(1, Artisan::call('weather:fetch', $options));
         $output = Artisan::output();
+        $payloads = glob(config('import_payloads.path').'/open-meteo/2026-11-01/*.ndjson.gz');
+        $this->assertCount(1, $payloads, 'The payload stays after a failed store.');
 
-        $this->assertSame(['status' => 'failed', 'step' => 'store', 'error' => 'store_failed', 'sqlstate' => '23000', 'driver_code' => 19, 'table' => $failTable], $this->lastJsonLine($output));
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'store_failed',
+            'payload_path' => $payloads[0], 'payload_sha256' => hash_file('sha256', $payloads[0]),
+            'sqlstate' => '23000', 'driver_code' => 19, 'table' => $failTable,
+        ], $this->lastJsonLine($output));
         foreach (['forced failure', (string) self::SENTINEL] as $binding) {
             $this->assertStringNotContainsString($binding, $output);
         }
@@ -140,9 +146,6 @@ class FetchWeatherStagedCommandTest extends TestCase
 
             return true;
         });
-
-        $payloads = glob(config('import_payloads.path').'/open-meteo/2026-11-01/*.ndjson.gz');
-        $this->assertCount(1, $payloads, 'The payload stays after a failed store.');
 
         DB::statement('DROP TRIGGER fail_store'); // the fix
         Http::swap(new Factory);
@@ -221,11 +224,11 @@ class FetchWeatherStagedCommandTest extends TestCase
     }
 
     /**
-     * S9 for the observed upserts and the outlook vintages: not date-bound, so an older payload of
-     * the same day is accepted. Observed rows take the replayed values and their fetch time (an
-     * upsert, as a manual replay is meant to); an outlook vintage that exists adds no row.
+     * A replay stores only the newest payload: for the observed upserts and the outlook
+     * vintages, an older same-day payload is refused as superseded and writes nothing, so it
+     * cannot put older observed values back.
      */
-    public function test_an_older_same_day_payload_is_accepted_for_observed_rows_and_outlooks(): void
+    public function test_an_older_same_day_payload_is_refused_for_observed_rows_and_outlooks(): void
     {
         Carbon::setTestNow(Carbon::create(2026, 11, 1, 5, 0, 0, 'UTC'));
         $this->fakeApi();
@@ -235,27 +238,28 @@ class FetchWeatherStagedCommandTest extends TestCase
         Carbon::setTestNow(Carbon::create(2026, 11, 1, 7, 0, 0, 'UTC'));
         $this->fakeApi(value: 9.5);
         Artisan::call('weather:fetch', ['--point' => ['helsinki', 'ee01_hiiumaa']]);
-        $this->assertSame(2, DB::table('weather_outlook_runs')->count());
+        $before = $this->storedRows();
 
         Carbon::setTestNow(Carbon::create(2026, 11, 1, 9, 0, 0, 'UTC'));
         Http::swap(new Factory);
         Http::preventStrayRequests();
-        $this->assertSame(0, Artisan::call('weather:fetch', ['--point' => ['helsinki', 'ee01_hiiumaa'], '--from-payload' => $older]));
+        $this->assertSame(1, Artisan::call('weather:fetch', ['--point' => ['helsinki', 'ee01_hiiumaa'], '--from-payload' => $older]));
 
-        $this->assertSame(0, $this->lastJsonLine()['counts']['outlook_runs_stored']);
-        $this->assertSame(2, DB::table('weather_outlook_runs')->count());
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'payload_invalid', 'reason' => 'superseded',
+            'payload_path' => $older, 'payload_sha256' => hash_file('sha256', $older),
+        ], $this->lastJsonLine());
+        $this->assertSame($before, $this->storedRows());
         $daily = DB::table('weather_daily_observations')->where('date', '2026-10-31')->first();
-        $this->assertEqualsWithDelta(self::SENTINEL, $daily->temperature_2m_mean, 0.0001);
-        $this->assertSame('2026-11-01 05:00:00', $daily->fetched_at);
-        $this->assertSame(['2026-11-01 05:00:00'], DB::table('weather_hourly_observations')->pluck('fetched_at')->unique()->values()->all());
+        $this->assertEqualsWithDelta(9.5, $daily->temperature_2m_mean, 0.0001);
+        $this->assertSame('2026-11-01 07:00:00', $daily->fetched_at);
     }
 
     /**
-     * S9 for the hourly forecast vintages: an older same-day payload is accepted. A vintage that was
-     * only fetched is stored later with its own fetched_at and issued_at, so readers that select by
-     * those times (SForecastReadiness) see the true chronology.
+     * The same rule for the hourly forecast vintages: a fetched-only payload is refused once a
+     * newer payload of the same options exists, so no vintage is added out of order.
      */
-    public function test_an_older_same_day_hourly_forecast_payload_is_stored_with_its_fetch_time(): void
+    public function test_an_older_same_day_hourly_forecast_payload_is_refused_as_superseded(): void
     {
         $options = ['--only' => ['solar_ghi'], '--point' => ['101004']];
         Carbon::setTestNow(Carbon::create(2026, 11, 1, 5, 0, 0, 'UTC'));
@@ -270,13 +274,73 @@ class FetchWeatherStagedCommandTest extends TestCase
         Carbon::setTestNow(Carbon::create(2026, 11, 1, 9, 0, 0, 'UTC'));
         Http::swap(new Factory);
         Http::preventStrayRequests();
-        $this->assertSame(0, Artisan::call('weather:fetch', $options + ['--from-payload' => $older]));
+        $this->assertSame(1, Artisan::call('weather:fetch', $options + ['--from-payload' => $older]));
 
-        $runs = DB::table('hourly_forecast_runs')->orderBy('fetched_at')->get(['fetched_at', 'issued_at']);
-        $this->assertSame([
-            ['2026-11-01 05:00:00', '2026-10-31 18:00:00'],
-            ['2026-11-01 07:00:00', '2026-11-01 00:00:00'],
-        ], $runs->map(fn ($run) => [$run->fetched_at, $run->issued_at])->all());
+        $line = $this->lastJsonLine();
+        $this->assertSame(['failed', 'store', 'payload_invalid', 'superseded'], [$line['status'], $line['step'], $line['error'], $line['reason']]);
+        $runs = DB::table('hourly_forecast_runs')->get(['fetched_at', 'issued_at']);
+        $this->assertSame([['2026-11-01 07:00:00', '2026-11-01 00:00:00']], $runs->map(fn ($run) => [$run->fetched_at, $run->issued_at])->all());
+    }
+
+    /** A failed request after a parser error in the same point is still counted (fetch_incomplete). */
+    public function test_a_failed_piece_after_an_invalid_piece_of_the_same_point_is_still_counted(): void
+    {
+        config(['open_meteo.points.oulu' => ['name' => 'Oulu', 'latitude' => 65.01, 'longitude' => 25.47, 'group' => 'fi', 'weight' => 0.131]]);
+        Http::fake(function (Request $request) {
+            parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
+
+            // The first year piece answers with a body the store rejects, the second fails.
+            return $query['start_date'] === '2024-12-30'
+                ? Http::response(['daily' => ['time' => ['2024-12-30']], 'daily_units' => []])
+                : Http::response(['error' => true, 'reason' => 'boom'], 400);
+        });
+
+        $this->assertSame(1, Artisan::call('weather:fetch', ['--from' => '2024-12-30', '--to' => '2025-01-02', '--point' => ['oulu']]));
+
+        $line = $this->lastJsonLine();
+        $this->assertSame(['failed', 'fetch', 'fetch_incomplete'], [$line['status'], $line['step'], $line['error']]);
+        $this->assertSame([1, 1], [$line['counts']['failed_points'], $line['counts']['invalid_points']]);
+        $this->assertSame(0, DB::table('weather_daily_observations')->count());
+    }
+
+    /** The store keeps the model identity of the fetch (S5): a config change does not relabel saved answers. */
+    public function test_the_store_uses_the_model_identities_recorded_at_fetch_time(): void
+    {
+        $this->fakeApi();
+        $options = ['--point' => ['helsinki', 'ee01_hiiumaa']];
+        $this->assertSame(0, Artisan::call('weather:fetch', $options + ['--fetch-only' => true]));
+        $path = $this->lastJsonLine()['payload']['path'];
+        $observedModel = config('open_meteo.observed_model');
+        $observedHourlyModel = config('open_meteo.observed_hourly_model');
+        $this->assertSame(['observed', 'observed_hourly', 'ecmwf_ens'], array_keys(ImportPayloadReader::open($path)->fact('models')));
+
+        config([
+            'open_meteo.observed_model' => 'changed_model',
+            'open_meteo.observed_hourly_model' => 'changed_model',
+            'open_meteo.outlooks.ecmwf_ens.model' => 'changed_model',
+        ]);
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        $this->assertSame(0, Artisan::call('weather:fetch', $options + ['--from-payload' => $path]));
+
+        $this->assertSame([$observedModel], DB::table('weather_daily_observations')->distinct()->pluck('model')->all());
+        $this->assertSame([$observedHourlyModel], DB::table('weather_hourly_observations')->distinct()->pluck('model')->all());
+        $this->assertSame(['ecmwf_ifs025'], DB::table('weather_outlook_runs')->distinct()->pluck('model')->all());
+    }
+
+    /** A payload written before the models were recorded is refused, never stored with the current config. */
+    public function test_a_payload_without_recorded_models_is_refused_as_incomplete(): void
+    {
+        $this->fakeApi();
+        $this->assertSame(0, Artisan::call('weather:fetch', ['--fetch-only' => true]));
+        $path = $this->lastJsonLine()['payload']['path'];
+        $this->removeHeaderFacts($path, ['models']);
+
+        $this->assertSame(1, Artisan::call('weather:fetch', ['--from-payload' => $path]));
+
+        $line = $this->lastJsonLine();
+        $this->assertSame(['failed', 'store', 'payload_invalid', 'incomplete'], [$line['status'], $line['step'], $line['error'], $line['reason']]);
+        $this->assertSame([], array_merge(...array_values($this->storedRows())));
     }
 
     public function test_a_backfill_store_commits_per_piece_and_its_replay_never_sleeps(): void
@@ -422,6 +486,22 @@ class FetchWeatherStagedCommandTest extends TestCase
         }
 
         return $rows;
+    }
+
+    /**
+     * Rewrite a payload file as one written before these header facts existed (a valid file with
+     * a new .sha256), to test how the store treats older payloads.
+     *
+     * @param  list<string>  $facts
+     */
+    private function removeHeaderFacts(string $path, array $facts): void
+    {
+        $lines = explode("\n", rtrim((string) gzdecode((string) file_get_contents($path)), "\n"));
+        $header = json_decode($lines[0], true, flags: JSON_THROW_ON_ERROR);
+        $header['facts'] = (object) array_diff_key($header['facts'], array_flip($facts));
+        $lines[0] = json_encode($header, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+        file_put_contents($path, gzencode(implode("\n", $lines)."\n"));
+        file_put_contents(substr($path, 0, -strlen('.ndjson.gz')).'.sha256', hash_file('sha256', $path)."\n");
     }
 
     /** @return array<string, mixed> */

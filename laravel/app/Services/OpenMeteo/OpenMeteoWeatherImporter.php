@@ -35,11 +35,12 @@ class OpenMeteoWeatherImporter
 
     /**
      * @param  array<string, mixed>  $payload  Archive response
+     * @param  array{model: string, variables: list<string>}  $model  the model of the fetch (payload header)
      * @return int Number of daily rows written
      */
-    public function importObserved(string $point, array $payload, CarbonInterface $fetchedAt): int
+    public function importObserved(string $point, array $payload, CarbonInterface $fetchedAt, array $model): int
     {
-        $variables = (array) config('open_meteo.observed_variables');
+        $variables = $model['variables'];
         $daily = $payload['daily'];
         $this->assertUnits($payload, $variables);
 
@@ -61,7 +62,7 @@ class OpenMeteoWeatherImporter
 
             $records[] = [
                 'point' => $point,
-                'model' => (string) config('open_meteo.observed_model'),
+                'model' => $model['model'],
                 'date' => (string) $date,
                 ...$values,
                 'fetched_at' => $fetched,
@@ -83,11 +84,12 @@ class OpenMeteoWeatherImporter
 
     /**
      * @param  array<string, mixed>  $payload  Hourly archive response (timeformat=unixtime, GMT)
+     * @param  array{model: string, variables: list<string>}  $model  the model of the fetch (payload header)
      * @return int Number of hourly rows written
      */
-    public function importObservedHourly(string $point, array $payload, CarbonInterface $fetchedAt): int
+    public function importObservedHourly(string $point, array $payload, CarbonInterface $fetchedAt, array $model): int
     {
-        $variables = (array) config('open_meteo.observed_hourly_variables');
+        $variables = $model['variables'];
         $this->assertUnits($payload, $variables, 'hourly');
         $times = $this->hourlyTimes($payload);
         $hourly = $payload['hourly'];
@@ -109,7 +111,7 @@ class OpenMeteoWeatherImporter
 
             $records[] = [
                 'point' => $point,
-                'model' => (string) config('open_meteo.observed_hourly_model'),
+                'model' => $model['model'],
                 'timestamp' => $timestamp,
                 'utc_datetime' => gmdate('Y-m-d H:i:s', $timestamp),
                 ...$values,

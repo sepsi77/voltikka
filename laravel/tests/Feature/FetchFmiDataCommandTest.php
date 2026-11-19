@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Services\Fmi\FmiMultiPointCoverageParser;
 use App\Services\Fmi\FmiRequestException;
+use App\Services\ImportPayload\ImportPayloadReader;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Factory;
@@ -471,8 +472,14 @@ XML;
 
         $this->assertSame(1, Artisan::call('fmi:fetch'));
         $output = Artisan::output();
+        $payloads = glob(config('import_payloads.path').'/fmi/2026-11-01/*.ndjson.gz');
+        $this->assertCount(1, $payloads, 'The payload stays after a failed store.');
 
-        $this->assertSame(['status' => 'failed', 'step' => 'store', 'error' => 'store_failed', 'sqlstate' => '23000', 'driver_code' => 19, 'table' => 'hourly_forecast_runs'], $this->lastJsonLine($output));
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'store_failed',
+            'payload_path' => $payloads[0], 'payload_sha256' => $this->sha256Of($payloads[0]),
+            'sqlstate' => '23000', 'driver_code' => 19, 'table' => 'hourly_forecast_runs',
+        ], $this->lastJsonLine($output));
         foreach (['forced failure', '8.9', 'temperature_2m'] as $binding) {
             $this->assertStringNotContainsString($binding, $output);
         }
@@ -485,9 +492,6 @@ XML;
 
             return true;
         });
-
-        $payloads = glob(config('import_payloads.path').'/fmi/2026-11-01/*.ndjson.gz');
-        $this->assertCount(1, $payloads, 'The payload stays after a failed store.');
 
         DB::statement('DROP TRIGGER fail_fmi_runs'); // the fix
         Http::swap(new Factory);
@@ -516,8 +520,10 @@ XML;
         $this->assertSame(['GLOB_PT1H_AVG'], DB::table('fmi_hourly_observations')->pluck('parameter')->all());
     }
 
-    public function test_an_unusable_answered_piece_fails_only_itself(): void
+    /** A body the store rejects is a store failure (invalid_response), not a fetch failure. */
+    public function test_an_unusable_answered_piece_fails_only_itself_in_the_store_step(): void
     {
+        Log::spy();
         $this->useKumpulaOnly();
         $this->fakeFmi([
             // A series position that matches no station: the parser accepts it, the importer does not.
@@ -528,9 +534,11 @@ XML;
         $this->assertSame(1, Artisan::call('fmi:fetch', ['--only' => ['observed', 'radiation']]));
 
         $line = $this->lastJsonLine();
-        $this->assertSame(['failed', 'fetch', 'fetch_incomplete', true], [$line['status'], $line['step'], $line['error'], $line['complete']]);
+        $this->assertSame(['failed', 'store', 'invalid_response', true], [$line['status'], $line['step'], $line['error'], $line['complete']]);
         $this->assertSame(1, $line['counts']['unusable_pieces']);
         $this->assertSame(['GLOB_PT1H_AVG'], DB::table('fmi_hourly_observations')->pluck('parameter')->all());
+        Log::shouldHaveReceived('error')->withArgs(fn (string $message, array $context) => $message === 'FMI store failed'
+            && $context['part'] === 'observed' && $context['exception_class'] === FmiRequestException::class)->once();
     }
 
     public function test_a_backfill_commits_each_piece_so_a_later_store_failure_keeps_the_earlier_pieces(): void
@@ -553,28 +561,75 @@ XML;
     }
 
     /**
-     * S9: this source is not date-bound. An older payload from the same day is accepted. Its
-     * observations replace the newer values until the next fetch; its forecast vintages are
-     * already stored (same payload hash), so it adds no vintage.
+     * A replay stores only the newest payload: an older same-day payload (strictly older fetch
+     * time) is refused as superseded and writes nothing, so it cannot roll newer values back.
      */
-    public function test_an_older_same_day_payload_is_accepted_restores_observations_and_adds_no_vintage(): void
+    public function test_an_older_same_day_payload_is_refused_as_superseded_and_writes_nothing(): void
     {
         $this->useKumpulaOnly();
         $this->fakeAllParts('7.2', '8.9');
         Artisan::call('fmi:fetch');
         $older = $this->lastJsonLine()['payload']['path'];
 
+        Carbon::setTestNow(Carbon::create(2026, 11, 1, 13, 30, 0, 'UTC'));
         $this->fakeAllParts('7.5', '9.4');
         Artisan::call('fmi:fetch');
+        $before = $this->storedRows();
         $this->assertSame(4, DB::table('hourly_forecast_runs')->count());
 
         Http::swap(new Factory);
         Http::preventStrayRequests();
-        $this->assertSame(0, Artisan::call('fmi:fetch', ['--from-payload' => $older]));
+        $this->assertSame(1, Artisan::call('fmi:fetch', ['--from-payload' => $older]));
 
-        $this->assertSame(['forecast_stored' => 0, 'forecast_unchanged' => 2], array_intersect_key($this->lastJsonLine()['counts'], ['forecast_stored' => 0, 'forecast_unchanged' => 0]));
-        $this->assertSame(4, DB::table('hourly_forecast_runs')->count());
-        $this->assertEqualsWithDelta(7.2, DB::table('fmi_hourly_observations')->where('parameter', 'TA_PT1H_AVG')->value('value'), 0.0001);
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'payload_invalid', 'reason' => 'superseded',
+            'payload_path' => $older, 'payload_sha256' => $this->sha256Of($older),
+        ], $this->lastJsonLine());
+        $this->assertSame($before, $this->storedRows());
+        $this->assertEqualsWithDelta(7.5, DB::table('fmi_hourly_observations')->where('parameter', 'TA_PT1H_AVG')->value('value'), 0.0001);
+    }
+
+    /**
+     * The store keeps the FMI parameters of the fetch (S5): a later config change neither drops an
+     * observation parameter nor renames a forecast value key on replay.
+     */
+    public function test_the_store_uses_the_parameters_recorded_at_fetch_time(): void
+    {
+        $this->useKumpulaOnly();
+        $this->fakeAllParts('7.2', '8.9');
+        $this->assertSame(0, Artisan::call('fmi:fetch', ['--fetch-only' => true]));
+        $path = $this->lastJsonLine()['payload']['path'];
+        $this->assertSame(['TA_PT1H_AVG', 'WS_PT1H_AVG'], ImportPayloadReader::open($path)->fact('observed_parameters'));
+        $this->assertSame(['parameter' => 'GLOB_1MIN', 'stored_parameter' => 'GLOB_PT1H_AVG'], ImportPayloadReader::open($path)->fact('radiation_parameters'));
+
+        config([
+            'fmi.hourly.parameters' => ['TA_PT1H_AVG'],
+            'fmi.radiation.stored_parameter' => 'RENAMED',
+            'fmi.forecasts.edited.parameters' => ['temperature' => 'renamed_temperature'],
+        ]);
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        $this->assertSame(0, Artisan::call('fmi:fetch', ['--from-payload' => $path]));
+
+        $this->assertSame(['GLOB_PT1H_AVG', 'TA_PT1H_AVG', 'WS_PT1H_AVG'], DB::table('fmi_hourly_observations')->orderBy('parameter')->pluck('parameter')->all());
+        $edited = json_decode((string) DB::table('hourly_forecast_runs')->where('product', 'edited')->value('values'), true);
+        $this->assertSame(['temperature_2m', 'wind_speed_10m', 'total_cloud_cover'], array_keys($edited));
+    }
+
+    /** A payload written before the parameters were recorded is refused, never stored with the current config. */
+    public function test_a_payload_without_recorded_parameters_is_refused_as_incomplete(): void
+    {
+        $this->useKumpulaOnly();
+        $this->fakeAllParts('7.2', '8.9');
+        $this->assertSame(0, Artisan::call('fmi:fetch', ['--fetch-only' => true]));
+        $path = $this->lastJsonLine()['payload']['path'];
+        $this->removeHeaderFacts($path, ['observed_parameters', 'radiation_parameters', 'forecast_parameters']);
+
+        $this->assertSame(1, Artisan::call('fmi:fetch', ['--from-payload' => $path]));
+
+        $line = $this->lastJsonLine();
+        $this->assertSame(['failed', 'store', 'payload_invalid', 'incomplete'], [$line['status'], $line['step'], $line['error'], $line['reason']]);
+        $this->assertSame(0, DB::table('fmi_hourly_observations')->count() + DB::table('hourly_forecast_runs')->count());
     }
 
     /** One weather station, one radiation station, no extra points: every part answers for 101004. */
@@ -608,6 +663,27 @@ XML;
             'observations' => DB::table('fmi_hourly_observations')->orderBy('fmisid')->orderBy('parameter')->orderBy('timestamp')->get()->map($strip)->all(),
             'forecasts' => DB::table('hourly_forecast_runs')->orderBy('product')->orderBy('point')->get()->map($strip)->all(),
         ];
+    }
+
+    private function sha256Of(string $path): string
+    {
+        return hash_file('sha256', $path);
+    }
+
+    /**
+     * Rewrite a payload file as one written before these header facts existed (a valid file with
+     * a new .sha256), to test how the store treats older payloads.
+     *
+     * @param  list<string>  $facts
+     */
+    private function removeHeaderFacts(string $path, array $facts): void
+    {
+        $lines = explode("\n", rtrim((string) gzdecode((string) file_get_contents($path)), "\n"));
+        $header = json_decode($lines[0], true, flags: JSON_THROW_ON_ERROR);
+        $header['facts'] = (object) array_diff_key($header['facts'], array_flip($facts));
+        $lines[0] = json_encode($header, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+        file_put_contents($path, gzencode(implode("\n", $lines)."\n"));
+        file_put_contents(substr($path, 0, -strlen('.ndjson.gz')).'.sha256', hash_file('sha256', $path)."\n");
     }
 
     /** @return array<string, mixed> */

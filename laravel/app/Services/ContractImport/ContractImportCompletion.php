@@ -57,6 +57,38 @@ class ContractImportCompletion
         return $uuid;
     }
 
+    /**
+     * A replay's takeover (`--from-payload`): start a new owner like start(), but never seize a
+     * live run. Under the row lock the date must have no row, a row that is not `running`, or a
+     * `running` row of the payload's own fetch owner. Null when another run is `running`: that
+     * run is fetching or storing newer data, and finishing it would hide its outcome.
+     */
+    public function takeOver(string $date, ?string $fetchOwner): ?string
+    {
+        $uuid = (string) Str::uuid();
+
+        return DB::transaction(function () use ($date, $fetchOwner, $uuid): ?string {
+            $row = $this->query($date)->lockForUpdate()->first();
+            if ($row === null) {
+                $this->ensureRow($date, $uuid);
+                $row = $this->query($date)->lockForUpdate()->firstOrFail();
+                if (($row->metadata['run_uuid'] ?? null) === $uuid) {
+                    return $uuid;
+                }
+            }
+            if ($row->status === DataFreshnessCheckpoint::STATUS_RUNNING && ($row->metadata['run_uuid'] ?? null) !== $fetchOwner) {
+                return null;
+            }
+            $row->update([
+                'status' => DataFreshnessCheckpoint::STATUS_RUNNING,
+                'metadata' => ['run_uuid' => $uuid, 'stage' => 'started'],
+                'recorded_at' => now(),
+            ]);
+
+            return $uuid;
+        });
+    }
+
     public function record(string $date, string $uuid, string $status, array $metadata): bool
     {
         return DB::transaction(function () use ($date, $uuid, $status, $metadata): bool {

@@ -162,6 +162,11 @@ parses that file and writes the rows. Modes: default (fetch, then store from the
 - Units: `{part, point, from, to}` for observed pieces, `{part, point}` for outlook and hourly
   forecast points, `{part, meta: run|before|after}` for the metadata answers.
 - Header facts (S5): `yesterday`, `windows` (the observed window or the backfill year pieces),
+  `models` (per selected part: `kind` (`observed`, `observed_hourly`, `outlook`,
+  `hourly_forecast`), `model`, `variables`, and for an hourly forecast `time_shift_seconds` and
+  `run_hour_utc`; the store writes these, never the current config, so a config change cannot
+  relabel saved answers; a header without the model of a saved part, as in a payload written
+  before 2026-11-19's fix, is refused `payload_invalid`/`incomplete` before any write),
   `single_runs` (the `ecmwf_00z` plan: `run_date` (Helsinki day of `fetched_at`), `issued_at`,
   `already_stored`, `requested`), and `request_fetched_at` (unit key → UTC time right after each
   answered data request). Stored `fetched_at` is that time, as before the staged import, never the
@@ -182,8 +187,12 @@ parses that file and writes the rows. Modes: default (fetch, then store from the
 - Transactions (S21): one per store step; a `--from/--to` backfill commits once per point and
   calendar-year piece, so a failed piece keeps the earlier pieces (all upserts, so a replay of the
   whole file is safe).
-- S9: not date-bound. A replay of an older payload is accepted: observed rows take the replayed
-  values and fetch time (upsert), and a vintage keeps its own `fetched_at`/`issued_at`.
+- A failed data request is counted in `failed_points` even after a parser error earlier in the
+  same point (the invalid-point skip comes after the status check), so such a run stays
+  `fetch_incomplete`.
+- S9: not date-bound, and a stored vintage keeps its own `fetched_at`/`issued_at`. A replay
+  stores only the newest payload: an older one is refused `superseded` when a newer payload of
+  the same options exists (shared rule, `../ImportPayload/AGENTS.md`).
 
 ## API budget (free tier: < 10,000 calls/day, 5,000/hour, 600/minute)
 

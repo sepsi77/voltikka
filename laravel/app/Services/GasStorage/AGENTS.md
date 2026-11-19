@@ -50,9 +50,12 @@ fetch, then store from the payload file (`import-payloads/gie-agsi/<date>/`).
 - An HTTP failure, an AGSI error body (HTTP 200 with `error`) or an unexpected body is recorded
   with its body as a failed unit and ends that area. The store skips every page of a failed area
   (as before: an area is stored whole or not at all), stores the others, and exits 1 with
-  `fetch_incomplete`.
-- The store step upserts all areas in one transaction. Not date-bound: a same-day older payload
-  is stored and puts its older values back until the next fetch.
+  `fetch_incomplete`. The page limit (`GieAgsiService::MAX_PAGES`, 100) is a failure too: when
+  page 100 is read and `last_page` is larger, that page is recorded as failed (log reason
+  `page_limit`), so the area is not stored with days missing (PR #31 review).
+- The store step upserts all areas in one transaction. Not date-bound (S9), but a replay stores
+  only the newest payload: an older one is refused `superseded` when a newer payload of the same
+  options exists (shared rule, `../ImportPayload/AGENTS.md`).
 - `--if-configured` without `GIE_API_KEY` skips with exit 0 and `{"status":"skipped",...}` in every
   mode, without a payload file. It is not a data option, so a replay need not repeat it. Without
   `--if-configured`, a fetch without a key fails (`not_configured`); `--from-payload` needs no key.

@@ -23,7 +23,7 @@ use Throwable;
  *
  * Staged import (StagedImport): the fetch step records every page, the store step upserts all
  * areas in one transaction. A failed page fails its whole area; the other areas are stored and
- * the run exits 1 (fetch_incomplete). Not date-bound (S9): a same-day older payload is stored.
+ * the run exits 1 (fetch_incomplete); so does an area cut off by the page limit. Not date-bound (S9).
  */
 class FetchGasStorage extends Command
 {
@@ -120,7 +120,9 @@ class FetchGasStorage extends Command
 
     /**
      * Record every page of one area. An HTTP failure, an AGSI error body (HTTP 200 with `error`)
-     * or an unexpected body is recorded as a failed unit and ends the area.
+     * or an unexpected body is recorded as a failed unit and ends the area. So is the page limit:
+     * when GieAgsiService::MAX_PAGES pages are read and `last_page` says there are more, the
+     * last page read is recorded as failed, so the area is never stored with days missing.
      *
      * @param  array<string, string>  $areaParams
      */
@@ -150,9 +152,17 @@ class FetchGasStorage extends Command
                 return;
             }
 
+            if ($page >= GieAgsiService::MAX_PAGES && $lastPage > $page) {
+                $payload->record($unit, $response, failed: true);
+                logger()->error('GIE gas storage fetch failed', ['area' => $area, 'reason' => 'page_limit']);
+                $this->error("Area {$area}: fetch failed (more than ".GieAgsiService::MAX_PAGES.' pages).');
+
+                return;
+            }
+
             $payload->record($unit, $response);
             $page++;
-        } while ($page <= $lastPage && $page <= GieAgsiService::MAX_PAGES);
+        } while ($page <= $lastPage);
     }
 
     /** Runs inside the StagedImport store transaction. */

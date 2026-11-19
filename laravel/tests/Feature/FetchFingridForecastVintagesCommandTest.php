@@ -190,8 +190,14 @@ class FetchFingridForecastVintagesCommandTest extends TestCase
 
         $this->assertSame(1, Artisan::call('fingrid:fetch-forecast-vintages'));
         $output = Artisan::output();
+        $payloads = glob(config('import_payloads.path').'/fingrid/2026-11-01/*.ndjson.gz');
+        $this->assertCount(1, $payloads, 'The payload stays after a failed store.');
 
-        $this->assertSame(['status' => 'failed', 'step' => 'store', 'error' => 'store_failed', 'sqlstate' => '23000', 'driver_code' => 19, 'table' => 'hourly_forecast_runs'], $this->lastJsonLine($output));
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'store_failed',
+            'payload_path' => $payloads[0], 'payload_sha256' => hash_file('sha256', $payloads[0]),
+            'sqlstate' => '23000', 'driver_code' => 19, 'table' => 'hourly_forecast_runs',
+        ], $this->lastJsonLine($output));
         foreach (['forced failure', 'wind_power_mw', '1015'] as $binding) {
             $this->assertStringNotContainsString($binding, $output);
         }
@@ -205,9 +211,6 @@ class FetchFingridForecastVintagesCommandTest extends TestCase
 
             return true;
         });
-
-        $payloads = glob(config('import_payloads.path').'/fingrid/2026-11-01/*.ndjson.gz');
-        $this->assertCount(1, $payloads, 'The payload stays after a failed store.');
 
         DB::statement('DROP TRIGGER fail_runs'); // the fix
         Http::swap(new Factory);
@@ -230,15 +233,15 @@ class FetchFingridForecastVintagesCommandTest extends TestCase
     }
 
     /**
-     * S9: not date-bound. An older payload from the same day is accepted. It inserts its vintage
-     * with its own fetch time when that vintage is not stored yet (for example after a failed
-     * store); a vintage that is already stored adds nothing (unique payload hash).
+     * Replay stores only the newest payload: an older same-day payload is refused (superseded)
+     * while a newer payload of the same options exists, and adds no vintage. The newest payload
+     * of a failed store still replays (the store-failure test).
      */
-    public function test_an_older_same_day_payload_is_accepted_and_adds_only_a_missing_vintage(): void
+    public function test_an_older_same_day_payload_is_refused_when_a_newer_payload_exists(): void
     {
         $this->fakeVintage(1000.0);
         Artisan::call('fingrid:fetch-forecast-vintages', ['--fetch-only' => true]);
-        $older = $this->lastJsonLine()['payload']['path'];
+        $older = $this->lastJsonLine()['payload'];
 
         Carbon::setTestNow(Carbon::create(2026, 11, 1, 10, 55, 0, 'UTC'));
         $this->fakeVintage(1100.0);
@@ -247,13 +250,24 @@ class FetchFingridForecastVintagesCommandTest extends TestCase
         Carbon::setTestNow(Carbon::create(2026, 11, 1, 13, 0, 0, 'UTC'));
         Http::swap(new Factory);
         Http::preventStrayRequests();
-        $this->assertSame(0, Artisan::call('fingrid:fetch-forecast-vintages', ['--from-payload' => $older]));
-        $this->assertSame(['vintages_inserted' => 1], $this->lastJsonLine()['counts']);
-        $this->assertSame(['2026-11-01 10:45:00', '2026-11-01 10:55:00'], DB::table('hourly_forecast_runs')->orderBy('fetched_at')->pluck('fetched_at')->all());
+        $this->assertSame(1, Artisan::call('fingrid:fetch-forecast-vintages', ['--from-payload' => $older['path']]));
 
-        $this->assertSame(0, Artisan::call('fingrid:fetch-forecast-vintages', ['--from-payload' => $older]));
-        $this->assertSame(['vintages_inserted' => 0], $this->lastJsonLine()['counts']);
-        $this->assertSame(2, DB::table('hourly_forecast_runs')->count());
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'payload_invalid', 'reason' => 'superseded',
+            'payload_path' => $older['path'], 'payload_sha256' => $older['sha256'],
+        ], $this->lastJsonLine());
+        $this->assertSame(['2026-11-01 10:55:00'], DB::table('hourly_forecast_runs')->pluck('fetched_at')->all());
+    }
+
+    /** A repeated or differently written dataset ID is fetched once and gives one vintage. */
+    public function test_a_repeated_dataset_option_fetches_the_dataset_once(): void
+    {
+        $this->fakeVintage(1000.0);
+
+        $this->assertSame(0, Artisan::call('fingrid:fetch-forecast-vintages', ['--dataset' => ['245', '0245']]));
+
+        Http::assertSentCount(1);
+        $this->assertSame(['vintages_inserted' => 1], $this->lastJsonLine()['counts']);
     }
 
     public function test_a_failed_request_prints_fetch_incomplete(): void

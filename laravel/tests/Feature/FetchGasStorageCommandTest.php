@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Services\GasStorage\GieAgsiService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Factory;
@@ -217,8 +218,14 @@ class FetchGasStorageCommandTest extends TestCase
 
         $this->assertSame(1, Artisan::call('gas-storage:fetch'));
         $output = Artisan::output();
+        $payloads = glob(config('import_payloads.path').'/gie-agsi/2026-11-01/*.ndjson.gz');
+        $this->assertCount(1, $payloads, 'The payload stays after a failed store.');
 
-        $this->assertSame(['status' => 'failed', 'step' => 'store', 'error' => 'store_failed', 'sqlstate' => '23000', 'driver_code' => 19, 'table' => 'gas_storage_daily_values'], $this->lastJsonLine($output));
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'store_failed',
+            'payload_path' => $payloads[0], 'payload_sha256' => hash_file('sha256', $payloads[0]),
+            'sqlstate' => '23000', 'driver_code' => 19, 'table' => 'gas_storage_daily_values',
+        ], $this->lastJsonLine($output));
         foreach (['forced failure', '89.47', '1012.3456'] as $binding) {
             $this->assertStringNotContainsString($binding, $output);
         }
@@ -231,9 +238,6 @@ class FetchGasStorageCommandTest extends TestCase
 
             return true;
         });
-
-        $payloads = glob(config('import_payloads.path').'/gie-agsi/2026-11-01/*.ndjson.gz');
-        $this->assertCount(1, $payloads, 'The payload stays after a failed store.');
 
         DB::statement('DROP TRIGGER fail_gas_de'); // the fix
         Http::swap(new Factory);
@@ -292,10 +296,10 @@ class FetchGasStorageCommandTest extends TestCase
     }
 
     /**
-     * S9: this source is not date-bound. An older payload from the same day is accepted and its
-     * upsert puts the older values (and its older fetched_at) back until the next fetch.
+     * A replay stores only the newest payload: an older same-day payload is refused as
+     * superseded and writes nothing, so the newer values stay.
      */
-    public function test_an_older_same_day_payload_is_accepted_and_restores_its_values(): void
+    public function test_an_older_same_day_payload_is_refused_as_superseded_and_writes_nothing(): void
     {
         $this->fakeAgsi('89.00');
         Artisan::call('gas-storage:fetch', ['--area' => ['eu']]);
@@ -304,15 +308,18 @@ class FetchGasStorageCommandTest extends TestCase
         Carbon::setTestNow(Carbon::create(2026, 11, 1, 20, 0, 0, 'UTC'));
         $this->fakeAgsi('89.50');
         Artisan::call('gas-storage:fetch', ['--area' => ['eu']]);
-        $this->assertEqualsWithDelta(89.50, DB::table('gas_storage_daily_values')->value('full_pct'), 0.0001);
 
         Http::swap(new Factory);
         Http::preventStrayRequests();
-        $this->assertSame(0, Artisan::call('gas-storage:fetch', ['--area' => ['eu'], '--from-payload' => $older]));
+        $this->assertSame(1, Artisan::call('gas-storage:fetch', ['--area' => ['eu'], '--from-payload' => $older]));
 
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'payload_invalid', 'reason' => 'superseded',
+            'payload_path' => $older, 'payload_sha256' => hash_file('sha256', $older),
+        ], $this->lastJsonLine());
         $row = DB::table('gas_storage_daily_values')->sole();
-        $this->assertEqualsWithDelta(89.00, $row->full_pct, 0.0001);
-        $this->assertSame('2026-11-01 08:00:00', $row->fetched_at);
+        $this->assertEqualsWithDelta(89.50, $row->full_pct, 0.0001);
+        $this->assertSame('2026-11-01 20:00:00', $row->fetched_at);
     }
 
     public function test_from_payload_refuses_other_data_options(): void
@@ -322,10 +329,30 @@ class FetchGasStorageCommandTest extends TestCase
         $path = $this->lastJsonLine()['payload']['path'];
 
         $this->assertSame(1, Artisan::call('gas-storage:fetch', ['--from-payload' => $path]));
-        $this->assertSame(['status' => 'failed', 'step' => 'store', 'error' => 'payload_invalid', 'reason' => 'options_mismatch'], $this->lastJsonLine());
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'payload_invalid', 'reason' => 'options_mismatch',
+            'payload_path' => $path, 'payload_sha256' => hash_file('sha256', $path),
+        ], $this->lastJsonLine());
 
         // --if-configured is not a data option.
         $this->assertSame(0, Artisan::call('gas-storage:fetch', ['--from-payload' => $path, '--area' => ['eu'], '--if-configured' => true]));
+    }
+
+    /** More pages than GieAgsiService::MAX_PAGES: the area is incomplete, so none of its days is stored. */
+    public function test_an_area_that_reaches_the_page_limit_before_its_last_page_fails(): void
+    {
+        Http::fake(fn (Request $request) => Http::response([
+            'last_page' => ($request->data()['country'] ?? null) === 'de' ? 1 : GieAgsiService::MAX_PAGES + 1,
+            'data' => [$this->day('2026-10-30', '89.47')],
+        ]));
+
+        $this->assertSame(1, Artisan::call('gas-storage:fetch'));
+
+        $line = $this->lastJsonLine();
+        $this->assertSame(['failed', 'fetch', 'fetch_incomplete', false], [$line['status'], $line['step'], $line['error'], $line['complete']]);
+        $this->assertSame(['gas_days' => 1, 'failed_areas' => 1], $line['counts']);
+        $this->assertSame(['de'], DB::table('gas_storage_daily_values')->pluck('area_code')->unique()->values()->all());
+        Http::assertSentCount(GieAgsiService::MAX_PAGES + 1); // eu stops at the limit; de has one page
     }
 
     private function fakeAgsi(string $full): void

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Services\ImportPayload\ImportPayloadReader;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Factory;
@@ -183,8 +184,14 @@ class FetchSykeHydrologyCommandTest extends TestCase
 
         $this->assertSame(1, Artisan::call('syke:fetch'));
         $output = Artisan::output();
+        $payloads = glob(config('import_payloads.path').'/syke/2026-11-01/*.ndjson.gz');
+        $this->assertCount(1, $payloads, 'The payload stays after a failed store.');
 
-        $this->assertSame(['status' => 'failed', 'step' => 'store', 'error' => 'store_failed', 'sqlstate' => '23000', 'driver_code' => 19, 'table' => 'syke_hydrology_values'], $this->lastJsonLine($output));
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'store_failed',
+            'payload_path' => $payloads[0], 'payload_sha256' => hash_file('sha256', $payloads[0]),
+            'sqlstate' => '23000', 'driver_code' => 19, 'table' => 'syke_hydrology_values',
+        ], $this->lastJsonLine($output));
         foreach (['forced failure', '13.78'] as $binding) {
             $this->assertStringNotContainsString($binding, $output);
         }
@@ -197,9 +204,6 @@ class FetchSykeHydrologyCommandTest extends TestCase
 
             return true;
         });
-
-        $payloads = glob(config('import_payloads.path').'/syke/2026-11-01/*.ndjson.gz');
-        $this->assertCount(1, $payloads, 'The payload stays after a failed store.');
 
         DB::statement('DROP TRIGGER fail_syke_snow'); // the fix
         Http::swap(new Factory);
@@ -232,10 +236,10 @@ class FetchSykeHydrologyCommandTest extends TestCase
     }
 
     /**
-     * S9: this source is not date-bound. An older payload from the same day is accepted and its
-     * upsert puts the older values (and its older fetched_at) back until the next fetch.
+     * A replay stores only the newest payload: an older same-day payload is refused as
+     * superseded and writes nothing, so the newer values stay.
      */
-    public function test_an_older_same_day_payload_is_accepted_and_restores_its_values(): void
+    public function test_an_older_same_day_payload_is_refused_as_superseded_and_writes_nothing(): void
     {
         $this->fakeSnowPages('139.41');
         Artisan::call('syke:fetch', ['--series' => ['snow_water_equivalent']]);
@@ -244,15 +248,65 @@ class FetchSykeHydrologyCommandTest extends TestCase
         Carbon::setTestNow(Carbon::create(2026, 11, 1, 15, 0, 0, 'UTC'));
         $this->fakeSnowPages('140.00');
         Artisan::call('syke:fetch', ['--series' => ['snow_water_equivalent']]);
-        $this->assertEqualsWithDelta(140.0, DB::table('syke_hydrology_values')->where('date', 'like', '2026-03-01%')->value('value'), 0.0001);
 
         Http::swap(new Factory);
         Http::preventStrayRequests();
-        $this->assertSame(0, Artisan::call('syke:fetch', ['--series' => ['snow_water_equivalent'], '--from-payload' => $older]));
+        $this->assertSame(1, Artisan::call('syke:fetch', ['--series' => ['snow_water_equivalent'], '--from-payload' => $older]));
 
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'payload_invalid', 'reason' => 'superseded',
+            'payload_path' => $older, 'payload_sha256' => hash_file('sha256', $older),
+        ], $this->lastJsonLine());
         $row = DB::table('syke_hydrology_values')->where('date', 'like', '2026-03-01%')->sole();
-        $this->assertEqualsWithDelta(139.41, $row->value, 0.0001);
-        $this->assertSame('2026-11-01 08:30:00', $row->fetched_at);
+        $this->assertEqualsWithDelta(140.0, $row->value, 0.0001);
+        $this->assertSame('2026-11-01 15:00:00', $row->fetched_at);
+    }
+
+    /** A replay checks the saved nextLinks against the base URL of the fetch, not the current config. */
+    public function test_the_store_checks_next_links_against_the_base_url_recorded_at_fetch_time(): void
+    {
+        $this->fakeSnowPages('139.41');
+        $this->assertSame(0, Artisan::call('syke:fetch', ['--series' => ['snow_water_equivalent'], '--fetch-only' => true]));
+        $path = $this->lastJsonLine()['payload']['path'];
+        $this->assertSame(self::BASE, ImportPayloadReader::open($path)->fact('base_url'));
+
+        config(['syke.base_url' => 'https://moved.syke.test/odata/']);
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        $this->assertSame(0, Artisan::call('syke:fetch', ['--series' => ['snow_water_equivalent'], '--from-payload' => $path]));
+
+        $this->assertSame(['rows' => 2, 'failed_series' => 0], $this->lastJsonLine()['counts']);
+    }
+
+    /** A payload written before the base URL was recorded is refused, never checked against the current config. */
+    public function test_a_payload_without_the_recorded_base_url_is_refused_as_incomplete(): void
+    {
+        $this->fakeSnowPages('139.41');
+        $this->assertSame(0, Artisan::call('syke:fetch', ['--series' => ['snow_water_equivalent'], '--fetch-only' => true]));
+        $path = $this->lastJsonLine()['payload']['path'];
+        $this->removeHeaderFacts($path, ['base_url']);
+
+        $this->assertSame(1, Artisan::call('syke:fetch', ['--series' => ['snow_water_equivalent'], '--from-payload' => $path]));
+
+        $line = $this->lastJsonLine();
+        $this->assertSame(['failed', 'store', 'payload_invalid', 'incomplete'], [$line['status'], $line['step'], $line['error'], $line['reason']]);
+        $this->assertSame(0, DB::table('syke_hydrology_values')->count());
+    }
+
+    /**
+     * Rewrite a payload file as one written before these header facts existed (a valid file with
+     * a new .sha256), to test how the store treats older payloads.
+     *
+     * @param  list<string>  $facts
+     */
+    private function removeHeaderFacts(string $path, array $facts): void
+    {
+        $lines = explode("\n", rtrim((string) gzdecode((string) file_get_contents($path)), "\n"));
+        $header = json_decode($lines[0], true, flags: JSON_THROW_ON_ERROR);
+        $header['facts'] = (object) array_diff_key($header['facts'], array_flip($facts));
+        $lines[0] = json_encode($header, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+        file_put_contents($path, gzencode(implode("\n", $lines)."\n"));
+        file_put_contents(substr($path, 0, -strlen('.ndjson.gz')).'.sha256', hash_file('sha256', $path)."\n");
     }
 
     /** Two LumiAlue pages joined by a nextLink. */

@@ -26,6 +26,18 @@ class OutageImporter
      */
     public function import(string $documentType, string $zone, array $documents, CarbonInterface $fetchedAt): int
     {
+        return $this->write($this->records($documentType, $zone, $documents, $fetchedAt));
+    }
+
+    /**
+     * Parse the documents into version rows without touching the database, so the staged store
+     * can tell an unreadable body (it throws here) from a write error.
+     *
+     * @param  list<string>  $documents
+     * @return list<array<string, mixed>>
+     */
+    public function records(string $documentType, string $zone, array $documents, CarbonInterface $fetchedAt): array
+    {
         $now = now();
         $fetched = $fetchedAt->copy()->utc()->format('Y-m-d H:i:s');
         $records = [];
@@ -79,6 +91,15 @@ class OutageImporter
             }
         }
 
+        return $records;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $records  from records()
+     * @return int Number of new version rows
+     */
+    public function write(array $records): int
+    {
         $inserted = 0;
         foreach (array_chunk($records, self::INSERT_CHUNK_SIZE) as $chunk) {
             $inserted += DB::table('entsoe_outages')->insertOrIgnore($chunk);

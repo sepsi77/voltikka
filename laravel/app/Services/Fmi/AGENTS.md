@@ -113,22 +113,31 @@ fetch, then store from `import-payloads/fmi/<date>/`.
 
 - The fetch step records every raw XML response, one line per request piece (unit
   `{part, from, to}`, forecasts also `product`). The header facts fix `current_hour`, `parts`,
-  `observation_window` and `forecast_points` (every configured point of each product with its
-  coordinates), so the missing-point check of a later store uses the fetch's point list (S5).
+  `observation_window`, `forecast_points` (every configured point of each product with its
+  coordinates) and the FMI parameters of each fetched part: `observed_parameters` (the hourly
+  fields kept), `radiation_parameters` (`parameter`, `stored_parameter`) and
+  `forecast_parameters` (per product the field → value-key map and `speed_from`). The store uses
+  these, never the current config, so a config change cannot drop a field or rename a value key
+  on replay (S5; PR #31 review). A header without the parameters of a fetched part (a payload
+  written before 2026-11-19's fix) is refused `payload_invalid`/`incomplete` before any write.
   Forecast `issued_at` stays `om:resultTime` from the response; `fetched_at` is the header's.
 - A connection failure, an HTTP error or an FMI exception report is a failed unit, recorded with
-  its body and logged at fetch time as before. An answered piece that the parser or importer
-  rejects (`FmiRequestException`: bad XML, missing field, unknown position) fails only that piece:
-  it throws before any write of its piece. Either case exits 1 with `fetch_incomplete`; a
-  configured forecast point without values exits 1 with `forecast_points_missing`.
+  its body and logged at fetch time as before (`FMI fetch failed`); the run exits 1 with
+  `fetch_incomplete`, step `fetch`. An answered piece that the parser or importer rejects in the
+  store step (`FmiRequestException`: bad XML, missing field, unknown position) fails only that
+  piece before any write of it, is logged as `FMI store failed` (same safe fields) and exits 1
+  with `invalid_response`, step `store`: the fix is in code, then a replay of the same file. With
+  both kinds in one run, `fetch_incomplete` wins. A configured forecast point without values
+  exits 1 with `forecast_points_missing`.
 - Memory: the store reads one request line at a time and releases its parsed XML before the
   next. Measured 2026-11-19 with a synthetic 2.5 MB radiation piece (7 stations × 10,080
   minutes): parse alone peak +20.9 MB, the whole staged run +29.2 MB.
 - Transactions: the default run writes observations (upsert) and forecast vintages
   (insert-only) in one transaction. A `--from` backfill commits once per request piece, so a store
   failure keeps the earlier pieces and a replay of the same file upserts them again.
-- Not date-bound: a same-day older payload is stored. Its observations replace newer values
-  until the next fetch; its forecast vintages already exist (same payload hash) and add no row.
+- Not date-bound (S9), but a replay stores only the newest payload: `--from-payload` refuses an
+  older payload when a newer one of the same options exists (`superseded`, no write; shared rule
+  in `../ImportPayload/AGENTS.md`).
 
 ## Commands
 

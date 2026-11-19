@@ -35,12 +35,13 @@ final class ImportPayloadReader
         if (! is_file($path)) {
             throw ImportPayloadInvalid::because('missing');
         }
+        // The .sha256 file is renamed last, so a payload without it never finished, even when the
+        // caller supplies a digest.
+        $shaPath = preg_replace('/\.ndjson\.gz$/', '.sha256', $path);
+        if ($shaPath === $path || ! is_file($shaPath)) {
+            throw ImportPayloadInvalid::because('incomplete');
+        }
         if ($sha256 === null || $sha256 === '') {
-            // The .sha256 file is renamed last, so a payload without it never finished.
-            $shaPath = preg_replace('/\.ndjson\.gz$/', '.sha256', $path);
-            if ($shaPath === $path || ! is_file($shaPath)) {
-                throw ImportPayloadInvalid::because('incomplete');
-            }
             $sha256 = trim((string) file_get_contents($shaPath));
         }
         if (! hash_equals(strtolower($sha256), (string) hash_file('sha256', $path))) {
@@ -138,6 +139,7 @@ final class ImportPayloadReader
                 $type = is_array($decoded) ? ($decoded['type'] ?? null) : null;
                 $valid = match (true) {
                     $header === null => $type === 'header' && ($decoded['version'] ?? null) === ImportPayloadWriter::VERSION
+                        && is_string($decoded['source'] ?? null) && is_string($decoded['command'] ?? null)
                         && is_string($decoded['fetched_at'] ?? null) && is_array($decoded['facts'] ?? null)
                         && is_array($decoded['options'] ?? null),
                     $end !== null => false,

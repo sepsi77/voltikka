@@ -85,14 +85,30 @@ G23). Day-ahead prices are not here: they stay in `../EntsoeService.php` and `..
   queries per zone and document type). The fetch never writes rows.
 - **Store** parses every recorded body and imports query by query with the header `fetched_at`
   (S5), so a replay keeps the fetch time that `SForecastReadiness` and the S model compare with
-  their cuts. A query with a failed page is left out, as before. Daily run: one transaction for
+  their cuts. A query with a failed page is left out, as before. Each importer has a pure
+  `records()` (parse, no database) and `write()`; `import()` is both. The store parses a whole
+  query before it writes, so a saved body that cannot be parsed (truncated XML with HTTP 200, an
+  unreadable ZIP, an unexpected acknowledgement; any `Exception` from parsing) fails only that
+  query: one log line `ENTSO-E transparency store skipped an unreadable query` (dataset, zone,
+  document type, query, class), the other queries are stored, and the run exits 1 with
+  `fetch_incomplete`. Database errors propagate and roll back (review PR #31; before, one bad body
+  failed the whole store). Generation and reservoir bodies reach the store unparsed (the fetch
+  step only parses outage pages), so this is their only parse boundary. Daily run: one transaction for
   all datasets. Backfill (`--from`): one transaction per query window, because a multi-year
   backfill is too large for one transaction; a fault keeps the earlier windows.
 - A failed unit (request failed after retries, or an answer the client cannot read) is logged
   with the class only, listed in `failed_units`, and the store exits 1 with `fetch_incomplete`
   after committing the other units (S10). A missing key fails the whole fetch (`fetch_failed`).
-- Not date-bound (S9): an older same-day payload is accepted. Outages add only missing versions;
-  generation and reservoirs take the older values and fetch time until the next run.
+  When no query of any unit was answered, the fetch throws `ImportFetchFailed` (`all_failed`):
+  step `fetch`, exit 1, the payload with the error bodies kept and named in the JSON line. Before
+  staging, the command also exited 1 when every unit failed.
+- `--dataset` and `--zone` are deduplicated before planning (review PR #31): a repeated dataset
+  planned its units twice under the same query keys, so a failed second copy hid the answered
+  first one.
+- Not date-bound (S9), but a `--from-payload` store of an older payload is refused
+  (`payload_invalid`, `superseded`, no write) while a newer usable payload of the same options
+  exists (shared rule, `../ImportPayload/AGENTS.md`). Without a newer file, outages add only
+  missing versions; generation and reservoirs take the payload's values and fetch time.
 - The S forecast workflow form `entsoe:fetch --dataset=outages --zone=FI --zone=SE3 ...` works in
   all three modes: the repeated options are stored in the header `options` and must be given
   again with `--from-payload`.

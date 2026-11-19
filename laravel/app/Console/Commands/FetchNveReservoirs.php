@@ -24,8 +24,8 @@ use Throwable;
  *
  * Staged import (StagedImport): the fetch step records both responses unparsed and fixes the ISO
  * `current_year` and `from_year` in the header (S5); the store step parses both and writes
- * weeks and reference in one transaction, so a body the parser rejects can be stored from the
- * same file after a parser fix. Not date-bound (S9).
+ * weeks and reference in one transaction, so a body the parser rejects (invalid_response, a
+ * store failure) can be stored from the same file after a parser fix. Not date-bound (S9).
  */
 class FetchNveReservoirs extends Command
 {
@@ -111,7 +111,7 @@ class FetchNveReservoirs extends Command
             } catch (RuntimeException $e) {
                 // An unexpected body fails only its unit and stays in the file for a later replay.
                 $unusable++;
-                $this->reportFailure($dataset, $e);
+                $this->reportFailure($dataset, $e, 'store');
             }
         }
 
@@ -139,8 +139,10 @@ class FetchNveReservoirs extends Command
             }
         }
 
+        // A failed request is a fetch failure; an answered body the parser rejects is a store one.
         [$error, $step] = match (true) {
-            $failedUnits !== [] || $unusable > 0 => ['fetch_incomplete', 'fetch'],
+            $failedUnits !== [] => ['fetch_incomplete', 'fetch'],
+            $unusable > 0 => ['invalid_response', 'store'],
             $unproved => ['reference_period_unproved', 'store'],
             default => [null, 'store'],
         };
@@ -152,13 +154,14 @@ class FetchNveReservoirs extends Command
         }], $error, $step);
     }
 
-    private function reportFailure(string $unit, Throwable $e): void
+    /** @param  'fetch'|'store'  $step  store: an answered body that the store step rejected */
+    private function reportFailure(string $unit, Throwable $e, string $step = 'fetch'): void
     {
         // The exception message can contain the request URL; log only the class.
-        logger()->error('NVE reservoir fetch failed', [
+        logger()->error("NVE reservoir {$step} failed", [
             'unit' => $unit,
             'exception_class' => $e::class,
         ]);
-        $this->error("NVE {$unit}: fetch failed (".$e::class.').');
+        $this->error("NVE {$unit}: {$step} failed (".$e::class.').');
     }
 }

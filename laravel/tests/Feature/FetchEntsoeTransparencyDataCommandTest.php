@@ -377,8 +377,14 @@ class FetchEntsoeTransparencyDataCommandTest extends TestCase
 
         $this->assertSame(1, Artisan::call('entsoe:fetch --zone=FI'));
         $output = Artisan::output();
+        $payloads = glob(config('import_payloads.path').'/entsoe-transparency/2026-11-01/*.ndjson.gz');
+        $this->assertCount(1, $payloads, 'The payload stays after a failed store.');
 
-        $this->assertSame(['status' => 'failed', 'step' => 'store', 'error' => 'store_failed', 'sqlstate' => '23000', 'driver_code' => 19, 'table' => 'entsoe_reservoir_weeks'], $this->lastJsonLine($output));
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'store_failed',
+            'payload_path' => $payloads[0], 'payload_sha256' => hash_file('sha256', $payloads[0]),
+            'sqlstate' => '23000', 'driver_code' => 19, 'table' => 'entsoe_reservoir_weeks',
+        ], $this->lastJsonLine($output));
         foreach (['forced failure', 'Olkiluoto', '55055761'] as $binding) {
             $this->assertStringNotContainsString($binding, $output);
         }
@@ -392,9 +398,6 @@ class FetchEntsoeTransparencyDataCommandTest extends TestCase
 
             return true;
         });
-
-        $payloads = glob(config('import_payloads.path').'/entsoe-transparency/2026-11-01/*.ndjson.gz');
-        $this->assertCount(1, $payloads, 'The payload stays after a failed store.');
 
         DB::statement('DROP TRIGGER fail_reservoirs'); // the fix
         Http::swap(new Factory);
@@ -446,31 +449,99 @@ class FetchEntsoeTransparencyDataCommandTest extends TestCase
     }
 
     /**
-     * S9: not date-bound. An older payload from the same day is accepted. Outages are insert-only,
-     * so it adds only versions that are missing; reservoir and generation rows are upserted, so
-     * they take the older values and fetch time until the next fetch.
+     * Replay stores only the newest payload: an older same-day payload is refused (superseded)
+     * while a newer payload of the same options exists, and writes nothing, so the older values
+     * cannot replace the newer upserted reservoir rows.
      */
-    public function test_an_older_same_day_payload_is_accepted(): void
+    public function test_an_older_same_day_payload_is_refused_when_a_newer_payload_exists(): void
     {
         Carbon::setTestNow(Carbon::create(2026, 11, 1, 6, 0, 0, 'UTC'));
         $this->fakeEntsoe('1000');
         Artisan::call('entsoe:fetch --zone=FI --fetch-only');
-        $older = $this->lastJsonLine()['payload']['path'];
+        $older = $this->lastJsonLine()['payload'];
 
         Carbon::setTestNow(Carbon::create(2026, 11, 1, 9, 0, 0, 'UTC'));
         $this->fakeEntsoe('2000');
         $this->assertSame(0, Artisan::call('entsoe:fetch --zone=FI'));
+        $rows = $this->storedRows();
 
         Carbon::setTestNow(Carbon::create(2026, 11, 1, 12, 0, 0, 'UTC'));
         Http::swap(new Factory);
         Http::preventStrayRequests();
-        $this->assertSame(0, Artisan::call('entsoe:fetch --zone=FI --from-payload='.$older));
+        $this->assertSame(1, Artisan::call('entsoe:fetch --zone=FI --from-payload='.$older['path']));
 
-        $this->assertSame(['outages' => 0, 'generation' => 0, 'reservoirs' => 13], $this->lastJsonLine()['counts']);
-        $this->assertSame(['2026-11-01 09:00:00'], DB::table('entsoe_outages')->distinct()->pluck('fetched_at')->all());
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'payload_invalid', 'reason' => 'superseded',
+            'payload_path' => $older['path'], 'payload_sha256' => $older['sha256'],
+        ], $this->lastJsonLine());
+        $this->assertSame($rows, $this->storedRows(), 'A refused replay writes nothing.');
         $first = DB::table('entsoe_reservoir_weeks')->orderBy('timestamp')->first();
-        $this->assertEqualsWithDelta(1000.0, $first->stored_energy_mwh, 0.001);
-        $this->assertSame('2026-11-01 06:00:00', $first->fetched_at);
+        $this->assertSame('2026-11-01 09:00:00', $first->fetched_at);
+        $this->assertFileExists($older['path']);
+    }
+
+    /**
+     * A query whose saved body cannot be parsed (here truncated XML with HTTP 200) fails only
+     * itself in the store: the other zones are stored, the run exits 1 (fetch_incomplete) and the
+     * log line holds the class only. Without the per-query parse boundary the parse error failed
+     * the whole store and wrote no zone.
+     */
+    public function test_an_unreadable_saved_body_fails_only_its_query_and_stores_the_others(): void
+    {
+        $generation = $this->fixture('generation-a75-de-lu.xml');
+        Http::fake(function (Request $request) use ($generation) {
+            return $this->queryOf($request)['in_Domain'] === '10Y1001A1001A39I' // EE
+                ? Http::response(substr($generation, 0, 400), 200, ['Content-Type' => 'text/xml'])
+                : Http::response($generation, 200, ['Content-Type' => 'text/xml']);
+        });
+        Log::spy();
+
+        $this->assertSame(1, Artisan::call('entsoe:fetch --dataset=generation'));
+
+        $line = $this->lastJsonLine();
+        $this->assertSame(['failed', 'fetch', 'fetch_incomplete', true], [$line['status'], $line['step'], $line['error'], $line['complete']]);
+        $zones = DB::table('entsoe_generation_hourly')->distinct()->orderBy('zone')->pluck('zone')->all();
+        $this->assertNotContains('EE', $zones);
+        $this->assertCount(count(config('entsoe_transparency.generation.zones')) - 1, $zones, 'Every other zone is stored.');
+        Log::shouldHaveReceived('error')->once()->with('ENTSO-E transparency store skipped an unreadable query', [
+            'dataset' => 'generation', 'zone' => 'EE', 'document_type' => 'A75', 'query' => 0, 'exception_class' => \Exception::class,
+        ]);
+    }
+
+    /**
+     * When no query of any unit was answered the fetch step fails (all_failed), as the command
+     * failed before staging when every unit failed; the payload with the error bodies is kept.
+     */
+    public function test_a_fetch_where_every_unit_failed_fails_the_fetch_step_and_keeps_the_payload(): void
+    {
+        Http::fake(fn () => Http::response('<html>stalled</html>', 503));
+
+        $this->assertSame(1, Artisan::call('entsoe:fetch --dataset=reservoirs'));
+
+        $line = $this->lastJsonLine();
+        $this->assertSame(['failed', 'fetch', 'fetch_failed', 'all_failed'], [$line['status'], $line['step'], $line['error'], $line['reason']]);
+        $this->assertFileExists($line['payload_path']);
+        $this->assertSame(hash_file('sha256', $line['payload_path']), $line['payload_sha256']);
+        $this->assertSame(0, DB::table('entsoe_reservoir_weeks')->count());
+    }
+
+    /**
+     * A repeated --dataset or --zone plans each unit once: the second copy would share the
+     * query key, so a failed second request would hide the answered first one.
+     */
+    public function test_a_repeated_dataset_or_zone_option_plans_each_unit_once(): void
+    {
+        $calls = 0;
+        Http::fake(function () use (&$calls) {
+            return ++$calls === 1
+                ? Http::response($this->fixture('reservoir-a72-no.xml'), 200)
+                : Http::response('<html>stalled</html>', 503);
+        });
+
+        $this->assertSame(0, Artisan::call('entsoe:fetch --dataset=reservoirs --dataset=reservoirs --zone=NO --zone=NO'));
+
+        $this->assertSame(1, $calls);
+        $this->assertSame(13, DB::table('entsoe_reservoir_weeks')->where('zone', 'NO')->count());
     }
 
     /** @return array<int, list<array<string, mixed>>> */

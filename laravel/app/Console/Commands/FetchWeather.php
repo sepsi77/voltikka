@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Console\Concerns\StagedImport;
+use App\Services\ImportPayload\ImportPayloadInvalid;
 use App\Services\ImportPayload\ImportPayloadReader;
 use App\Services\ImportPayload\ImportPayloadWriter;
 use App\Services\ImportPayload\ImportStoreResult;
@@ -29,7 +30,8 @@ use Throwable;
  *
  * Staged import (StagedImport, tasks/staged-api-imports/): the fetch step saves every answer in
  * one payload file, the store step parses that file and writes the rows. Not date-bound (S9): a
- * saved payload is stored with its own fetch-time facts whenever it is replayed.
+ * saved payload is stored with its own fetch-time facts whenever it is replayed, including the
+ * model identity of every part (`models`), never the current config.
  */
 class FetchWeather extends Command
 {
@@ -173,8 +175,9 @@ class FetchWeather extends Command
     /**
      * The fetch step: every request is recorded, including failed ones and the metadata answers,
      * so the store step decides issued_at and the exit code from the saved bodies alone. The
-     * fetch-time facts are the observed windows, the ecmwf_00z run plan (S19) and the fetched_at
-     * of every answered data request (the vintage time of today's rows).
+     * fetch-time facts are the observed windows, the model identity of every part, the ecmwf_00z
+     * run plan (S19) and the fetched_at of every answered data request (the vintage time of
+     * today's rows).
      *
      * @param  list<string>  $parts
      * @param  array<string, list<string>>  $partPoints
@@ -190,6 +193,7 @@ class FetchWeather extends Command
         $hourlyForecasts = (array) config('open_meteo.hourly_forecasts', []);
         $payload->setFact('yesterday', $yesterday->format('Y-m-d'));
         $payload->setFact('windows', array_map(fn (array $window) => [$window[0]->format('Y-m-d'), $window[1]->format('Y-m-d')], $windows));
+        $payload->setFact('models', (object) $this->partModels($parts, $outlooks, $hourlyForecasts));
 
         $failed = 0;
         $delay = (float) config($backfill ? 'open_meteo.backfill_request_delay_seconds' : 'open_meteo.request_delay_seconds');
@@ -229,6 +233,37 @@ class FetchWeather extends Command
         $payload->setFact('request_fetched_at', (object) $this->requestFetchedAt);
 
         return ['failed_points' => $failed];
+    }
+
+    /**
+     * What the store step needs to know about the model of every selected part (S5): the model
+     * name written to the rows, the variables, and for an hourly forecast its time shift and
+     * Single Runs hour. A replay uses these, so a config change cannot relabel saved answers.
+     *
+     * @param  list<string>  $parts
+     * @param  array<string, array<string, mixed>>  $outlooks
+     * @param  array<string, array<string, mixed>>  $hourlyForecasts
+     * @return array<string, array<string, mixed>>
+     */
+    private function partModels(array $parts, array $outlooks, array $hourlyForecasts): array
+    {
+        $models = [];
+        foreach ($parts as $part) {
+            $models[$part] = match (true) {
+                $part === 'observed' => ['kind' => 'observed', 'model' => (string) config('open_meteo.observed_model'), 'variables' => array_values((array) config('open_meteo.observed_variables'))],
+                $part === 'observed_hourly' => ['kind' => 'observed_hourly', 'model' => (string) config('open_meteo.observed_hourly_model'), 'variables' => array_values((array) config('open_meteo.observed_hourly_variables'))],
+                isset($outlooks[$part]) => ['kind' => 'outlook', 'model' => (string) $outlooks[$part]['model'], 'variables' => array_values($outlooks[$part]['variables'])],
+                default => [
+                    'kind' => 'hourly_forecast',
+                    'model' => (string) $hourlyForecasts[$part]['model'],
+                    'variables' => array_values($hourlyForecasts[$part]['variables']),
+                    'time_shift_seconds' => (int) ($hourlyForecasts[$part]['time_shift_seconds'] ?? 0),
+                    'run_hour_utc' => isset($hourlyForecasts[$part]['run_hour_utc']) ? (int) $hourlyForecasts[$part]['run_hour_utc'] : null,
+                ],
+            };
+        }
+
+        return $models;
     }
 
     /**
@@ -386,20 +421,27 @@ class FetchWeather extends Command
 
     /**
      * The store step: parse every saved answer and write it as before (upserts for observed
-     * rows, append-only outlook and hourly forecast vintages). Times come from the header facts,
-     * never from the clock (S5). A point whose answer has a wrong unit or shape fails alone, as
-     * before; a database error fails the whole store (StagedImport rolls back the run).
+     * rows, append-only outlook and hourly forecast vintages). Times and model identities come
+     * from the header facts, never from the clock or the config (S5). A point whose answer has a
+     * wrong unit or shape fails alone, as before; a database error fails the whole store
+     * (StagedImport rolls back the run).
+     *
+     * @throws ImportPayloadInvalid incomplete: a header without the model of a saved part (a
+     *                              payload written before the models were recorded)
      */
     private function store(ImportPayloadReader $payload, bool $backfill): ImportStoreResult
     {
-        $outlooks = (array) config('open_meteo.outlooks', []);
-        $hourlyForecasts = (array) config('open_meteo.hourly_forecasts', []);
+        $models = (array) $payload->fact('models', []);
         $fetchedAt = (array) $payload->fact('request_fetched_at', []);
         $singleRuns = (array) $payload->fact('single_runs', []);
 
         // Model run times from the saved metadata answers (first pass; the bodies are small).
+        // Every saved part must have its recorded model before anything is written.
         $modelRuns = [];
         foreach ($payload->requests() as $request) {
+            if (! is_array($models[$request['unit']['part']] ?? null)) {
+                throw ImportPayloadInvalid::because('incomplete');
+            }
             if (isset($request['unit']['meta'])) {
                 $modelRuns[$request['unit']['part']][$request['unit']['meta']] = OpenMeteoService::modelRunAt($request['status'] ?? null, ImportPayloadReader::body($request));
             }
@@ -417,44 +459,47 @@ class FetchWeather extends Command
             }
             $part = (string) $unit['part'];
             $point = (string) $unit['point'];
-            if (isset($invalid["{$part}/{$point}"])) {
-                continue; // an observed point stops at its first failed piece, as before
-            }
+            $model = $models[$part];
 
             $status = $request['status'] ?? null;
             $body = ImportPayloadReader::body($request);
-            if (isset($hourlyForecasts[$part]['run_hour_utc']) && is_int($status) && OpenMeteoService::isRunNotAvailableAnswer($status, $body)) {
+            if (($model['run_hour_utc'] ?? null) !== null && is_int($status) && OpenMeteoService::isRunNotAvailableAnswer($status, $body)) {
                 $messages[] = "Forecast {$part}: run {$singleRuns[$part]['issued_at']} UTC is not available yet.";
 
                 continue;
             }
+            // Counted before the invalid-point skip, so a parser error earlier in the same point
+            // does not hide a failed request (the run stays fetch_incomplete).
             if (! is_int($status) || $status < 200 || $status >= 300) {
                 $counts['failed_points']++; // logged by the fetch step
 
                 continue;
             }
+            if (isset($invalid["{$part}/{$point}"])) {
+                continue; // an observed point stops at its first failed piece, as before
+            }
 
             $time = CarbonImmutable::parse($fetchedAt[self::requestKey($unit)] ?? $payload->fetchedAt(), 'UTC');
-            $write = function () use ($part, $point, $body, $time, $outlooks, $hourlyForecasts, $singleRuns, $modelRuns, &$counts, &$messages, &$observedRows): void {
-                if ($part === 'observed' || $part === 'observed_hourly') {
-                    $daily = $part === 'observed';
+            $write = function () use ($part, $point, $body, $time, $model, $singleRuns, $modelRuns, &$counts, &$messages, &$observedRows): void {
+                if ($model['kind'] === 'observed' || $model['kind'] === 'observed_hourly') {
+                    $daily = $model['kind'] === 'observed';
                     $written = $daily
-                        ? $this->importer->importObserved($point, $this->importer->decode($body, 'daily'), $time)
-                        : $this->importer->importObservedHourly($point, $this->importer->decode($body, 'hourly'), $time);
+                        ? $this->importer->importObserved($point, $this->importer->decode($body, 'daily'), $time, $model)
+                        : $this->importer->importObservedHourly($point, $this->importer->decode($body, 'hourly'), $time, $model);
                     $counts[$daily ? 'daily_rows' : 'hourly_rows'] += $written;
                     $observedRows[$part][$point] = ($observedRows[$part][$point] ?? 0) + $written;
-                } elseif (isset($outlooks[$part])) {
-                    $stored = $this->importer->storeOutlookRun($part, $outlooks[$part], $point, $this->importer->decode($body, 'daily'), $modelRuns[$part]['run'] ?? null, $time);
+                } elseif ($model['kind'] === 'outlook') {
+                    $stored = $this->importer->storeOutlookRun($part, $model, $point, $this->importer->decode($body, 'daily'), $modelRuns[$part]['run'] ?? null, $time);
                     $counts['outlook_runs_stored'] += (int) $stored;
                     $messages[] = "Outlook {$part} {$point}: ".($stored ? 'new run stored' : 'unchanged').'.';
-                } elseif (isset($hourlyForecasts[$part])) {
-                    if (isset($hourlyForecasts[$part]['run_hour_utc'])) {
+                } elseif ($model['kind'] === 'hourly_forecast') {
+                    if ($model['run_hour_utc'] !== null) {
                         $issuedAt = (string) $singleRuns[$part]['issued_at'];
                     } else {
                         $before = $modelRuns[$part]['before'] ?? null;
                         $issuedAt = $before !== null && $before === ($modelRuns[$part]['after'] ?? null) ? $before : null;
                     }
-                    $stored = $this->importer->storeHourlyForecastRun($part, $hourlyForecasts[$part], $point, $this->importer->decode($body, 'hourly'), $issuedAt, $time);
+                    $stored = $this->importer->storeHourlyForecastRun($part, $model, $point, $this->importer->decode($body, 'hourly'), $issuedAt, $time);
                     $counts['forecast_runs_stored'] += (int) $stored;
                     $messages[] = "Forecast {$part} {$point}: ".($stored ? 'new run stored' : 'unchanged').'.';
                 } else {

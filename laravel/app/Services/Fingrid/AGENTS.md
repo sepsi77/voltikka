@@ -78,9 +78,15 @@ the `x-api-key` header, which a payload never records (tests prove the key is no
   its vintage time (`issued_at` stays null), so a replay never moves a vintage past the S model's
   `fetched_at <= cut` filter. A response without a complete hour exits 1 with `no_complete_hour`
   (step store).
-- Not date-bound (S9): an older same-day payload is accepted. `fingrid:fetch` upserts its older
-  values and fetch time until the next run; the vintage command inserts its vintage only when that
-  payload hash is not stored yet.
+- Not date-bound (S9), but a `--from-payload` store of an older payload is refused
+  (`payload_invalid`, `superseded`, no write) while a newer usable payload of the same options
+  exists (shared rule, `../ImportPayload/AGENTS.md`). The newest payload of a failed store still
+  replays. Without a newer file, `fingrid:fetch` upserts the payload's values and fetch time; the
+  vintage command inserts its vintage only when that payload hash is not stored yet.
+- `--dataset` IDs are normalized (`intval`) and deduplicated before planning in both commands
+  (review PR #31): a repeated ID (`--dataset=188 --dataset=0188`) shared one unit key, so its
+  pages merged into one window (double samples) and a failed copy hid the answered one. Tests
+  `test_a_repeated_dataset_option_fetches_the_dataset_once` in both command tests.
 
 ## Commands
 

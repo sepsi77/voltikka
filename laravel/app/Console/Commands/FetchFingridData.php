@@ -49,7 +49,9 @@ class FetchFingridData extends Command
     public function handle(): int
     {
         $configured = (array) config('fingrid.datasets', []);
-        $requested = array_map('intval', (array) $this->option('dataset'));
+        // Normalized and once each: a repeated ID would merge its pages into one window (double
+        // samples) and its failed copy would hide the answered one.
+        $requested = array_values(array_unique(array_map('intval', (array) $this->option('dataset'))));
         $unknown = array_diff($requested, array_keys($configured));
 
         if ($unknown !== []) {

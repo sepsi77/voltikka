@@ -25,6 +25,18 @@ class GenerationImporter
      */
     public function import(string $zone, array $documents, CarbonInterface $fetchedAt): int
     {
+        return $this->write($this->records($zone, $documents, $fetchedAt));
+    }
+
+    /**
+     * Parse the documents into hourly rows without touching the database, so the staged store can
+     * tell an unreadable body (it throws here) from a write error.
+     *
+     * @param  list<string>  $documents
+     * @return list<array<string, mixed>>
+     */
+    public function records(string $zone, array $documents, CarbonInterface $fetchedAt): array
+    {
         /** @var array<string, array<int, float>> $slots key "psr|direction" => slot ts => MW */
         $slots = [];
 
@@ -77,6 +89,15 @@ class GenerationImporter
             }
         }
 
+        return $records;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $records  from records()
+     * @return int Number of hourly rows written
+     */
+    public function write(array $records): int
+    {
         foreach (array_chunk($records, self::UPSERT_CHUNK_SIZE) as $chunk) {
             DB::table('entsoe_generation_hourly')->upsert(
                 $chunk,

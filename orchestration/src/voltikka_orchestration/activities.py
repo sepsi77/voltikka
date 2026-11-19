@@ -97,6 +97,11 @@ class Activities:
                                    "date_passed", type="DatePassed", non_retryable=True)
         argv, cwd = self._argv(request)
         started = time.monotonic()
+        # Local hard deadline at the attempt's start-to-close timeout, independent of the server: a
+        # worker that has lost its Temporal connection never receives the cancellation, and a store
+        # must not keep writing past its PHP store-lock lease (65 min, above every 60-min store).
+        limit = activity.info().start_to_close_timeout
+        deadline = started + limit.total_seconds() if limit else None
         process = await asyncio.create_subprocess_exec(
             *argv, cwd=cwd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
         )
@@ -105,7 +110,8 @@ class Activities:
         try:
             while True:
                 waiting = {communicate} if shutdown is None else {communicate, shutdown}
-                done, _ = await asyncio.wait(waiting, timeout=HEARTBEAT_SECONDS, return_when=asyncio.FIRST_COMPLETED)
+                timeout = HEARTBEAT_SECONDS if deadline is None else max(0.0, min(HEARTBEAT_SECONDS, deadline - time.monotonic()))
+                done, _ = await asyncio.wait(waiting, timeout=timeout, return_when=asyncio.FIRST_COMPLETED)
                 if communicate in done:
                     break
                 if shutdown is not None and shutdown in done:
@@ -113,6 +119,12 @@ class Activities:
                     process.kill()
                     await process.wait()
                     raise ApplicationError(f"{' '.join(argv[1:3])} stopped by worker shutdown", type="WorkerShutdown")
+                if deadline is not None and time.monotonic() >= deadline:
+                    # Retryable like a server start-to-close timeout: a lost attempt, not CommandFailed.
+                    process.kill()
+                    await process.wait()
+                    raise ApplicationError(f"{' '.join(argv[1:3])} passed its start-to-close timeout {limit}",
+                                           "local_timeout", type="LocalTimeout")
                 activity.heartbeat()
         except asyncio.CancelledError:
             # Activity timeout or the end of the graceful drain: stop the child so a retry cannot

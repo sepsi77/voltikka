@@ -12,8 +12,11 @@ use App\Services\SpotPriceImport\SpotPriceImporter;
 use App\Support\DataFetchFailureReporter;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 use UnexpectedValueException;
@@ -35,6 +38,18 @@ class FetchSpot extends Command
      * @var string
      */
     protected $description = 'Fetch Nord Pool spot prices from ENTSO-E API and save to database';
+
+    /**
+     * Longer than a store may live (review LAR-201): Temporal kills a store activity's PHP process
+     * after `STORE_TIMEOUT_MINUTES` = 60 (orchestration/src/voltikka_orchestration/staged.py), so
+     * the lease cannot expire under a running store and let a second one compute averages from a
+     * snapshot without its rows. Accepted cost: a store killed while it holds the lock blocks the
+     * next FI store for up to 65 minutes; that store waits STORE_LOCK_WAIT_SECONDS, then fails
+     * `store_busy` with its payload kept.
+     */
+    private const STORE_LOCK_LEASE_SECONDS = 3900;
+
+    private const STORE_LOCK_WAIT_SECONDS = 60;
 
     private DataFetchFailureReporter $reporter;
 
@@ -61,6 +76,8 @@ class FetchSpot extends Command
             $exit = $this->runStaged(
                 fn (ImportPayloadWriter $payload) => $this->fetch($payload),
                 fn (ImportPayloadReader $payload): ImportStoreResult => $this->store($payload),
+                // The store opens its transaction inside its lock, so the commit precedes the release.
+                transactional: false,
             );
         } finally {
             $this->reporter->report($exit === self::FAILURE);
@@ -107,8 +124,11 @@ class FetchSpot extends Command
     }
 
     /**
-     * Runs inside the StagedImport store transaction (S21): the price rows and the averages they
-     * produce commit together. Only the cache warm (queue dispatch) runs after the commit.
+     * Parses the payload, then writes the FI price rows and the averages in one transaction under
+     * the FI store lock (S21): they commit together, and two stores (a replay and a scheduled
+     * run) cannot each compute averages from a snapshot without the other's rows. The lock is
+     * taken before the transaction and released after the commit. A lock timeout is the closed
+     * error `store_busy` with no write. Only the cache warm (queue dispatch) runs after the commit.
      */
     private function store(ImportPayloadReader $payload): ImportStoreResult
     {
@@ -130,10 +150,21 @@ class FetchSpot extends Command
         }
 
         $this->info('Fetched '.count($spotPrices).' hourly prices. Processing...');
-        $this->spotPriceImporter->import($spotPrices);
+        try {
+            Cache::lock('spot_store_v1:FI', self::STORE_LOCK_LEASE_SECONDS)->block(
+                self::STORE_LOCK_WAIT_SECONDS,
+                fn () => DB::transaction(function () use ($spotPrices): void {
+                    $this->spotPriceImporter->import($spotPrices);
+                    $this->info('Calculating spot price averages...');
+                    $this->averageService->calculateAllAverages();
+                }),
+            );
+        } catch (LockTimeoutException) {
+            // No write; the payload stays for a replay.
+            $this->reportStagedFailure('store', 'store_busy', null, []);
 
-        $this->info('Calculating spot price averages...');
-        $this->averageService->calculateAllAverages();
+            return new ImportStoreResult(['records' => count($spotPrices)], error: 'store_busy');
+        }
 
         return new ImportStoreResult(['records' => count($spotPrices)], [
             function () use ($spotPrices): void {

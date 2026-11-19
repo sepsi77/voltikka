@@ -6,6 +6,7 @@ use App\Console\Concerns\StagedImport;
 use App\Models\DataFreshnessCheckpoint;
 use App\Models\ElectricityFuturesEodPrice;
 use App\Services\ContractListCacheService;
+use App\Services\ElectricityFutures\EexCheckpointOwnershipLost;
 use App\Services\ElectricityFutures\EexFuturesService;
 use App\Services\ImportPayload\ImportPayloadInvalid;
 use App\Services\ImportPayload\ImportPayloadReader;
@@ -120,7 +121,7 @@ class FetchEexFutures extends Command
         // the checkpoint over once, after its date check and before its data transaction (storeStep).
         if ($this->option('from-payload') === null) {
             $this->failureReporter->step('fetch');
-            if ($this->fullScope && ! $this->startCheckpoint($effectiveDate)) {
+            if ($this->fullScope && $this->startCheckpoint($effectiveDate) !== null) {
                 return $this->stagedFailure('fetch', 'checkpoint_failed');
             }
         }
@@ -317,18 +318,27 @@ class FetchEexFutures extends Command
         // S11: a replay takes the date over with a new owner exactly once, committed before the
         // data transaction. A failed store then rolls back only its rows, and the failure handler
         // finishes this same owner; it never starts another one (that could replace a newer run).
+        // It never seizes a live run either: another owner's `running` row fails `checkpoint_busy`.
         if ($this->fullScope && $this->option('from-payload') !== null) {
             $this->failureReporter->step('store');
-            if (! $this->startCheckpoint($effectiveDate, ['payload' => $this->storedPayload])) {
-                $this->failFetchRun(['reason' => 'checkpoint_failed', 'step' => 'store', 'error' => 'checkpoint_failed', 'payload' => $this->storedPayload]);
+            if (($error = $this->startCheckpoint($effectiveDate, ['payload' => $this->storedPayload], replay: true)) !== null) {
+                if ($error === 'checkpoint_failed') {
+                    $this->failFetchRun(['reason' => 'checkpoint_failed', 'step' => 'store', 'error' => 'checkpoint_failed', 'payload' => $this->storedPayload]);
+                }
 
-                return new ImportStoreResult([], [], 'checkpoint_failed');
+                return new ImportStoreResult([], [], $error);
             }
         }
 
         // S21: one transaction for every row of the run and the final checkpoint. A database error
         // in either propagates, so nothing of the run stays and the JSON line gets the SQL facts.
-        return DB::transaction(fn (): ImportStoreResult => $this->storeRows($payload, $effectiveDate));
+        try {
+            return DB::transaction(fn (): ImportStoreResult => $this->storeRows($payload, $effectiveDate));
+        } catch (EexCheckpointOwnershipLost) {
+            // A newer run owns the date: none of this run's rows or cache work commits, and the
+            // newer run's checkpoint stays as it is.
+            return new ImportStoreResult([], [], 'checkpoint_failed');
+        }
     }
 
     /**
@@ -505,8 +515,9 @@ class FetchEexFutures extends Command
         $ready = $failures === 0
             && $totalFetched > 0
             && $completeFiProof;
-        // A database error here propagates and rolls the run back; false means a newer run owns
-        // the date, a closed outcome that keeps the rows (they are this payload's valid prices).
+        // A database error here propagates and rolls the run back. False means a newer run owns
+        // the date: the run rolls back too, so an older run never commits rows under a newer
+        // owner's checkpoint (the newer run stores its own data).
         $recorded = $this->writeOwnedCheckpoint($ready, [
             'fetched_points' => $totalFetched,
             'saved_points' => $totalSaved,
@@ -517,11 +528,13 @@ class FetchEexFutures extends Command
             'current_run_latest_prior_fi_trade_dates_by_tenor' => $priorFiTradeDatesByTenor,
             'payload' => $this->storedPayload,
         ]);
+        if (! $recorded) {
+            throw new EexCheckpointOwnershipLost;
+        }
 
         $error = match (true) {
             $failures > 0 => 'fetch_incomplete',
             ! $ready => 'missing_current_run_prior_fi',
-            ! $recorded => 'checkpoint_failed',
             default => null,
         };
 
@@ -582,14 +595,19 @@ class FetchEexFutures extends Command
      * Write `running` with a new owner for the date. A run that started earlier and finishes
      * later compares its owner in writeOwnedCheckpoint() and cannot replace these facts. The
      * owner is held only after the write commits; one invocation calls this at most once.
+     * A $replay never seizes a live run: under the row lock, a `running` row of another owner
+     * than the payload's own fetch is left alone (`checkpoint_busy`), because that run is
+     * fetching or storing newer data. A settled row or the fetch's own owner is taken over.
+     * Null when this invocation owns the date, else the closed error.
      *
      * @param  array<string, mixed>  $metadata
+     * @return 'checkpoint_failed'|'checkpoint_busy'|null
      */
-    private function startCheckpoint(string $date, array $metadata = []): bool
+    private function startCheckpoint(string $date, array $metadata = [], bool $replay = false): ?string
     {
         $owner = (string) Str::uuid();
         try {
-            DB::transaction(function () use ($date, $metadata, $owner): void {
+            $started = DB::transaction(function () use ($date, $metadata, $owner, $replay): bool {
                 if (! DataFreshnessCheckpoint::query()->where('key', DataFreshnessCheckpoint::KEY_EEX_FUTURES)->whereDate('effective_date', $date)->exists()) {
                     DataFreshnessCheckpoint::query()->insertOrIgnore([
                         'key' => DataFreshnessCheckpoint::KEY_EEX_FUTURES, 'effective_date' => $date,
@@ -598,24 +616,37 @@ class FetchEexFutures extends Command
                         'recorded_at' => now(), 'created_at' => now(), 'updated_at' => now(),
                     ]);
                 }
-                DataFreshnessCheckpoint::query()->where('key', DataFreshnessCheckpoint::KEY_EEX_FUTURES)
+                $row = DataFreshnessCheckpoint::query()->where('key', DataFreshnessCheckpoint::KEY_EEX_FUTURES)
                     ->whereDate('effective_date', $date)->lockForUpdate()->firstOrFail();
+                $rowOwner = $row->metadata['run_uuid'] ?? null;
+                if ($replay && $row->status === DataFreshnessCheckpoint::STATUS_RUNNING
+                    && $rowOwner !== $owner && $rowOwner !== ($this->fetchRun['owner'] ?? null)) {
+                    return false;
+                }
                 $this->freshness->record(
                     DataFreshnessCheckpoint::KEY_EEX_FUTURES,
                     $date,
                     DataFreshnessCheckpoint::STATUS_RUNNING,
                     ['run_uuid' => $owner, 'stage' => 'started'] + $metadata,
                 );
+
+                return true;
             });
         } catch (Throwable $exception) {
             $this->error('Failed to record the EEX freshness checkpoint.');
             $this->failureReporter->fail('checkpoint', $exception);
 
-            return false;
+            return 'checkpoint_failed';
+        }
+        if (! $started) {
+            $this->error('Another EEX run is running for this date.');
+            $this->failureReporter->fail('checkpoint_busy');
+
+            return 'checkpoint_busy';
         }
         [$this->checkpointDate, $this->checkpointOwner] = [$date, $owner];
 
-        return true;
+        return null;
     }
 
     /**

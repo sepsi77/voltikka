@@ -40,7 +40,7 @@ class EntsoeService
      * Fetch one raw A44 day-ahead response, for staged imports that save the body before parsing.
      * The effective URI holds the securityToken: record it only through ImportPayloadWriter.
      *
-     * @throws RequestException|ConnectionException after the retry policy
+     * @throws RequestException|ConnectionException after the retry policy; also for any non-2xx answer
      * @throws InvalidArgumentException for a region without a configured EIC code
      */
     public function fetchDayAheadResponse(Carbon $startDate, Carbon $endDate, string $region = 'FI'): Response
@@ -55,7 +55,9 @@ class EntsoeService
                 return $exception instanceof ConnectionException || $exception instanceof RequestException;
             })->get($baseUrl.'?'.http_build_query($params));
 
-        if ($response->failed()) {
+        // Any answer outside 2xx after the retries is a failed request (S10), also a 3xx that
+        // failed() does not cover, so a staged fetch records it as a failed unit with its body.
+        if (! $response->successful()) {
             throw new RequestException($response);
         }
 

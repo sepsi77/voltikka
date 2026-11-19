@@ -1129,14 +1129,18 @@ class FetchContractsCommandTest extends TestCase
         $this->assertSame(1, Artisan::call('contracts:fetch', ['--skip-logos' => true]));
         $output = Artisan::output();
 
-        $this->assertSame(['status' => 'failed', 'step' => 'store', 'error' => 'store_failed', 'sqlstate' => '22001', 'driver_code' => 1406, 'table' => 'electricity_contracts'], $this->lastJsonLine($output));
+        $payloads = glob(config('import_payloads.path').'/azure-consumer-api/2026-11-19/*.ndjson.gz');
+        $this->assertCount(1, $payloads, 'The payload stays after a failed store.');
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'store_failed',
+            'payload_path' => $payloads[0], 'payload_sha256' => hash_file('sha256', $payloads[0]),
+            'sqlstate' => '22001', 'driver_code' => 1406, 'table' => 'electricity_contracts',
+        ], $this->lastJsonLine($output));
         $this->assertStringNotContainsString(str_repeat('x', 100), $output);
         foreach (['companies', 'electricity_contracts', 'contract_source_snapshots', 'contract_source_observations', 'price_components', 'active_contracts', 'spot_futures'] as $table) {
             $this->assertSame(0, DB::table($table)->count(), "A failed store writes no {$table} row (S21).");
         }
         $failed = DataFreshnessCheckpoint::sole();
-        $payloads = glob(config('import_payloads.path').'/azure-consumer-api/2026-11-19/*.ndjson.gz');
-        $this->assertCount(1, $payloads, 'The payload stays after a failed store.');
         $this->assertSame(DataFreshnessCheckpoint::STATUS_FAILED, $failed->status);
         $this->assertSame('import', $failed->metadata['stage']);
         $this->assertSame(['path' => $payloads[0], 'sha256' => trim(file_get_contents(str_replace('.ndjson.gz', '.sha256', $payloads[0])))], $failed->metadata['payload']);
@@ -1182,7 +1186,10 @@ class FetchContractsCommandTest extends TestCase
         Http::preventStrayRequests();
         $this->assertSame(1, Artisan::call('contracts:fetch', ['--from-payload' => $payload['path'], '--skip-logos' => true]));
 
-        $this->assertSame(['status' => 'failed', 'step' => 'store', 'error' => 'payload_invalid', 'reason' => 'wrong_date'], $this->lastJsonLine());
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'payload_invalid', 'reason' => 'wrong_date',
+            'payload_path' => $payload['path'], 'payload_sha256' => $payload['sha256'],
+        ], $this->lastJsonLine());
         $this->assertSame(0, ElectricityContract::count() + Company::count() + ContractSourceSnapshot::count());
         // The fetch's own run (still its owner) fails with the payload reference; today's date gets none.
         $checkpoint = DataFreshnessCheckpoint::sole();
@@ -1305,7 +1312,11 @@ class FetchContractsCommandTest extends TestCase
         Http::preventStrayRequests();
         $this->assertSame(1, Artisan::call('contracts:fetch', ['--from-payload' => $payloadA, '--skip-logos' => true]));
 
-        $this->assertSame(['status' => 'failed', 'step' => 'store', 'error' => 'payload_invalid', 'reason' => 'superseded'], $this->lastJsonLine());
+        // The newer payload file B supersedes A before the store step (StagedImport).
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'payload_invalid', 'reason' => 'superseded',
+            'payload_path' => $payloadA, 'payload_sha256' => hash_file('sha256', $payloadA),
+        ], $this->lastJsonLine());
         $this->assertSame($rowsAfterB, $this->importedRows(), 'Contract fields, price components and observations stay at B.');
         $this->assertEquals($checkpointAfterB, DataFreshnessCheckpoint::sole()->getAttributes(), 'The refused replay takes no checkpoint.');
 
@@ -1429,7 +1440,11 @@ class FetchContractsCommandTest extends TestCase
         $this->assertSame(1, Artisan::call('contracts:fetch', ['--from-payload' => $payloadA, '--skip-logos' => true]));
 
         $this->assertSame(0, $storeB, 'B stored while A waited for the lock.');
-        $this->assertSame(['status' => 'failed', 'step' => 'store', 'error' => 'payload_invalid', 'reason' => 'superseded'], $this->lastJsonLine());
+        // B is scoped (other options), so its payload file does not supersede A: the observation check does.
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'payload_invalid', 'reason' => 'superseded',
+            'payload_path' => $payloadA, 'payload_sha256' => hash_file('sha256', $payloadA),
+        ], $this->lastJsonLine());
         $this->assertSame($rowsAfterB, $this->importedRows(), 'Contract fields, price components and observations stay at B.');
         $this->assertSame(12.0, (float) PriceComponent::query()->where('price_component_type', 'General')->sole()->price);
         // LAR-202: the refused store takes no new owner but fails its fetch's still-owned marker.
@@ -1446,21 +1461,25 @@ class FetchContractsCommandTest extends TestCase
     /**
      * LAR-202, newer owner: fetch A wrote `running` with its owner F, then fetch B took the date
      * over with G. A's store refused before its takeover (busy, then superseded) compares F with
-     * the row and changes nothing; it never claims the date.
+     * the row and changes nothing; it never claims the date. B's payload file is under another
+     * payload root, so the shared newer-payload refusal does not stop A before its store step.
      */
     public function test_a_split_store_refused_before_takeover_leaves_a_newer_owner_untouched(): void
     {
         $this->captureSentryIssues();
+        $root = config('import_payloads.path');
         $this->travelTo(CarbonImmutable::parse('2026-11-19 06:00:00', 'Europe/Helsinki'));
         Http::fake(['*' => Http::response($this->sampleWithEnergyPrice(8.0))]);
         $this->assertSame(0, Artisan::call('contracts:fetch', ['--fetch-only' => true, '--skip-logos' => true]));
         $payloadA = $this->lastJsonLine()['payload']['path'];
 
         $this->travelTo(CarbonImmutable::parse('2026-11-19 10:00:00', 'Europe/Helsinki'));
+        config(['import_payloads.path' => "{$root}/other-root"]);
         Http::swap(new Factory);
         Http::fake(['*' => Http::response($this->sampleWithEnergyPrice(12.0))]);
         $this->assertSame(0, Artisan::call('contracts:fetch', ['--fetch-only' => true, '--skip-logos' => true]));
         $payloadB = $this->lastJsonLine()['payload']['path'];
+        config(['import_payloads.path' => $root]);
         $runningB = DataFreshnessCheckpoint::sole()->getAttributes();
         $this->assertSame(DataFreshnessCheckpoint::STATUS_RUNNING, $runningB['status']);
 
@@ -1487,15 +1506,104 @@ class FetchContractsCommandTest extends TestCase
         $this->assertSame(12.0, (float) PriceComponent::query()->where('price_component_type', 'General')->sole()->price);
     }
 
-    /** LAR-202: a refused replay never turns a settled checkpoint of its own fetch run into failed. */
+    /**
+     * A replay never seizes a live run (CodeRabbit, PR #31): newer default run B has written
+     * `running` and is still fetching (no payload file yet). Replay A of an earlier split fetch
+     * then fails `checkpoint_busy` without a write, and B keeps the date. After B failed, the same
+     * replay takes the date over and stores.
+     */
+    public function test_a_replay_does_not_take_over_a_newer_running_run_but_recovers_after_it_failed(): void
+    {
+        $this->captureSentryIssues();
+        $this->travelTo(CarbonImmutable::parse('2026-11-19 06:00:00', 'Europe/Helsinki'));
+        Http::fake(['*' => Http::response($this->getSampleApiResponse())]);
+        $this->assertSame(0, Artisan::call('contracts:fetch', ['--fetch-only' => true, '--skip-logos' => true]));
+        $payloadA = $this->lastJsonLine()['payload'];
+
+        $this->travelTo(CarbonImmutable::parse('2026-11-19 10:00:00', 'Europe/Helsinki'));
+        $completion = $this->app->make(ContractImportCompletion::class);
+        $ownerB = $completion->start('2026-11-19');
+        $runningB = DataFreshnessCheckpoint::sole()->getAttributes();
+        $emptyRows = $this->importedRows();
+
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        $this->assertSame(1, Artisan::call('contracts:fetch', ['--from-payload' => $payloadA['path'], '--skip-logos' => true]));
+
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'checkpoint_busy',
+            'payload_path' => $payloadA['path'], 'payload_sha256' => $payloadA['sha256'],
+        ], array_diff_key($this->lastJsonLine(), ['payload' => true, 'complete' => true, 'counts' => true]));
+        $this->assertEquals($runningB, DataFreshnessCheckpoint::sole()->getAttributes(), 'B keeps the date and stays running.');
+        $this->assertSame($emptyRows, $this->importedRows());
+        $this->assertFileExists($payloadA['path']);
+        $this->assertImportIssue('contracts', 'error', ['checkpoint_busy' => 1]);
+        $this->assertSame(['checkpoint_busy' => 'store'], $this->sentryIssues[0]->getContexts()['data_fetch']['steps']);
+        $this->assertTrue(Cache::lock(FetchContracts::STORE_LOCK, 1)->get(), 'A busy store releases the store lock.');
+        Cache::lock(FetchContracts::STORE_LOCK)->forceRelease();
+
+        $this->assertTrue($completion->record('2026-11-19', $ownerB, DataFreshnessCheckpoint::STATUS_FAILED, ['stage' => 'acquisition']));
+        $this->sentryIssues = [];
+        $this->assertSame(0, Artisan::call('contracts:fetch', ['--from-payload' => $payloadA['path'], '--skip-logos' => true]));
+
+        $this->assertSame('stored', $this->lastJsonLine()['status']);
+        $ready = DataFreshnessCheckpoint::sole();
+        $this->assertSame(DataFreshnessCheckpoint::STATUS_READY, $ready->status);
+        $this->assertNotSame($ownerB, $ready->metadata['run_uuid'], 'The replay owns the recovered date.');
+        $this->assertDatabaseHas('electricity_contracts', ['api_id' => 'contract-12345']);
+        $this->assertSame([], $this->sentryIssues);
+    }
+
+    /**
+     * The date is checked again once the store holds the store lock: a replay that waited past
+     * midnight is refused `wrong_date` before its takeover and writes nothing. The lock wait is
+     * simulated by the other holder releasing the lock during the store's first faked sleep.
+     */
+    public function test_a_store_that_waits_for_the_lock_past_midnight_is_refused_wrong_date(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-11-19 23:58:00', 'Europe/Helsinki'));
+        Http::fake(['*' => Http::response($this->getSampleApiResponse())]);
+        $this->assertSame(0, Artisan::call('contracts:fetch', ['--fetch-only' => true, '--skip-logos' => true]));
+        $payload = $this->lastJsonLine()['payload'];
+        $fetchRunUuid = DataFreshnessCheckpoint::sole()->metadata['run_uuid'];
+
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        $holder = Cache::lock(FetchContracts::STORE_LOCK, 3900);
+        $this->assertTrue($holder->get());
+        Sleep::fake();
+        Sleep::whenFakingSleep(function () use ($holder): void {
+            $this->travelTo(CarbonImmutable::parse('2026-11-20 00:01:00', 'Europe/Helsinki'));
+            $holder->release();
+        });
+
+        $this->assertSame(1, Artisan::call('contracts:fetch', ['--from-payload' => $payload['path'], '--skip-logos' => true]));
+
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'payload_invalid', 'reason' => 'wrong_date',
+            'payload_path' => $payload['path'], 'payload_sha256' => $payload['sha256'],
+        ], $this->lastJsonLine());
+        $this->assertSame(0, ElectricityContract::count() + Company::count() + ContractSourceSnapshot::count());
+        $checkpoint = DataFreshnessCheckpoint::sole();
+        $this->assertSame('2026-11-19', $checkpoint->effective_date->toDateString(), 'No takeover of the new day.');
+        $this->assertSame([DataFreshnessCheckpoint::STATUS_FAILED, $fetchRunUuid, 'wrong_date'], [$checkpoint->status, $checkpoint->metadata['run_uuid'], $checkpoint->metadata['stage']]);
+        $this->assertTrue(Cache::lock(FetchContracts::STORE_LOCK, 1)->get(), 'A refused store releases the lock.');
+    }
+
+    /**
+     * LAR-202: a refused replay never turns a settled checkpoint of its own fetch run into failed.
+     * The payload names the settled owner, so only the `running` guard of failFetchRun() keeps it.
+     */
     public function test_a_refused_replay_of_a_settled_run_keeps_its_checkpoint(): void
     {
         $this->travelTo(CarbonImmutable::parse('2026-11-19 06:00:00', 'Europe/Helsinki'));
         Http::fake(['*' => Http::response($this->getSampleApiResponse())]);
-        $this->assertSame(0, Artisan::call('contracts:fetch', ['--skip-logos' => true]));
+        $this->assertSame(0, Artisan::call('contracts:fetch', ['--fetch-only' => true, '--skip-logos' => true]));
         $payload = $this->lastJsonLine()['payload']['path'];
+        $fetchOwner = DataFreshnessCheckpoint::sole()->metadata['run_uuid'];
+        // The fetch run settles while it still owns the date.
+        $this->assertTrue($this->app->make(ContractImportCompletion::class)->record('2026-11-19', $fetchOwner, DataFreshnessCheckpoint::STATUS_INCOMPLETE, ['stage' => 'settled']));
         $settled = DataFreshnessCheckpoint::sole()->getAttributes();
-        $this->assertNotSame(DataFreshnessCheckpoint::STATUS_RUNNING, $settled['status']);
 
         Http::swap(new Factory);
         Http::preventStrayRequests();
@@ -1507,6 +1615,28 @@ class FetchContractsCommandTest extends TestCase
         $this->assertSame('store_busy', $this->lastJsonLine()['error']);
         $this->assertEquals($settled, DataFreshnessCheckpoint::sole()->getAttributes());
         $holder->release();
+    }
+
+    /**
+     * A scoped run whose answered postcodes were empty and whose other postcodes failed has no
+     * contracts and an incomplete acquisition: it exits 1 (`fetch_incomplete`), as before the
+     * staged import. An empty answer alone stays a warning with exit 0.
+     */
+    public function test_a_scoped_run_without_contracts_and_with_failed_postcodes_exits_one(): void
+    {
+        $this->captureSentryIssues();
+        Sleep::fake();
+        Http::fake(fn ($request) => str_ends_with($request->url(), '/02230')
+            ? Http::response(['error' => 'Server Error'], 500)
+            : Http::response([]));
+
+        $this->assertSame(1, Artisan::call('contracts:fetch', ['--postcodes' => '00100,02230', '--skip-logos' => true]));
+
+        $line = $this->lastJsonLine();
+        $this->assertSame(['failed', 'fetch', 'fetch_incomplete', false], [$line['status'], $line['step'], $line['error'], $line['complete']]);
+        $this->assertSame(['contracts' => 0, 'failed_postcodes' => 1], $line['counts']);
+        $this->assertSame(0, ElectricityContract::count());
+        $this->assertImportIssue('contracts', 'error', ['acquisition' => 1, 'no_contracts' => 1]);
     }
 
     /** @return list<array<string, mixed>> the sample product list with this General energy price */

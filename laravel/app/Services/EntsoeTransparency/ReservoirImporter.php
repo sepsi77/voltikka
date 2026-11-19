@@ -21,6 +21,18 @@ class ReservoirImporter
      */
     public function import(string $zone, array $documents, CarbonInterface $fetchedAt): int
     {
+        return $this->write($this->records($zone, $documents, $fetchedAt));
+    }
+
+    /**
+     * Parse the documents into weekly rows without touching the database, so the staged store can
+     * tell an unreadable body (it throws here) from a write error.
+     *
+     * @param  list<string>  $documents
+     * @return list<array<string, mixed>>
+     */
+    public function records(string $zone, array $documents, CarbonInterface $fetchedAt): array
+    {
         $weeks = [];
 
         foreach ($documents as $document) {
@@ -52,6 +64,15 @@ class ReservoirImporter
             ];
         }
 
+        return $records;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $records  from records()
+     * @return int Number of weekly rows written
+     */
+    public function write(array $records): int
+    {
         if ($records !== []) {
             DB::table('entsoe_reservoir_weeks')->upsert(
                 $records,

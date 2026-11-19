@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import os
 import re
 import sys
@@ -18,7 +19,7 @@ from temporalio.client import WorkflowHistory
 from temporalio.testing import ActivityEnvironment
 from temporalio.worker import Replayer, UnsandboxedWorkflowRunner, Worker
 
-from voltikka_orchestration import jobs, sentry
+from voltikka_orchestration import jobs, s_forecast, sentry
 from voltikka_orchestration.activities import Activities, CommandRequest, CommandResult, IssueReport
 from voltikka_orchestration.jobs import (
     ArtisanJob,
@@ -130,7 +131,8 @@ class FakeArtisan:
             return CommandResult(0, self.fetch_result, 0.1)
         if command == "futures:fetch-eex":
             self.checkpoints["eex_futures"] = "ready"
-        elif command == "contracts:fetch":
+        elif command == "contracts:fetch" and not any(arg.startswith("--postcodes") for arg in request.args):
+            # A scoped import (--postcodes) never writes the global import checkpoint.
             self.checkpoints["contract_import"] = self.import_state
         elif command == "contracts:complete-import":
             self.completion_ticks -= 1
@@ -544,6 +546,32 @@ async def test_a_contract_replay_runs_the_completion_loop(env):
     assert outcome.status == "succeeded" and fake.checkpoints["contract_import"] == "ready"
 
 
+async def test_a_scoped_contract_replay_ends_after_its_store(env):
+    """A scoped payload never creates the full-import checkpoint, so the completion loop would end a
+    successful replay with a false `import_not_ready` Issue."""
+    fake = FakeArtisan()
+    today = await helsinki_today(env)
+    path = payload_of(today)
+
+    outcome = await execute(env, fake, ImportReplay.run,
+                            ImportReplayInput("contracts:fetch", ["--postcodes=00100,33100"], path, SHA256))
+
+    assert fake.names() == [f"contracts:fetch --postcodes=00100,33100 --from-payload={path} --payload-sha256={SHA256}"]
+    assert outcome.status == "succeeded" and fake.reports == []
+    assert fake.checkpoints["contract_import"] is None
+
+
+def test_only_a_contract_import_without_postcodes_is_full_scope():
+    assert jobs.full_contract_scope(["--skip-logos"]) is True
+    assert jobs.full_contract_scope([]) is True
+    assert jobs.full_contract_scope(["--postcodes=00100"]) is False
+    assert jobs.full_contract_scope(["--postcodes", "00100"]) is False
+    assert jobs.full_contract_scope(["--postcodes="]) is False  # '' is not null in FetchContracts
+    # A bare --postcodes before another option, or last, parses as null: full scope.
+    assert jobs.full_contract_scope(["--postcodes", "--skip-logos"]) is True
+    assert jobs.full_contract_scope(["--skip-logos", "--postcodes"]) is True
+
+
 async def test_a_failed_replay_store_fails_the_workflow_without_a_fetch(env):
     path = PAYLOAD_PATH
     fake = FakeArtisan(failing={f"jao:fetch --from-payload={path} --payload-sha256={SHA256}"})
@@ -842,6 +870,14 @@ def real_worker(env, activities: Activities, **options) -> Worker:
                   workflow_failure_exception_types=[Exception], max_cached_workflows=0, **options)
 
 
+def activity_env(start_to_close: timedelta | None = None) -> ActivityEnvironment:
+    """ActivityEnvironment's default info has a 1-second start-to-close, which is also run_command's
+    local deadline; None means no deadline."""
+    environment = ActivityEnvironment()
+    environment.info = dataclasses.replace(environment.info, start_to_close_timeout=start_to_close)
+    return environment
+
+
 def calls(path: Path) -> list[str]:
     return (path / "calls.log").read_text().splitlines()
 
@@ -882,13 +918,41 @@ async def test_a_morning_activity_that_starts_after_its_date_is_refused_before_p
     today = datetime.now(HELSINKI).date()
 
     with pytest.raises(ApplicationError) as refused:
-        await ActivityEnvironment().run(activities.run_command,
-                                        CommandRequest("artisan", ["short"], date=(today - timedelta(days=1)).isoformat()))
+        await activity_env().run(activities.run_command,
+                                 CommandRequest("artisan", ["short"], date=(today - timedelta(days=1)).isoformat()))
 
     assert refused.value.type == "DatePassed" and refused.value.non_retryable
     assert not (tmp_path / "calls.log").exists()
-    result = await ActivityEnvironment().run(activities.run_command,
-                                             CommandRequest("artisan", ["short"], date=today.isoformat()))
+    result = await activity_env().run(activities.run_command,
+                                      CommandRequest("artisan", ["short"], date=today.isoformat()))
+    assert result.result == {"ok": True}
+
+
+async def test_a_command_past_its_start_to_close_is_killed_without_the_server(tmp_path, monkeypatch):
+    """A worker that lost its Temporal connection receives no cancellation: the local deadline still
+    stops a store before its PHP store-lock lease (65 min) can expire under it."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "artisan").write_text(ARTISAN)
+    activities = Activities(real_settings(tmp_path))
+    environment = activity_env(timedelta(seconds=1))  # nothing ever cancels the activity here
+
+    with pytest.raises(ApplicationError) as stopped:
+        # The child sleeps 30 s; without a local deadline this run would end only then.
+        await asyncio.wait_for(environment.run(activities.run_command,
+                                               CommandRequest("artisan", ["sleep-once"], interruptible=False)), 10)
+
+    assert stopped.value.type == "LocalTimeout" and not stopped.value.non_retryable
+    assert not alive(await wait_for(tmp_path / "pid"))
+    # Retried like a server start-to-close timeout (a lost attempt), never as a failed command.
+    for options in (jobs.step_options(Step(["x"])), s_forecast.FETCH_OPTIONS):
+        assert "LocalTimeout" not in options["retry_policy"].non_retryable_error_types
+
+
+async def test_a_command_without_a_start_to_close_has_no_local_deadline(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "artisan").write_text(ARTISAN)
+    result = await activity_env(None).run(Activities(real_settings(tmp_path)).run_command,
+                                          CommandRequest("artisan", ["short"]))
     assert result.result == {"ok": True}
 
 

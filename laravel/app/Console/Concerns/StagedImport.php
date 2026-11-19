@@ -63,6 +63,8 @@ trait StagedImport
             } catch (ImportFetchFailed $e) {
                 // Every request is recorded: keep the file with its error bodies, then fail the fetch.
                 try {
+                    // A failed fetch never supersedes an older good payload (refuseStagedOlderPayload).
+                    $writer->setFact('fetch_failed', true);
                     $kept = $writer->finish($e->endFacts);
                 } catch (Throwable) {
                     $writer->abandon();
@@ -86,15 +88,25 @@ trait StagedImport
 
         try {
             $reader = ImportPayloadReader::open($payloadPath, $sha256);
+        } catch (ImportPayloadInvalid $e) {
+            return $this->stagedFailure('store', 'payload_invalid', $e, ['reason' => $e->reason]);
+        }
+        // Every store failure line from here on names the verified file, so it can be replayed.
+        $opened = ['payload_path' => $reader->path(), 'payload_sha256' => $reader->sha256()];
+
+        try {
             $header = $reader->header();
             if ($header['source'] !== $this->stagedImportSource() || $header['command'] !== $this->getName()) {
                 throw ImportPayloadInvalid::because('wrong_source');
             }
-            if ($this->option('from-payload') !== null && self::normalizedOptions($header['options']) !== self::normalizedOptions($this->stagedDataOptions())) {
-                throw ImportPayloadInvalid::because('options_mismatch');
+            if ($this->option('from-payload') !== null) {
+                if (self::normalizedOptions($header['options']) !== self::normalizedOptions($this->stagedDataOptions())) {
+                    throw ImportPayloadInvalid::because('options_mismatch');
+                }
+                $this->refuseStagedOlderPayload($reader);
             }
         } catch (ImportPayloadInvalid $e) {
-            return $this->stagedFailure('store', 'payload_invalid', $e, ['reason' => $e->reason]);
+            return $this->stagedFailure('store', 'payload_invalid', $e, ['reason' => $e->reason, ...$opened]);
         }
 
         $typedStore = fn (): ImportStoreResult => $store($reader);
@@ -102,9 +114,9 @@ trait StagedImport
             $result = $transactional ? DB::transaction($typedStore) : $typedStore();
         } catch (ImportPayloadInvalid $e) {
             // For example wrong_date, which only the store step can judge.
-            return $this->stagedFailure('store', 'payload_invalid', $e, ['reason' => $e->reason]);
+            return $this->stagedFailure('store', 'payload_invalid', $e, ['reason' => $e->reason, ...$opened]);
         } catch (Throwable $e) {
-            return $this->stagedFailure('store', 'store_failed', $e);
+            return $this->stagedFailure('store', 'store_failed', $e, $opened);
         }
 
         try {
@@ -112,13 +124,13 @@ trait StagedImport
                 $afterCommit();
             }
         } catch (Throwable $e) {
-            return $this->stagedFailure('store', 'after_commit_failed', $e);
+            return $this->stagedFailure('store', 'after_commit_failed', $e, $opened);
         }
 
         $line = [
             'status' => $result->error === null ? 'stored' : 'failed',
             'step' => $result->error === null ? 'store' : $result->errorStep,
-            ...($result->error === null ? [] : ['error' => $result->error]),
+            ...($result->error === null ? [] : ['error' => $result->error, ...$opened]),
             'payload' => ['path' => $reader->path(), 'sha256' => $reader->sha256()],
             'complete' => $reader->complete(),
             'counts' => (object) $result->counts,
@@ -185,6 +197,45 @@ trait StagedImport
         );
 
         return $exitCode;
+    }
+
+    /**
+     * A replay stores only the newest payload (design 7a): it exists to recover the newest data
+     * after a fix, so a complete payload (with its .sha256 file) of the same command and data
+     * options fetched later supersedes this one. Reads only each candidate's header line. A
+     * candidate whose every request failed holds nothing usable and never supersedes; a header
+     * without the counts (older files) counts as usable.
+     *
+     * @throws ImportPayloadInvalid superseded
+     */
+    private function refuseStagedOlderPayload(ImportPayloadReader $reader): void
+    {
+        $header = $reader->header();
+        $fromDate = $reader->fetchedAt()->setTimezone('Europe/Helsinki')->toDateString();
+        $options = self::normalizedOptions($header['options']);
+        $own = realpath($reader->path());
+        $root = rtrim((string) config('import_payloads.path'), '/').'/'.$this->stagedImportSource();
+
+        foreach (glob("{$root}/*/*.ndjson.gz") ?: [] as $path) {
+            if (basename(dirname($path)) < $fromDate || realpath($path) === $own
+                || ! is_file(substr($path, 0, -strlen('.ndjson.gz')).'.sha256')) {
+                continue;
+            }
+            $handle = @gzopen($path, 'rb');
+            $line = $handle !== false ? gzgets($handle) : false;
+            if ($handle !== false) {
+                gzclose($handle);
+            }
+            $other = $line !== false ? json_decode($line, true) : null;
+            $allFailed = (is_int($other['requests'] ?? null) && $other['requests'] > 0
+                && ($other['failed_units'] ?? null) === $other['requests'])
+                || (($other['facts']['fetch_failed'] ?? false) === true);
+            if (is_array($other) && ! $allFailed && ($other['command'] ?? null) === $header['command']
+                && is_string($other['fetched_at'] ?? null) && $other['fetched_at'] > $header['fetched_at']
+                && is_array($other['options'] ?? null) && self::normalizedOptions($other['options']) === $options) {
+                throw ImportPayloadInvalid::because('superseded');
+            }
+        }
     }
 
     /** @param  array<string, mixed>  $options */

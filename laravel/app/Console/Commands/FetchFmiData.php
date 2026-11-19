@@ -8,6 +8,7 @@ use App\Services\Fmi\FmiMultiPointCoverageParser;
 use App\Services\Fmi\FmiObservationImporter;
 use App\Services\Fmi\FmiOpenDataService;
 use App\Services\Fmi\FmiRequestException;
+use App\Services\ImportPayload\ImportPayloadInvalid;
 use App\Services\ImportPayload\ImportPayloadReader;
 use App\Services\ImportPayload\ImportPayloadWriter;
 use App\Services\ImportPayload\ImportStoreResult;
@@ -28,12 +29,14 @@ use UnexpectedValueException;
  * Observation windows end at the start of the current UTC hour. Read-only towards FMI.
  *
  * Staged import (StagedImport): the fetch step records every raw XML response and fixes the
- * current hour, the observation window and each forecast product's point list in the header
- * (S5); the store step parses one request line at a time (radiation is about 5 MB of XML per
- * request) and writes observations (upsert) and forecast vintages (insert-only). The default run
- * stores in one transaction; a --from backfill commits once per request piece (S21). A failed
- * piece or an unusable response fails only itself (fetch_incomplete); a configured forecast
- * point without values fails the run (forecast_points_missing). Not date-bound (S9).
+ * current hour, the observation window, the FMI parameters of each part and each forecast
+ * product's point list in the header (S5); the store step uses those, never the current config,
+ * parses one request line at a time (radiation is about 5 MB of XML per request) and writes
+ * observations (upsert) and forecast vintages (insert-only). The default run stores in one
+ * transaction; a --from backfill commits once per request piece (S21). A failed request fails
+ * only its piece (fetch_incomplete); an answered piece the store rejects fails only itself
+ * (invalid_response); a configured forecast point without values fails the run
+ * (forecast_points_missing). Not date-bound (S9).
  */
 class FetchFmiData extends Command
 {
@@ -117,19 +120,29 @@ class FetchFmiData extends Command
             $payload->setFact('observation_window', ['start' => $this->isoTime($start), 'end' => $this->isoTime($end)]);
         }
 
+        // The store step reads the parameters from here, so a later config change cannot change
+        // which values a replay keeps or how it names them (S5).
         if (in_array('observed', $parts, true)) {
+            $payload->setFact('observed_parameters', array_values((array) config('fmi.hourly.parameters')));
             $this->fetchHourly($payload, $start, $end);
         }
         if (in_array('radiation', $parts, true)) {
+            $payload->setFact('radiation_parameters', [
+                'parameter' => (string) config('fmi.radiation.parameter'),
+                'stored_parameter' => (string) config('fmi.radiation.stored_parameter'),
+            ]);
             $this->fetchRadiation($payload, $start, $end);
         }
         if (in_array('forecast', $parts, true)) {
+            $forecastParameters = [];
             $forecastPoints = [];
-            foreach (array_keys((array) config('fmi.forecasts', [])) as $productKey) {
+            foreach ((array) config('fmi.forecasts', []) as $productKey => $product) {
+                $forecastParameters[$productKey] = array_intersect_key((array) $product, ['parameters' => true, 'speed_from' => true]);
                 $forecastPoints[$productKey] = $this->fetchForecast($payload, (string) $productKey, $currentHour);
             }
+            $payload->setFact('forecast_parameters', (object) $forecastParameters);
             // The missing-point check of the store step compares the response with this list.
-            $payload->setFact('forecast_points', $forecastPoints);
+            $payload->setFact('forecast_points', (object) $forecastPoints);
         }
     }
 
@@ -240,9 +253,19 @@ class FetchFmiData extends Command
     /**
      * Store one request line at a time; the parsed XML of a line is released before the next.
      * Runs inside the StagedImport transaction, or one transaction per line for a backfill.
+     *
+     * @throws ImportPayloadInvalid incomplete: a header without the parameters of a fetched part
+     *                              (a payload written before they were recorded)
      */
     private function store(ImportPayloadReader $payload, bool $backfill): ImportStoreResult
     {
+        $parts = (array) $payload->fact('parts', []);
+        foreach (['observed' => 'observed_parameters', 'radiation' => 'radiation_parameters', 'forecast' => 'forecast_parameters'] as $part => $fact) {
+            if (in_array($part, $parts, true) && ! is_array($payload->fact($fact))) {
+                throw ImportPayloadInvalid::because('incomplete');
+            }
+        }
+
         $failedUnits = $payload->end()['failed_units'];
         $counts = ['observed_rows' => 0, 'radiation_rows' => 0, 'forecast_stored' => 0, 'forecast_unchanged' => 0, 'unusable_pieces' => 0];
         $forecasts = [];
@@ -259,7 +282,7 @@ class FetchFmiData extends Command
             } catch (FmiRequestException $e) {
                 // An unusable response (no field, unknown position, bad XML) fails before any write of its piece.
                 $counts['unusable_pieces']++;
-                $this->reportFailure($unit['part'] === 'forecast' ? "forecast {$unit['product']}" : $unit['part'], Carbon::parse($unit['from']), Carbon::parse($unit['to']), $e);
+                $this->reportFailure($unit['part'] === 'forecast' ? "forecast {$unit['product']}" : $unit['part'], Carbon::parse($unit['from']), Carbon::parse($unit['to']), $e, 'store');
 
                 continue;
             }
@@ -273,10 +296,11 @@ class FetchFmiData extends Command
             }
         }
 
-        $parts = (array) $payload->fact('parts', []);
         $missing = array_filter(array_map(fn (array $result) => $result['missing'], $forecasts));
+        // A failed request is a fetch failure; an answered body the store rejects is a store one.
         [$error, $step] = match (true) {
-            $failedUnits !== [] || $counts['unusable_pieces'] > 0 => ['fetch_incomplete', 'fetch'],
+            $failedUnits !== [] => ['fetch_incomplete', 'fetch'],
+            $counts['unusable_pieces'] > 0 => ['invalid_response', 'store'],
             $missing !== [] => ['forecast_points_missing', 'fetch'],
             default => [null, 'store'],
         };
@@ -310,16 +334,16 @@ class FetchFmiData extends Command
         $fetchedAt = $payload->fetchedAt();
 
         return match ($unit['part']) {
-            'observed' => ['rows' => $this->observations->importHourly($members, (array) config('fmi.hourly.parameters'), $fetchedAt)],
+            'observed' => ['rows' => $this->observations->importHourly($members, (array) $payload->fact('observed_parameters'), $fetchedAt)],
             'radiation' => ['rows' => $this->observations->importMinuteMeans(
                 $members,
-                (string) config('fmi.radiation.parameter'),
-                (string) config('fmi.radiation.stored_parameter'),
+                (string) $payload->fact('radiation_parameters')['parameter'],
+                (string) $payload->fact('radiation_parameters')['stored_parameter'],
                 $fetchedAt
             )],
             'forecast' => $this->forecasts->store(
                 (string) $unit['product'],
-                (array) config("fmi.forecasts.{$unit['product']}"),
+                $payload->fact('forecast_parameters')[$unit['product']] ?? throw ImportPayloadInvalid::because('incomplete'),
                 $members,
                 $this->forecastPoints($payload, (string) $unit['product']),
                 $fetchedAt
@@ -331,7 +355,7 @@ class FetchFmiData extends Command
     /** @return array<string, array{latitude: float, longitude: float}> */
     private function forecastPoints(ImportPayloadReader $payload, string $productKey): array
     {
-        $points = $payload->fact('forecast_points', [])[$productKey] ?? throw new UnexpectedValueException('FMI payload has no point list for its forecast.');
+        $points = $payload->fact('forecast_points', [])[$productKey] ?? throw ImportPayloadInvalid::because('incomplete');
         $typed = [];
         foreach ($points as $key => $point) {
             $typed[(string) $key] = ['latitude' => (float) $point['latitude'], 'longitude' => (float) $point['longitude']];
@@ -388,7 +412,8 @@ class FetchFmiData extends Command
         return $time->copy()->utc()->format('Y-m-d\TH:i:s\Z');
     }
 
-    private function reportFailure(string $part, CarbonInterface $start, CarbonInterface $end, Throwable $e): void
+    /** @param  'fetch'|'store'  $step  store: an answered body that the store step rejected */
+    private function reportFailure(string $part, CarbonInterface $start, CarbonInterface $end, Throwable $e, string $step = 'fetch'): void
     {
         // An HTTP exception message can contain the request URL; FmiRequestException never does.
         $context = [
@@ -400,9 +425,9 @@ class FetchFmiData extends Command
         if ($e instanceof FmiRequestException) {
             $context['message'] = $e->getMessage();
         }
-        logger()->error('FMI fetch failed', $context);
+        logger()->error("FMI {$step} failed", $context);
 
         $detail = $e instanceof FmiRequestException ? $e->getMessage() : $e::class;
-        $this->error("FMI {$part} {$context['from']}..{$context['to']}: fetch failed ({$detail}).");
+        $this->error("FMI {$part} {$context['from']}..{$context['to']}: {$step} failed ({$detail}).");
     }
 }

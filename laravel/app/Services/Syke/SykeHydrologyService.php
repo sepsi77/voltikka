@@ -14,9 +14,10 @@ use RuntimeException;
  *
  * The server returns at most 500 rows per page and an absolute `odata.nextLink` for the next
  * page. The staged import (FetchSykeHydrology) requests and records one page at a time;
- * parsePage() reads a saved body and accepts a nextLink only when it points to the configured
- * entity URL. Every request after the first waits for the configured delay. HTTP 429, 5xx and
- * connection failures are retried.
+ * parsePage() reads a saved body and accepts a nextLink only when it points to the entity URL
+ * under the given base URL (the store step passes the one recorded at fetch time). Every request
+ * after the first waits for the configured delay. HTTP 429, 5xx and connection failures are
+ * retried.
  */
 class SykeHydrologyService
 {
@@ -38,6 +39,12 @@ class SykeHydrologyService
             ." and Aika lt datetime'".$to->format('Y-m-d')."T00:00:00'";
 
         return [$this->entityUrl($entity), ['$filter' => $filter, '$orderby' => 'Paikka_Id,Aika']];
+    }
+
+    /** The configured API base URL without a trailing slash; the fetch step records it. */
+    public function baseUrl(): string
+    {
+        return rtrim((string) config('syke.base_url'), '/');
     }
 
     public function maxPages(): int
@@ -74,13 +81,14 @@ class SykeHydrologyService
     }
 
     /**
-     * The rows and the next page URL (null on the last page) of one saved page body.
+     * The rows and the next page URL (null on the last page) of one saved page body. A nextLink
+     * must point to the entity URL under $baseUrl, the base URL the page was fetched from.
      *
      * @return array{rows: list<array<string, mixed>>, next: string|null}
      *
      * @throws RuntimeException an unexpected payload or a nextLink outside the API
      */
-    public function parsePage(string $entity, string $body): array
+    public function parsePage(string $entity, string $body, string $baseUrl): array
     {
         $payload = json_decode($body, true);
         if (! is_array($payload) || ! is_array($payload['value'] ?? null)) {
@@ -90,7 +98,7 @@ class SykeHydrologyService
         $next = $payload['odata.nextLink'] ?? null;
         if (! is_string($next) || $next === '') {
             $next = null;
-        } elseif (! str_starts_with($next, $this->entityUrl($entity).'?')) {
+        } elseif (! str_starts_with($next, rtrim($baseUrl, '/').'/'.$entity.'?')) {
             throw new RuntimeException("Syke {$entity} returned a nextLink outside the API.");
         }
 
@@ -99,7 +107,7 @@ class SykeHydrologyService
 
     private function entityUrl(string $entity): string
     {
-        return rtrim((string) config('syke.base_url'), '/').'/'.$entity;
+        return $this->baseUrl().'/'.$entity;
     }
 
     private function waitForRateLimit(): void

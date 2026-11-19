@@ -41,7 +41,8 @@ class FetchFingridForecastVintages extends Command
     public function handle(): int
     {
         $configured = (array) config('fingrid.forecast_vintages', []);
-        $requested = array_map('intval', (array) $this->option('dataset'));
+        // Normalized and once each: a repeated ID would merge its pages into one vintage.
+        $requested = array_values(array_unique(array_map('intval', (array) $this->option('dataset'))));
         $unknown = array_diff($requested, array_keys($configured));
 
         if ($unknown !== []) {

@@ -138,7 +138,7 @@ class FetchJaoMaxBorderFlowsCommandTest extends TestCase
 
         $this->assertSame(0, Artisan::call('jao:fetch'));
         $defaultRows = $this->storedRows();
-        $this->assertSame(['hourly_rows' => 8, 'failed_windows' => 0], $this->lastJsonLine()['counts']);
+        $this->assertSame(['hourly_rows' => 8, 'failed_windows' => 0, 'invalid_windows' => 0], $this->lastJsonLine()['counts']);
 
         DB::table('jao_max_border_flows')->delete();
         $this->assertSame(0, Artisan::call('jao:fetch', ['--fetch-only' => true]));
@@ -168,8 +168,14 @@ class FetchJaoMaxBorderFlowsCommandTest extends TestCase
 
         $this->assertSame(1, Artisan::call('jao:fetch'));
         $output = Artisan::output();
+        $payloads = glob(config('import_payloads.path').'/jao/2026-11-01/*.ndjson.gz');
+        $this->assertCount(1, $payloads, 'The payload stays after a failed store.');
 
-        $this->assertSame(['status' => 'failed', 'step' => 'store', 'error' => 'store_failed', 'sqlstate' => '23000', 'driver_code' => 19, 'table' => 'jao_max_border_flows'], $this->lastJsonLine($output));
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'store_failed',
+            'payload_path' => $payloads[0], 'payload_sha256' => hash_file('sha256', $payloads[0]),
+            'sqlstate' => '23000', 'driver_code' => 19, 'table' => 'jao_max_border_flows',
+        ], $this->lastJsonLine($output));
         foreach (['forced failure', '1777', '2026-11-01 05:00:00'] as $binding) {
             $this->assertStringNotContainsString($binding, $output);
         }
@@ -182,9 +188,6 @@ class FetchJaoMaxBorderFlowsCommandTest extends TestCase
 
             return true;
         });
-
-        $payloads = glob(config('import_payloads.path').'/jao/2026-11-01/*.ndjson.gz');
-        $this->assertCount(1, $payloads, 'The payload stays after a failed store.');
 
         DB::statement('DROP TRIGGER fail_jao'); // the fix
         Http::swap(new Factory);
@@ -214,10 +217,11 @@ class FetchJaoMaxBorderFlowsCommandTest extends TestCase
         $this->assertStringContainsString('"rows"', ImportPayloadReader::body($saved));
 
         // The current parser rejects that window in the store step and writes none of its rows.
+        // The transport failure still names the run a fetch failure.
         $this->assertSame(1, Artisan::call('jao:fetch', [...$options, '--from-payload' => $reference['path']]));
         $line = $this->lastJsonLine();
         $this->assertSame(['failed', 'fetch', 'fetch_incomplete'], [$line['status'], $line['step'], $line['error']]);
-        $this->assertSame(['hourly_rows' => 8, 'failed_windows' => 2], $line['counts']);
+        $this->assertSame(['hourly_rows' => 8, 'failed_windows' => 1, 'invalid_windows' => 1], $line['counts']);
         $this->assertSame(['2026-10-01 00:00:00'], DB::table('jao_max_border_flows')->where('border', 'SE1_FI')->pluck('utc_datetime')->all());
 
         // After a parser fix, the same file stores the window without a new request.
@@ -237,18 +241,36 @@ class FetchJaoMaxBorderFlowsCommandTest extends TestCase
         Http::assertNothingSent();
         $line = $this->lastJsonLine();
         $this->assertSame(['failed', 'fetch', 'fetch_incomplete'], [$line['status'], $line['step'], $line['error']]);
-        $this->assertSame(['hourly_rows' => 16, 'failed_windows' => 1], $line['counts']);
+        $this->assertSame(['hourly_rows' => 16, 'failed_windows' => 1, 'invalid_windows' => 0], $line['counts']);
         $this->assertSame(
             ['2026-10-01 00:00:00', '2026-10-05 00:00:00'],
             DB::table('jao_max_border_flows')->where('border', 'SE1_FI')->orderBy('timestamp')->pluck('utc_datetime')->all()
         );
     }
 
+    /** An answered window the parser rejects is a store failure (invalid_response), not a fetch failure. */
+    public function test_a_rejected_body_without_a_transport_failure_is_a_store_failure(): void
+    {
+        Http::fakeSequence('publicationtool.jao.eu/*')
+            ->push(['data' => [$this->mtu('2026-10-30T00:00:00Z', 1800.0)]])
+            ->push(['rows' => []]);
+        Log::spy();
+
+        $this->assertSame(1, Artisan::call('jao:fetch'));
+
+        $line = $this->lastJsonLine();
+        $this->assertSame(['failed', 'store', 'invalid_response', true], [$line['status'], $line['step'], $line['error'], $line['complete']]);
+        $this->assertSame(['hourly_rows' => 8, 'failed_windows' => 0, 'invalid_windows' => 1], $line['counts']);
+        $this->assertSame(8, DB::table('jao_max_border_flows')->count());
+        Log::shouldHaveReceived('error')->withArgs(fn (string $message, array $context) => $message === 'JAO maxBorderFlow store failed'
+            && $context['window_start'] === '2026-11-01T00:00:00Z')->once();
+    }
+
     /**
-     * S9: this source is not date-bound. An older payload from the same day is accepted and its
-     * upsert puts the older values (and its older fetched_at) back until the next fetch.
+     * A replay stores only the newest payload: an older same-day payload is refused as
+     * superseded and writes nothing, so the newer values stay.
      */
-    public function test_an_older_same_day_payload_is_accepted_and_restores_its_values(): void
+    public function test_an_older_same_day_payload_is_refused_as_superseded_and_writes_nothing(): void
     {
         $this->fakeJao(1800.0);
         Artisan::call('jao:fetch');
@@ -257,15 +279,18 @@ class FetchJaoMaxBorderFlowsCommandTest extends TestCase
         Carbon::setTestNow(Carbon::create(2026, 11, 1, 12, 0, 0, 'UTC'));
         $this->fakeJao(1500.0);
         Artisan::call('jao:fetch');
-        $this->assertEqualsWithDelta(1500.0, DB::table('jao_max_border_flows')->where('border', 'SE1_FI')->value('capacity_mw'), 0.0001);
 
         Http::swap(new Factory);
         Http::preventStrayRequests();
-        $this->assertSame(0, Artisan::call('jao:fetch', ['--from-payload' => $older]));
+        $this->assertSame(1, Artisan::call('jao:fetch', ['--from-payload' => $older]));
 
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'payload_invalid', 'reason' => 'superseded',
+            'payload_path' => $older, 'payload_sha256' => hash_file('sha256', $older),
+        ], $this->lastJsonLine());
         $row = DB::table('jao_max_border_flows')->where('border', 'SE1_FI')->sole();
-        $this->assertEqualsWithDelta(1800.0, $row->capacity_mw, 0.0001);
-        $this->assertSame('2026-11-01 07:30:00', $row->fetched_at);
+        $this->assertEqualsWithDelta(1500.0, $row->capacity_mw, 0.0001);
+        $this->assertSame('2026-11-01 12:00:00', $row->fetched_at);
     }
 
     private function fakeJao(float $se1Fi): void

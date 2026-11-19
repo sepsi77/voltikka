@@ -7,11 +7,13 @@ use App\Services\EntsoeTransparency\EntsoeTransparencyClient;
 use App\Services\EntsoeTransparency\GenerationImporter;
 use App\Services\EntsoeTransparency\OutageImporter;
 use App\Services\EntsoeTransparency\ReservoirImporter;
+use App\Services\ImportPayload\ImportFetchFailed;
 use App\Services\ImportPayload\ImportPayloadReader;
 use App\Services\ImportPayload\ImportPayloadWriter;
 use App\Services\ImportPayload\ImportStoreResult;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
+use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -71,9 +73,10 @@ class FetchEntsoeTransparencyData extends Command
 
             return $this->stagedFailure('fetch', 'invalid_options');
         }
-        $datasets = $requested !== [] ? array_values($requested) : self::DATASETS;
+        // A repeated option must not plan a unit twice (its queries would share one key).
+        $datasets = $requested !== [] ? array_values(array_unique($requested)) : self::DATASETS;
 
-        $units = $this->units($datasets, (array) $this->option('zone'));
+        $units = $this->units($datasets, array_values(array_unique((array) $this->option('zone'))));
         if ($units === null) {
             return $this->stagedFailure('fetch', 'invalid_options');
         }
@@ -164,7 +167,9 @@ class FetchEntsoeTransparencyData extends Command
     /**
      * Fetch step: record every page of every unit. The windows come from the fetch time (S5). For
      * outages, the version-history queries depend on the fetched documents and the stored
-     * revisions; the plan is recorded in the header facts (S19). Nothing is written.
+     * revisions; the plan is recorded in the header facts (S19). Nothing is written. When no
+     * query of any unit was answered, the fetch fails (all_failed) with its file kept, as the
+     * command failed before staging when every unit failed.
      *
      * @param  list<array{dataset: string, zone: string, params: array<string, string>}>  $units
      */
@@ -177,6 +182,8 @@ class FetchEntsoeTransparencyData extends Command
         $payload->setFact('current_hour', $hour->format('Y-m-d\TH:i:s\Z'));
 
         $history = [];
+        $answered = 0;
+        $failed = 0;
         foreach ($units as $unit) {
             $queries = $unit['dataset'] === 'outages'
                 ? $this->outageQueries($minute, $from, $to)
@@ -187,8 +194,11 @@ class FetchEntsoeTransparencyData extends Command
             foreach ($queries as $window) {
                 $fetched = $this->fetchQuery($payload, $unit, $query++, 'main', $unit['params'] + $window, $versions);
                 if (! $fetched) {
+                    $failed++;
+
                     continue 2; // the unit failed; the others go on
                 }
+                $answered++;
             }
             if ($unit['dataset'] !== 'outages') {
                 continue;
@@ -208,11 +218,18 @@ class FetchEntsoeTransparencyData extends Command
                     'periodEnd' => $this->format($document['start']->addDays(self::HISTORY_HALF_WINDOW_DAYS)),
                 ], $unused);
                 if (! $fetched) {
+                    $failed++;
+
                     break;
                 }
+                $answered++;
             }
         }
         $payload->setFact('history', $history);
+
+        if ($answered === 0 && $failed > 0) {
+            throw ImportFetchFailed::because('all_failed');
+        }
     }
 
     /**
@@ -286,8 +303,11 @@ class FetchEntsoeTransparencyData extends Command
 
     /**
      * Store step: parse every recorded body and write it, query by query. A query with a failed
-     * page is left out, as before (the unit stopped there). Failed units make the run exit 1 after
-     * the commit; their rows from earlier queries stay (S10).
+     * page is left out, as before (the unit stopped there). A query whose saved body cannot be
+     * parsed (truncated XML, unreadable ZIP) is left out the same way: it is parsed completely
+     * before any write, logged with the class only, and the other queries are stored. Database
+     * errors propagate and roll back. Failed or unreadable queries make the run exit 1 after the
+     * commit (fetch_incomplete); the other rows stay (S10).
      */
     private function store(ImportPayloadReader $payload, bool $perQuery): ImportStoreResult
     {
@@ -298,34 +318,59 @@ class FetchEntsoeTransparencyData extends Command
         }
 
         $written = [];
-        $flush = function (?array $query, array $documents) use (&$written, $fetchedAt, $perQuery): void {
+        $unreadable = 0;
+        $flush = function (?array $query, array $bodies) use (&$written, &$unreadable, $fetchedAt, $perQuery): void {
             if ($query === null || isset($query['failed'])) {
                 return;
             }
+            try {
+                $documents = [];
+                foreach ($bodies as $body) {
+                    array_push($documents, ...$this->client->documents($body));
+                }
+                $records = match ($query['dataset']) {
+                    'outages' => $this->outages->records($query['document_type'], $query['zone'], $documents, $fetchedAt),
+                    'generation' => $this->generation->records($query['zone'], $documents, $fetchedAt),
+                    'reservoirs' => $this->reservoirs->records($query['zone'], $documents, $fetchedAt),
+                };
+            } catch (Exception $e) {
+                // Parsing touches no table, so this is never a database error.
+                $unreadable++;
+                logger()->error('ENTSO-E transparency store skipped an unreadable query', [
+                    'dataset' => $query['dataset'],
+                    'zone' => $query['zone'],
+                    'document_type' => $query['document_type'],
+                    'query' => $query['query'],
+                    'exception_class' => $e::class,
+                ]);
+                $this->error("{$query['dataset']} {$query['zone']} {$query['document_type']}: unreadable answer (".$e::class.').');
+
+                return;
+            }
             $write = fn (): int => match ($query['dataset']) {
-                'outages' => $this->outages->import($query['document_type'], $query['zone'], $documents, $fetchedAt),
-                'generation' => $this->generation->import($query['zone'], $documents, $fetchedAt),
-                'reservoirs' => $this->reservoirs->import($query['zone'], $documents, $fetchedAt),
+                'outages' => $this->outages->write($records),
+                'generation' => $this->generation->write($records),
+                'reservoirs' => $this->reservoirs->write($records),
             };
             $label = "{$query['dataset']} {$query['zone']} {$query['document_type']}";
             $written[$label] = ($written[$label] ?? 0) + ($perQuery ? DB::transaction($write) : $write());
         };
 
         $query = null;
-        $documents = [];
+        $bodies = [];
         foreach ($payload->requests() as $request) {
             $unit = $request['unit'];
             $key = self::queryKey($unit);
             if ($query === null || $query['key'] !== $key) {
-                $flush($query, $documents);
+                $flush($query, $bodies);
                 $query = $unit + ['key' => $key] + (isset($failedQueries[$key]) ? ['failed' => true] : []);
-                $documents = [];
+                $bodies = [];
             }
             if (! isset($query['failed'])) {
-                array_push($documents, ...$this->client->documents((string) ImportPayloadReader::body($request)));
+                $bodies[] = (string) ImportPayloadReader::body($request);
             }
         }
-        $flush($query, $documents);
+        $flush($query, $bodies);
 
         $counts = ['outages' => 0, 'generation' => 0, 'reservoirs' => 0];
         foreach ($written as $label => $rows) {
@@ -335,7 +380,7 @@ class FetchEntsoeTransparencyData extends Command
 
         return new ImportStoreResult(
             $counts,
-            error: $payload->complete() ? null : 'fetch_incomplete',
+            error: $payload->complete() && $unreadable === 0 ? null : 'fetch_incomplete',
             errorStep: 'fetch',
         );
     }

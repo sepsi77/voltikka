@@ -157,8 +157,11 @@ class FetchEexEuropeFuturesCommandTest extends TestCase
         $this->assertSame(1, Artisan::call('futures:fetch-eex-europe', ['--short-code' => ['DEBM']]));
         $output = Artisan::output();
 
+        $payloads = glob(config('import_payloads.path').'/eex-europe/2026-11-01/*.ndjson.gz');
+        $this->assertCount(1, $payloads, 'The payload stays after a failed store.');
+        $file = ['payload_path' => $payloads[0], 'payload_sha256' => hash_file('sha256', $payloads[0])];
         $storeError = ['sqlstate' => '23000', 'driver_code' => 19, 'table' => 'electricity_futures_eod_prices'];
-        $this->assertSame(['status' => 'failed', 'step' => 'store', 'error' => 'store_failed', ...$storeError], $this->lastJsonLine($output));
+        $this->assertSame(['status' => 'failed', 'step' => 'store', 'error' => 'store_failed', ...$file, ...$storeError], $this->lastJsonLine($output));
         foreach (['223.04', 'forced failure'] as $binding) {
             $this->assertStringNotContainsString($binding, $output);
         }
@@ -171,9 +174,6 @@ class FetchEexEuropeFuturesCommandTest extends TestCase
 
             return true;
         });
-
-        $payloads = glob(config('import_payloads.path').'/eex-europe/2026-11-01/*.ndjson.gz');
-        $this->assertCount(1, $payloads, 'The payload stays after a failed store.');
 
         DB::statement('DROP TRIGGER fail_eex_prices'); // the fix
         $this->preventHttp();
@@ -193,7 +193,10 @@ class FetchEexEuropeFuturesCommandTest extends TestCase
         $this->preventHttp();
         $this->assertSame(1, Artisan::call('futures:fetch-eex-europe', ['--short-code' => ['FEUA'], '--from-payload' => $path]));
 
-        $this->assertSame(['status' => 'failed', 'step' => 'store', 'error' => 'payload_invalid', 'reason' => 'wrong_date'], $this->lastJsonLine());
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'payload_invalid', 'reason' => 'wrong_date',
+            'payload_path' => $path, 'payload_sha256' => hash_file('sha256', $path),
+        ], $this->lastJsonLine());
         $this->assertSame(0, ElectricityFuturesEodPrice::count());
     }
 

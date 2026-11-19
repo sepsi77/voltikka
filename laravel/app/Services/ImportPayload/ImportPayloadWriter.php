@@ -176,6 +176,9 @@ final class ImportPayloadWriter
             'run_id' => $this->runId,
             'fetched_at' => $this->fetchedAt->format('Y-m-d\TH:i:s\Z'),
             'facts' => (object) $this->facts,
+            // Counts in the header too, so a replay check can judge a file from its first line.
+            'requests' => $this->requests,
+            'failed_units' => count($this->failedUnits),
         ])."\n";
         // One gzip member: the header, then the compressed body copied through in 1 MB chunks.
         $out = gzopen($this->payloadTmpPath(), 'wb6');

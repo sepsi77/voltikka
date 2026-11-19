@@ -211,8 +211,14 @@ class FetchSpotForecastCommandTest extends TestCase
         $this->assertSame(1, Artisan::call('spot:fetch-forecast'));
         $output = Artisan::output();
         $line = $this->lastJsonLine($output);
+        $payloads = glob(config('import_payloads.path').'/nordpool-predict-fi/2026-11-19/*.ndjson.gz');
+        $this->assertCount(1, $payloads, 'The payload stays after a failed store.');
 
-        $this->assertSame(['status' => 'failed', 'step' => 'store', 'error' => 'store_failed', 'sqlstate' => '23000', 'driver_code' => 19, 'table' => 'spot_price_forecast_runs'], $line);
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'store_failed',
+            'payload_path' => $payloads[0], 'payload_sha256' => hash_file('sha256', $payloads[0]),
+            'sqlstate' => '23000', 'driver_code' => 19, 'table' => 'spot_price_forecast_runs',
+        ], $line);
         foreach ([hash('sha256', $feed), 'forced failure', '9.5'] as $binding) {
             $this->assertStringNotContainsString($binding, $output);
         }
@@ -226,9 +232,6 @@ class FetchSpotForecastCommandTest extends TestCase
 
             return true;
         });
-
-        $payloads = glob(config('import_payloads.path').'/nordpool-predict-fi/2026-11-19/*.ndjson.gz');
-        $this->assertCount(1, $payloads, 'The payload stays after a failed store.');
 
         DB::statement('DROP TRIGGER fail_forecast_runs'); // the fix
         Http::preventStrayRequests();
@@ -258,9 +261,12 @@ class FetchSpotForecastCommandTest extends TestCase
     }
 
     /**
-     * S9: this source is not date-bound, and an older payload from the same day is accepted. A
-     * replay of a payload whose store failed archives its vintage in the append-only run table,
-     * but the display table, the page and its cache keep the newer feed (11 c/kWh, not 8).
+     * S9: this source is not date-bound. While the newer feed's payload exists, an older replay
+     * is refused (superseded) and writes nothing. Without that file (for example removed by
+     * retention or lost), the display check alone protects the display: the replay archives its
+     * vintage in the append-only run table, but the display table, the page and its cache keep
+     * the newer feed (11 c/kWh, not 8). The display check also covers a default-mode store that
+     * overlaps a newer one, which the payload rule does not judge.
      */
     public function test_an_older_same_day_payload_archives_its_run_and_keeps_the_newer_display(): void
     {
@@ -272,6 +278,7 @@ class FetchSpotForecastCommandTest extends TestCase
         Carbon::setTestNow(Carbon::parse('2026-11-19 10:00:00', 'UTC'));
         $this->fakeFeed([[1, 11.0], [2, 12.0]]);
         $this->assertSame(0, Artisan::call('spot:fetch-forecast'));
+        $newer = $this->lastJsonLine()['payload']['path'];
         $display = $this->storedRows()[0];
         $page = $this->forecastOnPage();
         $this->assertSame([11.0, 12.0], $page[0]);
@@ -281,6 +288,12 @@ class FetchSpotForecastCommandTest extends TestCase
         Http::preventStrayRequests();
         Http::swap(new Factory);
         Http::fake();
+        $this->assertSame(1, Artisan::call('spot:fetch-forecast', ['--from-payload' => $older]));
+        $refused = $this->lastJsonLine();
+        $this->assertSame(['payload_invalid', 'superseded'], [$refused['error'], $refused['reason']]);
+        $this->assertSame(1, SpotPriceForecastRun::count(), 'A refused replay writes nothing.');
+
+        $this->removePayload($newer);
         $this->assertSame(0, Artisan::call('spot:fetch-forecast', ['--from-payload' => $older]));
         Http::assertNothingSent();
 
@@ -298,7 +311,9 @@ class FetchSpotForecastCommandTest extends TestCase
 
     /**
      * A feed that returns unchanged adds no run row (unique feed hash) but refreshes the display
-     * rows' fetch time, so a replay of a payload fetched between the two still counts as older.
+     * rows' fetch time, so a replay of a payload fetched between the two still counts as older
+     * for the display check (the newest payload file is removed, so the payload rule does not
+     * refuse the replay first).
      */
     public function test_a_replay_older_than_a_refetched_unchanged_feed_keeps_the_display(): void
     {
@@ -314,7 +329,10 @@ class FetchSpotForecastCommandTest extends TestCase
         Carbon::setTestNow(Carbon::parse('2026-11-19 10:00:00', 'UTC'));
         $this->fakeFeed([[1, 11.0]]);
         $this->assertSame(0, Artisan::call('spot:fetch-forecast'));
-        $this->assertSame(['records' => 1, 'display_rows' => 1, 'runs_inserted' => 0], $this->lastJsonLine()['counts']);
+        $refetched = $this->lastJsonLine();
+        $this->assertSame(['records' => 1, 'display_rows' => 1, 'runs_inserted' => 0], $refetched['counts']);
+        // Without the 10:00 payload file only the display check judges the replay.
+        $this->removePayload($refetched['payload']['path']);
 
         Http::preventStrayRequests();
         Http::swap(new Factory);
@@ -366,7 +384,9 @@ class FetchSpotForecastCommandTest extends TestCase
      * A's recency check must see B, so the display stays [11, 12] and A only archives its run.
      * The other process is simulated in one PHPUnit process: A's first lock wait (a faked sleep)
      * stores B with its own command instance and releases the lock. Without the lock, A would not
-     * wait, and B would not be stored before A.
+     * wait, and B would not be stored before A. B's payload file is moved aside while A starts, so
+     * the payload rule does not refuse A before it reaches the lock (B is fetched only after A's
+     * check in this race), and moved back for B's store.
      */
     public function test_an_older_replay_after_a_newer_store_under_the_lock_keeps_the_newer_display(): void
     {
@@ -378,6 +398,10 @@ class FetchSpotForecastCommandTest extends TestCase
         $this->fakeFeed([[1, 11.0], [2, 12.0]]);
         $this->assertSame(0, Artisan::call('spot:fetch-forecast', ['--fetch-only' => true]));
         $newer = $this->lastJsonLine()['payload']['path'];
+        $aside = sys_get_temp_dir().'/'.basename(dirname($newer)).'-'.basename($newer, '.ndjson.gz');
+        $sha256 = substr($newer, 0, -strlen('.ndjson.gz')).'.sha256';
+        rename($newer, $aside.'.ndjson.gz');
+        rename($sha256, $aside.'.sha256');
 
         Carbon::setTestNow(Carbon::parse('2026-11-19 12:00:00', 'UTC'));
         Http::preventStrayRequests();
@@ -387,10 +411,12 @@ class FetchSpotForecastCommandTest extends TestCase
         $this->assertTrue($holder->get());
         $storeB = null;
         Sleep::fake();
-        Sleep::whenFakingSleep(function () use ($holder, $newer, &$storeB): void {
+        Sleep::whenFakingSleep(function () use ($holder, $newer, $sha256, $aside, &$storeB): void {
             if ($storeB !== null) {
                 return;
             }
+            rename($aside.'.ndjson.gz', $newer);
+            rename($aside.'.sha256', $sha256);
             $holder->release();
             $command = $this->app->make(FetchSpotForecast::class);
             $command->setLaravel($this->app);
@@ -421,6 +447,13 @@ class FetchSpotForecastCommandTest extends TestCase
             array_column($component->viewData('forecastPricesGroupedByDate')[0]['prices'], 'price_with_vat'),
             $component->viewData('forecastSource')['fetched_at'],
         ];
+    }
+
+    /** Delete a payload file and its .sha256 file. */
+    private function removePayload(string $path): void
+    {
+        unlink($path);
+        unlink(substr($path, 0, -strlen('.ndjson.gz')).'.sha256');
     }
 
     /** @param list<array{0: int, 1: float}> $hourPrices  hour offsets from 2026-11-20 00:00 UTC */

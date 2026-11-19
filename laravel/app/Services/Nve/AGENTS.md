@@ -44,12 +44,16 @@ public reads these rows yet. Task context: `../../../../market-review/` (G10).
   `{dataset: weeks|references}`) and fixes the ISO `current_year` and `from_year` in the header,
   so a store in a later year keeps the fetch's reference candidates and default range. The fetch
   does not parse: only a transport or HTTP failure is a failed unit. The store step alone parses
-  both bodies and writes weeks and reference in one transaction. A failed unit, or a body the
-  parser rejects in the store step (same safe log line), exits 1 with `fetch_incomplete`; a
-  rejected weekly history also withholds the reference, as a failed one does. The rejected body
+  both bodies and writes weeks and reference in one transaction. A failed unit exits 1 with
+  `fetch_incomplete`, step `fetch`. A body the parser rejects in the store step is a store
+  failure: log line `NVE reservoir store failed` (unit and class only), exit 1 with
+  `invalid_response`, step `store` (`fetch_incomplete` wins when both occur). A rejected weekly
+  history also withholds the reference, as a failed one does. The rejected body
   stays in the file, so after a parser fix `--from-payload` stores it without a new request
   (decision "Raw bodies, parsed in the store step"). An unproved reference period keeps the weeks
-  and exits 1 with `reference_period_unproved`. Not date-bound: a same-day older payload is stored.
+  and exits 1 with `reference_period_unproved`. Not date-bound (S9), but a replay stores only the
+  newest payload: an older one is refused `superseded` when a newer payload of the same options
+  exists (shared rule, `../ImportPayload/AGENTS.md`).
 
 ## Licence (open)
 

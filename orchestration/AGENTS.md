@@ -115,6 +115,14 @@ scheduler would run its `contracts:complete-import`).
   claim-based step timeout must stay below that drain (contract import, consumers and the weekly
   video 60 min; a test checks it; measure the real import time in the R4 acceptance test). The Kamal `stop_timeout` of the worker role (3960 s) stays above that. A crash (SIGKILL) still
   waits for the 2-minute heartbeat timeout. Tests: `test_a_deploy_*` in `tests/test_jobs.py`.
+- **Local hard deadline.** `run_command` kills its child when the attempt has run for its
+  `start_to_close_timeout` (`activity.info()`; no timeout, no deadline), measured on the worker
+  from the activity's start, and raises the retryable `ApplicationError` type `LocalTimeout`
+  (key `local_timeout`). It does not wait for the server: a worker that has lost its Temporal
+  connection never receives the cancellation, and the child would keep writing. The retry rules
+  treat it like a server start-to-close timeout, as a lost attempt (only `CommandFailed` is
+  non-retryable). Heartbeats, the deploy kill and the drain are unchanged. Test:
+  `test_a_command_past_its_start_to_close_is_killed_without_the_server`.
 - **One Issue per failure.** A failed step sends one `report_issue` (`command_failed`), because the
   Laravel scheduler failure listener does not run here. `spot:fetch`, `futures:fetch-eex`,
   `contracts:fetch` and `contracts:complete-import` report a non-zero exit themselves
@@ -176,7 +184,12 @@ The PHP side (`StagedImport`, payload format, retention) is in
 - **Deploy drain** (S14): the fetch keeps the step's `interruptible` (EEX: interruptible, so a
   deploy restarts the fetch; `contracts:fetch`: not interruptible, as before). Every store is not
   interruptible and has a timeout of at most `STORE_TIMEOUT_MINUTES` (60), below the 65-minute
-  drain; `test_claim_based_steps_finish_during_a_deploy_drain` checks it.
+  drain; `test_claim_based_steps_finish_during_a_deploy_drain` checks it. The PHP store-lock
+  leases (`contract_import_store_v1`, `spot_forecast_store_v1:*`: 65 min,
+  `../tasks/staged-api-imports/decisions.md` LAR-201) must stay above every store's
+  start-to-close (60 min) and so above the local hard deadline of `run_command`, which kills the
+  store at 60 min even without the server: a lease then never expires under a live store. Raise a
+  store timeout only together with those leases.
 - **Issues and outcomes:** `self_reports` holds for both activities (the PHP command reports its own
   fetch and store failures). A workflow Issue for a staged step names `command`, `error`, `step`
   (`fetch` or `store`) and, for a store, `payload_path`/`payload_sha256` for a replay
@@ -226,8 +239,11 @@ original fetch without the command (`["--skip-logos"]` for the contract import).
 store activity (never a fetch), not interruptible. For `contracts:fetch`, `futures:fetch-eex` and
 `futures:fetch-eex-europe` (spec S9) it refuses before PHP starts, with one `wrong_date` Issue, when
 `date` or the payload path date (`…/<source>/<YYYY-MM-DD>/<run-id>.ndjson.gz`) is not today's
-Helsinki date or the two differ; it passes the date to `CommandRequest.date`. A contract replay then
-runs the `ContractImport` completion loop (not the forecast evaluation). A running `MorningChain`
+Helsinki date or the two differ; it passes the date to `CommandRequest.date`. A full-scope contract
+replay (no `--postcodes` value in `args`; `jobs.full_contract_scope()` follows the PHP option parse)
+then runs the `ContractImport` completion loop (not the forecast evaluation). A scoped replay
+(`--postcodes=…`) ends after its store: a scoped import never writes the global import checkpoint,
+so the loop would turn a successful store into a false `import_not_ready` Issue. A running `MorningChain`
 needs nothing else: its consumer lanes tick until noon and pass once the checkpoint is `ready`.
 
 ```bash

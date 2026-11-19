@@ -11,6 +11,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Client\Request;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -156,11 +157,14 @@ class FetchNeighbourSpotCommandTest extends TestCase
 
         $this->assertSame(1, Artisan::call('spot:fetch-neighbours'));
         $output = Artisan::output();
+        $payloads = glob(config('import_payloads.path').'/entsoe-day-ahead/2026-10-31/*.ndjson.gz');
+        $this->assertCount(1, $payloads, 'The payload stays after a failed store.');
 
-        $this->assertSame(
-            ['status' => 'failed', 'step' => 'store', 'error' => 'store_failed', 'sqlstate' => '23000', 'driver_code' => 19, 'table' => 'spot_prices_hour'],
-            $this->lastJsonLine($output),
-        );
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'store_failed',
+            'payload_path' => $payloads[0], 'payload_sha256' => hash_file('sha256', $payloads[0]),
+            'sqlstate' => '23000', 'driver_code' => 19, 'table' => 'spot_prices_hour',
+        ], $this->lastJsonLine($output));
         $this->assertSame([], $this->spotRows(), 'A failed store writes no row of the run (S21).');
         Log::shouldHaveReceived('error')->once()->withArgs(function (string $message, array $context): bool {
             $this->assertSame('Import failed: spot:fetch-neighbours', $message);
@@ -174,9 +178,6 @@ class FetchNeighbourSpotCommandTest extends TestCase
         foreach (['forced failure', '13.5', self::API_KEY] as $binding) {
             $this->assertStringNotContainsString($binding, $output);
         }
-
-        $payloads = glob(config('import_payloads.path').'/entsoe-day-ahead/2026-10-31/*.ndjson.gz');
-        $this->assertCount(1, $payloads, 'The payload stays after a failed store.');
 
         DB::statement('DROP TRIGGER fail_ee_hours'); // the fix
         Http::preventStrayRequests();
@@ -210,14 +211,14 @@ class FetchNeighbourSpotCommandTest extends TestCase
     }
 
     /**
-     * S9: not date-bound. An older same-day payload is accepted; rows are insert-only, so it
-     * inserts nothing new and the rows of the later fetch stay as they are.
+     * Replay stores only the newest payload: an older same-day payload is refused (superseded)
+     * while a newer payload exists, and inserts nothing.
      */
-    public function test_an_older_same_day_payload_is_accepted_and_inserts_nothing_new(): void
+    public function test_an_older_same_day_payload_is_refused_and_inserts_nothing(): void
     {
         $this->fakeZones(['SE1' => 2.0, 'SE3' => 8.0, 'EE' => 12.0, 'DE-LU' => 20.0]);
         $this->assertSame(0, Artisan::call('spot:fetch-neighbours', ['--fetch-only' => true]));
-        $older = $this->lastJsonLine(Artisan::output())['payload']['path'];
+        $older = $this->lastJsonLine(Artisan::output())['payload'];
 
         Carbon::setTestNow(Carbon::create(2026, 10, 31, 14, 0, 0, 'UTC'));
         $this->fakeZones(['SE1' => 3.0, 'SE3' => 9.0, 'EE' => 13.0, 'DE-LU' => 21.0]);
@@ -228,11 +229,40 @@ class FetchNeighbourSpotCommandTest extends TestCase
         Http::preventStrayRequests();
         Http::swap(new Factory);
         Http::fake();
-        $this->assertSame(0, Artisan::call('spot:fetch-neighbours', ['--from-payload' => $older]));
+        $this->assertSame(1, Artisan::call('spot:fetch-neighbours', ['--from-payload' => $older['path']]));
 
-        $this->assertSame(['records' => 16, 'regions' => 4, 'failed_regions' => 0], $this->lastJsonLine(Artisan::output())['counts']);
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'payload_invalid', 'reason' => 'superseded',
+            'payload_path' => $older['path'], 'payload_sha256' => $older['sha256'],
+        ], $this->lastJsonLine(Artisan::output()));
         $this->assertSame($rows, $this->spotRows());
-        $this->assertEqualsWithDelta(10.5, SpotPriceHour::query()->forRegion('SE3')->value('price_without_tax'), 0.0001);
+    }
+
+    /**
+     * S10: a non-2xx answer that the HTTP client does not count as failed (a 3xx without a
+     * redirect target) is a failed region with its body, so the run cannot report a missing
+     * region as complete.
+     */
+    public function test_a_non_2xx_answer_is_a_failed_region_with_its_body(): void
+    {
+        Log::spy();
+        $this->fakeZones(['SE1' => 2.0, 'SE3' => 302, 'EE' => 12.0, 'DE-LU' => 20.0]);
+
+        $this->assertSame(1, Artisan::call('spot:fetch-neighbours'));
+
+        $line = $this->lastJsonLine(Artisan::output());
+        $this->assertSame(
+            ['failed', 'fetch', 'fetch_incomplete', false, ['records' => 12, 'regions' => 3, 'failed_regions' => 1]],
+            [$line['status'], $line['step'], $line['error'], $line['complete'], $line['counts']],
+        );
+        $se3 = array_values(array_filter(
+            array_map(fn (string $l) => json_decode($l, true), array_filter(explode("\n", $this->decompressedPayload($line['payload']['path'])))),
+            fn (array $l) => ($l['unit']['region'] ?? null) === 'SE3',
+        ));
+        $this->assertSame([302, '<Acknowledgement_MarketDocument/>'], [$se3[0]['status'], $se3[0]['body']]);
+        Log::shouldHaveReceived('error')->once()->with('Neighbour spot import failed', [
+            'region' => 'SE3', 'exception_class' => RequestException::class,
+        ]);
     }
 
     public function test_backfill_accepts_a_neighbour_region_and_skips_finnish_averages(): void

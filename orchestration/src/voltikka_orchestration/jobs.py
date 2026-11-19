@@ -443,6 +443,20 @@ DATE_BOUND_COMMANDS = frozenset({"contracts:fetch", "futures:fetch-eex", "future
 SELF_REPORTING_COMMANDS = frozenset({"contracts:fetch", "futures:fetch-eex", "spot:fetch"})
 
 
+def full_contract_scope(args: list[str]) -> bool:
+    """True when `contracts:fetch` runs at full scope: FetchContracts tests `option('postcodes') ===
+    null`, so `--postcodes=<any>` and `--postcodes <value>` are scoped, while a bare `--postcodes`
+    before another option or at the end parses as null (Symfony ArgvInput). Only a full import writes
+    the global import checkpoint that the completion loop reads; a scoped import never does (root
+    AGENTS.md, "Deferred contract import completion")."""
+    for index, arg in enumerate(args):
+        if arg.startswith("--postcodes="):
+            return False
+        if arg == "--postcodes" and index + 1 < len(args) and not args[index + 1].startswith("-"):
+            return False
+    return True
+
+
 @dataclass
 class ImportReplayInput:
     command: str  # for example "contracts:fetch"
@@ -457,8 +471,8 @@ class ImportReplayInput:
 class ImportReplay:
     """Store a saved payload again after a fix (spec S16): the store activity only, never a fetch.
     Started by hand with the user's approval; no Schedule. A date-bound command is refused before PHP
-    starts unless the payload is today's (the PHP command checks too). A contract replay then runs
-    the ContractImport completion loop."""
+    starts unless the payload is today's (the PHP command checks too). A full-scope contract replay
+    then runs the ContractImport completion loop; a scoped one (`--postcodes`) ends after its store."""
 
     @workflow.run
     async def run(self, params: ImportReplayInput) -> StepOutcome:
@@ -484,7 +498,7 @@ class ImportReplay:
                     self_reports=params.command in SELF_REPORTING_COMMANDS)
         # run_step names the store and its payload in a failure Issue and refuses an expired payload.
         outcome = await run_step("ImportReplay", step, day, {"path": params.payload_path, "sha256": params.sha256})
-        if outcome.status == "succeeded" and params.command == "contracts:fetch":
+        if outcome.status == "succeeded" and params.command == "contracts:fetch" and full_contract_scope(params.args):
             outcome.status = await complete_contract_import("ImportReplay", day)
         if outcome.status != "succeeded":
             raise reported_failure(f"ImportReplay {params.command}: {outcome.status} ({outcome.error})",

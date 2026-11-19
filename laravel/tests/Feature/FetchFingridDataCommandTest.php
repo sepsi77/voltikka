@@ -203,8 +203,14 @@ class FetchFingridDataCommandTest extends TestCase
 
         $this->assertSame(1, Artisan::call('fingrid:fetch --dataset=124 --dataset=191'));
         $output = Artisan::output();
+        $payloads = glob(config('import_payloads.path').'/fingrid/2026-11-01/*.ndjson.gz');
+        $this->assertCount(1, $payloads, 'The payload stays after a failed store.');
 
-        $this->assertSame(['status' => 'failed', 'step' => 'store', 'error' => 'store_failed', 'sqlstate' => '23000', 'driver_code' => 19, 'table' => 'fingrid_hourly_values'], $this->lastJsonLine($output));
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'store_failed',
+            'payload_path' => $payloads[0], 'payload_sha256' => hash_file('sha256', $payloads[0]),
+            'sqlstate' => '23000', 'driver_code' => 19, 'table' => 'fingrid_hourly_values',
+        ], $this->lastJsonLine($output));
         foreach (['forced failure', '191.25', '124.25'] as $binding) {
             $this->assertStringNotContainsString($binding, $output);
         }
@@ -218,9 +224,6 @@ class FetchFingridDataCommandTest extends TestCase
 
             return true;
         });
-
-        $payloads = glob(config('import_payloads.path').'/fingrid/2026-11-01/*.ndjson.gz');
-        $this->assertCount(1, $payloads, 'The payload stays after a failed store.');
 
         DB::statement('DROP TRIGGER fail_hydro'); // the fix
         Http::swap(new Factory);
@@ -264,14 +267,15 @@ class FetchFingridDataCommandTest extends TestCase
     }
 
     /**
-     * S9: not date-bound. An older payload from the same day is accepted: its values and fetch
-     * time replace the newer upserted rows of the same hours until the next fetch.
+     * Replay stores only the newest payload: an older same-day payload is refused (superseded)
+     * while a newer payload of the same options exists, so its values cannot replace the newer
+     * upserted rows.
      */
-    public function test_an_older_same_day_payload_is_accepted(): void
+    public function test_an_older_same_day_payload_is_refused_when_a_newer_payload_exists(): void
     {
         $this->fakeFingrid(0.5);
         Artisan::call('fingrid:fetch --dataset=188 --fetch-only');
-        $older = $this->lastJsonLine()['payload']['path'];
+        $older = $this->lastJsonLine()['payload'];
 
         Carbon::setTestNow(Carbon::create(2026, 11, 1, 9, 30, 0, 'UTC'));
         $this->fakeFingrid(0.75);
@@ -280,11 +284,35 @@ class FetchFingridDataCommandTest extends TestCase
         Carbon::setTestNow(Carbon::create(2026, 11, 1, 12, 0, 0, 'UTC'));
         Http::swap(new Factory);
         Http::preventStrayRequests();
-        $this->assertSame(0, Artisan::call('fingrid:fetch --dataset=188 --from-payload='.$older));
+        $this->assertSame(1, Artisan::call('fingrid:fetch --dataset=188 --from-payload='.$older['path']));
 
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'payload_invalid', 'reason' => 'superseded',
+            'payload_path' => $older['path'], 'payload_sha256' => $older['sha256'],
+        ], $this->lastJsonLine());
         $row = DB::table('fingrid_hourly_values')->sole();
-        $this->assertEqualsWithDelta(188.5, $row->value, 0.0001);
-        $this->assertSame('2026-11-01 08:30:00', $row->fetched_at);
+        $this->assertEqualsWithDelta(188.75, $row->value, 0.0001);
+        $this->assertSame('2026-11-01 09:30:00', $row->fetched_at);
+    }
+
+    /**
+     * A repeated or differently written dataset ID (188, 0188) is fetched once: a second copy
+     * would merge its samples into the same window and a failed copy would hide the answered one.
+     */
+    public function test_a_repeated_dataset_option_fetches_the_dataset_once(): void
+    {
+        $calls = 0;
+        Http::fake(function () use (&$calls) {
+            return ++$calls === 1
+                ? Http::response(['data' => [$this->row(188, '2026-10-31T10:00:00.000Z', 1000.0)], 'pagination' => ['nextPage' => null]])
+                : Http::response(['message' => 'boom'], 500);
+        });
+
+        $this->assertSame(0, Artisan::call('fingrid:fetch --dataset=188 --dataset=0188'));
+
+        $this->assertSame(1, $calls);
+        $row = DB::table('fingrid_hourly_values')->sole();
+        $this->assertSame([1000.0, 1], [(float) $row->value, (int) $row->sample_count]);
     }
 
     public function test_a_failed_dataset_prints_fetch_incomplete_and_keeps_the_others(): void

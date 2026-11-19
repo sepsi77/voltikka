@@ -42,14 +42,17 @@ not a guaranteed simultaneous import.
 - Staged import (`App\Console\Concerns\StagedImport`, `../ImportPayload/AGENTS.md`;
   `import-payloads/jao/<date>/`): the fetch step records one line per window (unit
   `{from, to}`) and fixes `today`, `start` and `end` in the header. The fetch does not parse:
-  only a transport or HTTP failure is a failed unit. The store step alone parses each answered
-  body; a body the parser rejects fails only its window there (same safe log line, no rows of that
-  window), and the run exits 1 with `fetch_incomplete` (`failed_windows` counts both kinds). Its
+  only a transport or HTTP failure is a failed unit (`failed_windows`; exit 1 with
+  `fetch_incomplete`, step `fetch`). The store step alone parses each answered body; a body the
+  parser rejects fails only its window there (log line `JAO maxBorderFlow store failed`, window
+  and class only, no rows of that window): `invalid_windows`, exit 1 with `invalid_response`, step
+  `store`. With both kinds in one run, `fetch_incomplete` wins. Its
   body stays in the file, so after a parser fix `--from-payload` stores it without a new request
   (decision "Raw bodies, parsed in the store step"). Database errors still roll back. The default run stores
   in one transaction; a `--from` backfill commits once per window, so a store failure keeps the
-  earlier windows. Not date-bound: a same-day older payload is stored and puts its older values
-  back until the next fetch.
+  earlier windows. Not date-bound (S9), but a replay stores only the newest payload: an older one
+  is refused `superseded` when a newer payload of the same options exists (shared rule,
+  `../ImportPayload/AGENTS.md`).
 - Live check 2026-10-30 (CET day): SE1→FI 1,799–1,884 MW (mean 1,809), SE3→FI 1,200, EE→FI 1,016,
   NO4→FI 48–57; FI→SE1 1,698–1,773.
 

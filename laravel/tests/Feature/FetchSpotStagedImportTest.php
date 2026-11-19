@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Console\Commands\FetchSpot;
 use App\Jobs\WarmContractPriceStatisticsCache;
 use App\Models\SpotPriceAverage;
 use App\Models\SpotPriceHour;
@@ -14,6 +15,9 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Sleep;
+use Symfony\Component\Console\Input\ArrayInput;
+use Symfony\Component\Console\Output\BufferedOutput;
 use Tests\Concerns\CapturesSentryIssues;
 use Tests\Concerns\FakesEntsoeDayAhead;
 use Tests\TestCase;
@@ -30,6 +34,8 @@ class FetchSpotStagedImportTest extends TestCase
     use RefreshDatabase;
 
     private const API_KEY = 'entsoe-test-secret-7731';
+
+    private const STORE_LOCK = 'spot_store_v1:FI';
 
     protected function setUp(): void
     {
@@ -145,11 +151,14 @@ class FetchSpotStagedImportTest extends TestCase
 
         $this->assertSame(1, Artisan::call('spot:fetch'));
         $output = Artisan::output();
+        $payloads = glob(config('import_payloads.path').'/entsoe-day-ahead/2026-11-19/*.ndjson.gz');
+        $this->assertCount(1, $payloads, 'The payload stays after a failed store.');
 
-        $this->assertSame(
-            ['status' => 'failed', 'step' => 'store', 'error' => 'store_failed', 'sqlstate' => '23000', 'driver_code' => 19, 'table' => 'spot_price_averages'],
-            $this->lastJsonLine($output),
-        );
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'store_failed',
+            'payload_path' => $payloads[0], 'payload_sha256' => hash_file('sha256', $payloads[0]),
+            'sqlstate' => '23000', 'driver_code' => 19, 'table' => 'spot_price_averages',
+        ], $this->lastJsonLine($output));
         $this->assertSame([], $this->spotRows(), 'The price rows of the failed store are rolled back (S21).');
         $this->assertSame([], $this->averageRows(), 'No average row of the run exists.');
         Queue::assertNothingPushed();
@@ -160,9 +169,6 @@ class FetchSpotStagedImportTest extends TestCase
             $this->assertStringNotContainsString($binding, $output);
             $this->assertStringNotContainsString($binding, json_encode($context));
         }
-
-        $payloads = glob(config('import_payloads.path').'/entsoe-day-ahead/2026-11-19/*.ndjson.gz');
-        $this->assertCount(1, $payloads, 'The payload stays after a failed store.');
 
         DB::statement('DROP TRIGGER fail_spot_averages'); // the fix
         $this->preventHttp();
@@ -175,18 +181,16 @@ class FetchSpotStagedImportTest extends TestCase
     }
 
     /**
-     * S9: not date-bound by the payload; a replay is for the same Helsinki day, because the
-     * rolling averages take today's Helsinki date. An older same-day payload is accepted. Price
-     * rows are insert-only, so it inserts nothing new, and the averages it recalculates over the
-     * stored rows equal those of the later fetch.
+     * Replay stores only the newest payload: an older same-day payload is refused (superseded)
+     * while a newer payload exists, and writes neither price rows nor averages.
      */
-    public function test_an_older_same_day_payload_is_accepted_and_keeps_rows_and_averages(): void
+    public function test_an_older_same_day_payload_is_refused_and_keeps_rows_and_averages(): void
     {
         $hour = Carbon::parse('2026-11-19 10:00', 'UTC')->timestamp;
         Carbon::setTestNow(Carbon::parse('2026-11-19 06:00:00', 'UTC'));
         $this->fakeEntsoe([[$hour, 4.0]]);
         $this->assertSame(0, Artisan::call('spot:fetch', ['--fetch-only' => true]));
-        $older = $this->lastJsonLine(Artisan::output())['payload']['path'];
+        $older = $this->lastJsonLine(Artisan::output())['payload'];
 
         Carbon::setTestNow(Carbon::parse('2026-11-19 12:00:00', 'UTC'));
         $this->fakeEntsoe([[$hour, 6.0], [$hour + 3600, 6.5]]);
@@ -197,11 +201,85 @@ class FetchSpotStagedImportTest extends TestCase
 
         Carbon::setTestNow(Carbon::parse('2026-11-19 14:00:00', 'UTC'));
         $this->preventHttp();
-        $this->assertSame(0, Artisan::call('spot:fetch', ['--from-payload' => $older]));
+        $this->assertSame(1, Artisan::call('spot:fetch', ['--from-payload' => $older['path']]));
 
-        $this->assertSame(['records' => 1], $this->lastJsonLine(Artisan::output())['counts']);
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'payload_invalid', 'reason' => 'superseded',
+            'payload_path' => $older['path'], 'payload_sha256' => $older['sha256'],
+        ], $this->lastJsonLine(Artisan::output()));
         $this->assertSame($rows, $this->spotRows());
-        $this->assertEqualsWithDelta(6.0, SpotPriceHour::query()->where('timestamp', $hour)->value('price_without_tax'), 0.0001);
         $this->assertSame($averages, $this->averageRows());
+    }
+
+    /**
+     * A store waits for the FI store lock; while another store holds it past the wait, it writes
+     * neither prices nor averages and fails with the closed error store_busy. The payload stays.
+     */
+    public function test_a_store_that_cannot_get_the_store_lock_writes_nothing_and_is_busy(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-11-19 06:00:00', 'UTC'));
+        $this->fakeEntsoe($this->quarterPoints('2026-11-19 10:00', 4.0));
+        $this->assertSame(0, Artisan::call('spot:fetch', ['--fetch-only' => true]));
+        $payload = $this->lastJsonLine(Artisan::output())['payload'];
+
+        $holder = Cache::lock(self::STORE_LOCK, 300);
+        $this->assertTrue($holder->get());
+        Sleep::fake(syncWithCarbon: true);
+        $this->captureSentryIssues();
+        $this->preventHttp();
+        $this->assertSame(1, Artisan::call('spot:fetch', ['--from-payload' => $payload['path']]));
+
+        $line = $this->lastJsonLine(Artisan::output());
+        $this->assertSame(['failed', 'store', 'store_busy', ['records' => 4]], [$line['status'], $line['step'], $line['error'], $line['counts']]);
+        $this->assertSame([[], []], [$this->spotRows(), $this->averageRows()]);
+        $this->assertFileExists($payload['path']);
+        Queue::assertNothingPushed();
+        $this->assertImportIssue('spot', 'error', ['store_busy' => 1]);
+
+        $holder->release();
+        $this->assertSame(0, Artisan::call('spot:fetch', ['--from-payload' => $payload['path']]));
+        $this->assertSame($this->expectedAverages(5.5, 1), $this->averages());
+    }
+
+    /**
+     * Store serialization: replay A (06:00 payload, hour 10:00 = 4.0) starts while another
+     * process holds the FI store lock, and that process (a scheduled run, B: 10:00 = 6.0 and
+     * 11:00 = 6.5) commits its prices and averages before it lets go. A then inserts nothing new
+     * (insert-only) and recalculates the averages over both hours. The other process is simulated
+     * in one PHPUnit process: A's first lock wait (a faked sleep) runs B with its own command
+     * instance after releasing the lock. Without the lock, A would not wait, and its averages
+     * would come from a snapshot taken without B.
+     */
+    public function test_a_replay_waits_for_a_running_store_and_averages_over_its_rows(): void
+    {
+        $hour = Carbon::parse('2026-11-19 10:00', 'UTC')->timestamp;
+        Carbon::setTestNow(Carbon::parse('2026-11-19 06:00:00', 'UTC'));
+        $this->fakeEntsoe([[$hour, 4.0]]);
+        $this->assertSame(0, Artisan::call('spot:fetch', ['--fetch-only' => true]));
+        $replay = $this->lastJsonLine(Artisan::output())['payload']['path'];
+
+        Carbon::setTestNow(Carbon::parse('2026-11-19 12:00:00', 'UTC'));
+        $this->fakeEntsoe([[$hour, 6.0], [$hour + 3600, 6.5]]);
+        $holder = Cache::lock(self::STORE_LOCK, 300);
+        $this->assertTrue($holder->get());
+        $storeB = null;
+        Sleep::fake();
+        Sleep::whenFakingSleep(function () use ($holder, &$storeB): void {
+            if ($storeB !== null) {
+                return;
+            }
+            $holder->release();
+            $command = $this->app->make(FetchSpot::class);
+            $command->setLaravel($this->app);
+            // B's after-commit cache warm calls another command through the console application.
+            $command->setApplication(Artisan::all()['spot:fetch']->getApplication());
+            $storeB = $command->run(new ArrayInput([]), new BufferedOutput);
+        });
+
+        $this->assertSame(0, Artisan::call('spot:fetch', ['--from-payload' => $replay]));
+
+        $this->assertSame(0, $storeB, 'B stored while A waited for the lock.');
+        $this->assertEqualsWithDelta(6.0, SpotPriceHour::query()->where('timestamp', $hour)->value('price_without_tax'), 0.0001);
+        $this->assertSame($this->expectedAverages(6.25, 2), $this->averages(), 'A averaged over B\'s committed rows.');
     }
 }

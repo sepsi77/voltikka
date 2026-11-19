@@ -247,15 +247,15 @@ class FetchContracts extends Command
         }
 
         try {
+            // Again under the lock: the wait can last past midnight.
+            if ($date !== Carbon::now('Europe/Helsinki')->toDateString()) {
+                throw ImportPayloadInvalid::because('wrong_date');
+            }
             $this->refuseSupersededPayload($payload->fetchedAt());
 
             // A replay of a saved payload owns the checkpoint from here on, with its own run UUID.
-            if ($this->option('from-payload') !== null
-                && ! $this->recordFullScopeCheckpoint($fullScope, $date, DataFreshnessCheckpoint::STATUS_RUNNING, ['stage' => 'started'])) {
-                $this->failureRecorded = true;
-                $this->failFetchRun('checkpoint');
-
-                return new ImportStoreResult(error: 'checkpoint_failed');
+            if ($this->option('from-payload') !== null && $fullScope && ($refused = $this->takeOverCheckpoint($date)) !== null) {
+                return $refused;
             }
 
             $acquisition = $this->acquisitionFromPayload($payload);
@@ -276,7 +276,12 @@ class FetchContracts extends Command
                     ['stage' => 'acquisition', 'reason' => 'no_contracts'] + $this->payloadMetadata(),
                 );
 
-                return new ImportStoreResult($counts, error: $fullScope ? 'no_contracts' : null);
+                // A scoped run fails when postcodes failed; an empty answer alone only warns.
+                return match (true) {
+                    $fullScope => new ImportStoreResult($counts, error: 'no_contracts'),
+                    $acquisition->failedPostcodes !== [] => new ImportStoreResult($counts, error: 'fetch_incomplete', errorStep: 'fetch'),
+                    default => new ImportStoreResult($counts),
+                };
             }
 
             $this->info('Fetched '.count($acquisition->contracts).' unique contracts. Processing...');
@@ -402,6 +407,37 @@ class FetchContracts extends Command
         if ($newest !== null && Carbon::parse($newest, config('app.timezone'))->gt($fetchedAt)) {
             throw ImportPayloadInvalid::because('superseded');
         }
+    }
+
+    /**
+     * A replay's takeover of the full-scope checkpoint, under the store lock. It never seizes a
+     * live run: when another run is `running` for the date (a newer fetch, or a store that is not
+     * this payload's own fetch), the replay writes nothing and fails `checkpoint_busy`, and that
+     * run keeps the date. The payload's own fetch owner, a settled run or no row can be taken over,
+     * so the current failed run stays recoverable. Null when the replay owns the date.
+     */
+    private function takeOverCheckpoint(string $date): ?ImportStoreResult
+    {
+        try {
+            $owner = $this->completion->takeOver($date, $this->fetchRun['uuid'] ?? null);
+        } catch (Throwable $exception) {
+            $this->error('Failed to record the contract freshness checkpoint.');
+            $this->failureReporter->fail('checkpoint', $exception);
+            $this->failureRecorded = true;
+            $this->failFetchRun('checkpoint');
+
+            return new ImportStoreResult(error: 'checkpoint_failed');
+        }
+        if ($owner === null) {
+            $this->error('Another contract import run is running for this date.');
+            $this->failureReporter->fail('checkpoint_busy');
+            $this->failureRecorded = true;
+
+            return new ImportStoreResult(error: 'checkpoint_busy');
+        }
+        [$this->checkpointDate, $this->runUuid] = [$date, $owner];
+
+        return null;
     }
 
     /**

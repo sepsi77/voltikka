@@ -22,7 +22,8 @@ Task context: `../../../../tasks/own-forecast-model-data/`.
   the date range (`firstPage()`), `$orderby=Paikka_Id,Aika`; `requestPage()` returns one raw page
   and `parsePage()` reads a saved body (rows and `odata.nextLink`; the server returns at most 500
   rows per page; `$top` above 500 is also paged). A nextLink is accepted only when it starts with
-  the configured entity URL. Retries HTTP 429, 5xx and connection errors.
+  the entity URL under the given base URL: the fetch passes the configured one (`baseUrl()`),
+  the store the one recorded in the payload header. Retries HTTP 429, 5xx and connection errors.
 - `SykeHydrologyImporter.php` – upserts into `syke_hydrology_values` on (series, place_id, date).
 - `../../Console/Commands/FetchSykeHydrology.php` – `php artisan syke:fetch`.
 - `../../../config/syke.php` – series, places with names, window and limits.
@@ -59,13 +60,17 @@ Task context: `../../../../tasks/own-forecast-model-data/`.
 - Logs contain the series key and the exception class only (no URL).
 - Staged import (`App\Console\Concerns\StagedImport`, `../ImportPayload/AGENTS.md`;
   `import-payloads/syke/<date>/`): the fetch step follows `odata.nextLink` and records every page
-  (unit `{series, page}`). The header facts fix `today`, `from`, `to_exclusive` and the request
-  plan per series (entity, Jakso, places); the store uses that plan, not the config. An HTTP
+  (unit `{series, page}`). The header facts fix `today`, `from`, `to_exclusive`, `base_url` and
+  the request plan per series (entity, Jakso, places); the store uses that plan and checks every
+  saved nextLink against that base URL, not the config (PR #31 review: a moved endpoint must not
+  reject an older file). A header without `base_url` (written before 2026-11-19's fix) is refused
+  `payload_invalid`/`incomplete` before any write. An HTTP
   failure, an unexpected body, a nextLink outside the API or paging past `syke.max_pages` is a
   failed unit and ends the series; the store skips every page of that series (stored whole or not
   at all), stores the others and exits 1 with `fetch_incomplete`. The store upserts all series in
-  one transaction (a backfill too: one paged query per series, not chunks). Not date-bound: a
-  same-day older payload is stored and puts its older values back until the next fetch.
+  one transaction (a backfill too: one paged query per series, not chunks). Not date-bound (S9),
+  but a replay stores only the newest payload: an older one is refused `superseded` when a newer
+  payload of the same options exists (shared rule, `../ImportPayload/AGENTS.md`).
 
 ## Commands
 

@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Console\Concerns\StagedImport;
+use App\Services\ImportPayload\ImportPayloadInvalid;
 use App\Services\ImportPayload\ImportPayloadReader;
 use App\Services\ImportPayload\ImportPayloadWriter;
 use App\Services\ImportPayload\ImportStoreResult;
@@ -22,7 +23,8 @@ use Throwable;
  * read-only towards Syke; upserts locally.
  *
  * Staged import (StagedImport): the fetch step follows `odata.nextLink` and records every page;
- * the header fixes `today`, the window and each series' request plan (S5, S19). The store step
+ * the header fixes `today`, the window, the API base URL and each series' request plan (S5,
+ * S19). The store step checks every saved nextLink against that base URL, not the config, and
  * upserts all series in one transaction. A failed page fails its whole series; the other series
  * are stored and the run exits 1 (fetch_incomplete). Not date-bound (S9).
  */
@@ -95,6 +97,7 @@ class FetchSykeHydrology extends Command
                 $payload->setFact('today', $today->toDateString());
                 $payload->setFact('from', $from->toDateString());
                 $payload->setFact('to_exclusive', $to->toDateString());
+                $payload->setFact('base_url', $this->client->baseUrl());
                 $payload->setFact('series', $plan);
                 foreach ($plan as $series => $seriesPlan) {
                     $this->fetchSeries($payload, (string) $series, $seriesPlan, $from, $to);
@@ -133,7 +136,7 @@ class FetchSykeHydrology extends Command
             }
 
             try {
-                $next = $this->client->parsePage($plan['entity'], $response->body())['next'];
+                $next = $this->client->parsePage($plan['entity'], $response->body(), $this->client->baseUrl())['next'];
                 if ($next !== null && $page >= $this->client->maxPages()) {
                     throw new RuntimeException("Syke {$plan['entity']} paging did not end.");
                 }
@@ -149,9 +152,18 @@ class FetchSykeHydrology extends Command
         }
     }
 
-    /** Runs inside the StagedImport store transaction. */
+    /**
+     * Runs inside the StagedImport store transaction.
+     *
+     * @throws ImportPayloadInvalid incomplete: a header without the base URL (a payload written
+     *                              before it was recorded)
+     */
     private function store(ImportPayloadReader $payload): ImportStoreResult
     {
+        $baseUrl = $payload->fact('base_url');
+        if (! is_string($baseUrl) || $baseUrl === '') {
+            throw ImportPayloadInvalid::because('incomplete');
+        }
         $plan = (array) $payload->fact('series', []);
         $failedSeries = array_values(array_unique(array_map(fn (array $unit) => (string) $unit['series'], $payload->end()['failed_units'])));
         $rows = [];
@@ -161,7 +173,7 @@ class FetchSykeHydrology extends Command
             if (in_array($series, $failedSeries, true)) {
                 continue;
             }
-            $page = $this->client->parsePage((string) $plan[$series]['entity'], (string) ImportPayloadReader::body($request));
+            $page = $this->client->parsePage((string) $plan[$series]['entity'], (string) ImportPayloadReader::body($request), $baseUrl);
             $rows[$series] = [...($rows[$series] ?? []), ...$page['rows']];
         }
 

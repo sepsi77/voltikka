@@ -25,7 +25,8 @@ use Throwable;
  *
  * Staged import (StagedImport): the fetch step records every window unparsed and fixes today and
  * the range in the header (S5); the store step parses and upserts the answered windows, so a
- * window the parser rejects can be stored from the same file after a parser fix. The default run
+ * window the parser rejects (invalid_response, a store failure) can be stored from the same file
+ * after a parser fix. A failed request stays fetch_incomplete. The default run
  * stores in one transaction; a --from backfill commits once per window (S21). Not date-bound (S9).
  */
 class FetchJaoMaxBorderFlows extends Command
@@ -123,6 +124,7 @@ class FetchJaoMaxBorderFlows extends Command
     {
         $failedUnits = $payload->end()['failed_units'];
         $failed = count($failedUnits);
+        $invalid = 0;
         $written = 0;
 
         foreach ($payload->requests() as $request) {
@@ -133,8 +135,8 @@ class FetchJaoMaxBorderFlows extends Command
                 $rows = $this->client->parse((string) ImportPayloadReader::body($request));
             } catch (RuntimeException $e) {
                 // An unexpected body fails only its window and stays in the file for a later replay.
-                $failed++;
-                $this->reportWindowFailure($request['unit'], $e);
+                $invalid++;
+                $this->reportWindowFailure($request['unit'], $e, 'store');
 
                 continue;
             }
@@ -142,24 +144,34 @@ class FetchJaoMaxBorderFlows extends Command
             $written += $backfill ? DB::transaction($import) : $import();
         }
 
+        // A failed request is a fetch failure; an answered body the parser rejects is a store one.
+        [$error, $step] = match (true) {
+            $failed > 0 => ['fetch_incomplete', 'fetch'],
+            $invalid > 0 => ['invalid_response', 'store'],
+            default => [null, 'store'],
+        };
+
         return new ImportStoreResult(
-            ['hourly_rows' => $written, 'failed_windows' => $failed],
-            [fn () => $this->info("JAO maxBorderFlow: {$written} hourly border rows, {$failed} failed window(s).")],
-            $failed === 0 ? null : 'fetch_incomplete',
-            'fetch',
+            ['hourly_rows' => $written, 'failed_windows' => $failed, 'invalid_windows' => $invalid],
+            [fn () => $this->info("JAO maxBorderFlow: {$written} hourly border rows, {$failed} failed and {$invalid} rejected window(s).")],
+            $error,
+            $step,
         );
     }
 
-    /** @param  array{from: string, to: string}  $unit */
-    private function reportWindowFailure(array $unit, Throwable $e): void
+    /**
+     * @param  array{from: string, to: string}  $unit
+     * @param  'fetch'|'store'  $step  store: an answered body that the store step rejected
+     */
+    private function reportWindowFailure(array $unit, Throwable $e, string $step = 'fetch'): void
     {
         // The exception message can contain the request URL; log only the class and window.
-        logger()->error('JAO maxBorderFlow fetch failed', [
+        logger()->error("JAO maxBorderFlow {$step} failed", [
             'window_start' => $unit['from'],
             'window_end' => $unit['to'],
             'exception_class' => $e::class,
         ]);
-        $this->error('Window '.substr($unit['from'], 0, 10).': fetch failed ('.$e::class.').');
+        $this->error('Window '.substr($unit['from'], 0, 10).": {$step} failed (".$e::class.').');
     }
 
     private function isoTime(Carbon $time): string

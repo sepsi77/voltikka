@@ -77,6 +77,7 @@ class ImportPayloadWriterReaderTest extends TestCase
             'type' => 'header', 'version' => 1, 'source' => 'test-source', 'command' => 'test:fetch',
             'options' => ['zone' => 'FI', 'all' => false], 'run_id' => $reference->runId,
             'fetched_at' => '2026-11-18T22:30:15Z', 'facts' => ['effective_date' => '2026-11-19', 'plan' => ['A44', 'zip']],
+            'requests' => 5, 'failed_units' => 2,
         ], $lines[0]);
         $this->assertSame([
             'type' => 'request', 'unit' => ['document' => 'A44'], 'method' => 'GET', 'url' => 'https://api.test/text',
@@ -113,9 +114,10 @@ class ImportPayloadWriterReaderTest extends TestCase
         $this->assertRefused('sha256_mismatch', fn () => ImportPayloadReader::open($reference->path, str_repeat('0', 64)));
         ImportPayloadReader::open($reference->path, $reference->sha256);
 
-        // Without the .sha256 file (renamed last) the run never finished.
+        // Without the .sha256 file (renamed last) the run never finished, even with a supplied digest.
         unlink(substr($reference->path, 0, -strlen('.ndjson.gz')).'.sha256');
         $this->assertRefused('incomplete', fn () => ImportPayloadReader::open($reference->path));
+        $this->assertRefused('incomplete', fn () => ImportPayloadReader::open($reference->path, $reference->sha256));
 
         $other = $this->finishedPayload();
         file_put_contents($other->path, gzencode('changed'), FILE_APPEND);
@@ -134,15 +136,14 @@ class ImportPayloadWriterReaderTest extends TestCase
             'no header' => [$request, $end],
             'wrong request count' => [$header, $end],
             'not json' => [$header, '{broken', $end],
+            'header without source' => [str_replace('"source":"s",', '', $header), $request, $end],
+            'header without command' => [str_replace('"command":"c",', '', $header), $request, $end],
         ] as $case => $lines) {
-            $path = config('import_payloads.path').'/case-'.md5($case).'.ndjson.gz';
-            @mkdir(dirname($path), 0775, true);
-            file_put_contents($path, gzencode(implode("\n", $lines)."\n"));
+            $path = $this->writeFinished('case-'.md5($case), implode("\n", $lines)."\n");
             $this->assertRefused('incomplete', fn () => ImportPayloadReader::open($path, hash_file('sha256', $path)), $case);
         }
 
-        $path = config('import_payloads.path').'/valid.ndjson.gz';
-        file_put_contents($path, gzencode("{$header}\n{$request}\n{$end}\n"));
+        $path = $this->writeFinished('valid', "{$header}\n{$request}\n{$end}\n");
         $this->assertTrue(ImportPayloadReader::open($path, hash_file('sha256', $path))->complete());
     }
 
@@ -175,6 +176,17 @@ class ImportPayloadWriterReaderTest extends TestCase
         $this->assertSame([['maturity' => '202701']], $reader->end()['failed_units']);
         $this->assertSame(3, $reference->requests);
         $this->assertSame(1, $reference->failedUnits);
+    }
+
+    /** A hand-made payload with its .sha256 file, so only its structure decides. */
+    private function writeFinished(string $name, string $content): string
+    {
+        $path = config('import_payloads.path')."/{$name}.ndjson.gz";
+        @mkdir(dirname($path), 0775, true);
+        file_put_contents($path, gzencode($content));
+        file_put_contents(config('import_payloads.path')."/{$name}.sha256", hash_file('sha256', $path)."\n");
+
+        return $path;
     }
 
     private function finishedPayload(): ImportPayloadReference
