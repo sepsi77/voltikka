@@ -75,3 +75,11 @@ Spec-review lesson: owner `laravel-reviewer`; cause: no spec review ran for this
 ## 2026-11-19 – PR #30 review, round 2 (head 8af878a)
 
 CodeRabbit: no actionable comments. The round-1 finding of both reviewers is fixed and covered by this CodeRabbit review. Threads resolved. Full Laravel suite on the worktree: 3183 passed, 44 failed; the same 44 fail without this PR's changes (the worktree has no Vite build and no local `database.sqlite`). The review loop is clean; the merge waits for the user's request.
+
+## 2026-11-19 – S17 merged and deployed
+
+User approved the merge of PR #30 (with PR #26 and #27 from the VPS operations thread) and the deploy of both roles. PR #30 merged as `72465ae`; `deploy-000030-3ed8b55f31b3` (origin/main `3ed8b55`, PHP 8.4.27) deployed to web and worker at 11:40 Helsinki after today's morning checkpoints were all `ready`. Both containers healthy, `/up` 200. The worker had lagged at `deploy-000028`; both roles now run the same image.
+
+## 2026-11-19 – Implementation contract
+
+`design.md` fixes the payload format, the shared classes, the command modes and result line, the Temporal contract and the per-command tests, so the parallel implementation of 15 commands stays uniform. Work order: the shared foundation and one reference command (`spot:fetch-forecast`) first, then the command groups in parallel, then Temporal, documentation, spec review and the PR.

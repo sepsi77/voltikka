@@ -4,8 +4,10 @@ namespace App\Services\SpotForecasts;
 
 use App\Models\SpotPriceForecast;
 use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use UnexpectedValueException;
 
@@ -14,18 +16,12 @@ class NordpoolPredictFiService
     public const SOURCE = SpotPriceForecast::SOURCE_NORDPOOL_PREDICT_FI;
 
     /**
-     * Fetch and normalize the public nordpool-predict-fi prediction feed.
+     * Fetch the public nordpool-predict-fi prediction feed as it is (the fetch step).
      *
-     * Upstream format: [[timestamp_ms, price_cents_per_kWh_with_VAT], ...]
-     *
-     * @return array<int, array<string, mixed>>
-     * @throws RequestException|ConnectionException|UnexpectedValueException
+     * @throws RequestException|ConnectionException
      */
-    public function fetchForecasts(): array
+    public function fetchFeed(): Response
     {
-        $url = $this->feedUrl();
-        $fetchedAt = Carbon::now('UTC');
-
         $response = Http::connectTimeout((float) config('services.spot_forecasts.nordpool_predict_fi.connect_timeout', 5))
             ->timeout((float) config('services.spot_forecasts.nordpool_predict_fi.timeout', 15))
             ->retry(
@@ -33,20 +29,33 @@ class NordpoolPredictFiService
                 (int) config('services.spot_forecasts.nordpool_predict_fi.retry_delay_ms', 1000)
             )
             ->acceptJson()
-            ->get($url);
+            ->get($this->feedUrl());
 
-        $response->throw();
+        return $response->throw();
+    }
 
-        $payload = $response->json();
-        if (!is_array($payload)) {
+    /**
+     * Normalize a raw feed body (the store step). The feed hash is the SHA-256 of these exact
+     * bytes, and every row carries the fetch step's time, never the time of the store.
+     *
+     * Upstream format: [[timestamp_ms, price_cents_per_kWh_with_VAT], ...]
+     *
+     * @return array<int, array<string, mixed>>
+     *
+     * @throws UnexpectedValueException
+     */
+    public function parseFeed(string $body, CarbonInterface $fetchedAt, string $feedUrl): array
+    {
+        $payload = json_decode($body, true);
+        if (! is_array($payload)) {
             throw new UnexpectedValueException('nordpool-predict-fi feed did not return a JSON array.');
         }
 
-        $feedHash = hash('sha256', $response->body());
+        $feedHash = hash('sha256', $body);
         $records = [];
 
         foreach ($payload as $index => $point) {
-            if (!is_array($point) || count($point) < 2 || !is_numeric($point[0]) || !is_numeric($point[1])) {
+            if (! is_array($point) || count($point) < 2 || ! is_numeric($point[0]) || ! is_numeric($point[1])) {
                 throw new UnexpectedValueException("Invalid prediction point at index {$index}.");
             }
 
@@ -61,9 +70,9 @@ class NordpoolPredictFiService
                 'price_with_tax' => round($priceWithTax, 4),
                 'vat_rate' => (float) config('services.spot_forecasts.nordpool_predict_fi.vat_rate', 0.255),
                 'source_url' => (string) config('services.spot_forecasts.nordpool_predict_fi.source_url', 'https://github.com/vividfog/nordpool-predict-fi'),
-                'fetched_at' => $fetchedAt,
+                'fetched_at' => Carbon::instance($fetchedAt)->utc(),
                 'metadata' => json_encode([
-                    'feed_url' => $url,
+                    'feed_url' => $feedUrl,
                     'feed_hash' => $feedHash,
                     'source_price_unit' => 'c/kWh with VAT',
                     'upstream_format' => '[timestamp_ms, price_cents_per_kWh_with_VAT]',

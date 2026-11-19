@@ -7,6 +7,7 @@ use App\Services\Caching\ContractPriceCacheStorageException;
 use App\Services\ContractImport\ContractImportCompletionStopped;
 use App\Support\DataFetchFailureReporter;
 use GuzzleHttp\Psr7\Response;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Log;
 use Sentry\State\Scope;
@@ -124,5 +125,66 @@ class DataFetchFailureReporterTest extends TestCase
         $this->assertCount(2, $this->sentryIssues);
         $this->assertSame('warning', (string) $this->sentryIssues[0]->getLevel());
         $this->assertSame($this->sentryIssues[0]->getFingerprint(), $this->sentryIssues[1]->getFingerprint());
+    }
+
+    public function test_store_query_exception_names_step_sqlstate_driver_code_and_table_without_bindings(): void
+    {
+        $this->captureSentryIssues();
+        Log::spy();
+        $reporter = new DataFetchFailureReporter('contracts');
+        $reporter->step('fetch');
+        $reporter->fail('acquisition');
+        $reporter->step('store');
+        // Wrapped one level deep: the chain is searched, the outer class is still recorded.
+        $reporter->fail('store', new \RuntimeException('wrapper', 0, $this->queryException(
+            'insert into `electricity_contracts` (`product_link`) values (?)', ['22001', 1406],
+        )));
+        $reporter->report(true);
+
+        $context = $this->sentryIssues[0]->getContexts()['data_fetch'];
+        $this->assertSame(['store' => ['sqlstate_22001' => 1]], $context['reasons']);
+        $this->assertSame(['acquisition' => 'fetch', 'store' => 'store'], $context['steps']);
+        $this->assertSame(['sqlstate' => '22001', 'driver_code' => 1406, 'table' => 'electricity_contracts'], $context['store_error']);
+        $this->assertStringNotContainsString('secret-binding', json_encode($context));
+        $this->assertStringNotContainsString('Data too long', json_encode($context));
+        Log::shouldHaveReceived('log')->once()->with('error', 'Data fetch failed: contracts', $context);
+    }
+
+    public function test_store_error_reads_the_table_from_the_sql_text_only(): void
+    {
+        foreach ([
+            'insert into "spot_price_forecasts" ("a") values (?)' => 'spot_price_forecasts',
+            'insert or ignore into "spot_price_forecast_runs" ("a") values (?)' => 'spot_price_forecast_runs',
+            'insert ignore into `fingrid_hourly_values` (`a`) values (?)' => 'fingrid_hourly_values',
+            'replace into voltikka.`eex_futures` values (?)' => 'eex_futures',
+            'update `electricity_contracts` set `a` = ? where `id` = ?' => 'electricity_contracts',
+            '  DELETE FROM "price_components" where id = ?' => 'price_components',
+            'select * from "secret_table" where a = ?' => null,
+        ] as $sql => $table) {
+            $this->assertSame(
+                ['sqlstate' => '23000', 'driver_code' => 19, 'table' => $table],
+                DataFetchFailureReporter::storeError($this->queryException($sql, ['23000', 19])),
+                $sql,
+            );
+        }
+        $this->assertNull(DataFetchFailureReporter::storeError(new \RuntimeException('no query')));
+        $this->assertSame(
+            ['sqlstate' => null, 'driver_code' => null, 'table' => 't'],
+            DataFetchFailureReporter::storeError($this->queryException('insert into t values (?)', ['not a state', 'x'])),
+        );
+    }
+
+    public function test_an_unknown_step_is_refused(): void
+    {
+        $this->expectException(\LogicException::class);
+        (new DataFetchFailureReporter('spot'))->step('parse');
+    }
+
+    private function queryException(string $sql, array $errorInfo): QueryException
+    {
+        $pdo = new \PDOException('SQLSTATE['.$errorInfo[0].']: Data too long secret-binding');
+        $pdo->errorInfo = [...$errorInfo, 'Data too long for secret-binding'];
+
+        return new QueryException('mysql', $sql, ['secret-binding'], $pdo);
     }
 }

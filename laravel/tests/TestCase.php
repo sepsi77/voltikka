@@ -2,6 +2,7 @@
 
 namespace Tests;
 
+use Illuminate\Filesystem\Filesystem;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
@@ -24,5 +25,10 @@ abstract class TestCase extends BaseTestCase
         }, E_DEPRECATED);
 
         parent::setUp();
+
+        // Staged imports write payload files; keep every test's files out of storage/.
+        $payloadPath = sys_get_temp_dir().'/voltikka-import-payloads-'.bin2hex(random_bytes(6));
+        config(['import_payloads.path' => $payloadPath]);
+        $this->beforeApplicationDestroyed(fn () => (new Filesystem)->deleteDirectory($payloadPath));
     }
 }

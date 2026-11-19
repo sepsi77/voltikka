@@ -2,19 +2,24 @@
 
 namespace App\Console\Commands;
 
+use App\Console\Concerns\StagedImport;
 use App\Models\SpotPriceForecast;
 use App\Models\SpotPriceForecastRun;
+use App\Services\ImportPayload\ImportPayloadReader;
+use App\Services\ImportPayload\ImportPayloadWriter;
+use App\Services\ImportPayload\ImportStoreResult;
 use App\Services\SpotForecasts\NordpoolPredictFiService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon as SupportCarbon;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Throwable;
+use UnexpectedValueException;
 
 class FetchSpotForecast extends Command
 {
+    use StagedImport;
+
     /**
      * The name and signature of the console command.
      *
@@ -35,35 +40,52 @@ class FetchSpotForecast extends Command
     }
 
     /**
-     * Execute the console command.
+     * Execute the console command: fetch the feed into a payload file, then store from that file
+     * (StagedImport). Not date-bound (S9): a payload from earlier the same day is stored as it is.
      */
     public function handle(): int
     {
         $source = (string) $this->option('source');
 
-        if (!in_array($source, ['nordpool-predict-fi', SpotPriceForecast::SOURCE_NORDPOOL_PREDICT_FI], true)) {
+        if (! in_array($source, ['nordpool-predict-fi', SpotPriceForecast::SOURCE_NORDPOOL_PREDICT_FI], true)) {
             $this->error("Unsupported forecast source: {$source}");
-            return Command::FAILURE;
+
+            return $this->stagedFailure('fetch', 'unsupported_source');
         }
 
-        $this->info('Fetching spot price forecasts from nordpool-predict-fi...');
+        return $this->runStaged(
+            function (ImportPayloadWriter $payload): void {
+                $this->info('Fetching spot price forecasts from nordpool-predict-fi...');
+                $payload->record(['feed' => 'prediction'], $this->nordpoolPredictFiService->fetchFeed());
+            },
+            fn (ImportPayloadReader $payload): ImportStoreResult => $this->store($payload),
+        );
+    }
 
-        try {
-            $records = $this->nordpoolPredictFiService->fetchForecasts();
-        } catch (Throwable $e) {
-            $this->error('Failed to fetch spot price forecasts.');
-            Log::error('FetchSpotForecast command failed while fetching forecasts', [
-                'source' => SpotPriceForecast::SOURCE_NORDPOOL_PREDICT_FI,
-                'exception_class' => $e::class,
-                'exception' => $e->getMessage(),
-            ]);
+    protected function stagedImportSource(): string
+    {
+        return 'nordpool-predict-fi';
+    }
 
-            return Command::FAILURE;
+    /** Runs inside the StagedImport store transaction; the cache is forgotten after the commit. */
+    private function store(ImportPayloadReader $payload): ImportStoreResult
+    {
+        $requests = iterator_to_array($payload->requests(), false);
+        $status = $requests[0]['status'] ?? null;
+        if (count($requests) !== 1 || ! is_int($status) || $status < 200 || $status >= 300) {
+            throw new UnexpectedValueException('The forecast payload holds no answered feed request.');
         }
+
+        $records = $this->nordpoolPredictFiService->parseFeed(
+            (string) ImportPayloadReader::body($requests[0]),
+            $payload->fetchedAt(),
+            $requests[0]['url'] ?? $this->nordpoolPredictFiService->feedUrl(),
+        );
 
         if (empty($records)) {
             $this->warn('No forecast points fetched.');
-            return Command::SUCCESS;
+
+            return new ImportStoreResult(['records' => 0, 'runs_inserted' => 0]);
         }
 
         $now = now();
@@ -74,51 +96,40 @@ class FetchSpotForecast extends Command
             ]);
         }, $records);
 
-        try {
-            DB::transaction(function () use ($upsertRows, $records, $now) {
-                foreach (array_chunk($upsertRows, 500) as $chunk) {
-                    SpotPriceForecast::upsert(
-                        $chunk,
-                        ['source', 'region', 'timestamp'],
-                        [
-                            'utc_datetime',
-                            'price_with_tax',
-                            'vat_rate',
-                            'source_url',
-                            'fetched_at',
-                            'metadata',
-                            'updated_at',
-                        ]
-                    );
-                }
-
-                SpotPriceForecastRun::insertOrIgnore($this->runRow($records, $now));
-            });
-
-            Cache::forget('spot_price:forecast:nordpool_predict_fi:v1');
-
-            $this->info('Spot price forecasts fetched successfully! Processed ' . count($records) . ' records.');
-            Log::info('Successfully fetched spot price forecasts', [
-                'source' => SpotPriceForecast::SOURCE_NORDPOOL_PREDICT_FI,
-                'count' => count($records),
-            ]);
-
-            return Command::SUCCESS;
-        } catch (Throwable $e) {
-            $this->error('Error saving spot price forecasts: ' . $e->getMessage());
-            Log::error('FetchSpotForecast command failed while saving forecasts', [
-                'source' => SpotPriceForecast::SOURCE_NORDPOOL_PREDICT_FI,
-                'exception_class' => $e::class,
-                'exception' => $e->getMessage(),
-            ]);
-
-            return Command::FAILURE;
+        foreach (array_chunk($upsertRows, 500) as $chunk) {
+            SpotPriceForecast::upsert(
+                $chunk,
+                ['source', 'region', 'timestamp'],
+                [
+                    'utc_datetime',
+                    'price_with_tax',
+                    'vat_rate',
+                    'source_url',
+                    'fetched_at',
+                    'metadata',
+                    'updated_at',
+                ]
+            );
         }
+
+        $runsInserted = SpotPriceForecastRun::insertOrIgnore($this->runRow($records, $now));
+
+        return new ImportStoreResult(['records' => count($records), 'runs_inserted' => $runsInserted], [
+            fn () => Cache::forget('spot_price:forecast:nordpool_predict_fi:v1'),
+            function () use ($records): void {
+                $this->info('Spot price forecasts fetched successfully! Processed '.count($records).' records.');
+                Log::info('Successfully fetched spot price forecasts', [
+                    'source' => SpotPriceForecast::SOURCE_NORDPOOL_PREDICT_FI,
+                    'count' => count($records),
+                ]);
+            },
+        ]);
     }
 
     /**
      * Build the append-only vintage row. The feed hash is the importer's SHA-256 of the raw
-     * response body, so an unchanged upstream feed is stored once (unique source + hash).
+     * response body, so an unchanged upstream feed is stored once (unique source + hash), also
+     * when the same payload is stored again.
      *
      * @param  list<array<string, mixed>>  $records
      * @return array<string, mixed>
