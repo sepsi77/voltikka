@@ -146,3 +146,7 @@ CodeRabbit: 2 outside the diff.
 
 - **Fixed:** a failed store-lock release no longer replaces the store outcome; it logs one safe warning with the payload reference, and the lease frees the lock.
 - **Rejected:** "`fingrid:fetch` runs from both `console.php` and Temporal". `console.php` skips every group listed in `TEMPORAL_SCHEDULE_GROUPS`, and production lists `collectors`; `WebSchedulerTest` and `test_console_groups.py` keep both sides equal on purpose. Added to `.greptile/rules.md` (no thread for outside-diff comments).
+
+## 2026-11-19 – PR #31 external review, round 5 (head 242983f): clean
+
+CodeRabbit: no actionable comments. Every CodeRabbit thread is fixed or answered (threads resolved); the PR's one Greptile finding (scoped `ImportReplay`) was fixed in round 1 and covered by the later CodeRabbit reviews. Ready to merge on the user's request; the deploy, the Schedule re-apply and D7 need separate approval.

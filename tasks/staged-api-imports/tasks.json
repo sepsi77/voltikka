@@ -50,8 +50,8 @@
     "status": "done"
   },
   {
-    "name": "Spec review (2026-11-19T12-19, ACCEPT), PR review loop (one PR for all but S17)",
-    "status": "in_progress"
+    "name": "Spec review (2026-11-19T12-19, ACCEPT), PR #31 review loop (clean at 242983f)",
+    "status": "done"
   },
   {
     "name": "Production: deploy, first payload per job, SEAS5 manual --fetch-only, one approved ImportReplay trial (D7)",
