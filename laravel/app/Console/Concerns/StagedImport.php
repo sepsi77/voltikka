@@ -131,12 +131,15 @@ trait StagedImport
         // One store lock per command, in every mode: the newest-payload check and the store (with
         // its commit) run under it, so no newer store of this command can commit between the check
         // and the write. A command's own store lock inside $store is always the inner one.
-        $lock = Cache::lock("staged_import_store_v1:{$this->getName()}", self::STAGED_STORE_LOCK_LEASE_SECONDS);
         try {
+            $lock = Cache::lock("staged_import_store_v1:{$this->getName()}", self::STAGED_STORE_LOCK_LEASE_SECONDS);
             $lock->block(self::STAGED_STORE_LOCK_WAIT_SECONDS);
         } catch (LockTimeoutException) {
             // No write; the payload stays for a replay.
             return $this->stagedFailure('store', 'store_busy', null, $opened);
+        } catch (Throwable $e) {
+            // The lock backend failed (for example Redis down): the store did not run, no write.
+            return $this->stagedFailure('store', 'store_failed', $e, $opened);
         }
 
         $typedStore = fn (): ImportStoreResult => $store($reader);

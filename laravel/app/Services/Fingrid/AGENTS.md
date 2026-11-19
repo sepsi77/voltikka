@@ -78,7 +78,12 @@ the `x-api-key` header, which a payload never records (tests prove the key is no
   `fingrid.forecast_vintages.<id>.variable` at fetch time; PR #31 review). The store labels each
   vintage with the recorded variable, never the current config, so a config rename cannot relabel
   a replay; a payload with rows for a dataset but no recorded variable (files written before this
-  fact) is refused `payload_invalid`, reason `incomplete`, with no write. The store inserts each vintage with the header `fetched_at` as
+  fact) or no positive recorded horizon is refused `payload_invalid`, reason `incomplete`, with no
+  write. Only a new fetch checks `--dataset` against `fingrid.forecast_vintages`; a `--from-payload`
+  store needs no configured dataset, because it reads only the recorded facts, so a payload stays
+  replayable after its dataset left the config (CodeRabbit round 3, PR #31;
+  `test_a_payload_replays_after_its_dataset_was_removed_from_config`). `fingrid:fetch` keeps the
+  configured-dataset check in every mode. The store inserts each vintage with the header `fetched_at` as
   its vintage time (`issued_at` stays null), so a replay never moves a vintage past the S model's
   `fetched_at <= cut` filter. A response without a complete hour exits 1 with `no_complete_hour`
   (step store).
@@ -90,7 +95,11 @@ the `x-api-key` header, which a payload never records (tests prove the key is no
 - `--dataset` IDs are normalized (`intval`) and deduplicated before planning in both commands
   (review PR #31): a repeated ID (`--dataset=188 --dataset=0188`) shared one unit key, so its
   pages merged into one window (double samples) and a failed copy hid the answered one. Tests
-  `test_a_repeated_dataset_option_fetches_the_dataset_once` in both command tests.
+  `test_a_repeated_dataset_option_fetches_the_dataset_once` in both command tests. The same
+  normalized list (unique integer IDs, sorted) is the payload's `dataset` option: both commands
+  override `stagedDataOptions()`, so the header records `[245]` for `--dataset=0245`, and the
+  `options_mismatch` and `superseded` checks treat `0245` and `245` as one option set (CodeRabbit
+  round 3, PR #31; `test_dataset_ids_compare_normalized_for_supersede_and_replay` in both tests).
 
 ## Commands
 

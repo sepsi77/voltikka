@@ -28,7 +28,9 @@ use Throwable;
  */
 class FetchFingridData extends Command
 {
-    use StagedImport;
+    use StagedImport {
+        stagedDataOptions as private allDataOptions;
+    }
 
     protected $signature = 'fingrid:fetch
                             {--from= : Backfill start date (YYYY-MM-DD, UTC)}
@@ -49,12 +51,11 @@ class FetchFingridData extends Command
     public function handle(): int
     {
         $configured = (array) config('fingrid.datasets', []);
-        // Normalized and once each: a repeated ID would merge its pages into one window (double
-        // samples) and its failed copy would hide the answered one.
-        $requested = array_values(array_unique(array_map('intval', (array) $this->option('dataset'))));
+        $requested = $this->requestedDatasetIds();
         $unknown = array_diff($requested, array_keys($configured));
 
-        if ($unknown !== []) {
+        // A replay stores the recorded datasets; only a new fetch needs them in the config.
+        if ($unknown !== [] && $this->option('from-payload') === null) {
             $this->error('Unknown dataset ID(s): '.implode(', ', $unknown));
 
             return $this->stagedFailure('fetch', 'invalid_options');
@@ -86,6 +87,26 @@ class FetchFingridData extends Command
     protected function stagedImportSource(): string
     {
         return 'fingrid';
+    }
+
+    /** The payload identity holds the dataset IDs as fetched: `0124` and `124` are one dataset. */
+    protected function stagedDataOptions(): array
+    {
+        return [...$this->allDataOptions(), 'dataset' => $this->requestedDatasetIds()];
+    }
+
+    /**
+     * Normalized, once each and sorted: a repeated ID would merge its pages into one window (double
+     * samples) and its failed copy would hide the answered one.
+     *
+     * @return list<int>
+     */
+    private function requestedDatasetIds(): array
+    {
+        $ids = array_values(array_unique(array_map('intval', (array) $this->option('dataset'))));
+        sort($ids);
+
+        return $ids;
     }
 
     /**

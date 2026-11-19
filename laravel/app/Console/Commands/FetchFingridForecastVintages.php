@@ -22,12 +22,15 @@ use Illuminate\Console\Command;
  * `first_hour`, the horizon `hours` and the stored `variables` name per dataset in the header
  * facts; the store step inserts each vintage with the fetch time as its `fetched_at` (the vintage
  * time; `issued_at` stays null), keyed by the payload hash. A payload without a dataset's
- * variable is refused (`incomplete`), never stored under the current config name. Not date-bound
- * (S9). Read-only towards Fingrid.
+ * variable or horizon is refused (`incomplete`), never stored under the current config. A replay
+ * needs no configured dataset, and its `--dataset` IDs compare normalized (`0245` = `245`). Not
+ * date-bound (S9). Read-only towards Fingrid.
  */
 class FetchFingridForecastVintages extends Command
 {
-    use StagedImport;
+    use StagedImport {
+        stagedDataOptions as private allDataOptions;
+    }
 
     protected $signature = 'fingrid:fetch-forecast-vintages
                             {--dataset=* : Only these dataset IDs (default: all configured)}';
@@ -44,9 +47,10 @@ class FetchFingridForecastVintages extends Command
     public function handle(): int
     {
         $configured = (array) config('fingrid.forecast_vintages', []);
-        // Normalized and once each: a repeated ID would merge its pages into one vintage.
-        $requested = array_values(array_unique(array_map('intval', (array) $this->option('dataset'))));
-        $unknown = array_diff($requested, array_keys($configured));
+        $requested = $this->requestedDatasetIds();
+        // Only a new fetch needs a configured dataset. A replay stores from the facts recorded at
+        // fetch time (hours, variable), so it still works after a dataset left the config.
+        $unknown = $this->option('from-payload') === null ? array_diff($requested, array_keys($configured)) : [];
 
         if ($unknown !== []) {
             $this->error('Unknown forecast dataset ID(s): '.implode(', ', $unknown));
@@ -64,6 +68,25 @@ class FetchFingridForecastVintages extends Command
     protected function stagedImportSource(): string
     {
         return 'fingrid';
+    }
+
+    /** The payload identity holds the dataset IDs as fetched: `0245` and `245` are one dataset. */
+    protected function stagedDataOptions(): array
+    {
+        return [...$this->allDataOptions(), 'dataset' => $this->requestedDatasetIds()];
+    }
+
+    /**
+     * Normalized, once each and sorted: a repeated ID would merge its pages into one vintage.
+     *
+     * @return list<int>
+     */
+    private function requestedDatasetIds(): array
+    {
+        $ids = array_values(array_unique(array_map('intval', (array) $this->option('dataset'))));
+        sort($ids);
+
+        return $ids;
     }
 
     /** @param  list<int>  $datasetIds */
@@ -118,8 +141,11 @@ class FetchFingridForecastVintages extends Command
         }
 
         foreach (array_keys($rows) as $datasetId) {
-            if (! is_string($variables[(string) $datasetId] ?? null) || $variables[(string) $datasetId] === '') {
-                // A payload without the recorded variable (written before it was a fact) is not stored.
+            $variable = $variables[(string) $datasetId] ?? null;
+            $horizon = $hours[(string) $datasetId] ?? null;
+            if (! is_string($variable) || $variable === '' || ! is_int($horizon) || $horizon < 1) {
+                // A payload without the recorded variable (written before it was a fact) or horizon
+                // is not stored: the store never falls back to the current config.
                 throw ImportPayloadInvalid::because('incomplete');
             }
         }

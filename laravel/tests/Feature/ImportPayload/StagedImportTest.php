@@ -383,6 +383,30 @@ class StagedImportTest extends TestCase
         $this->assertFalse(Cache::lock(self::STORE_LOCK, 1)->get(), 'A busy store does not release the holder\'s lock.');
     }
 
+    public function test_a_store_whose_lock_backend_fails_writes_nothing_and_prints_the_closed_store_failure(): void
+    {
+        $this->fakeRows();
+        $payload = $this->fetchOnly('2026-11-19 06:00:00');
+        // The lock backend is down (for example Redis): getting or waiting for the store lock throws.
+        Cache::shouldReceive('lock')->andThrow(new \RuntimeException('Connection refused'));
+        Log::spy();
+
+        foreach ([[], ['--from-payload' => $payload['path']]] as $options) {
+            $this->assertSame(1, Artisan::call('staged:probe', $options));
+            $line = $this->lastJsonLine();
+            $path = $options['--from-payload'] ?? $line['payload_path'];
+            $this->assertSame([
+                'status' => 'failed', 'step' => 'store', 'error' => 'store_failed',
+                'payload_path' => $path, 'payload_sha256' => hash_file('sha256', $path),
+            ], $line);
+            $this->assertFileExists($path, 'The payload stays for a replay.');
+            $this->assertSame([], $this->rows());
+            $this->assertNull(StagedProbeCommand::$storeLockFree, 'The store closure did not run.');
+        }
+        Log::shouldHaveReceived('error')->twice()->withArgs(fn (string $message, array $context): bool => $context['error'] === 'store_failed'
+            && $context['exception_class'] === \RuntimeException::class);
+    }
+
     public function test_the_newest_payload_check_reads_a_newer_store_that_committed_while_the_replay_waited_for_the_lock(): void
     {
         $this->fakeRows();

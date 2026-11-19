@@ -295,6 +295,43 @@ class FetchFingridDataCommandTest extends TestCase
         $this->assertSame('2026-11-01 09:30:00', $row->fetched_at);
     }
 
+    /** The payload identity holds normalized dataset IDs: `0188` and `188` are one option set. */
+    public function test_dataset_ids_compare_normalized_for_supersede_and_replay(): void
+    {
+        $this->fakeFingrid(0.5);
+        $this->assertSame(0, Artisan::call('fingrid:fetch --dataset=0188 --fetch-only'));
+        $older = $this->lastJsonLine()['payload'];
+        $this->assertSame([188], $this->payloadLines($older['path'])[0]['options']['dataset']);
+
+        Carbon::setTestNow(Carbon::create(2026, 11, 1, 9, 30, 0, 'UTC'));
+        $this->fakeFingrid(0.75);
+        $this->assertSame(0, Artisan::call('fingrid:fetch --dataset=188'));
+
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        // Not options_mismatch: the older payload is refused only because the newer one supersedes it.
+        $this->assertSame(1, Artisan::call('fingrid:fetch --dataset=188 --from-payload='.$older['path']));
+        $line = $this->lastJsonLine();
+        $this->assertSame(['payload_invalid', 'superseded'], [$line['error'], $line['reason']]);
+        $this->assertEqualsWithDelta(188.75, DB::table('fingrid_hourly_values')->sole()->value, 0.0001);
+    }
+
+    public function test_a_payload_replays_after_its_dataset_was_removed_from_config(): void
+    {
+        $this->fakeFingrid(0.5);
+        $this->assertSame(0, Artisan::call('fingrid:fetch --dataset=188 --fetch-only'));
+        $payload = $this->lastJsonLine()['payload'];
+
+        config(['fingrid.datasets' => []]);
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        $this->assertSame(0, Artisan::call('fingrid:fetch --dataset=188 --from-payload='.$payload['path']));
+        $this->assertSame(1, DB::table('fingrid_hourly_values')->count());
+        // A new fetch still needs a configured dataset.
+        $this->assertSame(1, Artisan::call('fingrid:fetch --dataset=188'));
+        $this->assertSame('invalid_options', $this->lastJsonLine()['error']);
+    }
+
     /**
      * A repeated or differently written dataset ID (188, 0188) is fetched once: a second copy
      * would merge its samples into the same window and a failed copy would hide the answered one.

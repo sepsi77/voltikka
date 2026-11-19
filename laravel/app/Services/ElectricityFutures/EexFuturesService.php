@@ -175,8 +175,10 @@ class EexFuturesService
     }
 
     /**
-     * One throttled, retried public EEX GET. A failed final answer throws RequestException, which
-     * keeps the response, so the payload records its status and body.
+     * One throttled, retried public EEX GET. A final answer outside 2xx throws RequestException,
+     * which keeps the response, so the payload records its status and body as a failed unit and a
+     * retry pass fetches it again. This is the store's 2xx rule: a 3xx (for example a 302 without
+     * `Location`, which is not followed) is not `failed()` but no usable answer either (PR #31).
      *
      * @param  array<string, string>  $params
      *
@@ -201,7 +203,7 @@ class EexFuturesService
             )
             ->get($endpoint, $params);
 
-        if ($response->failed()) {
+        if (! $response->successful()) {
             throw new RequestException($response);
         }
 

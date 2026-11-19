@@ -308,6 +308,73 @@ class FetchFingridForecastVintagesCommandTest extends TestCase
         $this->assertSame(['vintages_inserted' => 1], $this->lastJsonLine()['counts']);
     }
 
+    /** The payload identity holds normalized dataset IDs: `0245` and `245` are one option set. */
+    public function test_dataset_ids_compare_normalized_for_supersede_and_replay(): void
+    {
+        $this->fakeVintage(1000.0);
+        $this->assertSame(0, Artisan::call('fingrid:fetch-forecast-vintages', ['--dataset' => ['0245'], '--fetch-only' => true]));
+        $older = $this->lastJsonLine()['payload'];
+        $this->assertSame(['dataset' => [245]], $this->payloadLines($older['path'])[0]['options']);
+
+        Carbon::setTestNow(Carbon::create(2026, 11, 1, 10, 55, 0, 'UTC'));
+        $this->fakeVintage(1100.0);
+        $this->assertSame(0, Artisan::call('fingrid:fetch-forecast-vintages', ['--dataset' => ['245'], '--fetch-only' => true]));
+        $newer = $this->lastJsonLine()['payload'];
+
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        // Not options_mismatch: the older payload is refused only because the newer one supersedes it.
+        $this->assertSame(1, Artisan::call('fingrid:fetch-forecast-vintages', ['--dataset' => ['245'], '--from-payload' => $older['path']]));
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'payload_invalid', 'reason' => 'superseded',
+            'payload_path' => $older['path'], 'payload_sha256' => $older['sha256'],
+        ], $this->lastJsonLine());
+
+        $this->assertSame(0, Artisan::call('fingrid:fetch-forecast-vintages', ['--dataset' => ['0245', '245'], '--from-payload' => $newer['path']]));
+        $this->assertSame(['2026-11-01 10:55:00'], DB::table('hourly_forecast_runs')->pluck('fetched_at')->all());
+    }
+
+    /** A replay stores from the recorded facts, so it still works after the dataset left the config. */
+    public function test_a_payload_replays_after_its_dataset_was_removed_from_config(): void
+    {
+        $this->fakeVintage(1000.0);
+        $this->assertSame(0, Artisan::call('fingrid:fetch-forecast-vintages', ['--dataset' => ['245'], '--fetch-only' => true]));
+        $payload = $this->lastJsonLine()['payload'];
+
+        config(['fingrid.forecast_vintages' => []]);
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        $this->assertSame(0, Artisan::call('fingrid:fetch-forecast-vintages', ['--dataset' => ['245'], '--from-payload' => $payload['path']]));
+
+        $run = DB::table('hourly_forecast_runs')->sole();
+        $this->assertSame(['wind_power_mw'], array_keys(json_decode($run->values, true)));
+        $this->assertSame('2026-11-01 11:00:00', $run->first_utc_datetime);
+        // A new fetch still needs a configured dataset.
+        $this->assertSame(1, Artisan::call('fingrid:fetch-forecast-vintages', ['--dataset' => ['245']]));
+        $this->assertSame('invalid_options', $this->lastJsonLine()['error']);
+    }
+
+    /** A payload without the recorded horizon is refused (incomplete); the store never reads the config for it. */
+    public function test_a_payload_without_the_recorded_horizon_is_refused(): void
+    {
+        $this->fakeVintage(1000.0);
+        $this->assertSame(0, Artisan::call('fingrid:fetch-forecast-vintages', ['--fetch-only' => true]));
+        $path = $this->lastJsonLine()['payload']['path'];
+        $lines = $this->payloadLines($path);
+        unset($lines[0]['facts']['hours']);
+        $bytes = (string) gzencode(implode('', array_map(fn (array $line) => json_encode($line, JSON_UNESCAPED_SLASHES)."\n", $lines)));
+        file_put_contents($path, $bytes);
+        file_put_contents(substr($path, 0, -strlen('.ndjson.gz')).'.sha256', hash('sha256', $bytes)."\n");
+
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        $this->assertSame(1, Artisan::call('fingrid:fetch-forecast-vintages', ['--from-payload' => $path]));
+
+        $line = $this->lastJsonLine();
+        $this->assertSame(['payload_invalid', 'incomplete'], [$line['error'], $line['reason']]);
+        $this->assertSame(0, DB::table('hourly_forecast_runs')->count());
+    }
+
     public function test_a_failed_request_prints_fetch_incomplete(): void
     {
         Http::fake(['data.fingrid.fi/api/datasets/245/data*' => Http::response(['message' => 'boom'], 503)]);

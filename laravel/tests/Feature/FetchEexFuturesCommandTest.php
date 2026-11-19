@@ -1173,6 +1173,39 @@ class FetchEexFuturesCommandTest extends TestCase
         $this->assertSame([0, 1, 1], [$checkpoint->metadata['failures'], $checkpoint->metadata['failures_before_retry'], $checkpoint->metadata['retry_passes']]);
     }
 
+    public function test_a_redirect_answer_is_a_failed_unit_that_the_retry_pass_recovers(): void
+    {
+        $this->fiBaseTenorInstruments();
+        $yearRequests = 0;
+        $monthProbes = 0;
+        Http::fake(function (Request $request) use (&$yearRequests, &$monthProbes) {
+            // A final 302 without Location is not followed and not failed() for the HTTP client,
+            // but it is no answer: the fetch must treat it as failed, like the store does.
+            if (str_contains($request->url(), 'chart/eod') && $request['shortCode'] === 'FNBY' && ++$yearRequests === 1) {
+                return Http::response('', 302);
+            }
+            if (str_contains($request->url(), 'price-ticker') && $request['shortCode'] === 'FNBM' && ++$monthProbes === 1) {
+                return Http::response('', 302);
+            }
+
+            return $this->eexResponse($request);
+        });
+
+        $this->assertSame(0, Artisan::call('futures:fetch-eex'));
+
+        $reader = ImportPayloadReader::open($this->lastJsonLine()['payload']['path']);
+        $this->assertSame([], $reader->end()['failed_units'], 'The retry pass answered both units.');
+        $lines = collect(iterator_to_array($reader->requests(), false));
+        $this->assertSame([302, 200], $lines->filter(fn (array $line) => $line['unit']['kind'] === 'eod' && $line['unit']['short_code'] === 'FNBY')->pluck('status')->values()->all());
+        $this->assertSame([302, 200], $lines->filter(fn (array $line) => $line['unit']['kind'] === 'ticker' && $line['unit']['short_code'] === 'FNBM')->pluck('status')->values()->all());
+        $this->assertSame([2, 2], [$yearRequests, $monthProbes]);
+        $this->assertDatabaseHas('electricity_futures_eod_prices', ['short_code' => 'FNBY', 'trade_date' => '2026-05-21']);
+        $this->assertDatabaseHas('electricity_futures_eod_prices', ['short_code' => 'FNBM', 'trade_date' => '2026-05-21']);
+        $checkpoint = DataFreshnessCheckpoint::sole();
+        $this->assertSame(DataFreshnessCheckpoint::STATUS_READY, $checkpoint->status);
+        $this->assertSame([0, 2, 1], [$checkpoint->metadata['failures'], $checkpoint->metadata['failures_before_retry'], $checkpoint->metadata['retry_passes']]);
+    }
+
     public function test_a_dry_run_payload_replays_only_as_a_dry_run_and_writes_nothing(): void
     {
         $this->fiBaseTenorInstruments();
