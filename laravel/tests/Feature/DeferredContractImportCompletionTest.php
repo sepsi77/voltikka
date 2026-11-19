@@ -28,6 +28,7 @@ use App\Services\MorningFreshness\MorningJobFreshnessService;
 use App\Services\PriceForecasting\FixedTermPriceForecastService;
 use Carbon\CarbonImmutable;
 use Illuminate\Bus\UniqueLock;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Database\Query\Grammars\MySqlGrammar;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -35,6 +36,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Sleep;
 use Illuminate\Support\Str;
 use Mockery;
 use RuntimeException;
@@ -140,6 +142,50 @@ class DeferredContractImportCompletionTest extends TestCase
         $this->assertImportIssue('contracts', 'error', ['price_cache_refresh' => 1]);
         $this->assertStringNotContainsString('secret', json_encode($this->sentryIssues[0]->getContexts()));
         $this->assertStringNotContainsString('secret', json_encode($this->checkpoint()->metadata));
+    }
+
+    public function test_busy_price_cache_producer_lock_defers_initial_and_tick_then_completes(): void
+    {
+        $fixture = $this->fixture('busy', true);
+        $this->publish($fixture);
+        Sleep::fake(syncWithCarbon: true);
+        // Price-cache maintenance holds the producer lease (2026-11-17, 06:10).
+        $maintenance = Cache::lock(ContractPriceCacheLifecycle::PRODUCER_LOCK_KEY, ContractPriceCacheLifecycle::PRODUCER_LEASE_SECONDS);
+        $this->assertTrue($maintenance->get());
+
+        $this->begin([$fixture]);
+        $this->assertSame(ContractImportCompletion::PENDING, $this->checkpoint()->status);
+        $this->assertSame('waiting', app(ContractImportCompletion::class)->tick());
+        $this->assertSame(ContractImportCompletion::PENDING, $this->checkpoint()->status);
+        $this->assertSame(1, $this->checkpoint()->metadata['checks']);
+        $this->assertSame([], $this->sentryIssues);
+        $generation = Cache::get(ContractPriceCacheLifecycle::ACTIVE_KEY);
+
+        $maintenance->release();
+        $this->travel(1)->minutes();
+        $this->assertSame('ready', app(ContractImportCompletion::class)->tick());
+        $this->assertSame(2, $this->checkpoint()->metadata['checks']);
+        $this->assertNotEquals($generation, Cache::get(ContractPriceCacheLifecycle::ACTIVE_KEY));
+        $this->assertTrue(app(ContractImportCompletion::class)->readyCurrent($this->checkpoint()->metadata));
+        $this->assertSame([], $this->sentryIssues);
+    }
+
+    public function test_lock_timeout_inside_the_cache_build_stays_terminal(): void
+    {
+        // A required retirement of a written candidate rethrows its transition-lock timeout; that
+        // candidate may lack cleanup tracking, so only the typed producer-acquisition wait defers.
+        $fixture = $this->fixture('retire', true);
+        $this->publish($fixture);
+        $real = app(ContractListCacheService::class);
+        $proxy = Mockery::mock($real)->makePartial();
+        $proxy->shouldReceive('refresh')->once()->andThrow(new LockTimeoutException);
+        app()->instance(ContractListCacheService::class, $proxy);
+        $service = app(ContractImportCompletion::class);
+        $uuid = $service->start(self::DATE);
+        $result = $service->initial($this->import([$fixture]), self::DATE, $uuid, [$fixture[1]->id => $fixture[2]->id]);
+        $this->assertFalse($result->deferred);
+        $this->assertSame(['price_cache_refresh'], array_keys($result->requiredFailures));
+        $this->assertInstanceOf(LockTimeoutException::class, $result->requiredExceptions['price_cache_refresh']);
     }
 
     public function test_dry_run_is_read_only_for_waiting_eligible_and_expired_claims(): void

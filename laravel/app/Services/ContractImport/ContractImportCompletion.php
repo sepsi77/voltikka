@@ -9,6 +9,7 @@ use App\Models\DataFreshnessCheckpoint;
 use App\Models\ElectricityContract;
 use App\Services\Caching\ContractPriceCacheConflict;
 use App\Services\Caching\ContractPriceCacheLifecycle;
+use App\Services\Caching\ContractPriceCacheProducerBusy;
 use App\Services\CompanyListCacheService;
 use App\Services\ContractListCacheService;
 use App\Services\ContractStatistics\ContractPriceStatisticsService;
@@ -361,9 +362,14 @@ class ContractImportCompletion
             // A complete full import also defers when the active set changed under its initial statistics
             // (2026-10-01: month-start activations). The fence threw inside the rolled-back statistics
             // transaction, so nothing partial was written; the completion tick recalculates.
+            // A busy price-cache producer lease also defers (2026-11-17: the 5-minute price-cache
+            // maintenance held it for 47 s, and the 10 s wait failed the morning); the next tick retries
+            // within the 60-check, two-hour bound. Only the acquisition wait is typed: a lock timeout
+            // in promotion or required retirement of a written candidate stays terminal.
             if ($uuid !== null && $complete
                 && (($exception instanceof ContractPriceCacheConflict && ($delayed || ($completed !== null && $stage === 'price_cache_refresh')
                     || ($completed === null && $stage === 'daily_statistics' && $exception->reason === ContractPriceCacheConflict::EVIDENCE_CHANGED)))
+                    || ($exception instanceof ContractPriceCacheProducerBusy && $completed !== null && $stage === 'price_cache_refresh')
                     || ($delayed && $exception instanceof ContractImportCompletionStopped && $exception->reason === 'waiting'))) {
                 $deferred = true;
             } else {

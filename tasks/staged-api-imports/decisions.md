@@ -32,9 +32,46 @@ The payload keeps each response body verbatim (XML and CSV as strings) inside th
 
 ## Both containers share the payload directory
 
-On the VPS, the web and worker containers both mount the `voltikka-storage` volume on `/app/storage` (checked 2026-11-19 with `docker inspect`). A fetch activity and its store activity run in the same worker, and the web role can read the files for diagnosis.
+On the VPS, the web and worker containers both mount the `voltikka-storage` volume on `/app/storage` (checked 2026-11-19 with `docker inspect`). Temporal does not guarantee that a fetch activity and its store activity run in the same worker. The design works because every container that runs activities (today one worker) mounts the same volume; a second worker must mount it too (S12). The web role can read the files for diagnosis.
 
-## Open decisions (manager recommendation, user to confirm)
+## 2026-11-19 – Plan review (manager check against the code, user decisions)
 
-1. **Retention.** Recommendation: 14 days on the volume, no GCS copy. The files serve same-day replay and diagnosis only (no past-date recovery). The database backups hold the stored result. Measured size today: the 11-19 contract payload is 2.6 MB uncompressed. The other sources are smaller per run, except the Open-Meteo ensemble and seasonal sources, which must be measured in the first implementation step.
-2. **Contract interpretation (OpenRouter).** Recommendation: out of scope. Its input is the stored, immutable source snapshot, so a failed write costs one more model call, not data. The queue retries the job (`--tries=3`).
+The manager checked the spec against all 15 commands, the Temporal jobs and the completion lock. User decisions:
+
+- **Retention:** 14 days on the volume, no GCS copy and no backup of payload files. They serve same-day replay and diagnosis only.
+- **Contract interpretation:** out of scope. Its input is the stored, immutable source snapshot; a failed write costs one more model call, and the queue retries the job.
+- **S17 first, as its own PR** (`fix/completion-producer-lock`). It does not depend on payload files, and the collision happened on 11-17 and again twice on 11-18.
+- **Everything else in one PR.**
+- **NDJSON in gzip** instead of one JSON envelope (S1, S3, S4): the store step must stream under PHP's 128 MB. FMI radiation is about 5 MB of XML per request, NVE 4 MB, and backfills far more.
+- **D7 relaxed:** daily and hourly jobs within 24 hours, weekly jobs within 7 days, SEAS5 by one manual `--fetch-only`.
+- **One transaction per store step (S21)**, asked by the user: a failed store writes nothing, and the replay writes the whole run. Today the collectors upsert in chunks of 500 with no transaction, so a failure leaves part of a run written.
+
+Manager additions to the spec from the code check:
+
+- **S5 wider:** the fetch step fixes every data-meaning time (window ends, import date, NVE `currentYear`, EEX effective date), not only `fetched_at`. Bookkeeping times stay real time; otherwise a contract replay would start with an expired completion deadline.
+- **S19:** the fetch step may read the database to plan its requests. `ecmwf_00z` fetches only missing points, and `entsoe:fetch` decides its outage-history requests from the parsed first pages and the stored revisions.
+- **S20:** a JSON result line from every command. The collectors print none today, so Temporal Issues say only `no_json_error`.
+
+Considered and rejected: record every HTTP response of a normal run and replay it with `Http::fake`. It needs less refactoring, but a command that writes per response (EEX) and stops on a database error leaves a partial recording, so the 1.7-hour EEX fetch would have to run again.
+
+Size of the work (survey 2026-11-19): every client except FMI decodes the response and returns parsed data, so each needs a raw-body method. Most commands are small changes. Larger ones: `contracts:fetch` (import date, checkpoint ownership), `futures:fetch-eex` (FI proof and retry passes inside the fetch loop), `entsoe:fetch` (S19 history), `weather:fetch` (seven sources with their own control flow; `solar_ghi` and `ecmwf_prev_day1` already fetch everything before they store).
+
+Measured size: the 11-19 contract payload is 2.6 MB uncompressed. Measure the other sources, above all the Open-Meteo ensemble and seasonal sources and FMI radiation, in the first implementation step, and check the free space on the `voltikka-storage` volume.
+
+## 2026-11-19 – S17 implemented (PR `fix/completion-producer-lock`)
+
+`ContractImportCompletion::required()` now defers on a `LockTimeoutException` in `price_cache_refresh` after statistics, for the initial run and for a tick, like a typed cache conflict. The 60-check, two-hour bound still applies. Test: `DeferredContractImportCompletionTest::test_busy_price_cache_producer_lock_defers_initial_and_tick_then_completes` (fails without the fix).
+
+## 2026-11-19 – PR #30 review, round 1 (head 898118c; Greptile Plus, score 4/5)
+
+| Finding | Reviewer (comment) | Verdict | Reaction |
+|---|---|---|---|
+| The deferral matched every `LockTimeoutException` in `price_cache_refresh`, also the one `retire($candidate, required: true)` rethrows. A written candidate could then miss cleanup tracking, and a later tick would succeed over it. | CodeRabbit 4626166171, Greptile 4626151236 (same finding) | Valid, fixed | 👍 both |
+
+Fix: `ContractListCacheService::refresh()` acquires the producer lease outside the build and throws the new `ContractPriceCacheProducerBusy` (a `LockTimeoutException` subclass, so other callers see no change) only when that acquisition times out. The completion defers only on that type. New test `test_lock_timeout_inside_the_cache_build_stays_terminal` fails with the round-1 code.
+
+Spec-review lesson: owner `laravel-reviewer`; cause: no spec review ran for this PR (S17 shipped before the task's spec review), and the checklist did not name the class. Changed: `.pi/agents/laravel-reviewer.md` item 5 (and its `.claude/agents/` copy): a `catch` that turns a failure into a deferral, retry or success matches only its intended source.
+
+## 2026-11-19 – PR #30 review, round 2 (head 8af878a)
+
+CodeRabbit: no actionable comments. The round-1 finding of both reviewers is fixed and covered by this CodeRabbit review. Threads resolved. Full Laravel suite on the worktree: 3183 passed, 44 failed; the same 44 fail without this PR's changes (the worktree has no Vite build and no local `database.sqlite`). The review loop is clean; the merge waits for the user's request.
