@@ -7,6 +7,7 @@ use App\Models\SpotPriceAverage;
 use App\Services\Caching\ContractPriceCacheConflict;
 use App\Services\Caching\ContractPriceCacheEvidence;
 use App\Services\Caching\ContractPriceCacheLifecycle;
+use App\Services\Caching\ContractPriceCacheProducerBusy;
 use App\Services\Caching\ContractPriceCacheUnavailable;
 use App\Services\Caching\PublicPriceCalculationPolicy;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
@@ -20,6 +21,7 @@ use App\Services\ContractPricing\ContractMetricSet;
 use App\Services\ContractPricing\ContractPricingViewData;
 use App\Services\DTO\EnergyUsage;
 use Illuminate\Contracts\Cache\Lock;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Facades\Cache;
 use InvalidArgumentException;
 
@@ -264,8 +266,14 @@ class ContractListCacheService
     public function refresh(CompanyListCacheService $companies, ?callable $candidateGuard = null, bool $onlyIfNeeded = false): int
     {
         $producer = Cache::lock(ContractPriceCacheLifecycle::PRODUCER_LOCK_KEY, ContractPriceCacheLifecycle::PRODUCER_LEASE_SECONDS);
+        try {
+            $producer->block(10);
+        } catch (LockTimeoutException) {
+            // Typed so the contract import completion can defer on exactly this wait (2026-11-17).
+            throw new ContractPriceCacheProducerBusy;
+        }
 
-        return $producer->block(10, function () use ($companies, $candidateGuard, $onlyIfNeeded, $producer): int {
+        try {
             if ($onlyIfNeeded && ! $this->needsRefresh($companies)) {
                 return $this->getVersion();
             }
@@ -280,7 +288,9 @@ class ContractListCacheService
                     }
                 }
             }
-        });
+        } finally {
+            $producer->release();
+        }
     }
 
     private function refreshCandidate(CompanyListCacheService $companies, ?callable $candidateGuard, Lock $producer): int

@@ -61,3 +61,13 @@ Measured size: the 11-19 contract payload is 2.6 MB uncompressed. Measure the ot
 ## 2026-11-19 – S17 implemented (PR `fix/completion-producer-lock`)
 
 `ContractImportCompletion::required()` now defers on a `LockTimeoutException` in `price_cache_refresh` after statistics, for the initial run and for a tick, like a typed cache conflict. The 60-check, two-hour bound still applies. Test: `DeferredContractImportCompletionTest::test_busy_price_cache_producer_lock_defers_initial_and_tick_then_completes` (fails without the fix).
+
+## 2026-11-19 – PR #30 review, round 1 (head 898118c; Greptile Plus, score 4/5)
+
+| Finding | Reviewer (comment) | Verdict | Reaction |
+|---|---|---|---|
+| The deferral matched every `LockTimeoutException` in `price_cache_refresh`, also the one `retire($candidate, required: true)` rethrows. A written candidate could then miss cleanup tracking, and a later tick would succeed over it. | CodeRabbit 4626166171, Greptile 4626151236 (same finding) | Valid, fixed | 👍 both |
+
+Fix: `ContractListCacheService::refresh()` acquires the producer lease outside the build and throws the new `ContractPriceCacheProducerBusy` (a `LockTimeoutException` subclass, so other callers see no change) only when that acquisition times out. The completion defers only on that type. New test `test_lock_timeout_inside_the_cache_build_stays_terminal` fails with the round-1 code.
+
+Spec-review lesson: owner `laravel-reviewer`; cause: no spec review ran for this PR (S17 shipped before the task's spec review), and the checklist did not name the class. Changed: `.pi/agents/laravel-reviewer.md` item 5 (and its `.claude/agents/` copy): a `catch` that turns a failure into a deferral, retry or success matches only its intended source.

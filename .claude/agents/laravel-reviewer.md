@@ -64,7 +64,11 @@ stale or unsafe result acceptable: report the result and cite the decision.
    evidence that `up()` did not create.
 5. **Fail closed.** Missing, stale or conflicting evidence gives "unavailable", an exclusion or a
    typed reason, never a guessed value, a zero or a silent fallback. `?? 0`, `?: 0`, `(float)` on a
-   possibly null value and empty `catch` blocks are signs to check.
+   possibly null value and empty `catch` blocks are signs to check. A `catch` that turns a failure
+   into a deferral, retry or success matches only its intended source: when the same exception
+   class can come from another call in the `try` (cleanup, retirement, a second lock), the source
+   must throw a typed exception. Example: deferring on every `LockTimeoutException` in the price
+   cache refresh also hid a failed required retirement (PR #30).
 6. **Import failure reporting.** `spot:fetch`, `futures:fetch-eex` and `contracts:fetch` send one
    explicit Sentry Issue and one safe aggregate log per failed or incomplete run. A recovered
    retry does not alert. Normal empty EEX maturities do not alert. Logs and Sentry context hold no

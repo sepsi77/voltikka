@@ -28,6 +28,7 @@ use App\Services\MorningFreshness\MorningJobFreshnessService;
 use App\Services\PriceForecasting\FixedTermPriceForecastService;
 use Carbon\CarbonImmutable;
 use Illuminate\Bus\UniqueLock;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Database\Query\Grammars\MySqlGrammar;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -167,6 +168,24 @@ class DeferredContractImportCompletionTest extends TestCase
         $this->assertNotEquals($generation, Cache::get(ContractPriceCacheLifecycle::ACTIVE_KEY));
         $this->assertTrue(app(ContractImportCompletion::class)->readyCurrent($this->checkpoint()->metadata));
         $this->assertSame([], $this->sentryIssues);
+    }
+
+    public function test_lock_timeout_inside_the_cache_build_stays_terminal(): void
+    {
+        // A required retirement of a written candidate rethrows its transition-lock timeout; that
+        // candidate may lack cleanup tracking, so only the typed producer-acquisition wait defers.
+        $fixture = $this->fixture('retire', true);
+        $this->publish($fixture);
+        $real = app(ContractListCacheService::class);
+        $proxy = Mockery::mock($real)->makePartial();
+        $proxy->shouldReceive('refresh')->once()->andThrow(new LockTimeoutException);
+        app()->instance(ContractListCacheService::class, $proxy);
+        $service = app(ContractImportCompletion::class);
+        $uuid = $service->start(self::DATE);
+        $result = $service->initial($this->import([$fixture]), self::DATE, $uuid, [$fixture[1]->id => $fixture[2]->id]);
+        $this->assertFalse($result->deferred);
+        $this->assertSame(['price_cache_refresh'], array_keys($result->requiredFailures));
+        $this->assertInstanceOf(LockTimeoutException::class, $result->requiredExceptions['price_cache_refresh']);
     }
 
     public function test_dry_run_is_read_only_for_waiting_eligible_and_expired_claims(): void
