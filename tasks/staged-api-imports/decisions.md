@@ -150,3 +150,16 @@ CodeRabbit: 2 outside the diff.
 ## 2026-11-19 – PR #31 external review, round 5 (head 242983f): clean
 
 CodeRabbit: no actionable comments. Every CodeRabbit thread is fixed or answered (threads resolved); the PR's one Greptile finding (scoped `ImportReplay`) was fixed in round 1 and covered by the later CodeRabbit reviews. Ready to merge on the user's request; the deploy, the Schedule re-apply and D7 need separate approval.
+
+## 2026-11-19 – Merge, deploy and Schedule re-apply (user approval 2026-11-19)
+
+- **Merge.** PR #31 merged at 18:07 Helsinki (`38c1913`); branch, worktree and local branch deleted.
+- **Deploy.** Image `deploy-000031-38c19132fc24` (built from `38c1913`), both roles, 18:09–18:11 Helsinki, 130 s; `https://voltikka.fi/up` 200; `voltikka-web-deploy-000031-…` and `voltikka-worker-deploy-000031-…` healthy. The web scheduler still lists only `logos:download` and `backup:run --only-files`.
+- **Schedules.** `python -m voltikka_orchestration.schedules --apply --group collectors --group spot --group maintenance` in the worker container (`-w /opt/orchestration`, `.venv/bin/python`; there is no `schedules` entry point): 25 updated, `import-payloads-cleanup` created. Read back by ID: all 26 active; `staged` on the 16 collectors, `spot-hourly`, `spot-fetch-neighbours` and `spot-fetch-forecast`, and on no other Schedule.
+- **First staged runs.** `spot-fetch-neighbours` 18:25 (1,056 records, 4 regions) and `fingrid-forecast-vintages` 18:45 (1 vintage) stored from their payloads.
+- **SEAS5** (D7). `weather:fetch --only=ecmwf_seas5 --fetch-only` in the worker at 18:13: `fetched`, 11 requests, 0 failed, 511,604 bytes, `complete`. No rows. First scheduled run: 2026-12-08 11:00.
+- **`ImportReplay` trial** (D7). `import-replay-2026-11-19-1` on the 18:45 Fingrid vintage payload (`fingrid/2026-11-19/e78d3acf-….ndjson.gz`): `succeeded`, `vintages_inserted: 0`. `hourly_forecast_runs` before and after: 40,429 rows, max id 40,439, max `updated_at` 16:45:03 UTC, same SHA-256 of the latest 100 rows.
+- **Storage.** `voltikka-storage` is on the root disk: 156 GB free of 197 GB. Payloads after the first runs: 516 KB (mostly SEAS5).
+- Payload files are owned by root (the worker user); the web role only reads them.
+- **Open (D7):** first payload and completed workflow for every daily and hourly job by 2026-11-20 18:15 (including the staged EEX, contract import and S forecast paths on the morning of 2026-11-20), EC46 on 2026-11-23, NVE on 2026-11-25. Root `AGENTS.md` "Dated follow-ups" holds the check.
+- **Review instructions.** `laravel-reviewer` item 2 now asks for the behavior list of a rewritten command (exit code per scope, failed-unit isolation, option normalization, output lines), from three findings the external review caught in PR #31.

@@ -155,6 +155,10 @@ Reviewer agents: `refactor-reviewer`, `laravel-reviewer`, `pricing-reviewer`, `t
 
 Time-triggered work that is not yet possible. Check this list when the date has passed. Each item says what unblocks it and where the detail lives. **Remove an item once it is done**, and do not add anything here that a scheduled command already surfaces on its own.
 
+### After 2026-11-25 — finish D7 of the staged imports
+
+Deployed 2026-11-19 (`deploy-000031-38c19132fc24`), Schedules re-applied the same evening. Check on production (read-only) that every scheduled staged job has a payload file under `storage/app/import-payloads/<source>/<date>/` and a completed workflow: daily and hourly jobs (incl. `MorningChain`'s EEX and contract import, `SDailyForecast`) since 2026-11-20, `weather-fetch-ec46` on 2026-11-23, `nve-fetch-reservoirs` on 2026-11-25. Record the result in `tasks/staged-api-imports/decisions.md` and close the last item of its `tasks.json`; SEAS5 runs first on 2026-12-08 (note it there).
+
 ### After 2026-11-30 — delete the Voltikka Railway project
 
 Production runs on the VPS since 2026-11-15 19:35 Helsinki. The Railway services `voltikka`, `voltikka-worker` and `MySQL` have no deployment since 2026-11-16 08:31 (volumes and buckets kept), so a rollback is still possible (`tasks/vps-migration/cutover-plan.md`, "Rollback"). Decision 8 keeps the project for at least two weeks. After 2026-11-30, and only with the user's approval, delete the project (it holds the MySQL volume and the old buckets `voltikka-backups` and `voltikka-forecast`). See `tasks/vps-migration/decisions.md`.
