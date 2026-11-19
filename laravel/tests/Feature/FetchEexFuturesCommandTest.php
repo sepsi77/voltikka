@@ -716,17 +716,20 @@ class FetchEexFuturesCommandTest extends TestCase
         Http::fake(fn (Request $request) => $this->eexResponse($request));
         $lifecycle = app(ContractPriceCacheLifecycle::class);
         $demand = $lifecycle->demandRevision();
-        DB::statement("CREATE TRIGGER fail_eex_prices BEFORE INSERT ON electricity_futures_eod_prices BEGIN SELECT RAISE(ABORT, 'forced failure'); END");
+        $preRun = $this->seedPreRunMonthRow();
+        $this->failYearInserts();
 
         $this->assertSame(1, Artisan::call('futures:fetch-eex'));
         $output = Artisan::output();
+        // The month and quarter upserts of this run succeeded before the year insert failed.
+        $this->assertStringContainsString('FI quarter FNBQ 202607: fetched 2, upserted 2', $output);
 
         $storeError = ['sqlstate' => '23000', 'driver_code' => 19, 'table' => 'electricity_futures_eod_prices'];
         $this->assertSame(['status' => 'failed', 'step' => 'store', 'error' => 'store_failed', ...$storeError], $this->lastJsonLine($output));
         foreach (['47.44', 'forced failure'] as $binding) {
             $this->assertStringNotContainsString($binding, $output);
         }
-        $this->assertSame(0, ElectricityFuturesEodPrice::count(), 'A failed store writes no row of the run (S21).');
+        $this->assertSame($preRun, $this->storedRows(), 'A failed store writes no row of the run, and the pre-run row keeps its price (S21).');
         $this->assertSame($demand, $lifecycle->demandRevision(), 'After-commit work does not run.');
 
         $payloads = glob(config('import_payloads.path').'/eex/2026-05-22/*.ndjson.gz');
@@ -753,7 +756,8 @@ class FetchEexFuturesCommandTest extends TestCase
         $this->preventHttp();
         $this->assertSame(0, Artisan::call('futures:fetch-eex', ['--from-payload' => $payloads[0]]));
         Http::assertNothingSent();
-        $this->assertSame(6, ElectricityFuturesEodPrice::count());
+        $this->assertSame(6, ElectricityFuturesEodPrice::count(), 'The run overwrites the pre-run row.');
+        $this->assertEqualsWithDelta(47.00, ElectricityFuturesEodPrice::query()->where('short_code', 'FNBM')->where('trade_date', '2026-05-20')->sole()->settlement_price, 0.0001);
         $this->assertSame(DataFreshnessCheckpoint::STATUS_READY, DataFreshnessCheckpoint::sole()->status);
         $this->assertSame([], $this->sentryIssues);
         $this->assertSame($demand + 1, $lifecycle->demandRevision());
@@ -784,18 +788,93 @@ class FetchEexFuturesCommandTest extends TestCase
         Artisan::call('futures:fetch-eex', ['--fetch-only' => true]);
         $payload = $this->lastJsonLine()['payload'];
         $fetchOwner = DataFreshnessCheckpoint::sole()->metadata['run_uuid'];
-        DB::statement("CREATE TRIGGER fail_eex_prices BEFORE INSERT ON electricity_futures_eod_prices BEGIN SELECT RAISE(ABORT, 'forced failure'); END");
+        $preRun = $this->seedPreRunMonthRow();
+        $this->failYearInserts();
+        $writes = [];
+        DataFreshnessCheckpoint::saved(function (DataFreshnessCheckpoint $checkpoint) use (&$writes): void {
+            $writes[] = [$checkpoint->status, $checkpoint->metadata['run_uuid']];
+        });
 
         $this->preventHttp();
         $this->assertSame(1, Artisan::call('futures:fetch-eex', ['--from-payload' => $payload['path']]));
 
         $checkpoint = DataFreshnessCheckpoint::sole();
         $this->assertSame(DataFreshnessCheckpoint::STATUS_FAILED, $checkpoint->status);
-        $this->assertNotSame($fetchOwner, $checkpoint->metadata['run_uuid']);
+        $replayOwner = $checkpoint->metadata['run_uuid'];
+        $this->assertNotSame($fetchOwner, $replayOwner);
+        // S11: one takeover before the data transaction; the failure finishes that same owner.
+        $this->assertSame([['running', $replayOwner], ['failed', $replayOwner]], $writes);
         $this->assertSame(['path' => $payload['path'], 'sha256' => $payload['sha256']], $checkpoint->metadata['payload']);
         $this->assertSame(['store', 'store_failed', '23000'], [$checkpoint->metadata['step'], $checkpoint->metadata['error'], $checkpoint->metadata['sqlstate']]);
-        $this->assertSame(0, ElectricityFuturesEodPrice::count());
+        $this->assertSame($preRun, $this->storedRows());
         $this->assertImportIssue('eex_futures', 'error', ['unexpected' => 1]);
+    }
+
+    public function test_a_failed_replay_never_replaces_a_newer_run_that_started_before_its_failure_handling(): void
+    {
+        $this->fiBaseTenorInstruments();
+        $replayOwner = null;
+        $cache = $this->createMock(ContractListCacheService::class);
+        $cache->expects($this->once())->method('bumpVersion')->willReturnCallback(function () use (&$replayOwner): int {
+            $replayOwner = DataFreshnessCheckpoint::sole()->metadata['run_uuid'];
+            // Run B starts after replay A committed and before A's failure handler runs.
+            app(MorningJobFreshnessService::class)->record(DataFreshnessCheckpoint::KEY_EEX_FUTURES, '2026-05-22', DataFreshnessCheckpoint::STATUS_RUNNING, ['run_uuid' => 'newer-run', 'stage' => 'started']);
+
+            throw new \RuntimeException('cache unavailable');
+        });
+        $this->app->instance(ContractListCacheService::class, $cache);
+        Http::fake(fn (Request $request) => $this->eexResponse($request));
+        Artisan::call('futures:fetch-eex', ['--fetch-only' => true]);
+        $payload = $this->lastJsonLine()['payload'];
+        $fetchOwner = DataFreshnessCheckpoint::sole()->metadata['run_uuid'];
+
+        $this->preventHttp();
+        $this->assertSame(1, Artisan::call('futures:fetch-eex', ['--from-payload' => $payload['path']]));
+
+        $this->assertSame(['status' => 'failed', 'step' => 'store', 'error' => 'after_commit_failed'], $this->lastJsonLine());
+        $this->assertTrue(Str::isUuid($replayOwner));
+        $this->assertNotSame($fetchOwner, $replayOwner);
+        $checkpoint = DataFreshnessCheckpoint::sole();
+        $this->assertSame(DataFreshnessCheckpoint::STATUS_RUNNING, $checkpoint->status, 'Run B keeps the date.');
+        $this->assertSame(['run_uuid' => 'newer-run', 'stage' => 'started'], $checkpoint->metadata);
+        $this->assertSame(6, ElectricityFuturesEodPrice::count(), 'A committed before its cache bump failed.');
+    }
+
+    public function test_a_database_error_in_the_final_checkpoint_rolls_back_the_run_and_reports_its_sql_facts(): void
+    {
+        $this->captureSentryIssues();
+        $this->fiBaseTenorInstruments();
+        $fetchOwner = null;
+        Http::fake(function (Request $request) use (&$fetchOwner) {
+            $fetchOwner ??= DataFreshnessCheckpoint::sole()->metadata['run_uuid'];
+
+            return $this->eexResponse($request);
+        });
+        $lifecycle = app(ContractPriceCacheLifecycle::class);
+        $demand = $lifecycle->demandRevision();
+        $preRun = $this->seedPreRunMonthRow();
+        // A statement-level failure of the final `ready` write; the later `failed` write works.
+        DB::statement("CREATE TRIGGER fail_eex_ready BEFORE UPDATE ON data_freshness_checkpoints WHEN NEW.status = 'ready' BEGIN SELECT RAISE(ABORT, 'forced failure'); END");
+
+        $this->assertSame(1, Artisan::call('futures:fetch-eex'));
+        $output = Artisan::output();
+
+        $storeError = ['sqlstate' => '23000', 'driver_code' => 19, 'table' => 'data_freshness_checkpoints'];
+        $this->assertSame(['status' => 'failed', 'step' => 'store', 'error' => 'store_failed', ...$storeError], $this->lastJsonLine($output));
+        $this->assertStringNotContainsString('forced failure', $output);
+        $this->assertSame($preRun, $this->storedRows(), 'S21: the run\'s rows roll back with the checkpoint write.');
+        $this->assertSame($demand, $lifecycle->demandRevision(), 'After-commit work does not run.');
+
+        $payloads = glob(config('import_payloads.path').'/eex/2026-05-22/*.ndjson.gz');
+        $checkpoint = DataFreshnessCheckpoint::sole();
+        $this->assertSame(DataFreshnessCheckpoint::STATUS_FAILED, $checkpoint->status);
+        $this->assertSame([
+            'run_uuid' => $fetchOwner, 'reason' => 'unexpected', 'step' => 'store', 'error' => 'store_failed',
+            'payload' => ['path' => $payloads[0], 'sha256' => trim(file_get_contents(str_replace('.ndjson.gz', '.sha256', $payloads[0])))],
+            ...$storeError,
+        ], $checkpoint->metadata);
+        $this->assertImportIssue('eex_futures', 'error', ['unexpected' => 1]);
+        $this->assertSame($storeError, $this->sentryIssues[0]->getContexts()['data_fetch']['store_error']);
     }
 
     public function test_a_payload_whose_month_discovery_failed_stores_the_same_not_ready_outcome(): void
@@ -881,6 +960,28 @@ class FetchEexFuturesCommandTest extends TestCase
         $this->assertStringContainsString('[dry-run] FI month FNBM 202605: 2 prices', Artisan::output());
         $this->assertSame(0, ElectricityFuturesEodPrice::count());
         $this->assertDatabaseCount('data_freshness_checkpoints', 0);
+    }
+
+    /**
+     * A row from before the run with the key of the run's first month point, at another price.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function seedPreRunMonthRow(): array
+    {
+        DB::table('electricity_futures_eod_prices')->insert([
+            'exchange' => 'EEX', 'commodity' => 'POWER', 'pricing' => 'F', 'product' => 'Base',
+            'area' => 'FI', 'short_code' => 'FNBM', 'maturity' => '202605', 'maturity_type' => 'month',
+            'trade_date' => '2026-05-20', 'settlement_price' => 10.0,
+        ]);
+
+        return $this->storedRows();
+    }
+
+    /** Fail the run's last upsert (year) after its month and quarter upserts succeeded. */
+    private function failYearInserts(): void
+    {
+        DB::statement("CREATE TRIGGER fail_eex_prices BEFORE INSERT ON electricity_futures_eod_prices WHEN NEW.short_code = 'FNBY' BEGIN SELECT RAISE(ABORT, 'forced failure'); END");
     }
 
     private function preventHttp(): void

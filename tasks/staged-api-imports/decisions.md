@@ -97,3 +97,16 @@ Choices worth keeping:
 - **Window facts in `weather:fetch`.** The windows are computed from the clock just before the writer reads `fetched_at`, and both are recorded in the header; the store reads only the header, so S5 holds.
 
 Not acted on: `ContractReplacementLinker` writes `replaced_by_linked_on` from the clock, not from `effective_date`; the two differ only for a store that runs across midnight, which S9 already refuses for a replay. Contract `ImportReplay` runs the completion loop but not the forecast evaluation.
+
+## 2026-11-19 – Spec review round 2026-11-19T12-19
+
+Reviewers: refactor, Laravel, pricing, test, platform (Pi). Frontend and copy skipped: no views or public copy. 19 findings; all must-fix and small items fixed by six executors on disjoint files, each fix with a test that fails without it. Details and dispositions: `reviews/2026-11-19T12-19/summary.md` and `actions.md`.
+
+Manager decisions under delegated authority:
+
+- **S6 without a reference registry.** Every store activity has a schedule-to-close of at most one day, and Temporal refuses to schedule a store on a payload whose date directory is older than today − 13 days. Cleanup deletes only date directories older than 14 days, so no open run can use a deleted file. A registry of open references would add a table and a closing protocol for the same guarantee.
+- **Paged sources keep fetch-side parsing (LAR-006 part).** GIE, Syke, Fingrid and ENTSO-E parse each page during the fetch because the next request depends on it. A page that fails to parse leaves the run genuinely incomplete; replaying it cannot invent the missing pages. JAO and NVE (not paged) now parse only in the store, so a parser fix replays their saved bodies.
+- **Spot averages inside the store transaction, date identity unchanged (LAR-001).** The averages recompute from the stored rows; their rolling date stays today, which a same-day replay shares.
+- **Superseded contract payloads (PRC-001).** The store refuses a payload older than the newest stored source observation. A side effect is accepted: if a manual scoped import finishes during the few seconds of a morning fetch, that morning store is refused as superseded and reports one Issue.
+- **Spot-forecast display (PRC-002).** An older replay still archives its vintage but leaves the display alone when a newer feed (run row or display row) is stored. The check is a plain read inside the store transaction, without a gap lock (deadlock risk between two stores); an exact overlap of a scheduled store and a manual replay can still interleave.
+- **`SpotPriceAverageService` row lookup.** Its `updateOrCreate` keys now match `period_start` with `whereDate`: on SQLite the date cast stores `Y-m-d H:i:s`, so the old `Y-m-d` key missed the row and a second calculation hit the unique index. MySQL `DATE` columns behave as before.

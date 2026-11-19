@@ -2,6 +2,7 @@
 
 namespace App\Console\Concerns;
 
+use App\Services\ImportPayload\ImportFetchFailed;
 use App\Services\ImportPayload\ImportPayloadInvalid;
 use App\Services\ImportPayload\ImportPayloadReader;
 use App\Services\ImportPayload\ImportPayloadWriter;
@@ -37,9 +38,11 @@ trait StagedImport
     }
 
     /**
-     * $fetch records every request on the writer, may set facts and return end facts, and throws
-     * when nothing usable was fetched. $store parses the payload and writes rows. $transactional
-     * is false only for a store that owns its transactions (chunked backfill, contracts:fetch).
+     * $fetch records every request on the writer, may set facts and return end facts. When nothing
+     * usable was fetched it throws ImportFetchFailed after recording its requests (the file is
+     * kept) or any other throwable (the file is dropped). $store parses the payload and writes
+     * rows. $transactional is false only for a store that owns its transactions (chunked backfill,
+     * contracts:fetch).
      *
      * @param  Closure(ImportPayloadWriter): mixed  $fetch
      * @param  Closure(ImportPayloadReader): ImportStoreResult  $store
@@ -57,6 +60,19 @@ trait StagedImport
             try {
                 $writer = ImportPayloadWriter::open($this->stagedImportSource(), $this->getName(), $this->stagedDataOptions());
                 $reference = $writer->finish($fetch($writer) ?? []);
+            } catch (ImportFetchFailed $e) {
+                // Every request is recorded: keep the file with its error bodies, then fail the fetch.
+                try {
+                    $kept = $writer->finish($e->endFacts);
+                } catch (Throwable) {
+                    $writer->abandon();
+
+                    return $this->stagedFailure('fetch', 'fetch_failed', $e, ['reason' => $e->reason]);
+                }
+
+                return $this->stagedFailure('fetch', 'fetch_failed', $e, [
+                    'reason' => $e->reason, 'payload_path' => $kept->path, 'payload_sha256' => $kept->sha256,
+                ]);
             } catch (Throwable $e) {
                 $writer?->abandon();
 

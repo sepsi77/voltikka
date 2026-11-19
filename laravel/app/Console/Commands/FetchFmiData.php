@@ -64,14 +64,14 @@ class FetchFmiData extends Command
         if ($unknown !== []) {
             $this->error('Unknown part(s): '.implode(', ', $unknown));
 
-            return Command::FAILURE;
+            return $this->stagedFailure('fetch', 'invalid_options');
         }
 
         $backfill = $this->option('from') !== null;
         if ($backfill && in_array('forecast', $parts, true)) {
             $this->error('Forecasts have no backfill: FMI serves only the current forecast.');
 
-            return Command::FAILURE;
+            return $this->stagedFailure('fetch', 'invalid_options');
         }
         if ($parts === []) {
             $parts = $backfill ? ['observed', 'radiation'] : self::PARTS;
@@ -89,7 +89,7 @@ class FetchFmiData extends Command
         if ($start === null || $end === null) {
             $this->error('Invalid date. Use YYYY-MM-DD.');
 
-            return Command::FAILURE;
+            return $this->stagedFailure('fetch', 'invalid_options');
         }
 
         if ($end->greaterThan($currentHour)) {

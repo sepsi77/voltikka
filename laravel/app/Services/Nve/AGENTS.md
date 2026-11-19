@@ -42,10 +42,14 @@ public reads these rows yet. Task context: `../../../../market-review/` (G10).
 - Staged import (`App\Console\Concerns\StagedImport`, `../ImportPayload/AGENTS.md`;
   `import-payloads/nve/<date>/`): the fetch step always requests both endpoints (units
   `{dataset: weeks|references}`) and fixes the ISO `current_year` and `from_year` in the header,
-  so a store in a later year keeps the fetch's reference candidates and default range. The store
-  step parses both bodies and writes weeks and reference in one transaction. A failed unit exits 1
-  with `fetch_incomplete`; an unproved reference period keeps the weeks and exits 1 with
-  `reference_period_unproved`. Not date-bound: a same-day older payload is stored.
+  so a store in a later year keeps the fetch's reference candidates and default range. The fetch
+  does not parse: only a transport or HTTP failure is a failed unit. The store step alone parses
+  both bodies and writes weeks and reference in one transaction. A failed unit, or a body the
+  parser rejects in the store step (same safe log line), exits 1 with `fetch_incomplete`; a
+  rejected weekly history also withholds the reference, as a failed one does. The rejected body
+  stays in the file, so after a parser fix `--from-payload` stores it without a new request
+  (decision "Raw bodies, parsed in the store step"). An unproved reference period keeps the weeks
+  and exits 1 with `reference_period_unproved`. Not date-bound: a same-day older payload is stored.
 
 ## Licence (open)
 

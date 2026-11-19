@@ -7,10 +7,10 @@ from datetime import date, datetime, time, timedelta, timezone
 import pytest
 from temporalio import activity
 from temporalio.exceptions import ApplicationError
-from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
 
 from voltikka_orchestration.activities import CommandRequest, CommandResult, IssueReport
+from voltikka_orchestration.staged import RETENTION_DAYS, STORE_SCHEDULE_TO_CLOSE
 from voltikka_orchestration.s_forecast import (
     OUTAGE_FETCH,
     SDailyForecast,
@@ -24,7 +24,9 @@ from voltikka_orchestration.s_forecast import (
 QUEUE = "test-queue"
 OUTAGES = " ".join(OUTAGE_FETCH)
 HELSINKI = ZoneInfo("Europe/Helsinki")
-PAYLOAD_PATH = "/app/storage/app/import-payloads/entsoe/2026-11-19/run-1.ndjson.gz"
+# No date directory, so never expired: the session's time-skipping clock jumps by decades, and a store
+# never starts on a payload that cleanup could delete during it (staged.payload_expired; own tests).
+PAYLOAD_PATH = "/app/storage/app/import-payloads/entsoe/run-1.ndjson.gz"
 SHA256 = "cd" * 32
 
 
@@ -39,9 +41,12 @@ def store(command: str) -> str:
 class FakeCommands:
     """Records every command; readiness answers come from the scenario."""
 
-    def __init__(self, *, morning_ready=True, afternoon_ready_after=0, failing=(), fetch_result=None):
+    def __init__(self, *, morning_ready=True, afternoon_ready_after=0, failing=(), fetch_result=None, lost_once=()):
         self.calls: list[tuple[str, list[str], str]] = []
         self.requests: list[CommandRequest] = []
+        self.schedule_to_close: list[timedelta | None] = []
+        # Commands whose first attempt is lost (a retryable activity failure, not a command failure).
+        self.lost_once = set(lost_once)
         self.fetch_result = fetch_result or {"status": "fetched", "step": "fetch",
                                              "payload": {"path": PAYLOAD_PATH, "sha256": SHA256, "size": 9}}
         self.reports: list[IssueReport] = []
@@ -55,9 +60,14 @@ class FakeCommands:
         now = activity.info().current_attempt_scheduled_time.astimezone(HELSINKI).strftime("%H:%M")
         self.calls.append((request.kind, request.args, now))
         self.requests.append(request)
+        self.schedule_to_close.append(activity.info().schedule_to_close_timeout)
         name = request.args[0]
         if " ".join(request.args) in self.failing or name in self.failing:
-            raise ApplicationError(f"{name} failed", "test_error", non_retryable=True)
+            # As run_command raises it: retryable by itself, so only the workflow retry policy stops a retry.
+            raise ApplicationError(f"{name} exited 1 (test_error)", "test_error", type="CommandFailed")
+        if " ".join(request.args) in self.lost_once:
+            self.lost_once.discard(" ".join(request.args))
+            raise ApplicationError(f"{name} attempt lost", type="WorkerShutdown")
         if "--fetch-only" in request.args:
             return CommandResult(0, self.fetch_result, 0.1)
         if name == "orchestration:readiness":
@@ -132,6 +142,10 @@ async def test_runs_model_only_after_every_input_is_ready(env):
     assert names[2] == f"orchestration:readiness s-forecast --issue-date={issue} --view=morning"
     assert fake.calls[2][2] == "11:30"
     assert names[3:7] == [fetch("fingrid:fetch"), store("fingrid:fetch"), fetch(OUTAGES), store(OUTAGES)]
+    # Every store ends within the bound that keeps it ahead of payload cleanup (spec S6).
+    stores = [timeout for timeout, args in zip(fake.schedule_to_close, names) if "--from-payload=" in args]
+    assert len(stores) == 3 and all(timeout <= STORE_SCHEDULE_TO_CLOSE < timedelta(days=RETENTION_DAYS)
+                                    for timeout in stores)
     afternoon = [c for c in fake.calls if c[1][-1] == "--view=afternoon"]
     assert [c[2] for c in afternoon] == ["14:30", "14:35", "14:40"]
     predict = next(c for c in fake.calls if c[1][0] == "predict")
@@ -174,9 +188,35 @@ async def test_failed_morning_outage_fetch_or_store_is_a_missing_input(env, fail
 
     assert result.status == "no_forecast"
     assert result.missing == ["entsoe_outages_morning"]
-    # A failed fetch skips the store; a failed store never starts a new fetch.
-    assert fake.names() == ([fetch(OUTAGES)] if failing == fetch(OUTAGES) else [fetch(OUTAGES), store(OUTAGES)])
-    assert [r.reason for r in fake.reports] == ["inputs_missing"]
+    # A failed command runs once: a failed fetch skips the store; a failed store never starts a new fetch.
+    failed_store = failing == store(OUTAGES)
+    assert fake.names() == ([fetch(OUTAGES), store(OUTAGES)] if failed_store else [fetch(OUTAGES)])
+    # The one Issue names the step and, for a store, the payload to replay.
+    payload = {"payload_path": PAYLOAD_PATH, "payload_sha256": SHA256} if failed_store else {}
+    assert [(r.reason, r.facts) for r in fake.reports] == [("inputs_missing", {
+        "issue_date": result.issue_date, "missing": ["entsoe_outages_morning"], "command": "entsoe:fetch",
+        "error": "test_error", "step": "store" if failed_store else "fetch", **payload})]
+
+
+async def test_a_lost_input_store_repeats_the_store_not_the_fetch(env):
+    fake = FakeCommands(lost_once={store(OUTAGES)})
+
+    result = await run_daily(env, fake, SForecastInput(await tomorrow(env)))
+
+    assert result.status == "forecast_stored"
+    assert fake.names()[:3] == [fetch(OUTAGES), store(OUTAGES), store(OUTAGES)]
+
+
+async def test_an_input_store_never_starts_on_an_expired_payload(env):
+    expired = "/app/storage/app/import-payloads/entsoe/2000-01-01/run-1.ndjson.gz"
+    fake = FakeCommands(fetch_result={"status": "fetched", "payload": {"path": expired, "sha256": SHA256}})
+
+    result = await run_daily(env, fake, SForecastInput(await tomorrow(env)))
+
+    assert result.missing == ["entsoe_outages_morning"]
+    assert fake.names() == [fetch(OUTAGES)]
+    assert [(r.facts["error"], r.facts["step"], r.facts["payload_path"]) for r in fake.reports] == [
+        ("payload_expired", "store", expired)]
 
 
 async def test_a_fetch_without_a_payload_reference_is_a_missing_input(env):
@@ -186,6 +226,7 @@ async def test_a_fetch_without_a_payload_reference_is_a_missing_input(env):
 
     assert result.missing == ["entsoe_outages_morning"]
     assert fake.names() == [fetch(OUTAGES)]
+    assert [(r.facts["error"], r.facts["step"]) for r in fake.reports] == [("fetch_result_invalid", "fetch")]
 
 
 async def test_manual_start_after_the_morning_cut_needs_explicit_skip(env):
@@ -259,3 +300,8 @@ async def test_a_refit_whose_fingrid_store_fails_keeps_the_old_version(env):
         assert result.status == "failed" and result.error == key
         assert not any(args[0] in ("train", "activate") for _, args, _ in fake.calls)
         assert fake.names().count(fetch("fingrid:fetch")) == 1
+        # A failed store runs once, and the one Issue names the step and the payload.
+        assert fake.names().count(store("fingrid:fetch")) == (1 if failing else 0)
+        payload = {"payload_path": PAYLOAD_PATH, "payload_sha256": SHA256} if failing else {}
+        assert [r.facts for r in fake.reports] == [{"as_of": None, "error": key, "command": "fingrid:fetch",
+                                                    "step": "store" if failing else "fetch", **payload}]

@@ -8,7 +8,7 @@ Pure functions only: workflows import this module.
 from __future__ import annotations
 
 import re
-from datetime import date
+from datetime import date, timedelta
 from pathlib import PurePosixPath
 from typing import Any
 
@@ -18,6 +18,15 @@ PATCH = "staged-api-imports"
 FETCH_ONLY = "--fetch-only"
 # A store is not interruptible, so it must end within the worker's deploy drain (65 minutes).
 STORE_TIMEOUT_MINUTES = 60
+# Payload retention: `ImportPayloadCleanup::RETENTION_DAYS` (laravel/app/Services/ImportPayload/)
+# deletes a payload when its Helsinki date directory is more than this many days old. A test keeps
+# the two values equal.
+RETENTION_DAYS = 14
+# Spec S6: cleanup never deletes a file that an open run still uses. There is no reference registry.
+# Instead every store activity must end within this bound after it is scheduled (a store that cannot
+# start in time fails as a timed-out store with one Issue), and no store is scheduled on a payload
+# whose date directory could expire within it (`payload_expired()`). Whole days, well below retention.
+STORE_SCHEDULE_TO_CLOSE = timedelta(days=1)
 
 _SHA256 = re.compile(r"[0-9a-f]{64}")
 
@@ -29,6 +38,12 @@ def fetch_args(args: list[str]) -> list[str]:
 def store_args(args: list[str], reference: dict[str, str]) -> list[str]:
     """The same data args as the fetch (the store compares them with the payload header)."""
     return [*args, f"--from-payload={reference['path']}", f"--payload-sha256={reference['sha256']}"]
+
+
+def store_options(options: dict) -> dict:
+    """Activity options of a store: `options` with a schedule-to-close of at most STORE_SCHEDULE_TO_CLOSE."""
+    bound = min(options.get("schedule_to_close_timeout") or STORE_SCHEDULE_TO_CLOSE, STORE_SCHEDULE_TO_CLOSE)
+    return dict(options, schedule_to_close_timeout=bound)
 
 
 def payload_reference(result: dict[str, Any] | None) -> dict[str, str] | None:
@@ -56,3 +71,17 @@ def payload_date(path: str) -> date | None:
         return date.fromisoformat(parts[-2])
     except ValueError:
         return None
+
+
+def payload_expired(path: str, today: date) -> bool:
+    """True when cleanup could delete the payload before a store scheduled today ends: its date
+    directory is more than RETENTION_DAYS old by the end of STORE_SCHEDULE_TO_CLOSE. A path without a
+    date directory is outside cleanup."""
+    day = payload_date(path)
+    return day is not None and day < today - timedelta(days=RETENTION_DAYS) + STORE_SCHEDULE_TO_CLOSE
+
+
+def failure_facts(step: str, reference: dict[str, str] | None) -> dict[str, str]:
+    """The closed facts that name a failed staged step in its one Issue: `step` (`fetch` or `store`)
+    and, once the fetch has given a reference, `payload_path`/`payload_sha256` for an ImportReplay."""
+    return {"step": step} | {f"payload_{key}": value for key, value in (reference or {}).items()}

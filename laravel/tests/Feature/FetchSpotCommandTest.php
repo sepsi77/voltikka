@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\SpotPriceHour;
-use App\Models\SpotPriceQuarter;
 use App\Models\SpotSocialPublication;
 use App\Services\PostFastService;
 use App\Services\SpotPriceAverageService;
@@ -16,7 +15,6 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Sleep;
@@ -406,77 +404,11 @@ class FetchSpotCommandTest extends TestCase
         $this->assertEquals(0.24, $spotPrice->vat_rate);
     }
 
-    /** D1: default mode and --fetch-only then --from-payload write the same rows. */
-    public function test_default_mode_and_fetch_only_then_from_payload_write_the_same_rows(): void
-    {
-        Carbon::setTestNow(Carbon::parse('2026-11-19 06:00:00', 'UTC'));
-        $this->averageService->shouldReceive('calculateAllAverages')->twice();
-        $this->fakeEntsoe([...$this->quarterPoints('2026-11-19 10:00', 4.0), [Carbon::parse('2026-11-19 11:00', 'UTC')->timestamp, 7.5]]);
-
-        $this->assertSame(0, Artisan::call('spot:fetch'));
-        $line = $this->lastJsonLine(Artisan::output());
-        $this->assertSame(['stored', 'store', true, ['records' => 5]], [$line['status'], $line['step'], $line['complete'], $line['counts']]);
-        $defaultRows = $this->spotRows();
-        $this->assertCount(6, $defaultRows, 'Four quarters, their hourly mean and one direct hour.');
-
-        SpotPriceQuarter::query()->delete();
-        SpotPriceHour::query()->delete();
-        $this->assertSame(0, Artisan::call('spot:fetch', ['--fetch-only' => true]));
-        $payload = $this->lastJsonLine(Artisan::output())['payload'];
-        $this->assertSame([], $this->spotRows(), 'Fetch only writes no rows.');
-
-        Http::preventStrayRequests();
-        Http::swap(new Factory);
-        Http::fake();
-        $this->assertSame(0, Artisan::call('spot:fetch', [
-            '--from-payload' => $payload['path'], '--payload-sha256' => $payload['sha256'],
-        ]));
-        Http::assertNothingSent();
-        $this->assertSame($defaultRows, $this->spotRows());
-    }
-
-    /** D2 and D6: a store QueryException writes no row, reports safe SQL facts, keeps the payload and replays. */
-    public function test_store_failure_writes_no_row_reports_safe_sql_facts_and_replays_without_http(): void
-    {
-        Carbon::setTestNow(Carbon::parse('2026-11-19 06:00:00', 'UTC'));
-        $this->captureSentryIssues();
-        $this->averageService->shouldNotReceive('calculateAllAverages');
-        $this->fakeEntsoe($this->quarterPoints('2026-11-19 10:00', 4.0));
-        // The hourly insert fails after the quarter insert succeeded inside the same transaction.
-        DB::statement("CREATE TRIGGER fail_spot_hours BEFORE INSERT ON spot_prices_hour BEGIN SELECT RAISE(ABORT, 'forced failure'); END");
-
-        $this->assertSame(1, Artisan::call('spot:fetch'));
-        $output = Artisan::output();
-
-        $this->assertSame(
-            ['status' => 'failed', 'step' => 'store', 'error' => 'store_failed', 'sqlstate' => '23000', 'driver_code' => 19, 'table' => 'spot_prices_hour'],
-            $this->lastJsonLine($output),
-        );
-        $this->assertSame([], $this->spotRows(), 'A failed store writes no row of the run (S21).');
-        $this->assertImportIssue('spot', 'error', ['save_or_post_import' => 1]);
-        $context = $this->sentryIssues[0]->getContexts()['data_fetch'];
-        $this->assertSame(['sqlstate' => '23000', 'driver_code' => 19, 'table' => 'spot_prices_hour'], $context['store_error']);
-        $this->assertSame(['save_or_post_import' => ['sqlstate_23000' => 1]], $context['reasons']);
-        foreach (['forced failure', '5.5', '1795082400', self::API_KEY] as $binding) {
-            $this->assertStringNotContainsString($binding, $output);
-            $this->assertStringNotContainsString($binding, json_encode($context));
-        }
-
-        $payloads = glob(config('import_payloads.path').'/entsoe-day-ahead/2026-11-19/*.ndjson.gz');
-        $this->assertCount(1, $payloads, 'The payload stays after a failed store.');
-
-        DB::statement('DROP TRIGGER fail_spot_hours'); // the fix
-        $this->averageService->shouldReceive('calculateAllAverages')->once();
-        Http::preventStrayRequests();
-        Http::swap(new Factory);
-        Http::fake();
-        $this->assertSame(0, Artisan::call('spot:fetch', ['--from-payload' => $payloads[0]]));
-        Http::assertNothingSent();
-        $this->assertSame(4, SpotPriceQuarter::count());
-        $this->assertSame(1, SpotPriceHour::count());
-    }
-
-    /** D3: the configured securityToken is sent to ENTSO-E but appears nowhere in the payload file. */
+    /**
+     * D3: the configured securityToken is sent to ENTSO-E but appears nowhere in the payload file.
+     * The staged D1/D2/D6/S9 acceptance tests run on the real averages service in
+     * FetchSpotStagedImportTest.
+     */
     public function test_the_security_token_never_reaches_the_payload_file(): void
     {
         $this->fakeEntsoe([[1705644000, 5.0]]);
@@ -488,34 +420,5 @@ class FetchSpotCommandTest extends TestCase
         $this->assertStringContainsString('"documentType":"A44"', $payload);
         $this->assertStringNotContainsString(self::API_KEY, $payload);
         $this->assertStringNotContainsString('securityToken', $payload);
-    }
-
-    /**
-     * S9: not date-bound by the payload; a replay is for the same Helsinki day, because the
-     * after-commit averages use today's date. An older same-day payload is accepted, and since
-     * rows are insert-only it inserts nothing new: the rows of the later fetch stay as they are.
-     */
-    public function test_an_older_same_day_payload_is_accepted_and_inserts_nothing_new(): void
-    {
-        $hour = Carbon::parse('2026-11-19 10:00', 'UTC')->timestamp;
-        Carbon::setTestNow(Carbon::parse('2026-11-19 06:00:00', 'UTC'));
-        $this->fakeEntsoe([[$hour, 4.0]]);
-        $this->assertSame(0, Artisan::call('spot:fetch', ['--fetch-only' => true]));
-        $older = $this->lastJsonLine(Artisan::output())['payload']['path'];
-
-        Carbon::setTestNow(Carbon::parse('2026-11-19 12:00:00', 'UTC'));
-        $this->fakeEntsoe([[$hour, 6.0], [$hour + 3600, 6.5]]);
-        $this->assertSame(0, Artisan::call('spot:fetch'));
-        $rows = $this->spotRows();
-
-        Carbon::setTestNow(Carbon::parse('2026-11-19 14:00:00', 'UTC'));
-        Http::preventStrayRequests();
-        Http::swap(new Factory);
-        Http::fake();
-        $this->assertSame(0, Artisan::call('spot:fetch', ['--from-payload' => $older]));
-
-        $this->assertSame(['records' => 1], $this->lastJsonLine(Artisan::output())['counts']);
-        $this->assertSame($rows, $this->spotRows());
-        $this->assertEqualsWithDelta(6.0, SpotPriceHour::query()->where('timestamp', $hour)->value('price_without_tax'), 0.0001);
     }
 }

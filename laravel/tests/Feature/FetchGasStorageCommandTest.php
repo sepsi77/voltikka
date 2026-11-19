@@ -169,11 +169,17 @@ class FetchGasStorageCommandTest extends TestCase
     {
         Http::fake();
 
-        $this->artisan('gas-storage:fetch --area=xx')->assertExitCode(1);
-        $this->artisan('gas-storage:fetch --from=2026-13-01')->assertExitCode(1);
-        $this->artisan('gas-storage:fetch --from=2026-10-31 --to=2026-10-01')->assertExitCode(1);
+        foreach ([
+            ['--area' => ['xx']],
+            ['--from' => '2026-13-01'],
+            ['--from' => '2026-10-31', '--to' => '2026-10-01'],
+        ] as $options) {
+            $this->assertSame(1, Artisan::call('gas-storage:fetch', $options));
+            $this->assertSame(['status' => 'failed', 'step' => 'fetch', 'error' => 'invalid_options'], $this->lastJsonLine());
+        }
 
         Http::assertNothingSent();
+        $this->assertSame([], glob(config('import_payloads.path').'/gie-agsi/*'));
     }
 
     public function test_default_mode_and_fetch_only_then_from_payload_write_the_same_rows(): void

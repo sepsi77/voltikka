@@ -145,17 +145,25 @@ class FetchEexEuropeFuturesCommandTest extends TestCase
     {
         Http::fake(fn (Request $request) => Http::response($this->eodResponse($request)));
         Log::spy();
-        DB::statement("CREATE TRIGGER fail_eex_prices BEFORE INSERT ON electricity_futures_eod_prices BEGIN SELECT RAISE(ABORT, 'forced failure'); END");
+        // A row from before the run with the key of the run's first point, at another price.
+        DB::table('electricity_futures_eod_prices')->insert([
+            'exchange' => 'EEX', 'commodity' => 'POWER', 'pricing' => 'F', 'product' => 'Base', 'area' => 'DE',
+            'short_code' => 'DEBM', 'maturity' => '202611', 'maturity_type' => 'month', 'trade_date' => '2026-10-30', 'settlement_price' => 1.0,
+        ]);
+        $preRun = $this->storedRows();
+        // The last of the six DEBM maturities fails after the first five upserts succeeded.
+        DB::statement("CREATE TRIGGER fail_eex_prices BEFORE INSERT ON electricity_futures_eod_prices WHEN NEW.maturity = '202704' BEGIN SELECT RAISE(ABORT, 'forced failure'); END");
 
         $this->assertSame(1, Artisan::call('futures:fetch-eex-europe', ['--short-code' => ['DEBM']]));
         $output = Artisan::output();
+        $this->assertStringContainsString('DEBM 202703: 1 settlements.', $output);
 
         $storeError = ['sqlstate' => '23000', 'driver_code' => 19, 'table' => 'electricity_futures_eod_prices'];
         $this->assertSame(['status' => 'failed', 'step' => 'store', 'error' => 'store_failed', ...$storeError], $this->lastJsonLine($output));
         foreach (['223.04', 'forced failure'] as $binding) {
             $this->assertStringNotContainsString($binding, $output);
         }
-        $this->assertSame(0, ElectricityFuturesEodPrice::count(), 'A failed store writes no row of the run (S21).');
+        $this->assertSame($preRun, $this->storedRows(), 'A failed store writes no row of the run, and the pre-run row keeps its price (S21).');
         Log::shouldHaveReceived('error')->once()->withArgs(function (string $message, array $context) use ($storeError): bool {
             $this->assertSame('Import failed: futures:fetch-eex-europe', $message);
             $this->assertSame(['step' => 'store', ...$storeError], array_intersect_key($context, ['step' => true, ...$storeError]));
@@ -172,7 +180,8 @@ class FetchEexEuropeFuturesCommandTest extends TestCase
         $this->preventHttp();
         $this->assertSame(0, Artisan::call('futures:fetch-eex-europe', ['--short-code' => ['DEBM'], '--from-payload' => $payloads[0]]));
         Http::assertNothingSent();
-        $this->assertSame(6, ElectricityFuturesEodPrice::count());
+        $this->assertSame(6, ElectricityFuturesEodPrice::count(), 'The run overwrites the pre-run row.');
+        $this->assertEqualsWithDelta(223.04, ElectricityFuturesEodPrice::query()->where('maturity', '202611')->sole()->settlement_price, 0.0001);
     }
 
     public function test_a_payload_from_another_helsinki_date_is_refused(): void

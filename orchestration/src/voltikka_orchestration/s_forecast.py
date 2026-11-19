@@ -19,7 +19,15 @@ from temporalio.exceptions import ActivityError, ApplicationError
 with workflow.unsafe.imports_passed_through():
     from .activities import CommandRequest, CommandResult, IssueReport
     from .staged import PATCH as STAGED_PATCH
-    from .staged import fetch_args, fetch_skipped, payload_reference, store_args
+    from .staged import (
+        failure_facts,
+        fetch_args,
+        fetch_skipped,
+        payload_expired,
+        payload_reference,
+        store_args,
+        store_options,
+    )
 
 MORNING_OUTAGE_FETCH = time(11, 0)
 MORNING_CUT = time(11, 30)
@@ -40,10 +48,13 @@ READINESS_OPTIONS = dict(
     start_to_close_timeout=timedelta(minutes=2),
     retry_policy=RetryPolicy(maximum_attempts=3, initial_interval=timedelta(seconds=20)),
 )
+# Input fetches and stores. A failed command is never retried (spec S13; jobs.py retry rule); only a
+# lost attempt is.
 FETCH_OPTIONS = dict(
     start_to_close_timeout=timedelta(minutes=15),
     heartbeat_timeout=timedelta(minutes=1),
-    retry_policy=RetryPolicy(maximum_attempts=3, initial_interval=timedelta(minutes=1)),
+    retry_policy=RetryPolicy(maximum_attempts=3, initial_interval=timedelta(minutes=1),
+                             non_retryable_error_types=["CommandFailed"]),
 )
 MODEL_OPTIONS = dict(
     start_to_close_timeout=timedelta(minutes=30),
@@ -125,22 +136,38 @@ async def run(kind: str, args: list[str], options: dict, interruptible: bool = T
     )
 
 
-async def staged_fetch(args: list[str], options: Callable[[], dict]) -> None:
+async def staged_fetch(args: list[str], options: Callable[[], dict]) -> dict | None:
     """An input fetch as two activities: `--fetch-only`, then `--from-payload` (not interruptible)
-    with the same args. `options()` gives each activity the budget left at its start. Raises
-    ActivityError for a failed command and ApplicationError `fetch_result_invalid` for a fetch
-    without a payload reference; a failed store never starts a new fetch."""
-    if not workflow.patched(STAGED_PATCH):
-        # Started before staged imports: replay the one-process command.
-        await run("artisan", args, options())
-        return
-    fetched = (await run("artisan", fetch_args(args), options())).result
-    if fetch_skipped(fetched):
-        return
-    reference = payload_reference(fetched)
-    if reference is None:
-        raise ApplicationError(f"{args[0]} fetch returned no payload reference", "fetch_result_invalid")
-    await run("artisan", store_args(args, reference), options(), interruptible=False)
+    with the same args. `options()` gives each activity the budget left at its start; it raises
+    ApplicationError (closed key in its details) when no time is left. Returns None on success, else
+    the closed facts for the caller's one Issue, in the shape of jobs.run_step: `command`, `error`,
+    `step` and, once the fetch has given a reference, `payload_path`/`payload_sha256`. A failed store
+    never starts a new fetch."""
+    step, reference = "fetch", None
+    try:
+        if not workflow.patched(STAGED_PATCH):
+            # Started before staged imports: replay the one-process command (no step).
+            step = None
+            await run("artisan", args, options())
+            return None
+        fetched = (await run("artisan", fetch_args(args), options())).result
+        if fetch_skipped(fetched):
+            return None
+        reference = payload_reference(fetched)
+        if reference is None:
+            return {"command": args[0], "error": "fetch_result_invalid"} | failure_facts(step, None)
+        step = "store"
+        if payload_expired(reference["path"], local_date(workflow.now())):
+            # Cleanup could delete the file during the store (spec S6), so the store never starts.
+            return {"command": args[0], "error": "payload_expired"} | failure_facts(step, reference)
+        await run("artisan", store_args(args, reference), store_options(options()), interruptible=False)
+    except ActivityError as error:
+        key = error_key(error)
+    except ApplicationError as error:
+        key = str(error.details[0]) if error.details else error.type or "ApplicationError"
+    else:
+        return None
+    return {"command": args[0], "error": key} | (failure_facts(step, reference) if step else {})
 
 
 async def report(issue: IssueReport) -> None:
@@ -180,8 +207,8 @@ class SDailyForecast:
             if workflow.now() >= morning_cut:
                 return await self._no_forecast(issue, ["entsoe_outages_morning"], "started_after_morning_cut")
             await sleep_until(local_instant(day, MORNING_OUTAGE_FETCH))
-            if not await self._fetch(OUTAGE_FETCH, until=morning_cut):
-                return await self._no_forecast(issue, ["entsoe_outages_morning"], "inputs_missing")
+            if failure := await self._fetch(OUTAGE_FETCH, until=morning_cut):
+                return await self._no_forecast(issue, ["entsoe_outages_morning"], "inputs_missing", failure)
 
         # 2. Morning view at its cut. Its inputs are append-only vintages: missing now = missing forever.
         self._stage = "morning_readiness"
@@ -193,10 +220,10 @@ class SDailyForecast:
         # 3. Afternoon fetches after 14:00 (Fingrid hourly data and outage versions before the 14:30 cut).
         self._stage = "afternoon_fetch"
         await sleep_until(local_instant(day, AFTERNOON_FETCH))
-        fingrid_ok = await self._fetch(["fingrid:fetch"], until=deadline)
+        fingrid_failure = await self._fetch(["fingrid:fetch"], until=deadline)
         if params.require_cut_fetches:
-            if not await self._fetch(OUTAGE_FETCH, until=afternoon_cut):
-                return await self._no_forecast(issue, ["entsoe_outages_afternoon"], "inputs_missing")
+            if failure := await self._fetch(OUTAGE_FETCH, until=afternoon_cut):
+                return await self._no_forecast(issue, ["entsoe_outages_afternoon"], "inputs_missing", failure)
 
         # 4. Afternoon view: poll from the cut until every input is ready or the deadline passes.
         self._stage = "afternoon_readiness"
@@ -206,8 +233,8 @@ class SDailyForecast:
             if afternoon["ready"]:
                 break
             if workflow.now() + POLL_INTERVAL > deadline:
-                missing = self._missing(afternoon) + ([] if fingrid_ok else ["fingrid_fetch_failed"])
-                return await self._no_forecast(issue, missing, "deadline_missed")
+                missing = self._missing(afternoon) + (["fingrid_fetch_failed"] if fingrid_failure else [])
+                return await self._no_forecast(issue, missing, "deadline_missed", fingrid_failure)
             await workflow.sleep(POLL_INTERVAL)
 
         # 5. Model run with explicit cuts, then scoring of D+1 (its prices are now complete).
@@ -238,11 +265,11 @@ class SDailyForecast:
         self._stage = "done"
         return SForecastResult(issue, "forecast_stored", forecast=forecast.result, score=score)
 
-    async def _fetch(self, args: list[str], until: datetime) -> bool:
+    async def _fetch(self, args: list[str], until: datetime) -> dict | None:
         """Run one input fetch (fetch, then store); both must succeed before `until`. A failure is a missing
-        input, not a workflow error."""
+        input, not a workflow error: it returns the failure facts (staged_fetch) for the one Issue."""
         if until <= workflow.now():
-            return False
+            return {"command": args[0], "error": "fetch_deadline_passed", "step": "fetch"}
 
         def options() -> dict:
             budget = until - workflow.now()
@@ -250,11 +277,7 @@ class SDailyForecast:
                 raise ApplicationError(f"{args[0]}: no time left before {until}", "fetch_deadline_passed")
             return dict(FETCH_OPTIONS, schedule_to_close_timeout=budget)
 
-        try:
-            await staged_fetch(args, options)
-        except (ActivityError, ApplicationError):
-            return False
-        return True
+        return await staged_fetch(args, options)
 
     async def _readiness(self, issue: str, view: str) -> dict:
         result = await run(
@@ -270,13 +293,15 @@ class SDailyForecast:
     def _missing(readiness: dict) -> list[str]:
         return [item["key"] for item in readiness.get("inputs", []) if not item.get("ready")]
 
-    async def _no_forecast(self, issue: str, missing: list[str], reason: str) -> SForecastResult:
+    async def _no_forecast(self, issue: str, missing: list[str], reason: str,
+                           failure: dict | None = None) -> SForecastResult:
+        """The one Issue of a run without a forecast; `failure` adds the failed input fetch's facts."""
         self._stage = "no_forecast"
         await report(IssueReport(
             workflow="SDailyForecast",
             reason=reason,
             message=f"S forecast {issue}: no forecast ({reason}): " + ", ".join(missing),
-            facts={"issue_date": issue, "missing": missing},
+            facts={"issue_date": issue, "missing": missing} | (failure or {}),
         ))
         return SForecastResult(issue, "no_forecast", missing=missing)
 
@@ -316,9 +341,10 @@ class SWeeklyRefit:
                 raise ApplicationError("refit_deadline_passed", "refit_deadline_passed")
             return dict(options, schedule_to_close_timeout=remaining)
 
+        if failure := await staged_fetch(["fingrid:fetch"], lambda: budget(FETCH_OPTIONS)):
+            return await self._failed(failure["error"], None, failure)
         as_of = None
         try:
-            await staged_fetch(["fingrid:fetch"], lambda: budget(FETCH_OPTIONS))
             as_of = iso_utc(workflow.now())
             trained = await run("model", ["train", f"--as-of={as_of}"], budget(TRAIN_OPTIONS))
             candidate = (trained.result or {}).get("candidate_version")
@@ -331,9 +357,9 @@ class SWeeklyRefit:
             return await self._failed(str(error.details[0]) if error.details else "refit_error", as_of)
         return SRefitResult("activated", candidate)
 
-    async def _failed(self, key: str, as_of: str | None) -> SRefitResult:
+    async def _failed(self, key: str, as_of: str | None, failure: dict | None = None) -> SRefitResult:
         await report(IssueReport(
             "SWeeklyRefit", "refit_failed",
-            f"S weekly refit failed ({key}); active model kept", {"as_of": as_of, "error": key},
+            f"S weekly refit failed ({key}); active model kept", {"as_of": as_of, "error": key} | (failure or {}),
         ))
         return SRefitResult("failed", error=key)

@@ -11,6 +11,7 @@ use App\Services\Jao\JaoNordicPublicationService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -22,9 +23,10 @@ use Throwable;
  * a failed window does not stop the others, and the run then exits 1. Read-only towards JAO;
  * upserts locally.
  *
- * Staged import (StagedImport): the fetch step records every window and fixes today and the
- * range in the header (S5); the store step upserts the answered windows. The default run stores
- * in one transaction; a --from backfill commits once per window (S21). Not date-bound (S9).
+ * Staged import (StagedImport): the fetch step records every window unparsed and fixes today and
+ * the range in the header (S5); the store step parses and upserts the answered windows, so a
+ * window the parser rejects can be stored from the same file after a parser fix. The default run
+ * stores in one transaction; a --from backfill commits once per window (S21). Not date-bound (S9).
  */
 class FetchJaoMaxBorderFlows extends Command
 {
@@ -58,7 +60,7 @@ class FetchJaoMaxBorderFlows extends Command
         } catch (Throwable) {
             $this->error('Invalid date. Use YYYY-MM-DD.');
 
-            return Command::FAILURE;
+            return $this->stagedFailure('fetch', 'invalid_options');
         }
 
         if ($end->greaterThan($latestEnd)) {
@@ -67,7 +69,7 @@ class FetchJaoMaxBorderFlows extends Command
         if (! $start->lessThan($end)) {
             $this->error('The start date must be before the end date.');
 
-            return Command::FAILURE;
+            return $this->stagedFailure('fetch', 'invalid_options');
         }
 
         $backfill = $this->option('from') !== null;
@@ -110,14 +112,8 @@ class FetchJaoMaxBorderFlows extends Command
                 continue;
             }
 
-            try {
-                JaoNordicPublicationService::parse($response->body());
-                $payload->record($unit, $response);
-            } catch (Throwable $e) {
-                $payload->record($unit, $response, failed: true);
-                $this->reportWindowFailure($unit, $e);
-            }
-
+            // Not parsed here: the store step owns the parser, so a parser fix can replay this body.
+            $payload->record($unit, $response);
             $cursor = $windowEnd;
         }
     }
@@ -126,18 +122,25 @@ class FetchJaoMaxBorderFlows extends Command
     private function store(ImportPayloadReader $payload, bool $backfill): ImportStoreResult
     {
         $failedUnits = $payload->end()['failed_units'];
+        $failed = count($failedUnits);
         $written = 0;
 
         foreach ($payload->requests() as $request) {
             if (in_array($request['unit'], $failedUnits, true)) {
                 continue;
             }
-            $rows = JaoNordicPublicationService::parse((string) ImportPayloadReader::body($request));
+            try {
+                $rows = $this->client->parse((string) ImportPayloadReader::body($request));
+            } catch (RuntimeException $e) {
+                // An unexpected body fails only its window and stays in the file for a later replay.
+                $failed++;
+                $this->reportWindowFailure($request['unit'], $e);
+
+                continue;
+            }
             $import = fn (): int => $this->importer->import($rows, $payload->fetchedAt());
             $written += $backfill ? DB::transaction($import) : $import();
         }
-
-        $failed = count($failedUnits);
 
         return new ImportStoreResult(
             ['hourly_rows' => $written, 'failed_windows' => $failed],

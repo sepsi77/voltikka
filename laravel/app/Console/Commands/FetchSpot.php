@@ -48,9 +48,10 @@ class FetchSpot extends Command
 
     /**
      * Execute the console command: fetch the one FI A44 response into a payload file, then store
-     * from that file (StagedImport). Not date-bound by the payload (S9), but the after-commit
-     * averages use today's date, so a replay is meant for the same Helsinki day. Rows are
-     * insert-only, so a same-day replay inserts nothing that the first store already wrote.
+     * from that file (StagedImport). Not date-bound by the payload (S9): the averages are a
+     * recalculation over the stored rows and their rolling rows take today's Helsinki date, so a
+     * replay is meant for the same Helsinki day. Price rows are insert-only, so a same-day replay
+     * inserts nothing that the first store already wrote.
      */
     public function handle(): int
     {
@@ -105,7 +106,10 @@ class FetchSpot extends Command
         $payload->record(['region' => 'FI'], $response);
     }
 
-    /** Runs inside the StagedImport store transaction; averages and cache warming run after the commit. */
+    /**
+     * Runs inside the StagedImport store transaction (S21): the price rows and the averages they
+     * produce commit together. Only the cache warm (queue dispatch) runs after the commit.
+     */
     private function store(ImportPayloadReader $payload): ImportStoreResult
     {
         $requests = iterator_to_array($payload->requests(), false);
@@ -128,13 +132,13 @@ class FetchSpot extends Command
         $this->info('Fetched '.count($spotPrices).' hourly prices. Processing...');
         $this->spotPriceImporter->import($spotPrices);
 
+        $this->info('Calculating spot price averages...');
+        $this->averageService->calculateAllAverages();
+
         return new ImportStoreResult(['records' => count($spotPrices)], [
             function () use ($spotPrices): void {
                 $this->info('Spot prices fetched successfully! Processed '.count($spotPrices).' records.');
                 Log::info('Successfully fetched spot prices', ['count' => count($spotPrices)]);
-
-                $this->info('Calculating spot price averages...');
-                $this->averageService->calculateAllAverages();
                 $this->info('Averages calculated successfully.');
 
                 $this->info('Queueing contract price statistics page cache warm...');

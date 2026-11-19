@@ -41,7 +41,8 @@ class FetchSpotForecast extends Command
 
     /**
      * Execute the console command: fetch the feed into a payload file, then store from that file
-     * (StagedImport). Not date-bound (S9): a payload from earlier the same day is stored as it is.
+     * (StagedImport). Not date-bound (S9): a payload from earlier the same day is accepted; it
+     * adds its run row but leaves the display rows of a newer feed in place.
      */
     public function handle(): int
     {
@@ -67,7 +68,10 @@ class FetchSpotForecast extends Command
         return 'nordpool-predict-fi';
     }
 
-    /** Runs inside the StagedImport store transaction; the cache is forgotten after the commit. */
+    /**
+     * Runs inside the StagedImport store transaction. The display upsert is skipped when a newer
+     * feed is already stored; the cache is forgotten after the commit only when the display changed.
+     */
     private function store(ImportPayloadReader $payload): ImportStoreResult
     {
         $requests = iterator_to_array($payload->requests(), false);
@@ -85,37 +89,46 @@ class FetchSpotForecast extends Command
         if (empty($records)) {
             $this->warn('No forecast points fetched.');
 
-            return new ImportStoreResult(['records' => 0, 'runs_inserted' => 0]);
+            return new ImportStoreResult(['records' => 0, 'display_rows' => 0, 'runs_inserted' => 0]);
         }
 
         $now = now();
-        $upsertRows = array_map(function (array $record) use ($now) {
-            return array_merge($record, [
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]);
-        }, $records);
+        // The display table shows the latest stored feed: an older replay must not overwrite it.
+        $displayCurrent = ! $this->newerFeedStored($records[0]);
+        if ($displayCurrent) {
+            $upsertRows = array_map(function (array $record) use ($now) {
+                return array_merge($record, [
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]);
+            }, $records);
 
-        foreach (array_chunk($upsertRows, 500) as $chunk) {
-            SpotPriceForecast::upsert(
-                $chunk,
-                ['source', 'region', 'timestamp'],
-                [
-                    'utc_datetime',
-                    'price_with_tax',
-                    'vat_rate',
-                    'source_url',
-                    'fetched_at',
-                    'metadata',
-                    'updated_at',
-                ]
-            );
+            foreach (array_chunk($upsertRows, 500) as $chunk) {
+                SpotPriceForecast::upsert(
+                    $chunk,
+                    ['source', 'region', 'timestamp'],
+                    [
+                        'utc_datetime',
+                        'price_with_tax',
+                        'vat_rate',
+                        'source_url',
+                        'fetched_at',
+                        'metadata',
+                        'updated_at',
+                    ]
+                );
+            }
+        } else {
+            $this->warn('A newer forecast feed is already stored; only the append-only run is kept.');
         }
 
+        // The append-only vintage is kept for every feed, also an older one.
         $runsInserted = SpotPriceForecastRun::insertOrIgnore($this->runRow($records, $now));
 
-        return new ImportStoreResult(['records' => count($records), 'runs_inserted' => $runsInserted], [
-            fn () => Cache::forget('spot_price:forecast:nordpool_predict_fi:v1'),
+        $counts = ['records' => count($records), 'display_rows' => $displayCurrent ? count($records) : 0, 'runs_inserted' => $runsInserted];
+
+        return new ImportStoreResult($counts, [
+            ...($displayCurrent ? [fn () => Cache::forget('spot_price:forecast:nordpool_predict_fi:v1')] : []),
             function () use ($records): void {
                 $this->info('Spot price forecasts fetched successfully! Processed '.count($records).' records.');
                 Log::info('Successfully fetched spot price forecasts', [
@@ -124,6 +137,25 @@ class FetchSpotForecast extends Command
                 ]);
             },
         ]);
+    }
+
+    /**
+     * Whether a feed fetched after this payload is already stored for the same source and region:
+     * as a run row, or as display rows (an unchanged feed fetched again adds no run row but
+     * refreshes the display rows' fetched_at). Runs inside the store transaction.
+     *
+     * @param  array<string, mixed>  $record
+     */
+    private function newerFeedStored(array $record): bool
+    {
+        foreach ([SpotPriceForecastRun::query(), SpotPriceForecast::query()] as $query) {
+            if ($query->where('source', $record['source'])->where('region', $record['region'])
+                ->where('fetched_at', '>', $record['fetched_at'])->exists()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

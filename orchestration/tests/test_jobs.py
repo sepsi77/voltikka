@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 import sys
 import uuid
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -32,6 +33,7 @@ from voltikka_orchestration.jobs import (
 )
 from voltikka_orchestration.schedules import GROUPS, parse_args, schedules, select
 from voltikka_orchestration.settings import Settings
+from voltikka_orchestration.staged import RETENTION_DAYS, STORE_SCHEDULE_TO_CLOSE, payload_expired
 from voltikka_orchestration.worker import GRACEFUL_SHUTDOWN
 from voltikka_orchestration.worker import WORKFLOWS as PRODUCTION_WORKFLOWS
 
@@ -40,7 +42,9 @@ HELSINKI = ZoneInfo("Europe/Helsinki")
 WORKFLOWS = [ArtisanJob, MorningChain, EexFutures, ContractImport, ImportReplay]
 RETAIL = "retail-premiums:collect --scheduled"
 FORECAST = "forecasting:run-fixed-contracts --scheduled"
-PAYLOAD_PATH = "/app/storage/app/import-payloads/test/2026-11-19/run-1.ndjson.gz"
+# No date directory, so never expired: the session's time-skipping clock jumps by decades, and a store
+# never starts on a payload that cleanup could delete during it (staged.payload_expired; own tests).
+PAYLOAD_PATH = "/app/storage/app/import-payloads/test/run-1.ndjson.gz"
 SHA256 = "ab" * 32
 STORE_ARGS = f"--from-payload={PAYLOAD_PATH} --payload-sha256={SHA256}"
 
@@ -73,6 +77,7 @@ class FakeArtisan:
                  fetch_result=None, lost_once=()):
         self.calls: list[tuple[str, str]] = []
         self.requests: list[CommandRequest] = []
+        self.schedule_to_close: dict[str, timedelta | None] = {}
         # The `--fetch-only` result line (default: a valid reference); a fetch writes `running` (S11).
         self.fetch_result = fetch_result or fetched()
         # Commands whose first attempt is lost (a retryable activity failure, not a command failure).
@@ -110,6 +115,7 @@ class FakeArtisan:
         at = activity.info().current_attempt_scheduled_time.astimezone(HELSINKI).strftime("%H:%M")
         self.calls.append((name, at))
         self.requests.append(request)
+        self.schedule_to_close[name] = activity.info().schedule_to_close_timeout
         self.attempts[name] = self.attempts.get(name, 0) + 1
         if name in self.failing:
             # Retryable by itself: only the workflow retry policy may stop the retry.
@@ -546,7 +552,76 @@ async def test_a_failed_replay_store_fails_the_workflow_without_a_fetch(env):
         await execute(env, fake, ImportReplay.run, ImportReplayInput("jao:fetch", [], path, SHA256))
 
     assert failure.value.cause.type == "ReportedFailure"
-    assert len(fake.calls) == 1 and [r.reason for r in fake.reports] == ["command_failed"]
+    assert len(fake.calls) == 1
+    # The one Issue names the store and the payload, as for a scheduled staged step.
+    assert [(r.reason, r.facts) for r in fake.reports] == [("command_failed", {
+        "command": "jao:fetch", "error": "boom", "step": "store", "payload_path": path, "payload_sha256": SHA256})]
+
+
+# Retention (spec S6): cleanup never deletes a payload that an open run still stores. No reference
+# registry: every store ends within STORE_SCHEDULE_TO_CLOSE of being scheduled, and no store is
+# scheduled on a payload whose date directory could pass retention before then.
+
+CLEANUP = Path(__file__).resolve().parents[2] / "laravel" / "app" / "Services" / "ImportPayload" / "ImportPayloadCleanup.php"
+
+
+def test_retention_days_equal_the_php_cleanup():
+    assert re.search(r"const RETENTION_DAYS = (\d+);", CLEANUP.read_text()).group(1) == str(RETENTION_DAYS)
+    assert STORE_SCHEDULE_TO_CLOSE == timedelta(days=STORE_SCHEDULE_TO_CLOSE.days) >= timedelta(days=1)
+    assert STORE_SCHEDULE_TO_CLOSE.days < RETENTION_DAYS // 2
+
+
+def test_a_payload_expires_when_cleanup_could_delete_it_before_a_store_scheduled_today_ends():
+    today = date(2026, 11, 19)
+
+    def path(day: date) -> str:
+        return f"/app/storage/app/import-payloads/fingrid/{day.isoformat()}/run-1.ndjson.gz"
+
+    # A store scheduled today ends by tomorrow; tomorrow's cleanup deletes date directories before
+    # tomorrow - RETENTION_DAYS (ImportPayloadCleanup keeps `basename >= now - 14 days`).
+    oldest_kept_tomorrow = today + STORE_SCHEDULE_TO_CLOSE - timedelta(days=RETENTION_DAYS)
+    assert not payload_expired(path(oldest_kept_tomorrow), today)
+    assert payload_expired(path(oldest_kept_tomorrow - timedelta(days=1)), today)
+    assert not payload_expired(path(today), today)
+    assert not payload_expired("/manual/copy.ndjson.gz", today)  # outside the date directories of cleanup
+
+
+async def test_every_store_activity_ends_well_within_payload_retention(env):
+    fake = FakeArtisan()
+    await execute(env, fake, ArtisanJob.run, ArtisanJobInput("syke-fetch", [Step(["syke:fetch"], staged=True)]))
+    await execute(env, fake, ContractImport.run, MorningInput(await tomorrow(env)))
+    await execute(env, fake, ImportReplay.run, ImportReplayInput("jao:fetch", [], PAYLOAD_PATH, SHA256))
+
+    stores = {name: timeout for name, timeout in fake.schedule_to_close.items() if "--from-payload=" in name}
+    assert len(stores) == 3
+    assert all(timeout is not None and timeout <= STORE_SCHEDULE_TO_CLOSE for timeout in stores.values()), stores
+    assert STORE_SCHEDULE_TO_CLOSE < timedelta(days=RETENTION_DAYS)
+
+
+async def test_a_store_never_starts_on_an_expired_payload(env):
+    expired = "/app/storage/app/import-payloads/syke/2000-01-01/run-1.ndjson.gz"
+    fake = FakeArtisan(fetch_result=fetched(expired))
+
+    with pytest.raises(WorkflowFailureError):
+        await execute(env, fake, ArtisanJob.run, ArtisanJobInput("syke-fetch", [Step(["syke:fetch"], staged=True)]))
+
+    assert fake.names() == [fetch("syke:fetch")]
+    assert [(r.reason, r.facts) for r in fake.reports] == [("command_failed", {
+        "command": "syke:fetch", "error": "payload_expired", "step": "store", "payload_path": expired,
+        "payload_sha256": SHA256})]
+
+
+async def test_a_replay_of_an_expired_payload_is_refused_before_php(env):
+    expired = "/app/storage/app/import-payloads/jao/2000-01-01/run-1.ndjson.gz"
+    fake = FakeArtisan()
+
+    with pytest.raises(WorkflowFailureError) as failure:
+        await execute(env, fake, ImportReplay.run, ImportReplayInput("jao:fetch", [], expired, SHA256))
+
+    assert failure.value.cause.type == "ReportedFailure"
+    assert fake.calls == []
+    assert [(r.workflow, r.facts["error"], r.facts["step"]) for r in fake.reports] == [
+        ("ImportReplay", "payload_expired", "store")]
 
 
 @pytest.mark.parametrize("command", ["contracts:fetch", "futures:fetch-eex", "futures:fetch-eex-europe"])

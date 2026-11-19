@@ -43,7 +43,8 @@ scheduler would run its `contracts:complete-import`).
   chain `MorningChain` → children `EexFutures` and `ContractImport`; `ImportReplay` (manual store of
   a saved payload). Rules below.
 - `staged.py`: the staged-import contract shared by `jobs.py` and `s_forecast.py` (patch ID, fetch
-  and store args, payload reference parsing, payload date). See "Staged imports" below.
+  and store args, payload reference parsing, payload date, store options and payload expiry for
+  retention, failure facts). See "Staged imports" below.
 - `worker.py`: worker entrypoint (`python -m voltikka_orchestration.worker`). Logs go to stdout
   (Railway showed every stderr line as "error"; keep stdout).
 - `sentry.py`: Sentry init and `SentryInterceptor`. Any exception that leaves workflow code (a bug,
@@ -80,7 +81,9 @@ scheduler would run its `contracts:complete-import`).
 - Use `workflow.now()` and `workflow.sleep()`, never the system clock.
 - A failed input fetch inside `SDailyForecast` is a missing input, not a workflow error: the run
   ends with "no forecast" and one Sentry Issue. The model runs only when every input of both views
-  is ready (user decision 2026-11-06).
+  is ready (user decision 2026-11-06). Input fetches and stores (`FETCH_OPTIONS`) follow the job
+  retry rule: `CommandFailed` is non-retryable, a lost attempt repeats. The model commands
+  (`MODEL_OPTIONS`, `TRAIN_OPTIONS`) still retry a failed command.
 - `SForecastInput.require_cut_fetches=False` skips the two ENTSO-E outage-fetch proofs. Only for a
   manual check after the cuts; the Schedule never sets it.
 - `SWeeklyRefit` starts on Monday at 10:45 (`SRefitInput.run_date`, default today), runs
@@ -97,7 +100,8 @@ scheduler would run its `contracts:complete-import`).
 ## Rules for phase 2 jobs (`jobs.py`)
 
 - **No automatic retry of a failed command.** `run_command` raises `CommandFailed` for a non-zero
-  exit, and every job retry policy lists it as non-retryable (as with the Laravel scheduler). Only a
+  exit, and every job retry policy lists it as non-retryable (as with the Laravel scheduler), also
+  the S forecast input fetches and stores (`s_forecast.FETCH_OPTIONS`). Only a
   lost attempt is retried. Read-only readiness calls retry for up to 30 minutes (`READINESS_OPTIONS`), so a
   short database break does not end a morning; a longer one fails the run with one Issue. Social posting and the morning
   consumers use `max_attempts=1`.
@@ -161,7 +165,10 @@ The PHP side (`StagedImport`, payload format, retention) is in
   data args, because PHP compares them with the payload header. Only `path` and `sha256` of the
   fetch's last JSON line reach the store; the payload never passes through Temporal.
 - **Retry rules stay** (S13): a failed fetch skips the store; a failed store never starts a new
-  fetch. A lost attempt repeats the same activity (a lost store repeats the store). A fetch result
+  fetch. A failed command runs once (`CommandFailed` is non-retryable in `step_options()` and
+  `s_forecast.FETCH_OPTIONS`). A lost attempt repeats the same activity (a lost store repeats the
+  store). Test fakes raise `CommandFailed` retryable, as `run_command` does, so only the workflow
+  policy stops a retry. A fetch result
   without a valid reference (`status` `fetched`, `payload.path`, 64-hex `payload.sha256`) fails the
   step with `fetch_result_invalid` and one Issue, also for a self-reporting command (it printed no
   reference, so it reported nothing). `{"status": "skipped"}` (for example `gas-storage:fetch
@@ -171,9 +178,23 @@ The PHP side (`StagedImport`, payload format, retention) is in
   interruptible and has a timeout of at most `STORE_TIMEOUT_MINUTES` (60), below the 65-minute
   drain; `test_claim_based_steps_finish_during_a_deploy_drain` checks it.
 - **Issues and outcomes:** `self_reports` holds for both activities (the PHP command reports its own
-  fetch and store failures). A workflow Issue for a staged step names `step` (`fetch` or `store`)
-  and, for a store, `payload_path`/`payload_sha256` for a replay. One `StepOutcome` per step: its
+  fetch and store failures). A workflow Issue for a staged step names `command`, `error`, `step`
+  (`fetch` or `store`) and, for a store, `payload_path`/`payload_sha256` for a replay
+  (`staged.failure_facts()`). The same facts go into the one existing Issue of `SDailyForecast`
+  (`inputs_missing`, or `deadline_missed` after a failed `fingrid:fetch`), `SWeeklyRefit`
+  (`refit_failed`) and `ImportReplay`; no extra Issue. One `StepOutcome` per step: its
   `result` is the store's JSON line; a failed store keeps `{"payload": {path, sha256}}`.
+- **Retention** (S6; manager decision 2026-11-19, no reference registry): `ImportPayloadCleanup`
+  deletes a payload when its Helsinki date directory is more than `staged.RETENTION_DAYS` (14) days
+  old; a test keeps the two values equal. An open run never uses a deleted file, because (1) every
+  store activity (staged steps, S inputs, `ImportReplay`) has a schedule-to-close of at most
+  `STORE_SCHEDULE_TO_CLOSE` (1 day; `store_options()`), so a store that cannot start and end within
+  a day fails as a timed-out store with one Issue and its payload stays for the operator, and (2)
+  no store is scheduled on a payload whose date directory could pass retention before that bound
+  ends (`payload_expired()`: older than today − 13 days). Such a step fails with
+  `payload_expired` and one Issue before PHP starts. (2) covers a store scheduled late because the
+  worker was down after its fetch, and a hand-started `ImportReplay` of an old file. A path outside
+  the date directories (`/manual/copy.ndjson.gz`) is outside cleanup and never expires.
 - **Payload volume** (S12): Temporal does not guarantee that the fetch and its store run on the
   same worker. Every container that polls the task queue must mount the `voltikka-storage` volume
   on `/app/storage` (today one worker; the web role mounts it too and can read the files). A new
@@ -218,6 +239,7 @@ temporal workflow start --type ImportReplay --task-queue voltikka-main --workflo
 
 `import-payloads:cleanup --apply` runs daily at 03:20 Helsinki as the maintenance job
 `import-payloads-cleanup` (and in `laravel/routes/console.php` while maintenance is not on Temporal).
+Its safety against open runs is the "Retention" rule above, not a check in the cleanup.
 Applying the new Schedule is part of `schedules.py --apply --group maintenance` (approval needed).
 
 ## S model command

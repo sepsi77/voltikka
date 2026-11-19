@@ -73,7 +73,7 @@ class JaoNordicPublicationService
      *
      * @throws RuntimeException
      */
-    public static function parse(string $body): array
+    public function parse(string $body): array
     {
         $payload = json_decode($body, true);
         if (! is_array($payload) || ! is_array($payload['data'] ?? null)) {

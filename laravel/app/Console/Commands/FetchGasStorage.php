@@ -69,7 +69,7 @@ class FetchGasStorage extends Command
         if ($unknown !== []) {
             $this->error('Unknown area(s): '.implode(', ', $unknown));
 
-            return Command::FAILURE;
+            return $this->stagedFailure('fetch', 'invalid_options');
         }
 
         try {
@@ -82,13 +82,13 @@ class FetchGasStorage extends Command
         } catch (Throwable) {
             $this->error('Invalid date. Use YYYY-MM-DD.');
 
-            return Command::FAILURE;
+            return $this->stagedFailure('fetch', 'invalid_options');
         }
 
         if ($from->greaterThan($to)) {
             $this->error('--from must not be after --to.');
 
-            return Command::FAILURE;
+            return $this->stagedFailure('fetch', 'invalid_options');
         }
 
         $areas = $requested !== [] ? $requested : array_keys($configured);

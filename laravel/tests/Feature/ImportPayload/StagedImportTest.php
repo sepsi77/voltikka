@@ -3,6 +3,7 @@
 namespace Tests\Feature\ImportPayload;
 
 use App\Console\Concerns\StagedImport;
+use App\Services\ImportPayload\ImportFetchFailed;
 use App\Services\ImportPayload\ImportPayloadInvalid;
 use App\Services\ImportPayload\ImportPayloadReader;
 use App\Services\ImportPayload\ImportPayloadWriter;
@@ -51,7 +52,7 @@ class StagedImportTest extends TestCase
         $this->assertSame(0, Artisan::call('staged:probe'));
         $line = $this->lastJsonLine();
 
-        $this->assertSame(['status', 'step', 'payload', 'complete', 'counts'], array_keys($line));
+        $this->assertEqualsCanonicalizing(['status', 'step', 'payload', 'complete', 'counts'], array_keys($line));
         $this->assertSame(['stored', 'store', true, ['rows' => 2]], [$line['status'], $line['step'], $line['complete'], $line['counts']]);
         $this->assertFileExists($line['payload']['path']);
         $this->assertSame(hash_file('sha256', $line['payload']['path']), $line['payload']['sha256']);
@@ -67,7 +68,7 @@ class StagedImportTest extends TestCase
         $this->assertSame(0, Artisan::call('staged:probe', ['--fetch-only' => true]));
         $fetched = $this->lastJsonLine();
         $this->assertSame(['fetched', 'fetch'], [$fetched['status'], $fetched['step']]);
-        $this->assertSame(['path', 'sha256', 'size', 'fetched_at', 'source', 'run_id', 'requests', 'failed_units', 'complete'], array_keys($fetched['payload']));
+        $this->assertEqualsCanonicalizing(['path', 'sha256', 'size', 'fetched_at', 'source', 'run_id', 'requests', 'failed_units', 'complete'], array_keys($fetched['payload']));
         $this->assertSame(['2026-11-19T06:00:00Z', 'probe', 1, 0, true], [
             $fetched['payload']['fetched_at'], $fetched['payload']['source'], $fetched['payload']['requests'],
             $fetched['payload']['failed_units'], $fetched['payload']['complete'],
@@ -133,6 +134,35 @@ class StagedImportTest extends TestCase
         Log::shouldHaveReceived('error')->once()->with('Import failed: staged:probe', [
             'command' => 'staged:probe', 'step' => 'fetch', 'error' => 'fetch_failed',
             'exception_class' => RequestException::class,
+        ]);
+    }
+
+    public function test_a_fetch_failed_after_recording_keeps_its_payload_and_reports_the_fetch_step(): void
+    {
+        Log::spy();
+        Http::fake([self::URL.'*' => Http::response('{"error":"down"}', 503)]);
+        StagedProbeCommand::$allFailed = true;
+
+        $this->assertSame(1, Artisan::call('staged:probe'));
+
+        $payloads = glob(config('import_payloads.path').'/probe/2026-11-19/*.ndjson.gz');
+        $this->assertCount(1, $payloads, 'The recorded error responses stay for diagnosis.');
+        $sha256 = hash_file('sha256', $payloads[0]);
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'fetch', 'error' => 'fetch_failed', 'reason' => 'all_failed',
+            'payload_path' => $payloads[0], 'payload_sha256' => $sha256,
+        ], $this->lastJsonLine());
+        $this->assertSame($sha256, trim(file_get_contents(str_replace('.ndjson.gz', '.sha256', $payloads[0]))));
+        $reader = ImportPayloadReader::open($payloads[0]);
+        $requests = iterator_to_array($reader->requests(), false);
+        $this->assertSame([503, '{"error":"down"}'], [$requests[0]['status'], ImportPayloadReader::body($requests[0])]);
+        $this->assertSame(['failed' => 1], $reader->end()['facts']);
+        $this->assertFalse($reader->complete());
+        $this->assertSame([], $this->rows());
+        Log::shouldHaveReceived('error')->once()->with('Import failed: staged:probe', [
+            'command' => 'staged:probe', 'step' => 'fetch', 'error' => 'fetch_failed',
+            'exception_class' => ImportFetchFailed::class,
+            'reason' => 'all_failed', 'payload_path' => $payloads[0], 'payload_sha256' => $sha256,
         ]);
     }
 
@@ -207,6 +237,8 @@ class StagedProbeCommand extends Command
 
     public static bool $refuseDate = false;
 
+    public static bool $allFailed = false;
+
     /** @var list<int> */
     public static array $afterCommitLevels = [];
 
@@ -217,7 +249,7 @@ class StagedProbeCommand extends Command
     public static function reset(): void
     {
         self::$duplicateRow = self::$resultError = null;
-        self::$refuseDate = false;
+        self::$refuseDate = self::$allFailed = false;
         self::$afterCommitLevels = [];
         self::$storeTransactionLevel = 0;
     }
@@ -226,6 +258,11 @@ class StagedProbeCommand extends Command
     {
         return $this->runStaged(
             function (ImportPayloadWriter $payload): void {
+                if (self::$allFailed) {
+                    $payload->record(['page' => 1], Http::get('https://probe.test/rows'), failed: true);
+
+                    throw ImportFetchFailed::because('all_failed', ['failed' => 1]);
+                }
                 $payload->record(['page' => 1], Http::get('https://probe.test/rows', ['api_key' => 'probe-key'])->throw());
             },
             function (ImportPayloadReader $payload): ImportStoreResult {

@@ -167,7 +167,7 @@ class FetchSpotForecastCommandTest extends TestCase
         $defaultRows = $this->storedRows();
         $line = $this->lastJsonLine();
         $this->assertSame('stored', $line['status']);
-        $this->assertSame(['records' => 2, 'runs_inserted' => 1], $line['counts']);
+        $this->assertSame(['records' => 2, 'display_rows' => 2, 'runs_inserted' => 1], $line['counts']);
 
         SpotPriceForecast::query()->delete();
         SpotPriceForecastRun::query()->delete();
@@ -252,31 +252,88 @@ class FetchSpotForecastCommandTest extends TestCase
     }
 
     /**
-     * S9: this source is not date-bound. An older payload from the same day is accepted. Its run
-     * row already exists (unique feed hash), so the replay inserts no run; the display table takes
-     * the replayed values until the next scheduled fetch, as a manual replay is meant to.
+     * S9: this source is not date-bound, and an older payload from the same day is accepted. A
+     * replay of a payload whose store failed archives its vintage in the append-only run table,
+     * but the display table, the page and its cache keep the newer feed (11 c/kWh, not 8).
      */
-    public function test_an_older_same_day_payload_is_accepted_and_adds_no_run_row(): void
+    public function test_an_older_same_day_payload_archives_its_run_and_keeps_the_newer_display(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-11-19 04:00:00', 'UTC'));
         $this->fakeFeed([[1, 8.0]]);
-        Artisan::call('spot:fetch-forecast');
+        $this->assertSame(0, Artisan::call('spot:fetch-forecast', ['--fetch-only' => true]));
         $older = $this->lastJsonLine()['payload']['path'];
 
         Carbon::setTestNow(Carbon::parse('2026-11-19 10:00:00', 'UTC'));
-        $this->fakeFeed([[1, 11.0]]);
-        Artisan::call('spot:fetch-forecast');
-        $this->assertSame(2, SpotPriceForecastRun::count());
+        $this->fakeFeed([[1, 11.0], [2, 12.0]]);
+        $this->assertSame(0, Artisan::call('spot:fetch-forecast'));
+        $display = $this->storedRows()[0];
+        $page = $this->forecastOnPage();
+        $this->assertSame([11.0, 12.0], $page[0]);
 
         Carbon::setTestNow(Carbon::parse('2026-11-19 12:00:00', 'UTC'));
+        Cache::put('spot_price:forecast:nordpool_predict_fi:v1', 'cached page data');
         Http::preventStrayRequests();
+        Http::swap(new Factory);
+        Http::fake();
         $this->assertSame(0, Artisan::call('spot:fetch-forecast', ['--from-payload' => $older]));
+        Http::assertNothingSent();
 
-        $this->assertSame(['records' => 1, 'runs_inserted' => 0], $this->lastJsonLine()['counts']);
-        $this->assertSame(2, SpotPriceForecastRun::count());
-        $forecast = SpotPriceForecast::query()->sole();
-        $this->assertEquals(8.0, $forecast->price_with_tax);
-        $this->assertSame('2026-11-19 04:00:00', DB::table('spot_price_forecasts')->value('fetched_at'));
+        $this->assertSame(['records' => 1, 'display_rows' => 0, 'runs_inserted' => 1], $this->lastJsonLine()['counts']);
+        $this->assertSame($display, $this->storedRows()[0], 'The newer display rows, including its trailing hour, stay.');
+        $this->assertSame(['2026-11-19 10:00:00'], DB::table('spot_price_forecasts')->distinct()->pluck('fetched_at')->all());
+        $runs = SpotPriceForecastRun::query()->orderBy('fetched_at')->get();
+        $this->assertCount(2, $runs);
+        $this->assertSame('2026-11-19 04:00:00', DB::table('spot_price_forecast_runs')->orderBy('fetched_at')->value('fetched_at'), 'The older vintage keeps its fetch time.');
+        $this->assertEquals([[Carbon::parse('2026-11-20 01:00:00', 'UTC')->timestamp, 8.0]], $runs[0]->points);
+        $this->assertSame('cached page data', Cache::get('spot_price:forecast:nordpool_predict_fi:v1'), 'The display did not change, so its cache stays.');
+
+        $this->assertSame($page, $this->forecastOnPage(), 'The page shows the newer values and update time.');
+    }
+
+    /**
+     * A feed that returns unchanged adds no run row (unique feed hash) but refreshes the display
+     * rows' fetch time, so a replay of a payload fetched between the two still counts as older.
+     */
+    public function test_a_replay_older_than_a_refetched_unchanged_feed_keeps_the_display(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-11-19 04:00:00', 'UTC'));
+        $this->fakeFeed([[1, 11.0]]);
+        $this->assertSame(0, Artisan::call('spot:fetch-forecast'));
+
+        Carbon::setTestNow(Carbon::parse('2026-11-19 06:00:00', 'UTC'));
+        $this->fakeFeed([[1, 8.0]]);
+        $this->assertSame(0, Artisan::call('spot:fetch-forecast'));
+        $between = $this->lastJsonLine()['payload']['path'];
+
+        Carbon::setTestNow(Carbon::parse('2026-11-19 10:00:00', 'UTC'));
+        $this->fakeFeed([[1, 11.0]]);
+        $this->assertSame(0, Artisan::call('spot:fetch-forecast'));
+        $this->assertSame(['records' => 1, 'display_rows' => 1, 'runs_inserted' => 0], $this->lastJsonLine()['counts']);
+
+        Http::preventStrayRequests();
+        Http::swap(new Factory);
+        Http::fake();
+        $this->assertSame(0, Artisan::call('spot:fetch-forecast', ['--from-payload' => $between]));
+
+        $this->assertSame(['records' => 1, 'display_rows' => 0, 'runs_inserted' => 0], $this->lastJsonLine()['counts']);
+        $this->assertEquals(11.0, SpotPriceForecast::query()->sole()->price_with_tax);
+        $this->assertSame('2026-11-19 10:00:00', DB::table('spot_price_forecasts')->value('fetched_at'));
+    }
+
+    /**
+     * The forecast prices and update label that /spot-price renders, read without its cache.
+     *
+     * @return array{0: list<float>, 1: string|null}
+     */
+    private function forecastOnPage(): array
+    {
+        Cache::flush();
+        $component = Livewire::test(SpotPrice::class);
+
+        return [
+            array_column($component->viewData('forecastPricesGroupedByDate')[0]['prices'], 'price_with_vat'),
+            $component->viewData('forecastSource')['fetched_at'],
+        ];
     }
 
     /** @param list<array{0: int, 1: float}> $hourPrices  hour offsets from 2026-11-20 00:00 UTC */

@@ -9,6 +9,7 @@ use App\Services\ImportPayload\ImportStoreResult;
 use App\Services\Nve\NveReservoirImporter;
 use App\Services\Nve\NveReservoirService;
 use Illuminate\Console\Command;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -21,9 +22,10 @@ use Throwable;
  * NveReservoirImporter). The two units are independent where possible; a failed unit makes the
  * run exit 1. Read-only towards NVE; upserts locally.
  *
- * Staged import (StagedImport): the fetch step records both responses and fixes the ISO
+ * Staged import (StagedImport): the fetch step records both responses unparsed and fixes the ISO
  * `current_year` and `from_year` in the header (S5); the store step parses both and writes
- * weeks and reference in one transaction. Not date-bound (S9).
+ * weeks and reference in one transaction, so a body the parser rejects can be stored from the
+ * same file after a parser fix. Not date-bound (S9).
  */
 class FetchNveReservoirs extends Command
 {
@@ -49,7 +51,7 @@ class FetchNveReservoirs extends Command
         if ($this->option('from-year') !== null && ! ctype_digit((string) $this->option('from-year'))) {
             $this->error('Invalid --from-year. Use YYYY.');
 
-            return Command::FAILURE;
+            return $this->stagedFailure('fetch', 'invalid_options');
         }
 
         return $this->runStaged(
@@ -86,13 +88,8 @@ class FetchNveReservoirs extends Command
                 continue;
             }
 
-            try {
-                NveReservoirService::parse($endpoint, $response->body());
-                $payload->record($unit, $response);
-            } catch (Throwable $e) {
-                $payload->record($unit, $response, failed: true);
-                $this->reportFailure($dataset, $e);
-            }
+            // Not parsed here: the store step owns the parser, so a parser fix can replay this body.
+            $payload->record($unit, $response);
         }
     }
 
@@ -102,11 +99,19 @@ class FetchNveReservoirs extends Command
         $failedUnits = $payload->end()['failed_units'];
         $currentYear = (int) $payload->fact('current_year');
         $parsed = [];
+        $unusable = 0;
 
         foreach ($payload->requests() as $request) {
             $dataset = (string) $request['unit']['dataset'];
-            if (! in_array($request['unit'], $failedUnits, true)) {
-                $parsed[$dataset] = NveReservoirService::parse(self::UNITS[$dataset], (string) ImportPayloadReader::body($request));
+            if (in_array($request['unit'], $failedUnits, true)) {
+                continue;
+            }
+            try {
+                $parsed[$dataset] = $this->client->parse(self::UNITS[$dataset], (string) ImportPayloadReader::body($request));
+            } catch (RuntimeException $e) {
+                // An unexpected body fails only its unit and stays in the file for a later replay.
+                $unusable++;
+                $this->reportFailure($dataset, $e);
             }
         }
 
@@ -135,7 +140,7 @@ class FetchNveReservoirs extends Command
         }
 
         [$error, $step] = match (true) {
-            $failedUnits !== [] => ['fetch_incomplete', 'fetch'],
+            $failedUnits !== [] || $unusable > 0 => ['fetch_incomplete', 'fetch'],
             $unproved => ['reference_period_unproved', 'store'],
             default => [null, 'store'],
         };

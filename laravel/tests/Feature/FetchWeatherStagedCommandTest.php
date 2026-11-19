@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Services\ImportPayload\ImportPayloadReader;
 use Carbon\Carbon;
+use GuzzleHttp\Promise\PromiseInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Client\Request;
@@ -58,6 +59,9 @@ class FetchWeatherStagedCommandTest extends TestCase
             'solar_ghi' => [['--only' => ['solar_ghi'], '--point' => ['101004', '100968']], 'hourly_forecast_runs'],
             'ecmwf_00z' => [['--only' => ['ecmwf_00z'], '--point' => ['101004', 'ee01_hiiumaa']], 'hourly_forecast_runs'],
             'ecmwf_prev_day1' => [['--only' => ['ecmwf_prev_day1']], 'hourly_forecast_runs'],
+            // Weekly and monthly outlooks (Seasonal API): one model each, the same endpoint.
+            'ecmwf_ec46' => [['--only' => ['ecmwf_ec46']], 'weather_outlook_runs'],
+            'ecmwf_seas5' => [['--only' => ['ecmwf_seas5']], 'weather_outlook_runs'],
         ];
     }
 
@@ -98,6 +102,17 @@ class FetchWeatherStagedCommandTest extends TestCase
             default => [],
         };
         $this->assertSame($expectedIssuedAt, $issuedAt);
+
+        // Outlook vintages keep their product, model, own model run time and member count.
+        $outlooks = DB::table('weather_outlook_runs')->orderBy('point')->get()
+            ->map(fn ($run) => [$run->product, $run->model, $run->point, $run->model_run_at, $run->day_count, $run->member_count])->all();
+        $expectedOutlooks = match ($options['--only'][0] ?? null) {
+            'ecmwf_ec46' => [['ecmwf_ec46', 'ecmwf_ec46', 'helsinki', '2026-10-31 00:00:00', 46, 4], ['ecmwf_ec46', 'ecmwf_ec46', 'turku', '2026-10-31 00:00:00', 46, 4]],
+            'ecmwf_seas5' => [['ecmwf_seas5', 'ecmwf_seas5', 'helsinki', '2026-10-01 00:00:00', 183, 4], ['ecmwf_seas5', 'ecmwf_seas5', 'turku', '2026-10-01 00:00:00', 183, 4]],
+            null => [['ecmwf_ens', 'ecmwf_ifs025', 'helsinki', '2026-11-01 00:00:00', 2, 3], ['ecmwf_ens', 'ecmwf_ifs025', 'turku', '2026-11-01 00:00:00', 2, 3]],
+            default => [],
+        };
+        $this->assertSame($expectedOutlooks, $outlooks);
     }
 
     /** @param array<string, mixed> $options */
@@ -295,8 +310,10 @@ class FetchWeatherStagedCommandTest extends TestCase
 
     private function fakeApi(float $value = self::SENTINEL, ?string $failLatitude = null, int $runAt = 1793491200): void
     {
+        // Seasonal API metadata: EC46 runs daily (2026-10-31 00Z), SEAS5 monthly (2026-10-01 00Z).
+        $seasonalRunAt = ['ecmwf_ec46' => 1793404800, 'ecmwf_seas5' => 1790812800];
         Http::swap(new Factory);
-        Http::fake(function (Request $request) use ($value, $failLatitude, $runAt) {
+        Http::fake(function (Request $request) use ($value, $failLatitude, $runAt, $seasonalRunAt) {
             $url = $request->url();
             parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
             if ($failLatitude !== null && ($query['latitude'] ?? null) === $failLatitude) {
@@ -304,7 +321,9 @@ class FetchWeatherStagedCommandTest extends TestCase
             }
 
             return match (true) {
+                str_contains($url, 'seasonal-api') && str_contains($url, '/data/') => Http::response(['last_run_initialisation_time' => $seasonalRunAt[explode('/', (string) parse_url($url, PHP_URL_PATH))[2]]]),
                 str_contains($url, '/data/') => Http::response(['last_run_initialisation_time' => $runAt]),
+                str_contains($url, 'seasonal-api') => $this->seasonalResponse($query, $value),
                 str_contains($url, 'archive-api') && isset($query['hourly']) => Http::response($this->hourlyPayload(config('open_meteo.observed_hourly_variables'), 3, $value)),
                 str_contains($url, 'archive-api') => Http::response($this->dailyPayload(config('open_meteo.observed_variables'), [$query['start_date'], $query['end_date']], $value)),
                 str_contains($url, 'ensemble-api') => Http::response($this->dailyPayload(config('open_meteo.outlooks.ecmwf_ens.variables'), ['2026-11-01', '2026-11-02'], $value, 2)),
@@ -314,6 +333,29 @@ class FetchWeatherStagedCommandTest extends TestCase
                 default => Http::response('unexpected', 500),
             };
         });
+    }
+
+    /**
+     * The Seasonal API answer of one model: control + 3 members per variable, as the real API
+     * (control key without a suffix, then "_memberNN"). A request whose model, variables, length
+     * or wind unit differs from the configured product gets an error answer, so the scenario fails.
+     *
+     * @param  array<string, mixed>  $query
+     */
+    private function seasonalResponse(array $query, float $value): PromiseInterface
+    {
+        $product = config('open_meteo.outlooks.'.($query['models'] ?? ''));
+        if (! is_array($product)
+            || $product['url'] !== 'https://seasonal-api.open-meteo.com/v1/seasonal'
+            || $query['daily'] !== implode(',', $product['variables'])
+            || (int) $query['forecast_days'] !== $product['forecast_days']
+            || $query['wind_speed_unit'] !== 'ms'
+            || $query['timezone'] !== 'Europe/Helsinki') {
+            return Http::response(['error' => true, 'reason' => 'unexpected seasonal request'], 400);
+        }
+        $dates = array_map(fn ($d) => Carbon::create(2026, 11, 1)->addDays($d)->toDateString(), range(0, $product['forecast_days'] - 1));
+
+        return Http::response($this->dailyPayload($product['variables'], $dates, $value, 3));
     }
 
     /**

@@ -2,7 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Services\ImportPayload\ImportPayloadReader;
+use App\Services\Jao\JaoNordicPublicationService;
 use Carbon\Carbon;
+use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Support\Facades\Artisan;
@@ -121,9 +124,12 @@ class FetchJaoMaxBorderFlowsCommandTest extends TestCase
     {
         Http::fake();
 
-        $this->artisan('jao:fetch --from=2026-13-01')->assertExitCode(1);
-        $this->artisan('jao:fetch --from=2026-11-05')->assertExitCode(1);
+        foreach (['2026-13-01', '2026-11-05'] as $from) {
+            $this->assertSame(1, Artisan::call('jao:fetch', ['--from' => $from]));
+            $this->assertSame(['status' => 'failed', 'step' => 'fetch', 'error' => 'invalid_options'], $this->lastJsonLine());
+        }
         Http::assertNothingSent();
+        $this->assertSame([], glob(config('import_payloads.path').'/jao/*'));
     }
 
     public function test_default_mode_and_fetch_only_then_from_payload_write_the_same_rows(): void
@@ -188,24 +194,54 @@ class FetchJaoMaxBorderFlowsCommandTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_a_failed_window_is_recorded_and_the_store_keeps_the_others(): void
+    public function test_a_rejected_body_stays_in_the_payload_and_a_corrected_parser_stores_it_without_http(): void
     {
         Http::fakeSequence('publicationtool.jao.eu/*')
             ->push(['data' => [$this->mtu('2026-10-01T00:00:00Z', 1800.0)]])
             ->push(['title' => 'boom'], 500)
             ->push(['title' => 'boom'], 500)
             ->push(['title' => 'boom'], 500)
-            ->push(['unexpected' => true]);
+            // A changed envelope that today's parser rejects.
+            ->push(['rows' => [$this->mtu('2026-10-05T00:00:00Z', 1700.0)]]);
+        $options = ['--from' => '2026-10-01', '--to' => '2026-10-06'];
 
-        $this->assertSame(0, Artisan::call('jao:fetch', ['--from' => '2026-10-01', '--to' => '2026-10-06', '--fetch-only' => true]));
+        // Only the transport failure is a failed unit; the answered body is kept unparsed.
+        $this->assertSame(0, Artisan::call('jao:fetch', [...$options, '--fetch-only' => true]));
         $reference = $this->lastJsonLine()['payload'];
-        $this->assertSame([3, 2, false], [$reference['requests'], $reference['failed_units'], $reference['complete']]);
+        $this->assertSame([3, 1, false], [$reference['requests'], $reference['failed_units'], $reference['complete']]);
+        $saved = collect(ImportPayloadReader::open($reference['path'])->requests())->firstWhere('unit.from', '2026-10-05T00:00:00Z');
+        $this->assertSame(200, $saved['status']);
+        $this->assertStringContainsString('"rows"', ImportPayloadReader::body($saved));
 
-        $this->assertSame(1, Artisan::call('jao:fetch', ['--from' => '2026-10-01', '--to' => '2026-10-06', '--from-payload' => $reference['path']]));
+        // The current parser rejects that window in the store step and writes none of its rows.
+        $this->assertSame(1, Artisan::call('jao:fetch', [...$options, '--from-payload' => $reference['path']]));
         $line = $this->lastJsonLine();
         $this->assertSame(['failed', 'fetch', 'fetch_incomplete'], [$line['status'], $line['step'], $line['error']]);
         $this->assertSame(['hourly_rows' => 8, 'failed_windows' => 2], $line['counts']);
         $this->assertSame(['2026-10-01 00:00:00'], DB::table('jao_max_border_flows')->where('border', 'SE1_FI')->pluck('utc_datetime')->all());
+
+        // After a parser fix, the same file stores the window without a new request.
+        $this->app->instance(JaoNordicPublicationService::class, new class extends JaoNordicPublicationService
+        {
+            public function parse(string $body): array
+            {
+                $rows = json_decode($body, true)['rows'] ?? null;
+
+                return is_array($rows) ? $rows : parent::parse($body);
+            }
+        });
+        $this->app[Kernel::class]->setArtisan(null); // resolve the command again with the fixed parser
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        $this->assertSame(1, Artisan::call('jao:fetch', [...$options, '--from-payload' => $reference['path']]));
+        Http::assertNothingSent();
+        $line = $this->lastJsonLine();
+        $this->assertSame(['failed', 'fetch', 'fetch_incomplete'], [$line['status'], $line['step'], $line['error']]);
+        $this->assertSame(['hourly_rows' => 16, 'failed_windows' => 1], $line['counts']);
+        $this->assertSame(
+            ['2026-10-01 00:00:00', '2026-10-05 00:00:00'],
+            DB::table('jao_max_border_flows')->where('border', 'SE1_FI')->orderBy('timestamp')->pluck('utc_datetime')->all()
+        );
     }
 
     /**

@@ -135,10 +135,16 @@ class FetchSykeHydrologyCommandTest extends TestCase
     {
         Http::fake();
 
-        $this->artisan('syke:fetch --series=runoff')->assertExitCode(1);
-        $this->artisan('syke:fetch --from=2026-13-01')->assertExitCode(1);
-        $this->artisan('syke:fetch --from=2026-10-02 --to=2026-10-01')->assertExitCode(1);
+        foreach ([
+            ['--series' => ['runoff']],
+            ['--from' => '2026-13-01'],
+            ['--from' => '2026-10-02', '--to' => '2026-10-01'],
+        ] as $options) {
+            $this->assertSame(1, Artisan::call('syke:fetch', $options));
+            $this->assertSame(['status' => 'failed', 'step' => 'fetch', 'error' => 'invalid_options'], $this->lastJsonLine());
+        }
         Http::assertNothingSent();
+        $this->assertSame([], glob(config('import_payloads.path').'/syke/*'));
     }
 
     public function test_default_mode_and_fetch_only_then_from_payload_write_the_same_rows(): void

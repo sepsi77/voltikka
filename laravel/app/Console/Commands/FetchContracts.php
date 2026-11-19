@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Console\Concerns\StagedImport;
 use App\Models\Company;
+use App\Models\ContractSourceObservation;
 use App\Models\DataFreshnessCheckpoint;
 use App\Models\Postcode;
 use App\Services\AzureConsumerApiClient;
@@ -12,12 +13,14 @@ use App\Services\ContractImport\ContractAcquisitionResult;
 use App\Services\ContractImport\ContractImportCompletion;
 use App\Services\ContractImport\ContractImporter;
 use App\Services\ContractImport\ContractPostImportCoordinator;
+use App\Services\ImportPayload\ImportFetchFailed;
 use App\Services\ImportPayload\ImportPayloadInvalid;
 use App\Services\ImportPayload\ImportPayloadReader;
 use App\Services\ImportPayload\ImportPayloadWriter;
 use App\Services\ImportPayload\ImportStoreResult;
 use App\Support\DataFetchFailureReporter;
 use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
@@ -167,7 +170,8 @@ class FetchContracts extends Command
                     $this->recordFullScopeCheckpoint($fullScope, $date, DataFreshnessCheckpoint::STATUS_FAILED, ['stage' => 'acquisition']);
                     $this->failureRecorded = true;
 
-                    throw $exception;
+                    // The trait keeps the payload with every error body (design 7a), then fails the fetch.
+                    throw ImportFetchFailed::because('all_failed', ['failed_postcodes' => $failedPostcodes], $exception);
                 }
             }
         }
@@ -189,6 +193,7 @@ class FetchContracts extends Command
         if ($date !== Carbon::now('Europe/Helsinki')->toDateString()) {
             throw ImportPayloadInvalid::because('wrong_date');
         }
+        $this->refuseSupersededPayload($payload->fetchedAt());
         $fullScope = $this->option('postcodes') === null;
 
         // A replay of a saved payload owns the checkpoint from here on, with its own run UUID.
@@ -258,7 +263,8 @@ class FetchContracts extends Command
             $import->replacementStats['skipped_not_high'],
         ));
 
-        if (! $this->option('skip-logos')) {
+        // Logo downloads are default-mode work: a store from a saved payload makes no HTTP call (S7).
+        if (! $this->option('skip-logos') && $this->option('from-payload') === null) {
             $this->syncCompanyLogos($import->companyNames);
         }
 
@@ -323,6 +329,23 @@ class FetchContracts extends Command
         }
 
         return new ImportStoreResult($counts);
+    }
+
+    /**
+     * An older payload must not roll newer seller evidence back: the import would move source
+     * pointers, availability and today's prices to the older fetch. Refused before any write when
+     * the newest accepted observation is later than the payload's fetch time; an equal time is
+     * the same payload stored again and stays idempotent. The importer has no global lock (it
+     * locks only the rows of the contracts it imports), so the check runs here, immediately before
+     * the replay's checkpoint takeover and the import transaction.
+     */
+    private function refuseSupersededPayload(CarbonInterface $fetchedAt): void
+    {
+        // Stored as wall time in the application timezone (ContractImporter::import()).
+        $newest = ContractSourceObservation::query()->max('last_observed_at');
+        if ($newest !== null && Carbon::parse($newest, config('app.timezone'))->gt($fetchedAt)) {
+            throw ImportPayloadInvalid::because('superseded');
+        }
     }
 
     /** @return list<string> */

@@ -397,12 +397,18 @@ XML;
     {
         Http::fake();
 
-        $this->artisan('fmi:fetch --only=snow')->assertExitCode(1);
-        $this->artisan('fmi:fetch --only=forecast --from=2026-10-01')->assertExitCode(1);
-        $this->artisan('fmi:fetch --from=2026-13-01')->assertExitCode(1);
-        $this->artisan('fmi:fetch --from=2026-10-01 --to=2026-02-30')->assertExitCode(1);
+        foreach ([
+            ['--only' => ['snow']],
+            ['--only' => ['forecast'], '--from' => '2026-10-01'],
+            ['--from' => '2026-13-01'],
+            ['--from' => '2026-10-01', '--to' => '2026-02-30'],
+        ] as $options) {
+            $this->assertSame(1, Artisan::call('fmi:fetch', $options));
+            $this->assertSame(['status' => 'failed', 'step' => 'fetch', 'error' => 'invalid_options'], $this->lastJsonLine());
+        }
 
         Http::assertNothingSent();
+        $this->assertSame([], glob(config('import_payloads.path').'/fmi/*'));
     }
 
     public function test_parser_rejects_a_doctype(): void

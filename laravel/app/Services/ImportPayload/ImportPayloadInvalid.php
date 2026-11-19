@@ -10,7 +10,7 @@ use RuntimeException;
  */
 final class ImportPayloadInvalid extends RuntimeException
 {
-    public const REASONS = ['missing', 'sha256_mismatch', 'incomplete', 'wrong_source', 'wrong_date', 'options_mismatch'];
+    public const REASONS = ['missing', 'sha256_mismatch', 'incomplete', 'wrong_source', 'wrong_date', 'options_mismatch', 'superseded'];
 
     private function __construct(public readonly string $reason)
     {

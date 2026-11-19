@@ -41,8 +41,12 @@ not a guaranteed simultaneous import.
   Logs contain the window and exception class only.
 - Staged import (`App\Console\Concerns\StagedImport`, `../ImportPayload/AGENTS.md`;
   `import-payloads/jao/<date>/`): the fetch step records one line per window (unit
-  `{from, to}`) and fixes `today`, `start` and `end` in the header. A failed or unexpected window
-  is a failed unit; the store skips it and exits 1 with `fetch_incomplete`. The default run stores
+  `{from, to}`) and fixes `today`, `start` and `end` in the header. The fetch does not parse:
+  only a transport or HTTP failure is a failed unit. The store step alone parses each answered
+  body; a body the parser rejects fails only its window there (same safe log line, no rows of that
+  window), and the run exits 1 with `fetch_incomplete` (`failed_windows` counts both kinds). Its
+  body stays in the file, so after a parser fix `--from-payload` stores it without a new request
+  (decision "Raw bodies, parsed in the store step"). Database errors still roll back. The default run stores
   in one transaction; a `--from` backfill commits once per window, so a store failure keeps the
   earlier windows. Not date-bound: a same-day older payload is stored and puts its older values
   back until the next fetch.

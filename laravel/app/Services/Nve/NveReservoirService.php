@@ -61,7 +61,7 @@ class NveReservoirService
      *
      * @throws RuntimeException
      */
-    public static function parse(string $endpoint, string $body): array
+    public function parse(string $endpoint, string $body): array
     {
         $payload = json_decode($body, true);
         if (! is_array($payload) || ! array_is_list($payload)) {

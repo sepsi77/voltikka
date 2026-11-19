@@ -24,7 +24,9 @@ class SpotPriceAverageService
     public const DAY_END_HOUR = 22;
 
     /**
-     * Calculate and store all averages.
+     * Calculate and store all averages. Every write finds its row by the calendar date of
+     * `period_start` (whereDate): the `date` cast stores `Y-m-d H:i:s`, so on SQLite a plain
+     * `Y-m-d` key missed the row and a second run hit the unique index.
      *
      * @param  string  $region  Region code (default: FI)
      */
@@ -79,13 +81,13 @@ class SpotPriceAverageService
 
         $stats = $this->calculateStats($hours);
 
-        return SpotPriceAverage::updateOrCreate(
+        return SpotPriceAverage::query()->whereDate('period_start', $date)->updateOrCreate(
             [
                 'region' => $region,
                 'period_type' => SpotPriceAverage::PERIOD_DAILY,
-                'period_start' => $date,
             ],
             [
+                'period_start' => $date,
                 'period_end' => $date,
                 'avg_price_without_tax' => $stats['avg_without_tax'],
                 'avg_price_with_tax' => $stats['avg_with_tax'],
@@ -140,13 +142,13 @@ class SpotPriceAverageService
 
         $stats = $this->calculateStats($hours);
 
-        return SpotPriceAverage::updateOrCreate(
+        return SpotPriceAverage::query()->whereDate('period_start', $startOfMonth->toDateString())->updateOrCreate(
             [
                 'region' => $region,
                 'period_type' => SpotPriceAverage::PERIOD_MONTHLY,
-                'period_start' => $startOfMonth->toDateString(),
             ],
             [
+                'period_start' => $startOfMonth->toDateString(),
                 'period_end' => $endOfMonth->toDateString(),
                 'avg_price_without_tax' => $stats['avg_without_tax'],
                 'avg_price_with_tax' => $stats['avg_with_tax'],
@@ -200,13 +202,13 @@ class SpotPriceAverageService
 
         $stats = $this->calculateStats($hours);
 
-        return SpotPriceAverage::updateOrCreate(
+        return SpotPriceAverage::query()->whereDate('period_start', $startOfYear->toDateString())->updateOrCreate(
             [
                 'region' => $region,
                 'period_type' => SpotPriceAverage::PERIOD_YEARLY,
-                'period_start' => $startOfYear->toDateString(),
             ],
             [
+                'period_start' => $startOfYear->toDateString(),
                 'period_end' => $endOfYear->toDateString(),
                 'avg_price_without_tax' => $stats['avg_without_tax'],
                 'avg_price_with_tax' => $stats['avg_with_tax'],
@@ -255,13 +257,13 @@ class SpotPriceAverageService
 
         $stats = $this->calculateStats($hours);
 
-        return SpotPriceAverage::updateOrCreate(
+        return SpotPriceAverage::query()->whereDate('period_start', $endDate->copy())->updateOrCreate(
             [
                 'region' => $region,
                 'period_type' => self::PERIOD_ROLLING_30D_LOCAL,
-                'period_start' => $endDate->copy(),
             ],
             [
+                'period_start' => $endDate->copy(),
                 'period_end' => $endDate->toDateString(),
                 'avg_price_without_tax' => $stats['avg_without_tax'],
                 'avg_price_with_tax' => $stats['avg_with_tax'],
@@ -296,13 +298,13 @@ class SpotPriceAverageService
 
         $stats = $this->calculateStats($hours);
 
-        return SpotPriceAverage::updateOrCreate(
+        return SpotPriceAverage::query()->whereDate('period_start', $endDate->copy())->updateOrCreate(
             [
                 'region' => $region,
                 'period_type' => self::PERIOD_ROLLING_365D_LOCAL,
-                'period_start' => $endDate->copy(),
             ],
             [
+                'period_start' => $endDate->copy(),
                 'period_end' => $endDate->toDateString(),
                 'avg_price_without_tax' => $stats['avg_without_tax'],
                 'avg_price_with_tax' => $stats['avg_with_tax'],

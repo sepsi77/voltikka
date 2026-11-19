@@ -1224,7 +1224,7 @@ class FetchContractsCommandTest extends TestCase
         $this->assertCount(1, $this->sentryIssues, 'The store of a partial payload sends no second Issue.');
     }
 
-    public function test_failed_fetch_writes_the_failed_checkpoint_and_no_payload(): void
+    public function test_all_failed_fetch_keeps_the_payload_with_its_error_bodies_and_writes_the_failed_checkpoint(): void
     {
         $this->captureSentryIssues();
         Sleep::fake();
@@ -1233,13 +1233,86 @@ class FetchContractsCommandTest extends TestCase
 
         $this->assertSame(1, Artisan::call('contracts:fetch', ['--skip-logos' => true]));
 
-        $this->assertSame(['status' => 'failed', 'step' => 'fetch', 'error' => 'fetch_failed'], $this->lastJsonLine());
+        $line = $this->lastJsonLine();
+        $payloads = glob(config('import_payloads.path').'/azure-consumer-api/2026-11-19/*.ndjson.gz');
+        $this->assertCount(1, $payloads, 'An all-failed fetch keeps its payload (design 7a).');
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'fetch', 'error' => 'fetch_failed', 'reason' => 'all_failed',
+            'payload_path' => $payloads[0], 'payload_sha256' => hash_file('sha256', $payloads[0]),
+        ], $line);
+        $lines = array_map(fn (string $json) => json_decode($json, true), array_filter(explode("\n", gzdecode(file_get_contents($payloads[0])))));
+        $requests = array_values(array_filter($lines, fn (array $entry) => $entry['type'] === 'request'));
+        $this->assertCount(30, $requests);
+        $this->assertSame([503], array_values(array_unique(array_column($requests, 'status'))));
+        $this->assertSame(['error' => 'Server Error'], json_decode($requests[0]['body'], true), 'The error body is kept for diagnosis.');
+        $this->assertCount(30, end($lines)['failed_units']);
+
         $checkpoint = DataFreshnessCheckpoint::sole();
         $this->assertSame(DataFreshnessCheckpoint::STATUS_FAILED, $checkpoint->status);
         $this->assertSame(['run_uuid' => $checkpoint->metadata['run_uuid'], 'stage' => 'acquisition'], $checkpoint->metadata);
-        $this->assertSame([], glob(config('import_payloads.path').'/azure-consumer-api/2026-11-19/*'));
         $this->assertImportIssue('contracts', 'error', ['acquisition' => 30]);
         $this->assertSame(['acquisition' => 'fetch'], $this->sentryIssues[0]->getContexts()['data_fetch']['steps']);
+    }
+
+    public function test_store_from_payload_downloads_no_logo_even_without_skip_logos(): void
+    {
+        Storage::fake('public');
+        $this->travelTo(CarbonImmutable::parse('2026-11-19 06:00:00', 'Europe/Helsinki'));
+        Http::fake(['*' => Http::response($this->getSampleApiResponse())]);
+        $this->assertSame(0, Artisan::call('contracts:fetch', ['--fetch-only' => true, '--postcodes' => '00100']));
+        $payload = $this->lastJsonLine()['payload'];
+
+        // The company is new and has a logo URL but no local logo: default mode would download it.
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        Http::fake(['storage.example.com/*' => Http::response('png', 200, ['Content-Type' => 'image/png'])]);
+        $this->assertSame(0, Artisan::call('contracts:fetch', ['--from-payload' => $payload['path'], '--postcodes' => '00100']));
+
+        $this->assertSame('stored', $this->lastJsonLine()['status']);
+        Http::assertNothingSent();
+        $company = Company::sole();
+        $this->assertSame('https://storage.example.com/logos/energia.png', $company->logo_url);
+        $this->assertNull($company->local_logo_path);
+    }
+
+    public function test_an_older_same_day_payload_is_refused_and_leaves_newer_evidence_unchanged(): void
+    {
+        // 06:00 payload A offers 8 c/kWh, 10:00 payload B 12 c/kWh; a replay of A at 12:00 must not roll B back.
+        $this->travelTo(CarbonImmutable::parse('2026-11-19 06:00:00', 'Europe/Helsinki'));
+        Http::fake(['*' => Http::response($this->sampleWithEnergyPrice(8.0))]);
+        $this->assertSame(0, Artisan::call('contracts:fetch', ['--skip-logos' => true]));
+        $payloadA = $this->lastJsonLine()['payload']['path'];
+
+        $this->travelTo(CarbonImmutable::parse('2026-11-19 10:00:00', 'Europe/Helsinki'));
+        Http::swap(new Factory);
+        Http::fake(['*' => Http::response($this->sampleWithEnergyPrice(12.0))]);
+        $this->assertSame(0, Artisan::call('contracts:fetch', ['--skip-logos' => true]));
+        $payloadB = $this->lastJsonLine()['payload']['path'];
+        $rowsAfterB = $this->importedRows();
+        $checkpointAfterB = DataFreshnessCheckpoint::sole()->getAttributes();
+        $this->assertSame(12.0, (float) PriceComponent::query()->where('price_component_type', 'General')->sole()->price);
+
+        $this->travelTo(CarbonImmutable::parse('2026-11-19 12:00:00', 'Europe/Helsinki'));
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        $this->assertSame(1, Artisan::call('contracts:fetch', ['--from-payload' => $payloadA, '--skip-logos' => true]));
+
+        $this->assertSame(['status' => 'failed', 'step' => 'store', 'error' => 'payload_invalid', 'reason' => 'superseded'], $this->lastJsonLine());
+        $this->assertSame($rowsAfterB, $this->importedRows(), 'Contract fields, price components and observations stay at B.');
+        $this->assertEquals($checkpointAfterB, DataFreshnessCheckpoint::sole()->getAttributes(), 'The refused replay takes no checkpoint.');
+
+        // The latest payload stored again (equal time) stays idempotent.
+        $this->assertSame(0, Artisan::call('contracts:fetch', ['--from-payload' => $payloadB, '--skip-logos' => true]));
+        $this->assertSame($rowsAfterB, $this->importedRows());
+    }
+
+    /** @return list<array<string, mixed>> the sample product list with this General energy price */
+    private function sampleWithEnergyPrice(float $price): array
+    {
+        $response = $this->getSampleApiResponse();
+        $response[0]['Details']['Pricing']['PriceComponents'][0]['OriginalPayment']['Price'] = $price;
+
+        return $response;
     }
 
     /** @param array<string, list<array<string, mixed>>> $responses  postcode => product list */

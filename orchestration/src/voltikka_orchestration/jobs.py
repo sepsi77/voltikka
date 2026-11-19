@@ -25,7 +25,17 @@ with workflow.unsafe.imports_passed_through():
     from .activities import CommandRequest, CommandResult, IssueReport
     from .s_forecast import error_key, local_date, local_instant, report, sleep_until
     from .staged import PATCH as STAGED_PATCH
-    from .staged import STORE_TIMEOUT_MINUTES, fetch_args, fetch_skipped, payload_date, payload_reference, store_args
+    from .staged import (
+        STORE_TIMEOUT_MINUTES,
+        failure_facts,
+        fetch_args,
+        fetch_skipped,
+        payload_date,
+        payload_expired,
+        payload_reference,
+        store_args,
+        store_options,
+    )
 
 # Error type of a workflow that ends failed after its Issue was sent (by the workflow or by the
 # command itself); the Sentry interceptor does not report it a second time.
@@ -76,7 +86,8 @@ class Step:
     interruptible: bool = True
     # An external API import (tasks/staged-api-imports/): `--fetch-only` with this step's
     # `interruptible`, then `--from-payload` with the same args, never interruptible and at most
-    # STORE_TIMEOUT_MINUTES. A failed fetch skips the store; a failed store never starts a new fetch.
+    # STORE_TIMEOUT_MINUTES, ending within STORE_SCHEDULE_TO_CLOSE of being scheduled. A failed fetch
+    # skips the store; a failed store never starts a new fetch.
     staged: bool = False
 
 
@@ -114,12 +125,13 @@ def step_options(step: Step) -> dict:
     )
 
 
-async def artisan(step: Step, day: str | None = None) -> CommandResult:
+async def artisan(step: Step, day: str | None = None, store: bool = False) -> CommandResult:
+    options = step_options(step)
     return await workflow.execute_activity(
         "run_command",
         CommandRequest("artisan", step.args, step.interruptible, day),
         result_type=CommandResult,
-        **step_options(step),
+        **(store_options(options) if store else options),
     )
 
 
@@ -152,36 +164,44 @@ async def run_steps(name: str, steps: list[Step], day: str | None = None) -> lis
     return outcomes
 
 
-async def run_step(name: str, step: Step, day: str | None) -> StepOutcome:
+async def run_step(name: str, step: Step, day: str | None, reference: dict[str, str] | None = None) -> StepOutcome:
+    """One step. With `reference` (ImportReplay), only the store of that saved payload runs."""
     command = step.args[0]
     # patched(): a workflow that started before staged imports keeps its one-process command.
-    staged = step.staged and workflow.patched(STAGED_PATCH)
-    current, reference = step, None
+    staged = reference is not None or (step.staged and workflow.patched(STAGED_PATCH))
     try:
-        if staged:
+        if staged and reference is None:
             fetched = (await artisan(replace(step, args=fetch_args(step.args), staged=False), day)).result
             if fetch_skipped(fetched):
                 return StepOutcome(command, "succeeded", result=fetched)
             reference = payload_reference(fetched)
             if reference is None:
                 # The command printed no payload reference, so it reported nothing either.
-                await report(IssueReport(
-                    name, "command_failed", f"{name}: {' '.join(step.args)} fetch returned no payload reference",
-                    {"command": command, "error": "fetch_result_invalid", "step": "fetch"},
-                ))
-                return StepOutcome(command, "failed", "fetch_result_invalid")
-            current = store_step(step, reference)
-        result = await artisan(current, day)
+                return await failed_step(name, step, "fetch_result_invalid", "fetch returned no payload reference",
+                                         failure_facts("fetch", None))
+        if reference is not None:
+            if payload_expired(reference["path"], local_date(workflow.now())):
+                # Cleanup could delete the file during the store (spec S6), so the store never starts.
+                return await failed_step(name, step, "payload_expired", "payload is past retention",
+                                         failure_facts("store", reference), reference)
+            result = await artisan(store_step(step, reference), day, store=True)
+        else:
+            result = await artisan(step, day)
         return StepOutcome(command, "succeeded", result=result.result)
     except ActivityError as error:
         key = error_key(error)
-        facts = {"command": command, "error": key}
-        if staged:
-            facts["step"] = "store" if reference else "fetch"
-            facts |= {f"payload_{k}": v for k, v in (reference or {}).items()}
-        if not reported_by_command(step, error):
-            await report(IssueReport(name, "command_failed", f"{name}: {' '.join(step.args)} failed ({key})", facts))
-        return StepOutcome(command, "failed", key, result={"payload": reference} if reference else None)
+        facts = failure_facts("store" if reference else "fetch", reference) if staged else {}
+        if reported_by_command(step, error):
+            return StepOutcome(command, "failed", key, result={"payload": reference} if reference else None)
+        return await failed_step(name, step, key, f"failed ({key})", facts, reference)
+
+
+async def failed_step(name: str, step: Step, key: str, message: str, facts: dict,
+                      reference: dict[str, str] | None = None) -> StepOutcome:
+    """The one workflow Issue of a failed step; a failed store keeps its payload reference."""
+    await report(IssueReport(name, "command_failed", f"{name}: {' '.join(step.args)} {message}",
+                             {"command": step.args[0], "error": key} | facts))
+    return StepOutcome(step.args[0], "failed", key, result={"payload": reference} if reference else None)
 
 
 def reported_failure(message: str, details: list) -> ApplicationError:
@@ -462,8 +482,8 @@ class ImportReplay:
 
         step = Step([params.command, *params.args], timeout_minutes=STORE_TIMEOUT_MINUTES,
                     self_reports=params.command in SELF_REPORTING_COMMANDS)
-        reference = {"path": params.payload_path, "sha256": params.sha256}
-        outcome = (await run_steps("ImportReplay", [store_step(step, reference)], day))[0]
+        # run_step names the store and its payload in a failure Issue and refuses an expired payload.
+        outcome = await run_step("ImportReplay", step, day, {"path": params.payload_path, "sha256": params.sha256})
         if outcome.status == "succeeded" and params.command == "contracts:fetch":
             outcome.status = await complete_contract_import("ImportReplay", day)
         if outcome.status != "succeeded":

@@ -53,7 +53,7 @@ class FetchSykeHydrology extends Command
         if ($unknown !== []) {
             $this->error('Unknown series: '.implode(', ', $unknown));
 
-            return Command::FAILURE;
+            return $this->stagedFailure('fetch', 'invalid_options');
         }
 
         $seriesKeys = $requested !== [] ? $requested : array_keys($configured);
@@ -68,7 +68,7 @@ class FetchSykeHydrology extends Command
         if ($from === null || $to === null) {
             $this->error('Invalid date. Use YYYY-MM-DD.');
 
-            return Command::FAILURE;
+            return $this->stagedFailure('fetch', 'invalid_options');
         }
 
         // Exclusive end: the day after --to (or after today).
@@ -77,7 +77,7 @@ class FetchSykeHydrology extends Command
         if (! $from->lessThan($to)) {
             $this->error('--from must not be after --to.');
 
-            return Command::FAILURE;
+            return $this->stagedFailure('fetch', 'invalid_options');
         }
 
         $plan = [];
