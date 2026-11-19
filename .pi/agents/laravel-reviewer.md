@@ -54,8 +54,9 @@ stale or unsafe result acceptable: report the result and cite the decision.
    codes are correct (`Command::FAILURE` on failure). Output does not print secrets.
    When a command's control flow is rewritten (split into modes, moved into a trait or a new
    service), list its behavior on `main` first and check that each item survives in every new
-   mode: exit code per scope, isolation of one failed unit from the others, option normalization
-   (dedupe, parsing), and the output lines callers read. Examples from the staged imports (PR #31):
+   mode it applies to: exit code per scope, isolation of one failed unit from the others, option
+   normalization (dedupe, parsing), and the output lines callers read. A mode that skips a part on
+   purpose (a fetch-only mode never stores) is checked against the spec, not flagged. Examples from the staged imports (PR #31):
    ENTSO-E stopped isolating a failed unit, a scoped `contracts:fetch` lost its exit code 1, and
    repeated `--dataset` options were no longer deduplicated.
 3. **Transactions and idempotency.** `DB::transaction` covers every write that must be atomic. No
