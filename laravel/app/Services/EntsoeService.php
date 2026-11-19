@@ -9,6 +9,7 @@ use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use InvalidArgumentException;
 use SimpleXMLElement;
+use Throwable;
 
 class EntsoeService
 {
@@ -48,20 +49,20 @@ class EntsoeService
         [$baseUrl, $params] = $this->dayAheadRequest($startDate, $endDate, $region);
 
         // Retry every failed attempt. ENTSO-E sometimes holds a request for 18-30 s and then answers
-        // with a non-5xx error (about 1.6 KB); the next hourly run succeeds (October 2026).
-        $response = Http::connectTimeout((int) config('services.entsoe.connect_timeout', 5))
-            ->timeout((int) config('services.entsoe.timeout', 30))
-            ->retry(self::MAX_RETRIES, self::RETRY_DELAY_MS, function ($exception) {
-                return $exception instanceof ConnectionException || $exception instanceof RequestException;
-            })->get($baseUrl.'?'.http_build_query($params));
+        // with a non-5xx error (about 1.6 KB); the next hourly run succeeds (October 2026). Any answer
+        // outside 2xx is a failed attempt (S10), also a 3xx that failed() does not cover (a 302
+        // without Location is not followed), so it is retried too; after the last attempt a staged
+        // fetch records it as a failed unit with its body.
+        return retry(self::MAX_RETRIES, function () use ($baseUrl, $params): Response {
+            $response = Http::connectTimeout((int) config('services.entsoe.connect_timeout', 5))
+                ->timeout((int) config('services.entsoe.timeout', 30))
+                ->get($baseUrl.'?'.http_build_query($params));
+            if (! $response->successful()) {
+                throw new RequestException($response);
+            }
 
-        // Any answer outside 2xx after the retries is a failed request (S10), also a 3xx that
-        // failed() does not cover, so a staged fetch records it as a failed unit with its body.
-        if (! $response->successful()) {
-            throw new RequestException($response);
-        }
-
-        return $response;
+            return $response;
+        }, self::RETRY_DELAY_MS, fn (Throwable $exception): bool => $exception instanceof ConnectionException || $exception instanceof RequestException);
     }
 
     /**

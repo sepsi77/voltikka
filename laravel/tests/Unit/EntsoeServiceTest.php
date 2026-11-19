@@ -6,6 +6,7 @@ use App\Services\EntsoeService;
 use Carbon\Carbon;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Sleep;
 use Tests\TestCase;
 
 class EntsoeServiceTest extends TestCase
@@ -15,7 +16,7 @@ class EntsoeServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new EntsoeService();
+        $this->service = new EntsoeService;
     }
 
     /**
@@ -343,6 +344,7 @@ XML;
 
         Http::assertSent(function ($request) {
             $url = $request->url();
+
             return str_contains($url, 'in_Domain=10YFI-1--------U')
                 && str_contains($url, 'out_Domain=10YFI-1--------U');
         });
@@ -416,7 +418,7 @@ XML;
      */
     public function test_handles_no_matching_data_acknowledgement(): void
     {
-        $noDataResponse = <<<XML
+        $noDataResponse = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <Acknowledgement_MarketDocument xmlns="urn:iec62325.351:tc57wg16:451-1:acknowledgementdocument:7:0">
     <mRID>acknowledgement-id</mRID>
@@ -459,6 +461,7 @@ XML;
 
         Http::assertSent(function ($request) {
             $url = $request->url();
+
             // ENTSO-E expects YYYYMMDDHHMM format
             return str_contains($url, 'periodStart=202401200000')
                 && str_contains($url, 'periodEnd=202401210000');
@@ -476,6 +479,7 @@ XML;
             if ($attempts < 3) {
                 return Http::response('<error>Temporary Error</error>', 503);
             }
+
             return Http::response($this->getSampleXmlResponse([50.0]), 200);
         });
 
@@ -503,6 +507,25 @@ XML;
             Carbon::parse('2024-01-20'),
             Carbon::parse('2024-01-21')
         );
+
+        $this->assertCount(1, $result);
+        Http::assertSentCount(2);
+    }
+
+    /**
+     * A 3xx is a failed attempt too (failed() covers only 4xx/5xx): a 302 without Location is
+     * not followed, so it is retried like any other non-2xx answer.
+     */
+    public function test_retries_a_redirect_without_location(): void
+    {
+        Sleep::fake();
+        Http::fake([
+            'web-api.tp.entsoe.eu/api*' => Http::sequence()
+                ->push('', 302)
+                ->push($this->getSampleXmlResponse([50.0]), 200),
+        ]);
+
+        $result = $this->service->fetchDayAheadPrices(Carbon::parse('2024-01-20'), Carbon::parse('2024-01-21'));
 
         $this->assertCount(1, $result);
         Http::assertSentCount(2);
@@ -569,7 +592,7 @@ XML;
      */
     public function test_handles_multiple_time_series(): void
     {
-        $xml = <<<XML
+        $xml = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <Publication_MarketDocument xmlns="urn:iec62325.351:tc57wg16:451-3:publicationdocument:7:3">
     <TimeSeries>

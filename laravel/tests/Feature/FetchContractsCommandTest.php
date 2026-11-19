@@ -42,6 +42,9 @@ class FetchContractsCommandTest extends TestCase
     use CapturesSentryIssues;
     use RefreshDatabase;
 
+    /** The outer store lock every staged store takes (StagedImport); FetchContracts::STORE_LOCK is the inner one. */
+    private const TRAIT_STORE_LOCK = 'staged_import_store_v1:contracts:fetch';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -1402,7 +1405,8 @@ class FetchContractsCommandTest extends TestCase
      * go. A's freshness check must see B, so it must read after A got the lock. The other process
      * is simulated in one PHPUnit process: the first lock wait of A (a faked sleep) stores B with
      * its own command instance and releases the lock. A check before the lock would pass while
-     * no observation exists, and A would then overwrite B with 8 c/kWh.
+     * no observation exists, and A would then overwrite B with 8 c/kWh. The holder holds the
+     * trait's outer store lock, so A waits there and B takes both locks without waiting.
      */
     public function test_the_superseded_check_reads_a_newer_store_that_committed_while_the_store_waited_for_the_lock(): void
     {
@@ -1421,7 +1425,7 @@ class FetchContractsCommandTest extends TestCase
         $this->travelTo(CarbonImmutable::parse('2026-11-19 12:00:00', 'Europe/Helsinki'));
         Http::swap(new Factory);
         Http::preventStrayRequests();
-        $holder = Cache::lock(FetchContracts::STORE_LOCK, 1800);
+        $holder = Cache::lock(self::TRAIT_STORE_LOCK, 1800);
         $this->assertTrue($holder->get());
         $storeB = null;
         $rowsAfterB = null;
@@ -1455,7 +1459,8 @@ class FetchContractsCommandTest extends TestCase
             'stage' => 'superseded',
             'payload' => ['path' => $payloadA, 'sha256' => hash_file('sha256', $payloadA)],
         ], $checkpoint->metadata);
-        $this->assertTrue(Cache::lock(FetchContracts::STORE_LOCK, 1)->get(), 'A refused store releases the lock.');
+        $this->assertTrue(Cache::lock(self::TRAIT_STORE_LOCK, 1)->get(), 'A refused store releases the outer lock.');
+        $this->assertTrue(Cache::lock(FetchContracts::STORE_LOCK, 1)->get(), 'A refused store releases the inner lock.');
     }
 
     /**
@@ -1614,6 +1619,101 @@ class FetchContractsCommandTest extends TestCase
 
         $this->assertSame('store_busy', $this->lastJsonLine()['error']);
         $this->assertEquals($settled, DataFreshnessCheckpoint::sole()->getAttributes());
+        $holder->release();
+    }
+
+    /**
+     * CodeRabbit 4628722493 (PR #31): store S of payload P took the date over and was killed
+     * before its import committed, so the row stays `running` under S with P's SHA-256 and S's
+     * store locks are gone. A store of another payload Q still fails `checkpoint_busy`; a replay
+     * of P takes the row over (it holds the outer store lock, which a live S would still hold)
+     * and settles it. Q is older and its file is under another payload root, so the payload
+     * files supersede neither replay; the takeover alone decides.
+     */
+    public function test_a_replay_recovers_an_abandoned_store_of_the_same_payload_but_not_of_another(): void
+    {
+        $this->captureSentryIssues();
+        $root = config('import_payloads.path');
+        $this->travelTo(CarbonImmutable::parse('2026-11-19 05:00:00', 'Europe/Helsinki'));
+        config(['import_payloads.path' => "{$root}/other-root"]);
+        Http::fake(['*' => Http::response($this->sampleWithEnergyPrice(8.0))]);
+        $this->assertSame(0, Artisan::call('contracts:fetch', ['--fetch-only' => true, '--skip-logos' => true]));
+        $payloadQ = $this->lastJsonLine()['payload'];
+        config(['import_payloads.path' => $root]);
+
+        $this->travelTo(CarbonImmutable::parse('2026-11-19 06:00:00', 'Europe/Helsinki'));
+        Http::swap(new Factory);
+        Http::fake(['*' => Http::response($this->sampleWithEnergyPrice(12.0))]);
+        $this->assertSame(0, Artisan::call('contracts:fetch', ['--fetch-only' => true, '--skip-logos' => true]));
+        $payloadP = $this->lastJsonLine()['payload'];
+        $fetchOwnerP = DataFreshnessCheckpoint::sole()->metadata['run_uuid'];
+
+        // Store S's committed takeover; then the process dies: no rows, no locks held.
+        $storeS = $this->app->make(ContractImportCompletion::class)
+            ->takeOver('2026-11-19', $fetchOwnerP, ['path' => $payloadP['path'], 'sha256' => $payloadP['sha256']]);
+        $this->assertNotNull($storeS);
+        $abandoned = DataFreshnessCheckpoint::sole()->getAttributes();
+        $this->assertSame(DataFreshnessCheckpoint::STATUS_RUNNING, $abandoned['status']);
+        $emptyRows = $this->importedRows();
+
+        $this->travelTo(CarbonImmutable::parse('2026-11-19 07:00:00', 'Europe/Helsinki'));
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        config(['import_payloads.path' => "{$root}/other-root"]);
+        $this->assertSame(1, Artisan::call('contracts:fetch', ['--from-payload' => $payloadQ['path'], '--skip-logos' => true]));
+        config(['import_payloads.path' => $root]);
+        $this->assertSame(['failed', 'store', 'checkpoint_busy'], array_values(array_intersect_key($this->lastJsonLine(), array_flip(['status', 'step', 'error']))));
+        $this->assertEquals($abandoned, DataFreshnessCheckpoint::sole()->getAttributes(), 'A store of another payload leaves S running.');
+        $this->assertSame($emptyRows, $this->importedRows());
+        $this->assertImportIssue('contracts', 'error', ['checkpoint_busy' => 1]);
+
+        $this->sentryIssues = [];
+        $this->assertSame(0, Artisan::call('contracts:fetch', ['--from-payload' => $payloadP['path'], '--skip-logos' => true]));
+
+        $this->assertSame('stored', $this->lastJsonLine()['status']);
+        $ready = DataFreshnessCheckpoint::sole();
+        $this->assertSame(DataFreshnessCheckpoint::STATUS_READY, $ready->status);
+        $this->assertNotContains($ready->metadata['run_uuid'], [$storeS, $fetchOwnerP], 'The replay owns the date with its own run.');
+        $this->assertSame(12.0, (float) PriceComponent::query()->where('price_component_type', 'General')->sole()->price);
+        $this->assertSame([], $this->sentryIssues);
+    }
+
+    /**
+     * A split store that waits in vain for the outer store lock (StagedImport, before the store
+     * closure runs) finishes its fetch's `running` owner like a store refused inside the closure
+     * (LAR-202): failed with stage `store_busy` and the payload reference, no new owner, no row.
+     */
+    public function test_a_split_store_busy_at_the_outer_store_lock_fails_its_fetch_owner(): void
+    {
+        $this->captureSentryIssues();
+        $this->travelTo(CarbonImmutable::parse('2026-11-19 06:00:00', 'Europe/Helsinki'));
+        Http::fake(['*' => Http::response($this->getSampleApiResponse())]);
+        $this->assertSame(0, Artisan::call('contracts:fetch', ['--fetch-only' => true, '--skip-logos' => true]));
+        $payload = $this->lastJsonLine()['payload'];
+        $fetchOwner = DataFreshnessCheckpoint::sole()->metadata['run_uuid'];
+        $emptyRows = $this->importedRows();
+
+        $holder = Cache::lock(self::TRAIT_STORE_LOCK, 1800);
+        $this->assertTrue($holder->get());
+        Sleep::fake(syncWithCarbon: true);
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        $this->assertSame(1, Artisan::call('contracts:fetch', ['--from-payload' => $payload['path'], '--skip-logos' => true]));
+
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'store_busy',
+            'payload_path' => $payload['path'], 'payload_sha256' => $payload['sha256'],
+        ], $this->lastJsonLine());
+        $checkpoint = DataFreshnessCheckpoint::sole();
+        $this->assertSame(DataFreshnessCheckpoint::STATUS_FAILED, $checkpoint->status);
+        $this->assertSame([
+            'run_uuid' => $fetchOwner,
+            'stage' => 'store_busy',
+            'payload' => ['path' => $payload['path'], 'sha256' => $payload['sha256']],
+        ], $checkpoint->metadata);
+        $this->assertSame($emptyRows, $this->importedRows());
+        $this->assertImportIssue('contracts', 'error', ['store_busy' => 1]);
+        $this->assertTrue(Cache::lock(FetchContracts::STORE_LOCK, 1)->get(), 'The inner lock was never taken.');
         $holder->release();
     }
 

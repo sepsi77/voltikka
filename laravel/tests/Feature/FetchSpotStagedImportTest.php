@@ -8,6 +8,7 @@ use App\Models\SpotPriceAverage;
 use App\Models\SpotPriceHour;
 use App\Models\SpotPriceQuarter;
 use Carbon\Carbon;
+use Closure;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Support\Facades\Artisan;
@@ -36,6 +37,8 @@ class FetchSpotStagedImportTest extends TestCase
     private const API_KEY = 'entsoe-test-secret-7731';
 
     private const STORE_LOCK = 'spot_store_v1:FI';
+
+    private const STAGED_STORE_LOCK = 'staged_import_store_v1:spot:fetch';
 
     protected function setUp(): void
     {
@@ -242,44 +245,89 @@ class FetchSpotStagedImportTest extends TestCase
     }
 
     /**
-     * Store serialization: replay A (06:00 payload, hour 10:00 = 4.0) starts while another
-     * process holds the FI store lock, and that process (a scheduled run, B: 10:00 = 6.0 and
-     * 11:00 = 6.5) commits its prices and averages before it lets go. A then inserts nothing new
-     * (insert-only) and recalculates the averages over both hours. The other process is simulated
-     * in one PHPUnit process: A's first lock wait (a faked sleep) runs B with its own command
-     * instance after releasing the lock. Without the lock, A would not wait, and its averages
-     * would come from a snapshot taken without B.
+     * Store serialization with an older replay: replay A (06:00 payload, hour 10:00 = 4.0)
+     * starts while another process holds the staged store lock of spot:fetch, and that process
+     * (a scheduled run, B: 10:00 = 6.0 and 11:00 = 6.5) fetches and commits its prices and
+     * averages before it lets go. A's newest-payload check runs under that lock, so it sees B's
+     * newer payload and refuses A (superseded) without a write. The other process is simulated in
+     * one PHPUnit process: A's first lock wait (a faked sleep) runs B with its own command
+     * instance after releasing the lock. Without the lock, A would pass the check before B's
+     * payload existed and recalculate the averages from a snapshot without B.
      */
-    public function test_a_replay_waits_for_a_running_store_and_averages_over_its_rows(): void
+    public function test_an_older_replay_waiting_for_a_newer_store_is_superseded(): void
     {
         $hour = Carbon::parse('2026-11-19 10:00', 'UTC')->timestamp;
         Carbon::setTestNow(Carbon::parse('2026-11-19 06:00:00', 'UTC'));
         $this->fakeEntsoe([[$hour, 4.0]]);
         $this->assertSame(0, Artisan::call('spot:fetch', ['--fetch-only' => true]));
-        $replay = $this->lastJsonLine(Artisan::output())['payload']['path'];
+        $replay = $this->lastJsonLine(Artisan::output())['payload'];
 
         Carbon::setTestNow(Carbon::parse('2026-11-19 12:00:00', 'UTC'));
         $this->fakeEntsoe([[$hour, 6.0], [$hour + 3600, 6.5]]);
-        $holder = Cache::lock(self::STORE_LOCK, 300);
+        $storeB = $this->storeBDuringTheFirstLockWait(fn (): null => null);
+
+        $this->assertSame(1, Artisan::call('spot:fetch', ['--from-payload' => $replay['path']]));
+
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'payload_invalid', 'reason' => 'superseded',
+            'payload_path' => $replay['path'], 'payload_sha256' => $replay['sha256'],
+        ], $this->lastJsonLine(Artisan::output()));
+        $this->assertSame(0, $storeB->exitCode, 'B stored while A waited for the lock.');
+        $this->assertEqualsWithDelta(6.0, SpotPriceHour::query()->where('timestamp', $hour)->value('price_without_tax'), 0.0001);
+        $this->assertSame($this->expectedAverages(6.25, 2), $this->averages());
+    }
+
+    /**
+     * Store serialization of two default-mode runs: A fetches at 06:00 (10:00 = 4.0) and waits
+     * for the staged store lock while B fetches at 12:00 (10:00 = 6.0, 11:00 = 6.5) and commits.
+     * Default mode has no newest-payload check, so A stores after B: it inserts nothing new
+     * (insert-only) and recalculates the averages over B's committed rows. Without the lock, A's
+     * averages would come from a snapshot taken without B.
+     */
+    public function test_a_default_mode_store_waits_for_a_running_store_and_averages_over_its_rows(): void
+    {
+        $hour = Carbon::parse('2026-11-19 10:00', 'UTC')->timestamp;
+        Carbon::setTestNow(Carbon::parse('2026-11-19 06:00:00', 'UTC'));
+        $this->fakeEntsoe([[$hour, 4.0]]);
+        // A has fetched before it waits, so B's clock and feed are set inside the wait.
+        $storeB = $this->storeBDuringTheFirstLockWait(function () use ($hour): void {
+            Carbon::setTestNow(Carbon::parse('2026-11-19 12:00:00', 'UTC'));
+            $this->fakeEntsoe([[$hour, 6.0], [$hour + 3600, 6.5]]);
+        });
+
+        $this->assertSame(0, Artisan::call('spot:fetch'));
+
+        $this->assertSame(0, $storeB->exitCode, 'B stored while A waited for the lock.');
+        $this->assertEqualsWithDelta(6.0, SpotPriceHour::query()->where('timestamp', $hour)->value('price_without_tax'), 0.0001);
+        $this->assertSame($this->expectedAverages(6.25, 2), $this->averages(), 'A averaged over B\'s committed rows.');
+    }
+
+    /**
+     * Hold the staged store lock of spot:fetch; on the first faked sleep (a store's lock wait),
+     * run $prepare, release the lock and run a default-mode spot:fetch as another process would.
+     *
+     * @param  Closure(): void  $prepare
+     * @return object{exitCode: int|null}
+     */
+    private function storeBDuringTheFirstLockWait(Closure $prepare): object
+    {
+        $holder = Cache::lock(self::STAGED_STORE_LOCK, 300);
         $this->assertTrue($holder->get());
-        $storeB = null;
+        $storeB = (object) ['exitCode' => null];
         Sleep::fake();
-        Sleep::whenFakingSleep(function () use ($holder, &$storeB): void {
-            if ($storeB !== null) {
+        Sleep::whenFakingSleep(function () use ($holder, $prepare, $storeB): void {
+            if ($storeB->exitCode !== null) {
                 return;
             }
+            $prepare();
             $holder->release();
             $command = $this->app->make(FetchSpot::class);
             $command->setLaravel($this->app);
             // B's after-commit cache warm calls another command through the console application.
             $command->setApplication(Artisan::all()['spot:fetch']->getApplication());
-            $storeB = $command->run(new ArrayInput([]), new BufferedOutput);
+            $storeB->exitCode = $command->run(new ArrayInput([]), new BufferedOutput);
         });
 
-        $this->assertSame(0, Artisan::call('spot:fetch', ['--from-payload' => $replay]));
-
-        $this->assertSame(0, $storeB, 'B stored while A waited for the lock.');
-        $this->assertEqualsWithDelta(6.0, SpotPriceHour::query()->where('timestamp', $hour)->value('price_without_tax'), 0.0001);
-        $this->assertSame($this->expectedAverages(6.25, 2), $this->averages(), 'A averaged over B\'s committed rows.');
+        return $storeB;
     }
 }

@@ -73,8 +73,12 @@ the `x-api-key` header, which a payload never records (tests prove the key is no
   transaction for the daily run, one per 7-day window for a backfill (`--from`). A window with a
   failed page is left out; failed datasets make the store exit 1 with `fetch_incomplete` after
   the commit (S10).
-- `fingrid:fetch-forecast-vintages`: unit `{dataset, page}`. Header facts `first_hour` and
-  `hours` (horizon per dataset). The store inserts each vintage with the header `fetched_at` as
+- `fingrid:fetch-forecast-vintages`: unit `{dataset, page}`. Header facts `first_hour`, `hours`
+  (horizon per dataset) and `variables` (the `values` key per dataset, from
+  `fingrid.forecast_vintages.<id>.variable` at fetch time; PR #31 review). The store labels each
+  vintage with the recorded variable, never the current config, so a config rename cannot relabel
+  a replay; a payload with rows for a dataset but no recorded variable (files written before this
+  fact) is refused `payload_invalid`, reason `incomplete`, with no write. The store inserts each vintage with the header `fetched_at` as
   its vintage time (`issued_at` stays null), so a replay never moves a vintage past the S model's
   `fetched_at <= cut` filter. A response without a complete hour exits 1 with `no_complete_hour`
   (step store).

@@ -8,6 +8,7 @@ use App\Models\SpotPriceForecast;
 use App\Models\SpotPriceForecastRun;
 use App\Models\SpotPriceHour;
 use Carbon\Carbon;
+use Closure;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Client\RequestException;
@@ -31,6 +32,8 @@ class FetchSpotForecastCommandTest extends TestCase
     private const TIMEZONE = 'Europe/Helsinki';
 
     private const STORE_LOCK = 'spot_forecast_store_v1:nordpool_predict_fi:FI';
+
+    private const STAGED_STORE_LOCK = 'staged_import_store_v1:spot:fetch-forecast';
 
     protected function setUp(): void
     {
@@ -379,58 +382,89 @@ class FetchSpotForecastCommandTest extends TestCase
     }
 
     /**
-     * PRC-002 under concurrency: replay A (04:00, [8]) starts while another process holds the
-     * store lock, and that process commits the newer feed B (10:00, [11, 12]) before it lets go.
-     * A's recency check must see B, so the display stays [11, 12] and A only archives its run.
-     * The other process is simulated in one PHPUnit process: A's first lock wait (a faked sleep)
-     * stores B with its own command instance and releases the lock. Without the lock, A would not
-     * wait, and B would not be stored before A. B's payload file is moved aside while A starts, so
-     * the payload rule does not refuse A before it reaches the lock (B is fetched only after A's
-     * check in this race), and moved back for B's store.
+     * PRC-002 under concurrency, older replay: replay A (04:00, [8]) starts while another
+     * process holds the staged store lock of spot:fetch-forecast, and that process fetches and
+     * commits the newer feed B (12:00, [11, 12]) before it lets go. A's newest-payload check runs
+     * under that lock, so it sees B's payload and refuses A (superseded): the display stays
+     * [11, 12] and only B's run is archived. The other process is simulated in one PHPUnit
+     * process: A's first lock wait (a faked sleep) runs B in default mode with its own command
+     * instance after releasing the lock. Without the lock, A would pass the check before B's
+     * payload existed.
      */
-    public function test_an_older_replay_after_a_newer_store_under_the_lock_keeps_the_newer_display(): void
+    public function test_an_older_replay_waiting_for_a_newer_store_is_superseded(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-11-19 04:00:00', 'UTC'));
         $this->fakeFeed([[1, 8.0]]);
         $this->assertSame(0, Artisan::call('spot:fetch-forecast', ['--fetch-only' => true]));
-        $older = $this->lastJsonLine()['payload']['path'];
-        Carbon::setTestNow(Carbon::parse('2026-11-19 10:00:00', 'UTC'));
-        $this->fakeFeed([[1, 11.0], [2, 12.0]]);
-        $this->assertSame(0, Artisan::call('spot:fetch-forecast', ['--fetch-only' => true]));
-        $newer = $this->lastJsonLine()['payload']['path'];
-        $aside = sys_get_temp_dir().'/'.basename(dirname($newer)).'-'.basename($newer, '.ndjson.gz');
-        $sha256 = substr($newer, 0, -strlen('.ndjson.gz')).'.sha256';
-        rename($newer, $aside.'.ndjson.gz');
-        rename($sha256, $aside.'.sha256');
+        $older = $this->lastJsonLine()['payload'];
 
         Carbon::setTestNow(Carbon::parse('2026-11-19 12:00:00', 'UTC'));
-        Http::preventStrayRequests();
-        Http::swap(new Factory);
-        Http::fake();
-        $holder = Cache::lock(self::STORE_LOCK, 300);
-        $this->assertTrue($holder->get());
-        $storeB = null;
-        Sleep::fake();
-        Sleep::whenFakingSleep(function () use ($holder, $newer, $sha256, $aside, &$storeB): void {
-            if ($storeB !== null) {
-                return;
-            }
-            rename($aside.'.ndjson.gz', $newer);
-            rename($aside.'.sha256', $sha256);
-            $holder->release();
-            $command = $this->app->make(FetchSpotForecast::class);
-            $command->setLaravel($this->app);
-            $storeB = $command->run(new ArrayInput(['--from-payload' => $newer]), new BufferedOutput);
+        $this->fakeFeed([[1, 11.0], [2, 12.0]]);
+        $storeB = $this->storeBDuringTheFirstLockWait(fn (): null => null);
+
+        $this->assertSame(1, Artisan::call('spot:fetch-forecast', ['--from-payload' => $older['path']]));
+
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'payload_invalid', 'reason' => 'superseded',
+            'payload_path' => $older['path'], 'payload_sha256' => $older['sha256'],
+        ], $this->lastJsonLine());
+        $this->assertSame(0, $storeB->exitCode, 'B stored while A waited for the lock.');
+        $this->assertEquals([11.0, 12.0], SpotPriceForecast::query()->orderBy('timestamp')->pluck('price_with_tax')->all());
+        $this->assertSame(['2026-11-19 12:00:00'], DB::table('spot_price_forecast_runs')->pluck('fetched_at')->all(), 'A refused writes no run.');
+        $this->assertSame([11.0, 12.0], $this->forecastOnPage()[0], 'The page shows B.');
+    }
+
+    /**
+     * PRC-002 under concurrency, default mode: A fetches the older feed (04:00, [8]) and waits
+     * for the staged store lock while B fetches the newer feed (10:00, [11, 12]) and commits.
+     * Default mode has no newest-payload check, so only the display check protects the display:
+     * A stores after B, archives its run and leaves B's display, provenance and page in place.
+     */
+    public function test_a_default_mode_store_after_a_newer_store_keeps_the_newer_display(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-11-19 04:00:00', 'UTC'));
+        $this->fakeFeed([[1, 8.0]]);
+        // A has fetched before it waits, so B's clock and feed are set inside the wait.
+        $storeB = $this->storeBDuringTheFirstLockWait(function (): void {
+            Carbon::setTestNow(Carbon::parse('2026-11-19 10:00:00', 'UTC'));
+            $this->fakeFeed([[1, 11.0], [2, 12.0]]);
         });
 
-        $this->assertSame(0, Artisan::call('spot:fetch-forecast', ['--from-payload' => $older]));
+        $this->assertSame(0, Artisan::call('spot:fetch-forecast'));
 
-        $this->assertSame(0, $storeB, 'B stored while A waited for the lock.');
+        $this->assertSame(0, $storeB->exitCode, 'B stored while A waited for the lock.');
         $this->assertSame(['records' => 1, 'display_rows' => 0, 'runs_inserted' => 1], $this->lastJsonLine()['counts']);
         $this->assertEquals([11.0, 12.0], SpotPriceForecast::query()->orderBy('timestamp')->pluck('price_with_tax')->all());
         $this->assertSame(['2026-11-19 10:00:00'], DB::table('spot_price_forecasts')->distinct()->pluck('fetched_at')->all(), 'The display keeps B\'s provenance.');
         $this->assertSame(['2026-11-19 04:00:00', '2026-11-19 10:00:00'], DB::table('spot_price_forecast_runs')->orderBy('fetched_at')->pluck('fetched_at')->all(), 'Both vintages are archived.');
         $this->assertSame([11.0, 12.0], $this->forecastOnPage()[0], 'The page shows B.');
+    }
+
+    /**
+     * Hold the staged store lock of spot:fetch-forecast; on the first faked sleep (a store's lock
+     * wait), run $prepare, release the lock and run a default-mode store as another process would.
+     *
+     * @param  Closure(): void  $prepare
+     * @return object{exitCode: int|null}
+     */
+    private function storeBDuringTheFirstLockWait(Closure $prepare): object
+    {
+        $holder = Cache::lock(self::STAGED_STORE_LOCK, 300);
+        $this->assertTrue($holder->get());
+        $storeB = (object) ['exitCode' => null];
+        Sleep::fake();
+        Sleep::whenFakingSleep(function () use ($holder, $prepare, $storeB): void {
+            if ($storeB->exitCode !== null) {
+                return;
+            }
+            $prepare();
+            $holder->release();
+            $command = $this->app->make(FetchSpotForecast::class);
+            $command->setLaravel($this->app);
+            $storeB->exitCode = $command->run(new ArrayInput([]), new BufferedOutput);
+        });
+
+        return $storeB;
     }
 
     /**

@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Console\Concerns\StagedImport;
 use App\Services\Fingrid\FingridForecastVintageImporter;
 use App\Services\Fingrid\FingridOpenDataService;
+use App\Services\ImportPayload\ImportPayloadInvalid;
 use App\Services\ImportPayload\ImportPayloadReader;
 use App\Services\ImportPayload\ImportPayloadWriter;
 use App\Services\ImportPayload\ImportStoreResult;
@@ -18,9 +19,11 @@ use Illuminate\Console\Command;
  * some of its quarters are already in the past.
  *
  * Staged import (StagedImport, tasks/staged-api-imports/design.md): the fetch step fixes
- * `first_hour` and the horizon `hours` in the header facts; the store step inserts each vintage
- * with the fetch time as its `fetched_at` (the vintage time; `issued_at` stays null), keyed by the
- * payload hash. Not date-bound (S9). Read-only towards Fingrid.
+ * `first_hour`, the horizon `hours` and the stored `variables` name per dataset in the header
+ * facts; the store step inserts each vintage with the fetch time as its `fetched_at` (the vintage
+ * time; `issued_at` stays null), keyed by the payload hash. A payload without a dataset's
+ * variable is refused (`incomplete`), never stored under the current config name. Not date-bound
+ * (S9). Read-only towards Fingrid.
  */
 class FetchFingridForecastVintages extends Command
 {
@@ -69,11 +72,15 @@ class FetchFingridForecastVintages extends Command
         $this->client->assertConfigured();
         $firstHour = $payload->fetchedAt()->startOfHour()->addHour();
         $hours = [];
+        $variables = [];
         foreach ($datasetIds as $datasetId) {
             $hours[(string) $datasetId] = (int) config("fingrid.forecast_vintages.{$datasetId}.horizon_hours");
+            $variables[(string) $datasetId] = (string) config("fingrid.forecast_vintages.{$datasetId}.variable");
         }
         $payload->setFact('first_hour', $firstHour->format('Y-m-d\TH:i:s\Z'));
         $payload->setFact('hours', $hours);
+        // The values key of the stored vintage (S5): a later config rename never relabels a replay.
+        $payload->setFact('variables', $variables);
 
         foreach ($datasetIds as $datasetId) {
             $failure = $this->client->recordPages(
@@ -87,13 +94,15 @@ class FetchFingridForecastVintages extends Command
 
     /**
      * Store step: one vintage per dataset from its recorded pages. A dataset whose fetch failed is
-     * left out; one without a complete hour fails as before. Either makes the run exit 1.
+     * left out; one without a complete hour fails as before. Either makes the run exit 1. A
+     * dataset with rows but no recorded variable refuses the whole payload before any write.
      */
     private function store(ImportPayloadReader $payload): ImportStoreResult
     {
         $fetchedAt = $payload->fetchedAt();
         $firstHour = CarbonImmutable::parse((string) $payload->fact('first_hour'), 'UTC');
         $hours = (array) $payload->fact('hours', []);
+        $variables = (array) $payload->fact('variables', []);
         $failed = [];
         foreach ($payload->end()['failed_units'] as $unit) {
             $failed[(int) $unit['dataset']] = true;
@@ -108,6 +117,13 @@ class FetchFingridForecastVintages extends Command
             }
         }
 
+        foreach (array_keys($rows) as $datasetId) {
+            if (! is_string($variables[(string) $datasetId] ?? null) || $variables[(string) $datasetId] === '') {
+                // A payload without the recorded variable (written before it was a fact) is not stored.
+                throw ImportPayloadInvalid::because('incomplete');
+            }
+        }
+
         $stored = 0;
         $incomplete = false;
         foreach ($rows as $datasetId => $datasetRows) {
@@ -119,7 +135,7 @@ class FetchFingridForecastVintages extends Command
                 continue;
             }
             $new = $this->importer->store(
-                $datasetId, (string) config("fingrid.forecast_vintages.{$datasetId}.variable"), $series, $firstHour, $fetchedAt,
+                $datasetId, $variables[(string) $datasetId], $series, $firstHour, $fetchedAt,
             );
             $stored += $new ? 1 : 0;
             $this->info("Forecast dataset {$datasetId}: ".($new ? 'new vintage stored' : 'unchanged').'.');

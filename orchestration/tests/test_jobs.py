@@ -570,6 +570,9 @@ def test_only_a_contract_import_without_postcodes_is_full_scope():
     # A bare --postcodes before another option, or last, parses as null: full scope.
     assert jobs.full_contract_scope(["--postcodes", "--skip-logos"]) is True
     assert jobs.full_contract_scope(["--skip-logos", "--postcodes"]) is True
+    # The last occurrence wins: a final bare --postcodes replaces an earlier value with null.
+    assert jobs.full_contract_scope(["--postcodes=00100", "--postcodes"]) is True
+    assert jobs.full_contract_scope(["--postcodes", "--postcodes=00100"]) is False
 
 
 async def test_a_failed_replay_store_fails_the_workflow_without_a_fetch(env):

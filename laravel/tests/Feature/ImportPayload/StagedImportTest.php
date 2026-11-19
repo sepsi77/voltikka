@@ -16,10 +16,14 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Sleep;
+use Symfony\Component\Console\Input\ArrayInput;
+use Symfony\Component\Console\Output\BufferedOutput;
 use Tests\TestCase;
 
 class StagedImportTest extends TestCase
@@ -27,6 +31,8 @@ class StagedImportTest extends TestCase
     use RefreshDatabase;
 
     private const URL = 'https://probe.test/rows';
+
+    private const STORE_LOCK = 'staged_import_store_v1:staged:probe';
 
     protected function setUp(): void
     {
@@ -253,7 +259,7 @@ class StagedImportTest extends TestCase
         $payload = $this->fetchOnly('2026-11-19 06:00:00');
         $this->fetchOnly('2026-11-19 07:00:00', ['--label' => 'other']);
         Carbon::setTestNow(Carbon::parse('2026-11-19 08:00:00', 'UTC'));
-        $other = ImportPayloadWriter::open('probe', 'other:command', ['label' => 'default']);
+        $other = ImportPayloadWriter::open('probe', 'other:command', ['label' => 'default', 'x' => []]);
         $other->record(['page' => 1], Http::get(self::URL));
         $other->finish();
         // A newer file without its .sha256 file never finished.
@@ -284,7 +290,7 @@ class StagedImportTest extends TestCase
 
         // 08:00: one of two requests failed; a partial payload is still newer data.
         Carbon::setTestNow(Carbon::parse('2026-11-19 08:00:00', 'UTC'));
-        $partial = ImportPayloadWriter::open('probe', 'staged:probe', ['label' => 'default']);
+        $partial = ImportPayloadWriter::open('probe', 'staged:probe', ['label' => 'default', 'x' => []]);
         $partial->record(['page' => 1], Http::get(self::URL));
         $partial->record(['page' => 2], Http::get(self::URL), failed: true);
         $partial->finish();
@@ -319,8 +325,107 @@ class StagedImportTest extends TestCase
         $this->assertSame('stored', $this->lastJsonLine()['status']);
     }
 
+    public function test_a_newer_payload_with_a_damaged_file_does_not_supersede(): void
+    {
+        $this->fakeRows();
+        $payload = $this->fetchOnly('2026-11-19 06:00:00');
+        // Header line still readable and matching, but the bytes no longer match the .sha256 file.
+        $damaged = $this->fetchOnly('2026-11-19 07:00:00');
+        file_put_contents($damaged['path'], 'damage', FILE_APPEND);
+        $this->assertNotSame($damaged['sha256'], hash_file('sha256', $damaged['path']));
+
+        Http::preventStrayRequests();
+        $this->assertSame(0, Artisan::call('staged:probe', ['--from-payload' => $payload['path']]));
+        $this->assertSame([['a', '2026-11-19T06:00:00Z'], ['b', '2026-11-19T06:00:00Z']], $this->rows());
+    }
+
+    public function test_list_valued_options_compare_without_order_and_repeats(): void
+    {
+        $this->fakeRows();
+        $payload = $this->fetchOnly('2026-11-19 06:00:00', ['--x' => ['b', 'a']]);
+        $this->assertSame(['b', 'a'], ImportPayloadReader::open($payload['path'])->header()['options']['x'], 'The header keeps the raw options.');
+
+        // options_mismatch check: the same set in another order, with a repeat.
+        Http::preventStrayRequests();
+        $this->assertSame(0, Artisan::call('staged:probe', ['--from-payload' => $payload['path'], '--x' => ['a', 'b', 'a']]));
+        $this->assertSame('stored', $this->lastJsonLine()['status']);
+        DB::table('staged_probe_rows')->delete();
+
+        // Newest-payload check: a newer payload of the same set supersedes.
+        $this->fetchOnly('2026-11-19 07:00:00', ['--x' => ['a', 'b', 'a']]);
+        $this->assertRefusal('superseded', ['--from-payload' => $payload['path'], '--x' => ['a', 'b']], $payload);
+        $this->assertSame([], $this->rows());
+    }
+
+    public function test_a_store_that_cannot_get_the_store_lock_writes_nothing_and_is_busy(): void
+    {
+        $this->fakeRows();
+        $payload = $this->fetchOnly('2026-11-19 06:00:00');
+        // Another process holds the store lock of this command for longer than a store waits.
+        $holder = Cache::lock(self::STORE_LOCK, 3900);
+        $this->assertTrue($holder->get());
+        Sleep::fake(syncWithCarbon: true);
+        Log::spy();
+
+        foreach ([[], ['--from-payload' => $payload['path']]] as $options) {
+            $this->assertSame(1, Artisan::call('staged:probe', $options));
+            $line = $this->lastJsonLine();
+            $path = $options['--from-payload'] ?? $line['payload_path'];
+            $this->assertSame([
+                'status' => 'failed', 'step' => 'store', 'error' => 'store_busy',
+                'payload_path' => $path, 'payload_sha256' => hash_file('sha256', $path),
+            ], $line);
+            $this->assertFileExists($path, 'The payload stays for a replay.');
+            $this->assertSame([], $this->rows());
+            $this->assertSame([], StagedProbeCommand::$afterCommitLevels);
+        }
+        Log::shouldHaveReceived('error')->twice()->withArgs(fn (string $message, array $context): bool => $context['error'] === 'store_busy');
+        $this->assertFalse(Cache::lock(self::STORE_LOCK, 1)->get(), 'A busy store does not release the holder\'s lock.');
+    }
+
+    public function test_the_newest_payload_check_reads_a_newer_store_that_committed_while_the_replay_waited_for_the_lock(): void
+    {
+        $this->fakeRows();
+        $older = $this->fetchOnly('2026-11-19 06:00:00');
+
+        // While the replay waits, the other process fetches and stores a newer payload, then releases.
+        $holder = Cache::lock(self::STORE_LOCK, 3900);
+        $this->assertTrue($holder->get());
+        $storeB = null;
+        Sleep::fake();
+        Sleep::whenFakingSleep(function () use ($holder, &$storeB): void {
+            if ($storeB !== null) {
+                return;
+            }
+            $storeB = -1;
+            Carbon::setTestNow(Carbon::parse('2026-11-19 07:00:00', 'UTC'));
+            $holder->release();
+            $command = new StagedProbeCommand;
+            $command->setLaravel($this->app);
+            $storeB = $command->run(new ArrayInput([]), new BufferedOutput);
+        });
+
+        $this->assertRefusal('superseded', ['--from-payload' => $older['path']], $older);
+        $this->assertSame(0, $storeB, 'B stored while the replay waited for the lock.');
+        $this->assertSame([['a', '2026-11-19T07:00:00Z'], ['b', '2026-11-19T07:00:00Z']], $this->rows(), 'The rows stay at B.');
+        $this->assertTrue(Cache::lock(self::STORE_LOCK, 1)->get(), 'A refused store releases the lock.');
+    }
+
+    public function test_the_store_runs_under_the_lock_and_after_commit_work_runs_after_its_release(): void
+    {
+        $this->fakeRows();
+        $payload = $this->fetchOnly('2026-11-19 06:00:00');
+
+        foreach ([[], ['--from-payload' => $payload['path']]] as $options) {
+            DB::table('staged_probe_rows')->delete();
+            StagedProbeCommand::$storeLockFree = StagedProbeCommand::$afterCommitLockFree = null;
+            $this->assertSame(0, Artisan::call('staged:probe', $options));
+            $this->assertSame([false, true], [StagedProbeCommand::$storeLockFree, StagedProbeCommand::$afterCommitLockFree]);
+        }
+    }
+
     /**
-     * @param  array<string, string>  $options
+     * @param  array<string, string|list<string>>  $options
      * @return array<string, mixed> the fetch JSON line's payload object
      */
     private function fetchOnly(string $now, array $options = []): array
@@ -394,7 +499,12 @@ class StagedProbeCommand extends Command
 
     public static int $storeTransactionLevel = 0;
 
-    protected $signature = 'staged:probe {--label=default}';
+    /** Whether the trait's store lock was free inside the store closure and inside after-commit work. */
+    public static ?bool $storeLockFree = null;
+
+    public static ?bool $afterCommitLockFree = null;
+
+    protected $signature = 'staged:probe {--label=default} {--x=*}';
 
     public static function reset(): void
     {
@@ -402,6 +512,18 @@ class StagedProbeCommand extends Command
         self::$refuseDate = self::$allFailed = self::$partialFailedFetch = self::$afterCommitThrows = false;
         self::$afterCommitLevels = [];
         self::$storeTransactionLevel = 0;
+        self::$storeLockFree = self::$afterCommitLockFree = null;
+    }
+
+    private static function storeLockFree(): bool
+    {
+        $probe = Cache::lock('staged_import_store_v1:staged:probe', 1);
+        if (! $probe->get()) {
+            return false;
+        }
+        $probe->release();
+
+        return true;
     }
 
     public function handle(): int
@@ -424,6 +546,7 @@ class StagedProbeCommand extends Command
                     throw ImportPayloadInvalid::because('wrong_date');
                 }
                 self::$storeTransactionLevel = DB::transactionLevel();
+                self::$storeLockFree = self::storeLockFree();
                 $values = [];
                 foreach ($payload->requests() as $request) {
                     $values = [...$values, ...json_decode(ImportPayloadReader::body($request), true)];
@@ -435,7 +558,13 @@ class StagedProbeCommand extends Command
 
                 return new ImportStoreResult(
                     ['rows' => count($values)],
-                    [fn () => self::$afterCommitThrows ? throw new \RuntimeException('after commit') : self::$afterCommitLevels[] = DB::transactionLevel()],
+                    [function (): void {
+                        if (self::$afterCommitThrows) {
+                            throw new \RuntimeException('after commit');
+                        }
+                        self::$afterCommitLevels[] = DB::transactionLevel();
+                        self::$afterCommitLockFree = self::storeLockFree();
+                    }],
                     self::$resultError,
                     self::$resultError === 'fetch_incomplete' ? 'fetch' : 'store',
                 );

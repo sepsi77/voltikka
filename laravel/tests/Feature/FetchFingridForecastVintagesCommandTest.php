@@ -166,7 +166,7 @@ class FetchFingridForecastVintagesCommandTest extends TestCase
         $payload = $this->lastJsonLine()['payload'];
         $this->assertSame(0, DB::table('hourly_forecast_runs')->count(), 'Fetch only writes no rows.');
         $facts = $this->payloadLines($payload['path'])[0]['facts'];
-        $this->assertSame(['first_hour' => '2026-11-01T11:00:00Z', 'hours' => ['245' => 72]], $facts);
+        $this->assertSame(['first_hour' => '2026-11-01T11:00:00Z', 'hours' => ['245' => 72], 'variables' => ['245' => 'wind_power_mw']], $facts);
 
         // Two hours later the store keeps the fetch-time vintage: first hour 11:00, fetched_at 10:45 (S5).
         Carbon::setTestNow(Carbon::create(2026, 11, 1, 12, 45, 0, 'UTC'));
@@ -257,6 +257,44 @@ class FetchFingridForecastVintagesCommandTest extends TestCase
             'payload_path' => $older['path'], 'payload_sha256' => $older['sha256'],
         ], $this->lastJsonLine());
         $this->assertSame(['2026-11-01 10:55:00'], DB::table('hourly_forecast_runs')->pluck('fetched_at')->all());
+    }
+
+    /** S5: the store labels the vintage with the variable recorded at fetch time, not the current config. */
+    public function test_the_store_uses_the_variable_recorded_at_fetch_time(): void
+    {
+        $this->fakeVintage(1000.0);
+        $this->assertSame(0, Artisan::call('fingrid:fetch-forecast-vintages', ['--fetch-only' => true]));
+        $payload = $this->lastJsonLine()['payload'];
+
+        config(['fingrid.forecast_vintages.245.variable' => 'renamed_after_fetch']);
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        $this->assertSame(0, Artisan::call('fingrid:fetch-forecast-vintages', ['--from-payload' => $payload['path']]));
+
+        $this->assertSame(['wind_power_mw'], array_keys(json_decode(DB::table('hourly_forecast_runs')->sole()->values, true)));
+    }
+
+    /** A payload without the recorded variable is refused (incomplete) and writes nothing. */
+    public function test_a_payload_without_the_recorded_variable_is_refused(): void
+    {
+        $this->fakeVintage(1000.0);
+        $this->assertSame(0, Artisan::call('fingrid:fetch-forecast-vintages', ['--fetch-only' => true]));
+        $path = $this->lastJsonLine()['payload']['path'];
+        $lines = $this->payloadLines($path);
+        unset($lines[0]['facts']['variables']);
+        $bytes = (string) gzencode(implode('', array_map(fn (array $line) => json_encode($line, JSON_UNESCAPED_SLASHES)."\n", $lines)));
+        file_put_contents($path, $bytes);
+        file_put_contents(substr($path, 0, -strlen('.ndjson.gz')).'.sha256', hash('sha256', $bytes)."\n");
+
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        $this->assertSame(1, Artisan::call('fingrid:fetch-forecast-vintages', ['--from-payload' => $path]));
+
+        $this->assertSame([
+            'status' => 'failed', 'step' => 'store', 'error' => 'payload_invalid', 'reason' => 'incomplete',
+            'payload_path' => $path, 'payload_sha256' => hash('sha256', $bytes),
+        ], $this->lastJsonLine());
+        $this->assertSame(0, DB::table('hourly_forecast_runs')->count());
     }
 
     /** A repeated or differently written dataset ID is fetched once and gives one vintage. */

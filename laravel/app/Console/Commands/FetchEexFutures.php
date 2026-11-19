@@ -73,6 +73,7 @@ class FetchEexFutures extends Command
         $this->checkpointOwner = null;
         $this->storedPayload = null;
         $this->fetchRun = null;
+        $this->stagedPayload = null;
         $this->fullScope = $this->isFullScheduledScope();
         $this->failureReporter = new DataFetchFailureReporter('eex_futures');
         $exit = Command::FAILURE;
@@ -140,7 +141,8 @@ class FetchEexFutures extends Command
      * checkpoint becomes failed with the step and, after a store failure, the payload reference.
      * It only finishes the owner this invocation already holds and never claims a new one; a
      * newer run's owner fails the compare-and-set. A `--from-payload` store refused before its
-     * takeover (wrong date) holds no owner and finishes its fetch's owner instead (failFetchRun()).
+     * takeover (wrong date, or store_busy/superseded in the trait) holds no owner and finishes its
+     * fetch's owner instead (failFetchRun()).
      *
      * @param  array<string, scalar|null>  $fields
      */
@@ -156,6 +158,13 @@ class FetchEexFutures extends Command
         );
         if (! $this->fullScope) {
             return;
+        }
+        // The trait refused before the store step ran (store lock busy, newer payload file): the
+        // payload's header is verified, so its fetch owner is finished like after a wrong date.
+        // A file of another source or options stays unread.
+        if ($this->storedPayload === null && $this->stagedPayload !== null
+            && ($error === 'store_busy' || ($fields['reason'] ?? null) === 'superseded')) {
+            $this->rememberPayload($this->stagedPayload);
         }
 
         $metadata = [
@@ -304,12 +313,8 @@ class FetchEexFutures extends Command
      */
     private function storeStep(ImportPayloadReader $payload): ImportStoreResult
     {
-        $this->storedPayload = ['path' => $payload->path(), 'sha256' => $payload->sha256()];
+        $this->rememberPayload($payload);
         $effectiveDate = (string) $payload->fact('effective_date');
-        $fetchOwner = $payload->fact('checkpoint_run_uuid');
-        if ($this->fullScope && $this->option('from-payload') !== null && is_string($fetchOwner)) {
-            $this->fetchRun = ['date' => $effectiveDate, 'owner' => $fetchOwner];
-        }
         // S9: the checkpoint and the FI proof are per Helsinki date; never store another day's run.
         if ($effectiveDate !== Carbon::today('Europe/Helsinki')->toDateString()) {
             throw ImportPayloadInvalid::because('wrong_date');
@@ -597,7 +602,10 @@ class FetchEexFutures extends Command
      * owner is held only after the write commits; one invocation calls this at most once.
      * A $replay never seizes a live run: under the row lock, a `running` row of another owner
      * than the payload's own fetch is left alone (`checkpoint_busy`), because that run is
-     * fetching or storing newer data. A settled row or the fetch's own owner is taken over.
+     * fetching or storing other data. A settled row or the fetch's own owner is taken over, and
+     * so is a `running` row of an earlier takeover of this same payload ($metadata `payload`
+     * sha256): that store was abandoned after its takeover, because a live one would still hold
+     * the trait's store lock that this store holds now.
      * Null when this invocation owns the date, else the closed error.
      *
      * @param  array<string, mixed>  $metadata
@@ -620,7 +628,8 @@ class FetchEexFutures extends Command
                     ->whereDate('effective_date', $date)->lockForUpdate()->firstOrFail();
                 $rowOwner = $row->metadata['run_uuid'] ?? null;
                 if ($replay && $row->status === DataFreshnessCheckpoint::STATUS_RUNNING
-                    && $rowOwner !== $owner && $rowOwner !== ($this->fetchRun['owner'] ?? null)) {
+                    && $rowOwner !== $owner && $rowOwner !== ($this->fetchRun['owner'] ?? null)
+                    && (! isset($metadata['payload']['sha256']) || ($row->metadata['payload']['sha256'] ?? null) !== $metadata['payload']['sha256'])) {
                     return false;
                 }
                 $this->freshness->record(
@@ -731,6 +740,19 @@ class FetchEexFutures extends Command
             $this->failureReporter->fail('checkpoint', $exception);
 
             return false;
+        }
+    }
+
+    /**
+     * The payload reference for checkpoint metadata and, for a full `--from-payload` store, the
+     * `running` owner its separate fetch recorded in the header.
+     */
+    private function rememberPayload(ImportPayloadReader $payload): void
+    {
+        $this->storedPayload = ['path' => $payload->path(), 'sha256' => $payload->sha256()];
+        $fetchOwner = $payload->fact('checkpoint_run_uuid');
+        if ($this->fullScope && $this->option('from-payload') !== null && is_string($fetchOwner)) {
+            $this->fetchRun = ['date' => (string) $payload->fact('effective_date'), 'owner' => $fetchOwner];
         }
     }
 

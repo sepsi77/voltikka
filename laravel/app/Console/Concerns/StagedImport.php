@@ -9,6 +9,8 @@ use App\Services\ImportPayload\ImportPayloadWriter;
 use App\Services\ImportPayload\ImportStoreResult;
 use App\Support\DataFetchFailureReporter;
 use Closure;
+use Illuminate\Contracts\Cache\LockTimeoutException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\Console\Input\InputOption;
@@ -26,6 +28,22 @@ use Throwable;
  */
 trait StagedImport
 {
+    /**
+     * Lease of the store lock: above the 60-minute start-to-close of a Temporal store activity
+     * (orchestration staged.STORE_TIMEOUT_MINUTES); run_command kills the PHP child at that
+     * deadline, so the lease cannot expire under a running store.
+     */
+    private const STAGED_STORE_LOCK_LEASE_SECONDS = 3900;
+
+    private const STAGED_STORE_LOCK_WAIT_SECONDS = 300;
+
+    /**
+     * The verified payload of this store step, set as soon as the reader opened it, so a
+     * reportStagedFailure() override can name its fetch facts (for example the fetch's checkpoint
+     * owner) also for a failure before the store closure ran (store_busy, superseded).
+     */
+    protected ?ImportPayloadReader $stagedPayload = null;
+
     /** The payload directory name of this import, a lowercase slug such as `nordpool-predict-fi`. */
     abstract protected function stagedImportSource(): string;
 
@@ -49,6 +67,7 @@ trait StagedImport
      */
     protected function runStaged(Closure $fetch, Closure $store, bool $transactional = true): int
     {
+        $this->stagedPayload = null; // a command instance can run more than once (tests)
         $payloadPath = $this->option('from-payload');
         if ($payloadPath !== null && $this->option('fetch-only')) {
             return $this->stagedFailure('fetch', 'invalid_options');
@@ -91,6 +110,7 @@ trait StagedImport
         } catch (ImportPayloadInvalid $e) {
             return $this->stagedFailure('store', 'payload_invalid', $e, ['reason' => $e->reason]);
         }
+        $this->stagedPayload = $reader;
         // Every store failure line from here on names the verified file, so it can be replayed.
         $opened = ['payload_path' => $reader->path(), 'payload_sha256' => $reader->sha256()];
 
@@ -103,20 +123,35 @@ trait StagedImport
                 if (self::normalizedOptions($header['options']) !== self::normalizedOptions($this->stagedDataOptions())) {
                     throw ImportPayloadInvalid::because('options_mismatch');
                 }
-                $this->refuseStagedOlderPayload($reader);
             }
         } catch (ImportPayloadInvalid $e) {
             return $this->stagedFailure('store', 'payload_invalid', $e, ['reason' => $e->reason, ...$opened]);
         }
 
+        // One store lock per command, in every mode: the newest-payload check and the store (with
+        // its commit) run under it, so no newer store of this command can commit between the check
+        // and the write. A command's own store lock inside $store is always the inner one.
+        $lock = Cache::lock("staged_import_store_v1:{$this->getName()}", self::STAGED_STORE_LOCK_LEASE_SECONDS);
+        try {
+            $lock->block(self::STAGED_STORE_LOCK_WAIT_SECONDS);
+        } catch (LockTimeoutException) {
+            // No write; the payload stays for a replay.
+            return $this->stagedFailure('store', 'store_busy', null, $opened);
+        }
+
         $typedStore = fn (): ImportStoreResult => $store($reader);
         try {
+            if ($this->option('from-payload') !== null) {
+                $this->refuseStagedOlderPayload($reader);
+            }
             $result = $transactional ? DB::transaction($typedStore) : $typedStore();
         } catch (ImportPayloadInvalid $e) {
-            // For example wrong_date, which only the store step can judge.
+            // superseded, or for example wrong_date, which only the store step can judge.
             return $this->stagedFailure('store', 'payload_invalid', $e, ['reason' => $e->reason, ...$opened]);
         } catch (Throwable $e) {
             return $this->stagedFailure('store', 'store_failed', $e, $opened);
+        } finally {
+            $lock->release();
         }
 
         try {
@@ -202,9 +237,10 @@ trait StagedImport
     /**
      * A replay stores only the newest payload (design 7a): it exists to recover the newest data
      * after a fix, so a complete payload (with its .sha256 file) of the same command and data
-     * options fetched later supersedes this one. Reads only each candidate's header line. A
-     * candidate whose every request failed holds nothing usable and never supersedes; a header
-     * without the counts (older files) counts as usable.
+     * options fetched later supersedes this one. Reads each candidate's header line, and hashes
+     * only a candidate that matches, so a damaged file never supersedes. A candidate whose every
+     * request failed holds nothing usable and never supersedes; a header without the counts (older
+     * files) counts as usable. The caller holds the store lock.
      *
      * @throws ImportPayloadInvalid superseded
      */
@@ -217,8 +253,8 @@ trait StagedImport
         $root = rtrim((string) config('import_payloads.path'), '/').'/'.$this->stagedImportSource();
 
         foreach (glob("{$root}/*/*.ndjson.gz") ?: [] as $path) {
-            if (basename(dirname($path)) < $fromDate || realpath($path) === $own
-                || ! is_file(substr($path, 0, -strlen('.ndjson.gz')).'.sha256')) {
+            $sha256Path = substr($path, 0, -strlen('.ndjson.gz')).'.sha256';
+            if (basename(dirname($path)) < $fromDate || realpath($path) === $own || ! is_file($sha256Path)) {
                 continue;
             }
             $handle = @gzopen($path, 'rb');
@@ -232,16 +268,29 @@ trait StagedImport
                 || (($other['facts']['fetch_failed'] ?? false) === true);
             if (is_array($other) && ! $allFailed && ($other['command'] ?? null) === $header['command']
                 && is_string($other['fetched_at'] ?? null) && $other['fetched_at'] > $header['fetched_at']
-                && is_array($other['options'] ?? null) && self::normalizedOptions($other['options']) === $options) {
+                && is_array($other['options'] ?? null) && self::normalizedOptions($other['options']) === $options
+                && hash_file('sha256', $path) === trim((string) @file_get_contents($sha256Path))) {
                 throw ImportPayloadInvalid::because('superseded');
             }
         }
     }
 
-    /** @param  array<string, mixed>  $options */
+    /**
+     * Key order never matters, and a list-valued option is a set: its values compare as unique
+     * strings in sorted order. No data option of a staged command depends on list order.
+     *
+     * @param  array<string, mixed>  $options
+     */
     private static function normalizedOptions(array $options): string
     {
         ksort($options);
+        foreach ($options as $key => $value) {
+            if (is_array($value) && array_is_list($value) && array_filter($value, fn (mixed $item): bool => ! is_scalar($item) && $item !== null) === []) {
+                $values = array_unique(array_map(fn (mixed $item): string => (string) $item, $value));
+                sort($values, SORT_STRING);
+                $options[$key] = $values;
+            }
+        }
 
         return json_encode($options, JSON_THROW_ON_ERROR);
     }

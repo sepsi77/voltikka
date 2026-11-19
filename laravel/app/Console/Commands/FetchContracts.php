@@ -100,6 +100,7 @@ class FetchContracts extends Command
         $this->failureRecorded = false;
         $this->payloadReference = null;
         $this->fetchRun = null;
+        $this->stagedPayload = null;
         $exit = self::FAILURE;
         try {
             $exit = $this->runStaged(
@@ -143,6 +144,13 @@ class FetchContracts extends Command
         $stage = in_array($error, ['fetch_failed', 'store_failed', 'after_commit_failed'], true) ? 'unexpected' : $error;
         $this->failureReporter->step($step);
         $this->failureReporter->fail($stage, $exception);
+        // The trait refused before the store closure ran (outer store lock busy, newer payload
+        // file): the payload's header is verified, so its fetch owner is finished like after the
+        // command's own refusals. A file of another source or options stays unread.
+        if ($this->payloadReference === null && $this->stagedPayload !== null
+            && ($error === 'store_busy' || ($fields['reason'] ?? null) === 'superseded')) {
+            $this->rememberPayload($this->stagedPayload);
+        }
         // A refused payload records its closed reason (wrong_date, superseded) as the checkpoint stage.
         $checkpointStage = $error === 'payload_invalid' && is_string($fields['reason'] ?? null) ? $fields['reason'] : $stage;
         if ($this->runUuid !== null && $this->checkpointDate !== null) {
@@ -217,13 +225,9 @@ class FetchContracts extends Command
     private function store(ImportPayloadReader $payload): ImportStoreResult
     {
         $this->failureReporter->step('store');
-        $this->payloadReference = ['path' => $payload->path(), 'sha256' => $payload->sha256()];
+        $this->rememberPayload($payload);
         // Before any write: the rows carry the import date, and a replay is for the same day only.
         $date = $payload->fact('effective_date');
-        $fetchRunUuid = $payload->fact('checkpoint_run_uuid');
-        if ($this->option('from-payload') !== null && is_string($date) && is_string($fetchRunUuid)) {
-            $this->fetchRun = ['date' => $date, 'uuid' => $fetchRunUuid];
-        }
         if ($date !== Carbon::now('Europe/Helsinki')->toDateString()) {
             throw ImportPayloadInvalid::because('wrong_date');
         }
@@ -410,16 +414,17 @@ class FetchContracts extends Command
     }
 
     /**
-     * A replay's takeover of the full-scope checkpoint, under the store lock. It never seizes a
-     * live run: when another run is `running` for the date (a newer fetch, or a store that is not
-     * this payload's own fetch), the replay writes nothing and fails `checkpoint_busy`, and that
-     * run keeps the date. The payload's own fetch owner, a settled run or no row can be taken over,
-     * so the current failed run stays recoverable. Null when the replay owns the date.
+     * A replay's takeover of the full-scope checkpoint, under the store locks. It never seizes a
+     * live run: when another run is `running` for the date (a newer fetch, or a store of another
+     * payload), the replay writes nothing and fails `checkpoint_busy`, and that run keeps the
+     * date. The payload's own fetch owner, an abandoned earlier store of this same payload, a
+     * settled run or no row can be taken over, so the current failed run stays recoverable. Null
+     * when the replay owns the date.
      */
     private function takeOverCheckpoint(string $date): ?ImportStoreResult
     {
         try {
-            $owner = $this->completion->takeOver($date, $this->fetchRun['uuid'] ?? null);
+            $owner = $this->completion->takeOver($date, $this->fetchRun['uuid'] ?? null, $this->payloadReference);
         } catch (Throwable $exception) {
             $this->error('Failed to record the contract freshness checkpoint.');
             $this->failureReporter->fail('checkpoint', $exception);
@@ -471,6 +476,20 @@ class FetchContracts extends Command
         } catch (Throwable $exception) {
             $this->error('Failed to record the contract freshness checkpoint.');
             $this->failureReporter->fail('checkpoint', $exception);
+        }
+    }
+
+    /**
+     * The payload reference for checkpoint metadata and, for a `--from-payload` store, the
+     * `running` owner its separate fetch recorded in the header.
+     */
+    private function rememberPayload(ImportPayloadReader $payload): void
+    {
+        $this->payloadReference = ['path' => $payload->path(), 'sha256' => $payload->sha256()];
+        $date = $payload->fact('effective_date');
+        $fetchRunUuid = $payload->fact('checkpoint_run_uuid');
+        if ($this->option('from-payload') !== null && is_string($date) && is_string($fetchRunUuid)) {
+            $this->fetchRun = ['date' => $date, 'uuid' => $fetchRunUuid];
         }
     }
 

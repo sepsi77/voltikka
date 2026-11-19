@@ -59,29 +59,34 @@ class ContractImportCompletion
 
     /**
      * A replay's takeover (`--from-payload`): start a new owner like start(), but never seize a
-     * live run. Under the row lock the date must have no row, a row that is not `running`, or a
-     * `running` row of the payload's own fetch owner. Null when another run is `running`: that
-     * run is fetching or storing newer data, and finishing it would hide its outcome.
+     * live run. Under the row lock the date must have no row, a row that is not `running`, a
+     * `running` row of the payload's own fetch owner, or a `running` row of an earlier takeover
+     * of this same payload (its `payload.sha256`). That last row is an abandoned store (killed
+     * after its takeover, before it settled): the caller holds the command's outer store lock,
+     * which a live store of that payload would still hold. Null when another run is `running`:
+     * that run is fetching or storing other data, and finishing it would hide its outcome. The
+     * new owner records $payload, so a later replay of the same file can recover it in turn.
+     *
+     * @param  array{path: string, sha256: string}  $payload
      */
-    public function takeOver(string $date, ?string $fetchOwner): ?string
+    public function takeOver(string $date, ?string $fetchOwner, array $payload): ?string
     {
         $uuid = (string) Str::uuid();
 
-        return DB::transaction(function () use ($date, $fetchOwner, $uuid): ?string {
+        return DB::transaction(function () use ($date, $fetchOwner, $payload, $uuid): ?string {
             $row = $this->query($date)->lockForUpdate()->first();
             if ($row === null) {
                 $this->ensureRow($date, $uuid);
                 $row = $this->query($date)->lockForUpdate()->firstOrFail();
-                if (($row->metadata['run_uuid'] ?? null) === $uuid) {
-                    return $uuid;
-                }
             }
-            if ($row->status === DataFreshnessCheckpoint::STATUS_RUNNING && ($row->metadata['run_uuid'] ?? null) !== $fetchOwner) {
+            $rowOwner = $row->metadata['run_uuid'] ?? null;
+            if ($row->status === DataFreshnessCheckpoint::STATUS_RUNNING && $rowOwner !== $uuid && $rowOwner !== $fetchOwner
+                && ($row->metadata['payload']['sha256'] ?? null) !== $payload['sha256']) {
                 return null;
             }
             $row->update([
                 'status' => DataFreshnessCheckpoint::STATUS_RUNNING,
-                'metadata' => ['run_uuid' => $uuid, 'stage' => 'started'],
+                'metadata' => ['run_uuid' => $uuid, 'stage' => 'started', 'payload' => $payload],
                 'recorded_at' => now(),
             ]);
 

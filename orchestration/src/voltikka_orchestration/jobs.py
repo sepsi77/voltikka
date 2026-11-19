@@ -448,13 +448,14 @@ def full_contract_scope(args: list[str]) -> bool:
     null`, so `--postcodes=<any>` and `--postcodes <value>` are scoped, while a bare `--postcodes`
     before another option or at the end parses as null (Symfony ArgvInput). Only a full import writes
     the global import checkpoint that the completion loop reads; a scoped import never does (root
-    AGENTS.md, "Deferred contract import completion")."""
+    AGENTS.md, "Deferred contract import completion"). The last occurrence wins, as in Symfony."""
+    scoped = False
     for index, arg in enumerate(args):
         if arg.startswith("--postcodes="):
-            return False
-        if arg == "--postcodes" and index + 1 < len(args) and not args[index + 1].startswith("-"):
-            return False
-    return True
+            scoped = True
+        elif arg == "--postcodes":
+            scoped = index + 1 < len(args) and not args[index + 1].startswith("-")
+    return not scoped
 
 
 @dataclass
