@@ -446,3 +446,24 @@ Round 5 (head `d41fdd8`, CodeRabbit, 2 findings, valid 👍): web-only deploys s
 04:00–09:00 until the morning group is live; the backup schedule text names the Temporal Schedule
 `backup-nightly` (03:00 backup, then clean and monitor) and keeps only the weekly files backup in
 `console.php`.
+
+## 2026-11-16 – Cut-over: maintenance, spot and morning live on Temporal
+
+User approval 2026-11-16 ("Approved for both of these once the PR reviews clear"). Times are
+Helsinki.
+
+- 11:27 PR #25 merged (`2ded08a`) after six review rounds. Today's `contract_import`,
+  `morning_retail` and `morning_forecast` were already `ready`, so the noon limit protected no
+  running consumer; the only running workflow, `SDailyForecast`, waited on a timer with no pending
+  activity.
+- 11:28–11:29 `scripts/deploy-image.sh --yes deploy-000028-3e32b9147089` from `main`, both roles
+  (61 s). Web role: `TEMPORAL_SCHEDULE_GROUPS=collectors,maintenance,spot,morning`; worker memory
+  4 GiB. `schedule:list` in the new web container: exactly `logos:download` (07:00 Helsinki) and
+  `backup:run --only-files` (Sunday 02:30).
+- 11:29 `schedules --apply --group maintenance --group spot --group morning` in the worker: 10
+  Schedules created. Read back by ID: 28 of 28 Schedules active.
+- First runs, all `COMPLETED`: `price-cache-maintenance` every 5 minutes from 11:30,
+  `fingrid-forecast-vintages` 11:45, `spot-hourly` and `spot-fetch-forecast` 12:00. FI spot data
+  current, `jobs` empty, no failed job, `/`, `/sahkosopimus`, `/spot-price` 200.
+- The first `MorningChain` runs on 2026-11-17 at 04:00 (R4 acceptance test). Rollback: pause
+  `morning-chain`, remove `morning` from the list, deploy the web role.
