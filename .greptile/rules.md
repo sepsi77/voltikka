@@ -48,6 +48,7 @@ is the most expensive bug here.
   "Writing rules for public copy"). Do not ask for hedges or disclaimers. Flag a claim only when it
   is false against the code or data.
 - **Legitimate negative or zero spot prices.** They are valid values, not errors.
+- **The same job in `routes/console.php` and `orchestration/.../schedules.py`.** This is intended: `console.php` skips every group listed in `TEMPORAL_SCHEDULE_GROUPS` (production lists `collectors,maintenance,spot,morning`), so only one scheduler runs a job, and `WebSchedulerTest` / `test_console_groups.py` keep both sides equal. Two runs of one scheduled job never overlap (Temporal overlap policy SKIP, `withoutOverlapping` in the web scheduler).
 - **Narrow races of a manual import replay.** `ImportReplay` / `--from-payload` is a manual, approved, same-day recovery step. A replay is refused when a newer usable payload of the same command and options exists, and the check and the store run under one store lock per command (`laravel/app/Services/ImportPayload/AGENTS.md`). A crashed store's lock is recovered by a replay after its lease. Do not flag further interleavings between a manual replay and a scheduled run, or a retry that waits out a dead store's lock, unless the scheduled path itself can publish a wrong figure.
 - **Decisions recorded in a task's `decisions.md` or a nested `AGENTS.md`**, unless the code shows
   wrong, stale or misleading results. Then flag the result and cite the decision.

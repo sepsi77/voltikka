@@ -154,7 +154,14 @@ trait StagedImport
         } catch (Throwable $e) {
             return $this->stagedFailure('store', 'store_failed', $e, $opened);
         } finally {
-            $lock->release();
+            try {
+                $lock->release();
+            } catch (Throwable $e) {
+                // The store outcome above stands (committed or rolled back); the lease frees the lock.
+                Log::warning("Import store lock release failed: {$this->getName()}", [
+                    'command' => $this->getName(), 'exception_class' => $e::class, ...$opened,
+                ]);
+            }
         }
 
         try {

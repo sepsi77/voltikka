@@ -10,6 +10,7 @@ use App\Services\ImportPayload\ImportPayloadWriter;
 use App\Services\ImportPayload\ImportStoreResult;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Contracts\Cache\Lock;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -405,6 +406,26 @@ class StagedImportTest extends TestCase
         }
         Log::shouldHaveReceived('error')->twice()->withArgs(fn (string $message, array $context): bool => $context['error'] === 'store_failed'
             && $context['exception_class'] === \RuntimeException::class);
+    }
+
+    public function test_a_failed_lock_release_keeps_the_committed_store_result(): void
+    {
+        $this->fakeRows();
+        $payload = $this->fetchOnly('2026-11-19 06:00:00');
+        // The lock backend fails after the commit: release() throws.
+        $lock = \Mockery::mock(Lock::class);
+        $lock->shouldReceive('block')->andReturn(true);
+        $lock->shouldReceive('get')->andReturn(false); // the probe's own lock check
+        $lock->shouldReceive('release')->andThrow(new \RuntimeException('Connection reset'));
+        Cache::shouldReceive('lock')->andReturn($lock);
+        Log::spy();
+
+        $this->assertSame(0, Artisan::call('staged:probe', ['--from-payload' => $payload['path']]));
+        $this->assertSame('stored', $this->lastJsonLine()['status']);
+        $this->assertNotSame([], $this->rows());
+        $this->assertNotNull(StagedProbeCommand::$afterCommitLockFree, 'After-commit work still ran.');
+        Log::shouldHaveReceived('warning')->once()->withArgs(fn (string $message, array $context): bool => $context['exception_class'] === \RuntimeException::class
+            && $context['payload_path'] === $payload['path']);
     }
 
     public function test_the_newest_payload_check_reads_a_newer_store_that_committed_while_the_replay_waited_for_the_lock(): void

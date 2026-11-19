@@ -139,3 +139,10 @@ CodeRabbit: 3 inline, 3 outside the diff, 2 minor (all Minor).
 - **Fixed:** lock-backend errors in `runStaged()` give the closed `store_failed` line; `SpotPriceImport/AGENTS.md` names `recordFailure()` for the neighbours only; a non-2xx EEX answer is a failed unit that enters the bounded retry pass; Fingrid `--dataset` values are normalized in the payload identity; a Fingrid vintage payload stays replayable after its dataset left the config.
 - **Rejected (👎 with reply), 4629143870:** an older weather replay with a manual option subset can overwrite newer observed rows. The replay must give its payload's options, so this needs a rare manual option set; the daily default run re-fetches the 21-day window and restores the values.
 - **Not fixed (review-body minors, no thread; CodeRabbit rated both "poor tradeoff"):** a repeated store attempt after a dead store fails `store_busy` instead of waiting out the 65-minute lease (the payload stays; a replay after the lease recovers), and `ImportReplay`'s completion outcome can read a newer run's checkpoint in a narrow window. Rule added to `.greptile/rules.md` so both reviewers stop flagging narrow manual-replay races.
+
+## 2026-11-19 – PR #31 external review, round 4 (head 0437182)
+
+CodeRabbit: 2 outside the diff.
+
+- **Fixed:** a failed store-lock release no longer replaces the store outcome; it logs one safe warning with the payload reference, and the lease frees the lock.
+- **Rejected:** "`fingrid:fetch` runs from both `console.php` and Temporal". `console.php` skips every group listed in `TEMPORAL_SCHEDULE_GROUPS`, and production lists `collectors`; `WebSchedulerTest` and `test_console_groups.py` keep both sides equal on purpose. Added to `.greptile/rules.md` (no thread for outside-diff comments).
