@@ -16,6 +16,7 @@ This directory owns the authoritative contract import and its post-import work.
 - `ContractImporter::import()` is the testable entry point. It does not use Artisan.
 - The importer uses one `DB::transaction()` closure. Do not catch a mutation failure inside this closure.
 - Source snapshots are in the same transaction as contract rows and price rows.
+- Upstream text has no length limit, and one too-long value rolls back the whole import (MySQL strict mode; in-memory SQLite tests do not enforce varchar lengths). Store seller-controlled free text and URLs in `text` columns. On 2026-11-19 a 455-character Helen `ProductLink` stopped the import, so `order_link` and `product_link` are `text` since migration `2026_11_19_000001`.
 - Relational pricing model, contract type, and target group values pass through their tolerant enums. Verified aliases normalize to canonical values, and unsupported or malformed values store explicit `Unknown`. The immutable source payload keeps the exact upstream values. Metering remains source-compatible in this slice.
 - After company upserts and before `processContracts()`, all already-existing imported contract rows are locked in stable contract-ID order so updates cannot precede their locks. New rows are included in the later stable lock before episode mutation.
 - Snapshot fingerprints stay unique and immutable. Their first/last timestamps are aggregate evidence only.

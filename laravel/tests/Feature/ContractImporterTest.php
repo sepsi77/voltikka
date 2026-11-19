@@ -9,6 +9,7 @@ use App\Models\ElectricityContract;
 use App\Models\Postcode;
 use App\Services\ContractImport\ContractImporter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class ContractImporterTest extends TestCase
@@ -133,6 +134,24 @@ class ContractImporterTest extends TestCase
     }
 
     /** @return array<string, mixed> */
+    public function test_import_keeps_seller_links_longer_than_255_characters(): void
+    {
+        // 2026-11-19: Helen sent 455-character product links and MySQL rejected the varchar(255) row.
+        $this->assertSame('text', Schema::getColumnType('electricity_contracts', 'product_link'));
+        $this->assertSame('text', Schema::getColumnType('electricity_contracts', 'order_link'));
+        $link = 'https://www.example.test/sahko?'.str_repeat('utm_campaign=x&', 30);
+        $this->assertGreaterThan(255, strlen($link));
+        $payload = $this->contractPayload();
+        $payload['Details']['ProductLink'] = $link;
+        $payload['Details']['OrderLink'] = $link;
+
+        $this->app->make(ContractImporter::class)->import([$payload], [], '2026-11-19', true);
+
+        $contract = ElectricityContract::where('api_id', 'direct-import-contract')->firstOrFail();
+        $this->assertSame($link, $contract->product_link);
+        $this->assertSame($link, $contract->order_link);
+    }
+
     private function contractPayload(): array
     {
         return [
