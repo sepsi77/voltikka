@@ -53,6 +53,13 @@ stale or unsafe result acceptable: report the result and cite the decision.
 2. **Artisan commands.** A command that writes history or production data is a dry run by default
    and writes only with `--apply`. A planned apply checks the plan hash before any write. Exit
    codes are correct (`Command::FAILURE` on failure). Output does not print secrets.
+   When a command's control flow is rewritten (split into modes, moved into a trait or a new
+   service), list its behavior on `main` first and check that each item survives in every new
+   mode it applies to: exit code per scope, isolation of one failed unit from the others, option
+   normalization (dedupe, parsing), and the output lines callers read. A mode that skips a part on
+   purpose (a fetch-only mode never stores) is checked against the spec, not flagged. Examples from the staged imports (PR #31):
+   ENTSO-E stopped isolating a failed unit, a scoped `contracts:fetch` lost its exit code 1, and
+   repeated `--dataset` options were no longer deduplicated.
 3. **Transactions and idempotency.** `DB::transaction` covers every write that must be atomic. No
    network I/O (`Http::`, external APIs) inside a transaction. A retried or repeated run gives the
    same result (`upsert`, unique keys, `updateOrCreate` with the full identity). A claim or

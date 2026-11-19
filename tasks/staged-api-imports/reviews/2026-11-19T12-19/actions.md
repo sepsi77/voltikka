@@ -44,3 +44,4 @@ Verdict after fixes: ACCEPT
 ## Codification
 - Written in `laravel/app/Services/ImportPayload/AGENTS.md` and root `AGENTS.md`: every new external import follows the staged pattern; stores are one transaction; data-meaning times come from the header.
 - Added to the `laravel-reviewer` checklist, item 3 (missed by the first implementation, caught here): a recency or freshness check that guards a later write must run under the same serialization as that write, and the serialization must outlast the writer's allowed life (PRC-001/PRC-002 residuals, LAR-201).
+- Added after the external review (2026-11-19), to the `laravel-reviewer` checklist, item 2: a rewritten command keeps its behavior from `main` in every mode (exit code per scope, failed-unit isolation, option normalization, output lines). Cause: missed by the spec review, caught by CodeRabbit in PR #31 (ENTSO-E unit isolation, scoped `contracts:fetch` exit code, `--dataset` dedupe).
