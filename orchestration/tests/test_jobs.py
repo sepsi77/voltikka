@@ -75,8 +75,10 @@ class FakeArtisan:
 
     def __init__(self, *, failing=(), retail=("ready_after", 2), forecast=("ready_after", 1),
                  completion_ticks=2, consumer_seconds=0.0, import_state="pending_completion", readiness_failures=0,
-                 fetch_result=None, lost_once=()):
+                 fetch_result=None, lost_once=(), fail_first=None):
         self.calls: list[tuple[str, str]] = []
+        # Command line -> number of its first runs that fail (CommandFailed).
+        self.fail_first = dict(fail_first or {})
         self.requests: list[CommandRequest] = []
         self.schedule_to_close: dict[str, timedelta | None] = {}
         # The `--fetch-only` result line (default: a valid reference); a fetch writes `running` (S11).
@@ -118,6 +120,9 @@ class FakeArtisan:
         self.requests.append(request)
         self.schedule_to_close[name] = activity.info().schedule_to_close_timeout
         self.attempts[name] = self.attempts.get(name, 0) + 1
+        if self.fail_first.get(name):
+            self.fail_first[name] -= 1
+            raise ApplicationError(f"{name} exited 1 (boom)", "boom", type="CommandFailed")
         if name in self.failing:
             # Retryable by itself: only the workflow retry policy may stop the retry.
             raise ApplicationError(f"{name} exited 1 (boom)", "boom", type="CommandFailed")
@@ -496,6 +501,103 @@ async def test_a_skipped_fetch_has_nothing_to_store(env):
     assert result.outcomes[0].status == "succeeded" and fake.reports == []
 
 
+# Collector fetch retries (tasks/s-forecast-gates/ requirements 10-12)
+
+
+def minutes_after_start(fake: FakeArtisan, name: str) -> list[int]:
+    times = [datetime.strptime(at, "%H:%M") for at in fake.times(name)]
+    return [int((at - times[0]).total_seconds() // 60) for at in times]
+
+
+async def test_a_failed_collector_fetch_is_retried_and_recovers_without_an_issue(env):
+    fake = FakeArtisan(fail_first={fetch("jao:fetch"): 2})
+    step = Step(["jao:fetch"], staged=True, fetch_retry_minutes=120)
+
+    result = await execute(env, fake, ArtisanJob.run, ArtisanJobInput("jao-fetch", [step]))
+
+    assert minutes_after_start(fake, fetch("jao:fetch")) == [0, 10, 20]
+    assert fake.names()[-1] == store("jao:fetch") and fake.attempts[store("jao:fetch")] == 1
+    assert result.outcomes[0].status == "succeeded" and fake.reports == []
+    # A retry ends by the retry deadline: the last one, 20 minutes after the start, has 100 minutes left.
+    left = fake.schedule_to_close[fetch("jao:fetch")]
+    assert timedelta(minutes=99) < left <= timedelta(minutes=100)
+
+
+@pytest.mark.parametrize("retry_minutes, offsets", [(120, list(range(0, 120, 10))), (45, [0, 10, 20, 30, 40])])
+async def test_an_exhausted_collector_fetch_retry_sends_one_issue(env, retry_minutes, offsets):
+    fake = FakeArtisan(failing={fetch("fingrid:fetch-forecast-vintages")})
+    step = Step(["fingrid:fetch-forecast-vintages"], 10, staged=True, fetch_retry_minutes=retry_minutes)
+
+    with pytest.raises(WorkflowFailureError):
+        await execute(env, fake, ArtisanJob.run, ArtisanJobInput("fingrid-forecast-vintages", [step]))
+
+    assert minutes_after_start(fake, fetch("fingrid:fetch-forecast-vintages")) == offsets
+    assert [(r.reason, r.facts) for r in fake.reports] == [
+        ("command_failed", {"command": "fingrid:fetch-forecast-vintages", "error": "boom", "step": "fetch"})]
+
+
+async def test_a_failed_store_is_not_retried_by_the_collector_fetch_retry(env):
+    fake = FakeArtisan(failing={store("syke:fetch")})
+
+    with pytest.raises(WorkflowFailureError):
+        await execute(env, fake, ArtisanJob.run, ArtisanJobInput(
+            "syke-fetch", [Step(["syke:fetch"], staged=True, fetch_retry_minutes=120)]))
+
+    assert fake.names() == [fetch("syke:fetch"), store("syke:fetch")]
+    assert len(fake.reports) == 1
+
+
+async def test_a_self_reporting_step_is_never_retried(env):
+    """Its command sends an Issue per failed run, so a retry would send a second one."""
+    fake = FakeArtisan(failing={fetch("spot:fetch")})
+
+    with pytest.raises(WorkflowFailureError):
+        await execute(env, fake, ArtisanJob.run, ArtisanJobInput(
+            "spot-hourly", [Step(["spot:fetch"], self_reports=True, staged=True, fetch_retry_minutes=120)]))
+
+    assert fake.names() == [fetch("spot:fetch")] and fake.reports == []
+
+
+# Retry deadline per collector job, in minutes after its start (decisions.md, 2026-11-21).
+EXPECTED_FETCH_RETRY_MINUTES = {
+    "fingrid-fetch": 120, "gas-storage-fetch": 120, "weather-fetch": 120, "weather-fetch-ec46": 120,
+    "weather-fetch-seas5": 120, "entsoe-fetch": 120, "fmi-fetch": 120, "fmi-fetch-forecast": 120,
+    "weather-fetch-solar-ghi": 120, "weather-fetch-ecmwf-00z": 25, "weather-fetch-ecmwf-prev-day1": 120,
+    "fingrid-forecast-vintages": 45, "syke-fetch": 120, "eex-europe-fetch": 120, "jao-fetch": 120,
+    "nve-fetch-reservoirs": 120,
+}
+
+
+def test_only_staged_collector_steps_retry_a_failed_fetch_and_none_self_reports():
+    wanted = schedules(Settings.from_env())
+    for name, schedule in wanted.items():
+        if schedule.action.workflow != "ArtisanJob":
+            continue
+        for step in schedule.action.args[0].steps:
+            if name in GROUPS["collectors"]:
+                # requirement 11: a self-reporting collector step would get no retry; keep none.
+                assert step.staged and not step.self_reports, name
+                assert step.fetch_retry_minutes == EXPECTED_FETCH_RETRY_MINUTES[name], name
+            else:
+                assert step.fetch_retry_minutes == 0, name
+    assert set(EXPECTED_FETCH_RETRY_MINUTES) == GROUPS["collectors"]
+    for step in (jobs.EEX_STEP, jobs.CONTRACTS_STEP, jobs.COMPLETION_STEP, jobs.EVALUATION_STEP):
+        assert step.fetch_retry_minutes == 0
+
+
+async def test_a_collector_fetch_retry_replays_deterministically(env):
+    fake = FakeArtisan(fail_first={fetch("jao:fetch"): 1})
+    async with Worker(env.client, task_queue=QUEUE, workflows=WORKFLOWS,
+                      activities=[fake.run_command, fake.report_issue],
+                      workflow_failure_exception_types=[Exception]):
+        handle = await env.client.start_workflow(
+            ArtisanJob.run, ArtisanJobInput("jao-fetch", [Step(["jao:fetch"], staged=True, fetch_retry_minutes=120)]),
+            id=f"jobs-test-{uuid.uuid4()}", task_queue=QUEUE)
+        await handle.result()
+    await Replayer(workflows=PRODUCTION_WORKFLOWS).replay_workflow(await handle.fetch_history())
+    assert fake.names() == [fetch("jao:fetch"), fetch("jao:fetch"), store("jao:fetch")]
+
+
 async def test_the_contract_import_runs_fetch_store_then_the_completion_loop(env):
     fake = FakeArtisan()
 
@@ -689,7 +791,10 @@ async def test_a_date_bound_replay_of_today_passes_the_date_to_the_store(env):
 # Patching: workflows that started before staged imports replay their one-process commands.
 # The histories in tests/histories/ were recorded from the code before this change (FakeArtisan /
 # FakeCommands of these tests): ArtisanJob spot-hourly, EexFutures, ContractImport, SDailyForecast
-# and SWeeklyRefit.
+# and SWeeklyRefit. Recorded before the S forecast gates (tasks/s-forecast-gates/):
+# s_daily_forecast_staged (the clock-timed staged path; replays through the gates patch) and
+# artisan_job_failed_collector_fetch (a failed collector fetch from a Schedule input without
+# `fetch_retry_minutes`, so the new code takes no retry path and needs no patch).
 
 HISTORIES = Path(__file__).parent / "histories"
 # No workflow_failure_exception_types here: with [Exception], a nondeterminism error fails the

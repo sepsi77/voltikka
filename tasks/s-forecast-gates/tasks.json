@@ -1,9 +1,10 @@
 [
   {"name": "Spec: gates in SDailyForecast and collector fetch retries (spec.md)", "status": "done"},
-  {"name": "A. Gate loops in SDailyForecast (requirements 1-9) with tests", "status": "todo"},
-  {"name": "B. Collector fetch retries in jobs.py (requirements 10-12) with tests", "status": "todo"},
-  {"name": "C. Docs (requirement 13)", "status": "todo"},
-  {"name": "D2 replay check recorded in decisions.md", "status": "todo"},
+  {"name": "A. Gate loops in SDailyForecast (requirements 1-9) with tests", "status": "done"},
+  {"name": "B. Collector fetch retries in jobs.py (requirements 10-12) with tests", "status": "done"},
+  {"name": "C. Docs (requirement 13)", "status": "done"},
+  {"name": "D2 replay check recorded in decisions.md", "status": "done"},
   {"name": "spec-review, PR and external review loop", "status": "todo"},
+  {"name": "Apply the Schedules after a separately approved deploy (s-forecast: 08:55 start; collectors: fetch_retry_minutes)", "status": "todo"},
   {"name": "D4 production check after a separately approved deploy", "status": "todo"}
 ]

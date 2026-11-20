@@ -8,7 +8,10 @@ external API import) runs as two activities, fetch then store (`staged.py`); `Im
 only the store of a saved payload, by hand, after a fix.
 
 Retry rule: a command that exits non-zero (`CommandFailed`) is never run again automatically, as
-with the Laravel scheduler. Only a lost attempt (worker shutdown, heartbeat timeout) is retried.
+with the Laravel scheduler. Only a lost attempt (worker shutdown, heartbeat timeout) is retried. The
+one exception is the fetch of a staged collector step (`Step.fetch_retry_minutes`, set by
+schedules.py): it writes only a payload file, so a failed fetch runs again every 10 minutes until the
+step's retry deadline (tasks/s-forecast-gates/).
 """
 
 from __future__ import annotations
@@ -42,6 +45,7 @@ with workflow.unsafe.imports_passed_through():
 REPORTED_FAILURE = "ReportedFailure"
 
 HEARTBEAT_TIMEOUT = timedelta(minutes=2)
+FETCH_RETRY_INTERVAL = timedelta(minutes=10)
 # The one exception to "a failed command is never retried": `orchestration:readiness` only reads
 # checkpoints, so a failed read repeats for up to 30 minutes (orchestration/AGENTS.md). A short
 # database break must not end a morning; a longer one fails the run with one Issue.
@@ -89,6 +93,11 @@ class Step:
     # STORE_TIMEOUT_MINUTES, ending within STORE_SCHEDULE_TO_CLOSE of being scheduled. A failed fetch
     # skips the store; a failed store never starts a new fetch.
     staged: bool = False
+    # Staged collector steps only (schedules.py sets it): a fetch that fails (`CommandFailed`) runs again
+    # every FETCH_RETRY_INTERVAL while the retry can start before this many minutes after the job's
+    # start; a retry ends by then (schedule-to-close). 0 = never. Ignored for a self-reporting step,
+    # whose command sends an Issue per failed run. The store still runs once.
+    fetch_retry_minutes: int = 0
 
 
 @dataclass
@@ -125,8 +134,11 @@ def step_options(step: Step) -> dict:
     )
 
 
-async def artisan(step: Step, day: str | None = None, store: bool = False) -> CommandResult:
+async def artisan(step: Step, day: str | None = None, store: bool = False,
+                  until: datetime | None = None) -> CommandResult:
     options = step_options(step)
+    if until is not None:
+        options["schedule_to_close_timeout"] = until - workflow.now()
     return await workflow.execute_activity(
         "run_command",
         CommandRequest("artisan", step.args, step.interruptible, day),
@@ -135,10 +147,34 @@ async def artisan(step: Step, day: str | None = None, store: bool = False) -> Co
     )
 
 
+def command_failed(error: ActivityError) -> bool:
+    """The command ran and exited non-zero (not a lost or timed-out attempt)."""
+    return isinstance(error.cause, ApplicationError) and error.cause.type == "CommandFailed"
+
+
 def reported_by_command(step: Step, error: ActivityError) -> bool:
     """Only a non-zero exit of a self-reporting command has already sent its Issue."""
-    cause = error.cause
-    return step.self_reports and isinstance(cause, ApplicationError) and cause.type == "CommandFailed"
+    return step.self_reports and command_failed(error)
+
+
+async def fetch_step(step: Step, day: str | None) -> CommandResult:
+    """The `--fetch-only` activity of a staged step, with the collector fetch retry
+    (`Step.fetch_retry_minutes`): a retry is a workflow timer, so a deploy does not lose it. The
+    last failure is raised to run_step, which sends the step's one Issue."""
+    fetch = replace(step, args=fetch_args(step.args), staged=False)
+    if not step.fetch_retry_minutes or step.self_reports:
+        return await artisan(fetch, day)
+    deadline = workflow.info().workflow_start_time + timedelta(minutes=step.fetch_retry_minutes)
+    until = None  # the first attempt keeps the step's own options
+    while True:
+        try:
+            return await artisan(fetch, day, until=until)
+        except ActivityError as error:
+            retry_at = workflow.now() + FETCH_RETRY_INTERVAL
+            if not command_failed(error) or retry_at >= deadline:
+                raise
+        await sleep_until(retry_at)
+        until = deadline
 
 
 def store_step(step: Step, reference: dict[str, str]) -> Step:
@@ -171,7 +207,7 @@ async def run_step(name: str, step: Step, day: str | None, reference: dict[str, 
     staged = reference is not None or (step.staged and workflow.patched(STAGED_PATCH))
     try:
         if staged and reference is None:
-            fetched = (await artisan(replace(step, args=fetch_args(step.args), staged=False), day)).result
+            fetched = (await fetch_step(step, day)).result
             if fetch_skipped(fetched):
                 return StepOutcome(command, "succeeded", result=fetched)
             reference = payload_reference(fetched)

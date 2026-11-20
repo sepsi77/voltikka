@@ -9,12 +9,12 @@ the two differ. Change either only together with both tasks.
 
 | Time | Step |
 |---|---|
-| 10:55 | Temporal Schedule `s-forecast-daily` starts `SDailyForecast` (workflow ID `s-forecast-<scheduled time>`; overlap policy skip). |
-| about 11:00 | Activity `entsoe:fetch --dataset=outages --zone=FI --zone=SE3 --zone=SE1_FI --zone=SE3_FI --zone=EE_FI` (the outages that `s_v1` reads; the proof of a morning outage fetch before the 11:30 cut). |
-| 11:30 | Morning cut. Readiness check of the morning view. If an input is not ready, the as-of rule can never make it ready: the run ends at once, with one Sentry Issue that names the input. |
-| 14:00 | Activities `fingrid:fetch` and the same outage fetch (afternoon data before the 14:30 cut). |
-| 14:30 → 18:00 | Afternoon readiness check every 5 minutes. The first check where every input is ready starts the model run. |
-| 18:00 | Deadline. No run: one Sentry Issue that names the missing inputs. |
+| 08:55 | Temporal Schedule `s-forecast-daily` starts `SDailyForecast` (workflow ID `s-forecast-<scheduled time>`; overlap policy skip). Until 2026-11-21 the start was 10:55; the gate code needs the 08:55 Schedule (`schedules.py --apply --group s-forecast`). |
+| 09:00 → 18:00 | One gate per input (`s_forecast.GATES`; table in `../s-forecast-gates/spec.md`, requirement 3): from its start time, every 10 minutes, the gate checks its readiness key and, when the key is not ready, runs its fetch (`fingrid:fetch`, `spot:fetch-neighbours`, `jao:fetch`, `weather:fetch --only=…`; staged), until the key is ready or the gate's deadline passes. Morning-view gates end at 11:30, the Previous Runs gates at their fetch cuts 10:00 and 14:00, the other afternoon gates at 18:00. The `eex_futures` gate only re-checks. |
+| 11:00 → 11:30, 14:00 → 14:30 | The outage proof `entsoe:fetch --dataset=outages --zone=FI --zone=SE3 --zone=SE1_FI --zone=SE3_FI --zone=EE_FI` (the outages that `s_v1` reads): one successful fetch inside each window, repeated every 5 minutes after a failure. |
+| 11:30 | Morning cut. A morning gate that is not open has missed its input for good: the run ends at once, with one Sentry Issue that names the gates and the facts of their last failed fetch. A gate that misses 14:00 or 14:30 ends the run the same way. |
+| from 14:30 | When every gate is open, the model runs (never before the 14:30 cut). |
+| 18:00 | Deadline. No run: one Sentry Issue (`deadline_missed`) that names the afternoon gates still closed. |
 | after the run | Scoring of target day D+1 (its prices are now complete). |
 
 `SWeeklyRefit`: Temporal Schedule Monday 10:45 → `fingrid:fetch` → train → activate, all before
