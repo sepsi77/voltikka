@@ -165,3 +165,11 @@ about 2 h 25 min still costs the day. D4 will show whether that happens.
 - `cd orchestration && uv run pytest`: 118 passed, 98 before this change. Five full runs in a row
   passed. The S file passed 10 more runs, and the earlier hanging case passed 48 targeted runs.
 - No PHP change, so the Laravel suite is unaffected (D3).
+
+## 2026-11-20 – Manager review of the implementation
+
+- `s_forecast.READINESS_OPTIONS` now retries for up to 30 minutes, as `jobs.READINESS_OPTIONS`
+  does (before: 3 attempts over about 40 s). The gates make many more readiness calls per day, so
+  a short database break would otherwise end the run. Activity options are not part of the replay
+  check, so no patch is needed. `uv run pytest`: 118 passed.
+- `laravel/config/orchestration.php`: the `weather_ecmwf_00z` comment now names its gate (comment only).

@@ -120,7 +120,7 @@ scheduler would run its `contracts:complete-import`).
   early end the other gates start no new activity; the run waits for those inside an activity
   (`_busy`, so a store is never cut off) and leaves the sleeping ones behind. Do not cancel their
   timers: when the stop cancelled two gate start timers that came due in the same workflow task, the
-  time-skipping test server never completed that task (about 1 run in 5; root cause unconfirmed). A gate that raises (a readiness check that failed after its retries) fails the run
+  time-skipping test server never completed that task (about 1 run in 5; root cause unconfirmed). A gate that raises (a readiness check that still failed after 30 minutes of retries, `READINESS_OPTIONS` as in `jobs.py`) fails the run
   at once. The model runs when every gate is open, never before the 14:30 cut, with the same
   `--morning-cut`/`--afternoon-cut`. The `stage` query reports every gate's state. The Schedule
   starts the run at 08:55, before the first gate.

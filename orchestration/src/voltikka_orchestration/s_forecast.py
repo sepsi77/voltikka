@@ -89,9 +89,13 @@ GATES: list[Gate] = [
     Gate("entsoe_outages_afternoon", None, tuple(OUTAGE_FETCH), AFTERNOON_FETCH, AFTERNOON_CUT, OUTAGE_GATE_INTERVAL),
 ]
 
+# Read-only readiness checks retry for up to 30 minutes, as in jobs.py: the gates check many times a
+# day, and a short database break must not end the run.
 READINESS_OPTIONS = dict(
     start_to_close_timeout=timedelta(minutes=2),
-    retry_policy=RetryPolicy(maximum_attempts=3, initial_interval=timedelta(seconds=20)),
+    schedule_to_close_timeout=timedelta(minutes=30),
+    retry_policy=RetryPolicy(maximum_attempts=0, initial_interval=timedelta(seconds=20),
+                             maximum_interval=timedelta(minutes=2)),
 )
 # Input fetches and stores. Temporal never retries a failed command (spec S13; jobs.py retry rule), only
 # a lost attempt; a gate runs a failed fetch again in its next pass.
