@@ -176,3 +176,9 @@ Production since 2026-11-19 18:11: `deploy-000031-38c19132fc24` on both roles, h
 - **Failures since the deploy (check 4).** Only `syke-fetch-2026-11-20T09:10:00Z` and the three `price-cache-maintenance` runs above ended Failed; nothing TimedOut or Terminated.
 - **Storage.** 9.5 MB of payloads after the first day (contract import 6.4 MB, open-meteo 0.9 MB, NVE 0.6 MB); 156 GB free of 197 GB.
 - **Result.** D7 passes for every job except `syke-fetch`; the last `tasks.json` item stays open for it, and root `AGENTS.md` holds its follow-up instead of the general D7 entry. SEAS5's first scheduled run is 2026-12-08 11:00 (its manual `--fetch-only` already passed on 2026-11-19).
+
+## 2026-11-20 – Syke base URL (evening)
+
+- **Decision (user approved 2026-11-20).** `syke.base_url` defaults to `Hydrologiarajapinta/1.1/odata`. Version 1.2 still answers 404 (base URL and `$metadata`); 1.1 and 1.0 answer 200; no 1.3 or 2.x exists.
+- **Data check (read-only).** 1.1 returned all 789 stored `syke_hydrology_values` rows dated 2026 with the same value, except three snow values dated 2026-11-16 (places 183, 185, 200) that Syke revised after the last 1.2 fetch on 2026-11-19; the next run upserts them. Stored rows reach 2026-11-11 (precipitation) and 2026-11-16 (snow), and 1.1 has no later row yet, so nothing has been missed. A local `syke:fetch --fetch-only` against 1.1 fetched 2 requests, complete.
+- **Open.** Deploy, then one scheduled `syke-fetch` that ends `stored` closes D7 (root `AGENTS.md` follow-up).
