@@ -312,18 +312,24 @@ class SDailyForecast:
         collector's store can still make the key ready). A fetch never starts at or after the deadline
         and never runs past it (`_fetch` budget). The last check starts LAST_CHECK_BEFORE_DEADLINE
         before the deadline and, like every check, must end by it (`_key_ready`); a gate still closed then
-        is missed at the deadline. A manual start after the deadline checks once and never fetches.
-        Ends with the gate's state in `_gates`."""
+        is missed at the deadline. A pass that begins at or after the deadline (a fetch that ran to the
+        cut, a worker that resumed late) is a miss, with no new check or fetch. Only a gate that wakes
+        after its deadline (a manual start after the cut: `retrospective`, decided once) checks once,
+        without the deadline limits, and never fetches. Ends with the gate's state in `_gates`."""
         deadline = local_instant(day, gate.deadline)
         last_check = deadline - LAST_CHECK_BEFORE_DEADLINE
         fetch = list(gate.fetch) if gate.fetch else None
         self._gates[gate.key] = "waiting"
         await sleep_until(local_instant(day, gate.start))
+        retrospective = workflow.now() >= deadline
         while not self._stopped:
             self._gates[gate.key] = "checking"
             started = workflow.now()
+            if not retrospective and started >= deadline:
+                self._gates[gate.key] = "missed"
+                return
             if gate.view:
-                ready = await self._key_ready(issue, gate, deadline)
+                ready = await self._key_ready(issue, gate, deadline, retrospective)
                 if ready:
                     self._gates[gate.key] = "open"
                     return
@@ -352,17 +358,20 @@ class SDailyForecast:
             await sleep_until(min(started + gate.interval, last_check if gate.view else deadline))
         self._gates[gate.key] = "stopped"
 
-    async def _key_ready(self, issue: str, gate: Gate, deadline: datetime) -> bool | None:
-        """The gate's key in one readiness check of its view. Before the deadline the check (with its
-        retries) must end by the deadline: a check whose budget the deadline cut and that still fails
-        (Temporal stops retrying once the next attempt could not start in time), or whose result comes
-        after the deadline, is None (the gate missed; its failure facts are recorded). A check that
-        failed for its full 30 minutes well before the deadline fails the run, as before. A manual start
-        after the deadline gets the normal 30-minute check. A result without JSON fails the run."""
+    async def _key_ready(self, issue: str, gate: Gate, deadline: datetime, retrospective: bool) -> bool | None:
+        """The gate's key in one readiness check of its view. A scheduled (not retrospective) gate never
+        starts a check at or after its deadline and never accepts a result that arrives after it: both
+        are None (missed). Its check (with its retries) must end by the deadline: a check whose budget
+        the deadline cut and that still fails (Temporal stops retrying once the next attempt could not
+        start in time) is None too, with its failure facts recorded. A check that failed for its full
+        30 minutes well before the deadline fails the run, as before. A retrospective gate (a manual
+        start after the deadline) gets one normal 30-minute check. A result without JSON fails the run."""
         started = workflow.now()
+        if not retrospective and started >= deadline:
+            return None
         budget = READINESS_OPTIONS["schedule_to_close_timeout"]
         options = READINESS_OPTIONS
-        cut_by_deadline = started < deadline and deadline - started < budget
+        cut_by_deadline = not retrospective and deadline - started < budget
         if cut_by_deadline:
             options = dict(READINESS_OPTIONS, schedule_to_close_timeout=deadline - started)
         self._busy += 1
@@ -375,8 +384,8 @@ class SDailyForecast:
             return None
         finally:
             self._busy -= 1
-        if started < deadline < workflow.now():
-            return None  # never open a gate on a result from after its cut
+        if not retrospective and workflow.now() > deadline:
+            return None  # never open a scheduled gate on a result from after its cut
         for item in readiness.get("inputs", []):
             if item.get("key") == gate.key:
                 return bool(item.get("ready"))

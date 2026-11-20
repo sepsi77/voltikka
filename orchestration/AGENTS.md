@@ -99,7 +99,11 @@ scheduler would run its `contracts:complete-import`).
   still fails (Temporal stops retrying once the next attempt could not start in time) misses the
   gate, with `{"command": "orchestration:readiness", "error": …}` as its failure facts; a check that
   fails for its full 30 minutes well before the deadline, or returns no JSON, fails the run. A gate
-  still closed after its last check is missed at its deadline. An outage gate has no key: one
+  still closed after its last check is missed at its deadline. A scheduled gate whose pass begins at
+  or after its deadline (a fetch that ran to the cut, a worker that resumed late) is missed with no
+  new check or fetch, and a result that arrives after the deadline never opens it, whenever its check
+  started. Only a gate that first wakes after its deadline (`retrospective`, decided once: a manual
+  start after the cut) gets one check without these limits. An outage gate has no key: one
   successful fetch inside its 30-minute window opens it, a failure repeats every 5 minutes. Every
   fetch has the `_fetch` budget: schedule-to-close = the time left to the gate deadline, and a fetch
   starts only with at least `MIN_FETCH_BUDGET` (1 min) left, so neither it nor its store runs past
@@ -144,8 +148,9 @@ scheduler would run its `contracts:complete-import`).
   at 11:00, morning check at 11:30, one `fingrid:fetch` at 14:00, afternoon polls every 5 min until
   18:00). Replay tests: `tests/histories/s_daily_forecast*.json`; without the patch both fail.
 - `SForecastInput.require_cut_fetches=False` skips the two outage gates. Only for a manual check
-  after the cuts; the Schedule never sets it. A manual start after a gate's deadline checks that
-  gate once and never fetches: not ready = missed at once. With `require_cut_fetches=True`, a start
+  after the cuts; the Schedule never sets it. A manual start after a gate's deadline (the gate wakes
+  retrospective) checks that gate once, with the normal 30-minute check, and never fetches: not
+  ready = missed at once. With `require_cut_fetches=True`, a start
   after 11:30 ends at once (`started_after_morning_cut`).
 - `SWeeklyRefit` starts on Monday at 10:45 (`SRefitInput.run_date`, default today), runs
   `fingrid:fetch` itself, then train → activate. Sunday's Fingrid hours are training targets, so a

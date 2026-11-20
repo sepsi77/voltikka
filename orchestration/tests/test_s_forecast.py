@@ -10,7 +10,8 @@ import pytest
 from temporalio import activity
 from temporalio.client import WorkflowFailureError
 from temporalio.exceptions import ApplicationError
-from temporalio.worker import Replayer, Worker
+from temporalio import workflow
+from temporalio.worker import Replayer, UnsandboxedWorkflowRunner, Worker
 
 from voltikka_orchestration.activities import CommandRequest, CommandResult, IssueReport
 from voltikka_orchestration.staged import RETENTION_DAYS, STORE_SCHEDULE_TO_CLOSE
@@ -66,6 +67,7 @@ class FakeCommands:
                  errors=None):
         self.calls: list[tuple[str, list[str], str]] = []
         self.scheduled: list[datetime] = []
+        self.attempt_times: list[datetime] = []
         self.requests: list[CommandRequest] = []
         self.schedule_to_close: list[timedelta | None] = []
         # Commands whose first attempt is lost (a retryable activity failure, not a command failure).
@@ -91,6 +93,7 @@ class FakeCommands:
         self.schedule_to_close.append(activity.info().schedule_to_close_timeout)
         # The first attempt's schedule time: an activity's schedule-to-close counts from it.
         self.scheduled.append(activity.info().scheduled_time)
+        self.attempt_times.append(activity.info().current_attempt_scheduled_time)
         name, line = request.args[0], " ".join(request.args)
         if key := self.errors(line, now):
             raise ApplicationError(f"{name} exited 1 ({key})", key, type="CommandFailed")
@@ -289,6 +292,12 @@ async def run_daily_handle(env, fake: FakeCommands, params: SForecastInput):
 def near(instant: datetime, expected: datetime) -> bool:
     """Within the test server's timer jitter (a timer can fire a millisecond early)."""
     return expected - timedelta(seconds=1) <= instant <= expected + timedelta(seconds=5)
+
+
+def at_times(fake: FakeCommands, line: str, issue: str, expected: list[str]) -> bool:
+    """The attempts of `line` ran in this order at these Helsinki times (full instants, `near()`)."""
+    attempts = [at for at, name in zip(fake.attempt_times, fake.names()) if name == line]
+    return len(attempts) == len(expected) and all(near(at, helsinki(issue, hhmm)) for at, hhmm in zip(attempts, expected))
 
 
 async def test_a_missed_morning_gate_ends_the_run_at_the_cut_with_one_issue(env):
@@ -521,13 +530,14 @@ async def test_each_gate_obeys_its_fetch_command_and_deadline(env, key):
     # The last check starts 2 minutes before the gate deadline; no fetch or store runs past it.
     deadline = helsinki(issue, last_check) + LAST_CHECK_BEFORE_DEADLINE
     if line:
-        assert fake.times(fetch(line)) == fake.times(store(line)) == fetch_times
+        assert at_times(fake, fetch(line), issue, fetch_times) and at_times(fake, store(line), issue, fetch_times)
         budgets = [at + timeout for at, timeout, name in zip(fake.scheduled, fake.schedule_to_close, fake.names())
                    if name.startswith(line)]
         assert all(end <= deadline + timedelta(seconds=1) for end in budgets)
     view = "morning" if key in MORNING_KEYS else "afternoon"
-    assert last_check in fake.times(readiness(issue, view))
-    assert max(at for _, _, at in fake.calls) <= ends
+    checks = [at for at, name in zip(fake.attempt_times, fake.names()) if name == readiness(issue, view)]
+    assert any(near(at, helsinki(issue, last_check)) for at in checks)
+    assert max(fake.attempt_times) <= helsinki(issue, ends) + timedelta(seconds=1)
     assert near(fake.report_times[0], helsinki(issue, ends))
     assert near((await handle.describe()).close_time, helsinki(issue, ends))
     assert not any(args[0] == "predict" for _, args, _ in fake.calls)
@@ -545,7 +555,8 @@ async def test_each_outage_gate_obeys_its_window(env, key, rule, fetch_times, en
     result, handle = await run_daily_handle(env, fake, SForecastInput(issue))
 
     assert result.missing == [key] and [r.reason for r in fake.reports] == ["inputs_missing"]
-    assert fake.times(fetch(OUTAGES))[-len(fetch_times):] == fetch_times
+    expected = (["11:00"] if key == "entsoe_outages_afternoon" else []) + fetch_times  # the morning proof passed
+    assert at_times(fake, fetch(OUTAGES), issue, expected)
     assert near((await handle.describe()).close_time, helsinki(issue, ends))
     assert not any(args[0] == "predict" for _, args, _ in fake.calls)
 
@@ -620,6 +631,44 @@ async def test_a_readiness_check_failing_across_the_cut_misses_the_gate(env):
     assert all(end <= helsinki(issue, "11:30") + timedelta(seconds=1) for end in budgets)
     assert near((await handle.describe()).close_time, helsinki(issue, "11:30"))
     assert not any(args[0] == "predict" for _, args, _ in fake.calls)
+
+
+async def test_a_scheduled_gate_cannot_open_after_its_last_fetch_runs_to_the_cut(env, monkeypatch):
+    """PLT-002 remainder: the 11:25 fingrid:fetch runs past the 11:30 cut (to 11:31), so the gate's
+    next pass begins after its deadline. That scheduled pass is a miss with no new readiness check: an
+    unrestricted check would open the gate on the row stored at 11:31.
+
+    The time-skipping server holds its clock while any activity runs, so a real fetch attempt cannot
+    run to the cut. The test replaces only that one input fetch with a workflow timer of the same
+    length (unsandboxed worker, so the patched method is used); the gates, checks and collection
+    are the real workflow code."""
+    issue = await tomorrow(env)
+    cut = helsinki(issue, "11:30")
+    fake = FakeCommands(ready={"fingrid_morning": from_time("11:31")})
+    original = SDailyForecast._fetch
+
+    async def fetch_until_after_the_cut(self, args, until):
+        if args == ["fingrid:fetch"] and workflow.now() >= helsinki(issue, "11:25"):
+            await workflow.sleep(until + timedelta(minutes=1) - workflow.now())
+            return {"command": "fingrid:fetch", "error": "TimeoutError", "step": "fetch"}
+        return await original(self, args, until)
+
+    monkeypatch.setattr(SDailyForecast, "_fetch", fetch_until_after_the_cut)
+    async with Worker(env.client, task_queue=QUEUE, workflows=[SDailyForecast],
+                      activities=[fake.run_command, fake.report_issue], workflow_failure_exception_types=[Exception],
+                      workflow_runner=UnsandboxedWorkflowRunner()):
+        handle = await env.client.start_workflow(SDailyForecast.run, SForecastInput(issue),
+                                                 id=f"s-test-{uuid.uuid4()}", task_queue=QUEUE)
+        result = await handle.result()
+
+    assert result.status == "no_forecast" and result.missing == ["fingrid_morning"]
+    assert [r.reason for r in fake.reports] == ["inputs_missing"]
+    assert not any(args[0] == "predict" for _, args, _ in fake.calls)
+    # The last real fingrid fetch was at 11:15; the 11:25 one ran to 11:31.
+    assert fake.times(fetch("fingrid:fetch"))[-1] == "11:15"
+    checks = [at for at, name in zip(fake.attempt_times, fake.names()) if name == readiness(issue, "morning")]
+    assert checks and max(checks) < cut  # no readiness call after the cut
+    assert near((await handle.describe()).close_time, helsinki(issue, "11:31"))
 
 
 async def test_a_row_that_appears_after_the_cut_never_opens_the_gate(env):
