@@ -187,7 +187,8 @@ class FetchNeighbourSpot extends Command
 
     /**
      * Append the Energy-Charts DE-LU quarter-hours that the ENTSO-E records of this payload do not
-     * cover (ENTSO-E stays primary) and return how many were added.
+     * cover (ENTSO-E stays primary), only for hours that end up with all four quarters, and return
+     * how many were added.
      *
      * @param  list<array<string, mixed>>  $prices  parsed ENTSO-E records of every region
      * @param  list<string>  $fillBodies
@@ -210,17 +211,32 @@ class FetchNeighbourSpot extends Command
             }
         }
 
+        // Candidate quarters by UTC hour. An hour is filled only when ENTSO-E and Energy-Charts
+        // together give all four quarters: the importer stores the mean of the quarters it gets
+        // as the hourly price, and rows are insert-only, so a partial hour would stay wrong.
         $start = Carbon::parse((string) $payload->fact('period_start'), 'UTC');
         $end = Carbon::parse((string) $payload->fact('period_end'), 'UTC');
-        $filled = 0;
+        $candidates = [];
         foreach ($fillBodies as $body) {
             foreach ($this->energyCharts->parsePrices($body, $start, $end) as $record) {
-                if (! isset($covered[$record['timestamp']])) {
-                    $covered[$record['timestamp']] = true;
-                    $prices[] = $record;
-                    $filled++;
+                $slot = $record['timestamp'];
+                if (! isset($covered[$slot])) {
+                    $candidates[$slot - $slot % 3600][$slot] ??= $record;
                 }
             }
+        }
+
+        $filled = 0;
+        foreach ($candidates as $hour => $records) {
+            $present = count($records);
+            for ($slot = $hour; $slot < $hour + 3600; $slot += 900) {
+                $present += isset($covered[$slot]) ? 1 : 0;
+            }
+            if ($present !== 4) {
+                continue;
+            }
+            array_push($prices, ...array_values($records));
+            $filled += count($records);
         }
 
         return $filled;

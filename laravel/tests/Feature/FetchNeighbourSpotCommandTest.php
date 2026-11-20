@@ -438,6 +438,34 @@ class FetchNeighbourSpotCommandTest extends TestCase
         $this->assertSame(2, $this->lastJsonLine(Artisan::output())['counts']['de_lu_filled']);
     }
 
+    /**
+     * An hour that ENTSO-E and Energy-Charts together cannot complete is not filled: the importer
+     * would store the mean of the partial quarters as the hourly price, and insert-only rows could
+     * never be corrected. The readiness check then still sees the hour as missing.
+     */
+    public function test_an_hour_with_a_null_fill_quarter_is_not_filled(): void
+    {
+        $hour = Carbon::parse('2026-10-31 00:00', 'UTC')->timestamp;
+        $this->fakeZones(
+            ['SE1' => 2.0, 'SE3' => 8.0, 'EE' => 12.0, 'DE-LU' => $this->dayAheadXml($this->withSequence($this->quarterSeries('2026-10-31 00:00', 4, 90.0), 2))],
+            $this->energyChartsJson([
+                [$hour, 50.0], [$hour + 900, 50.01], [$hour + 1800, null], [$hour + 2700, 50.03],
+                ...$this->quarterSeries('2026-10-31 01:00', 4, 60.0),
+            ]),
+        );
+
+        $this->assertSame(0, Artisan::call('spot:fetch-neighbours'));
+
+        $next = $hour + 3600;
+        $this->assertEqualsWithDelta(
+            [$next => 60.0, $next + 900 => 60.01, $next + 1800 => 60.02, $next + 2700 => 60.03],
+            $this->storedPrices('spot_prices_quarter', 'DE-LU'),
+            1e-9,
+        );
+        $this->assertEqualsWithDelta([$next => (60.0 + 60.01 + 60.02 + 60.03) / 4], $this->storedPrices('spot_prices_hour', 'DE-LU'), 1e-6);
+        $this->assertSame(4, $this->lastJsonLine(Artisan::output())['counts']['de_lu_filled']);
+    }
+
     /** (d) The window runs from Helsinki yesterday through the day after tomorrow, for every request. */
     public function test_the_window_starts_at_helsinki_yesterday(): void
     {
