@@ -56,6 +56,6 @@
   {
     "name": "Production: deploy, first payload per job, SEAS5 manual --fetch-only, one approved ImportReplay trial (D7)",
     "status": "in_progress",
-    "note": "2026-11-19: PR #31 merged (38c1913), deploy-000031-38c19132fc24 on both roles, Schedules re-applied (collectors, spot, maintenance), SEAS5 --fetch-only and the ImportReplay trial passed. Open: first payload per job within 24 h (by 2026-11-20 18:15) and the weekly jobs (EC46 2026-11-23, NVE 2026-11-25); SEAS5 first scheduled run 2026-12-08. Root AGENTS.md dated follow-up."
+    "note": "2026-11-19: merged, deployed (deploy-000031), Schedules re-applied, SEAS5 --fetch-only and ImportReplay trial passed. 2026-11-20 D7 check: every staged job passed except syke-fetch (Syke API 1.2 answers 404 since 2026-11-20). Open: one stored syke-fetch run after the base-URL fix (root AGENTS.md follow-up)."
   }
 ]
