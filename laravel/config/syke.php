@@ -10,9 +10,9 @@
  * same area (Suure 5 = areal precipitation PA, Suure 7 = areal snow water equivalent SA, both mm).
  */
 return [
-    // Version 1.2 (2026-05-11) is current; 1.1 is listed as a previous version and returns the
-    // same rows for these series (checked 2026-11-01).
-    'base_url' => env('SYKE_HYDROLOGY_BASE_URL', 'https://rajapinnat.ymparisto.fi/api/Hydrologiarajapinta/1.2/odata'),
+    // Version 1.1. Version 1.2 answers HTTP 404 since 2026-11-20, even at its base URL; 1.1
+    // returned every stored 2026 row with the same value on 2026-11-20 (see app/Services/Syke/AGENTS.md).
+    'base_url' => env('SYKE_HYDROLOGY_BASE_URL', 'https://rajapinnat.ymparisto.fi/api/Hydrologiarajapinta/1.1/odata'),
     'connect_timeout' => (float) env('SYKE_CONNECT_TIMEOUT', 5),
     'timeout' => (float) env('SYKE_TIMEOUT', 30),
     // No published rate limit; keep a short pause between requests to be polite.
