@@ -323,7 +323,7 @@ class SDailyForecast:
         # Retrospective = the run itself started after this gate's deadline (a manual check after the
         # cut). It is decided from the workflow's start time, not from when this timer fired: a
         # scheduled run whose worker resumed late is not retrospective (PR #36 review).
-        retrospective = workflow.info().start_time >= deadline
+        retrospective = workflow.info().workflow_start_time >= deadline
         await sleep_until(local_instant(day, gate.start))
         while not self._stopped:
             self._gates[gate.key] = "checking"

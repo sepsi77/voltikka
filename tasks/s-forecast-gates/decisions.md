@@ -293,7 +293,7 @@ passed. `git diff --check` is clean.
 
 - **Late gate timer (both reviewers).** `retrospective` came from the time the gate's start timer
   fired, so a scheduled run whose worker resumed after a gate deadline skipped that deadline. It now
-  comes from `workflow.info().start_time` (the Schedule's start, 08:55). Test
+  comes from `workflow.info().workflow_start_time` (the Schedule's start, 08:55). Test
   `test_a_scheduled_gate_whose_start_timer_fires_after_its_deadline_misses` fails on the code before.
 - **Late collector retry wake (both reviewers).** A retry timer that fired after the retry deadline
   started an attempt with a negative schedule-to-close. The step now reports its last failure once.
@@ -302,3 +302,7 @@ passed. `git diff --check` is clean.
 - **Retry-interval helper across midnight (CodeRabbit).** `minutes_after_start` now subtracts full
   scheduled instants.
 - `uv run pytest`: 139 passed, three runs in a row.
+- **`workflow_start_time`, not `start_time` (CodeRabbit round 2).** In temporalio 1.35.0
+  `WorkflowInfo.start_time` is the start of the first workflow task, `workflow_start_time` the
+  creation of the workflow. A Schedule run created at 08:55 whose first task runs late must not be
+  retrospective, so the gate reads `workflow_start_time`.

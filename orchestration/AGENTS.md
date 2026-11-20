@@ -103,7 +103,7 @@ scheduler would run its `contracts:complete-import`).
   or after its deadline (a fetch that ran to the cut, a worker that resumed late) is missed with no
   new check or fetch, and a result that arrives after the deadline never opens it, whenever its check
   started. Only a gate of a run that started after the gate's deadline (`retrospective`, from
-  `workflow.info().start_time`: a manual start after the cut) gets one check without these limits.
+  `workflow.info().workflow_start_time`: a manual start after the cut) gets one check without these limits.
   A scheduled run whose gate timer fires late (worker down) is not retrospective, so that gate
   misses (PR #36 review). An outage gate has no key: one
   successful fetch inside its 30-minute window opens it, a failure repeats every 5 minutes. Every
