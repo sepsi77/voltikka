@@ -155,9 +155,9 @@ Reviewer agents: `refactor-reviewer`, `laravel-reviewer`, `pricing-reviewer`, `t
 
 Time-triggered work that is not yet possible. Check this list when the date has passed. Each item says what unblocks it and where the detail lives. **Remove an item once it is done**, and do not add anything here that a scheduled command already surfaces on its own.
 
-### After 2026-11-25 (by 2026-12-04) — finish D7 of the staged imports
+### Now — Syke API 1.2 answers 404 (`syke:fetch` fails; last D7 item of the staged imports)
 
-Deployed 2026-11-19 (`deploy-000031-38c19132fc24`), Schedules re-applied the same evening. Check on production (read-only) that every scheduled staged job has a payload file under `storage/app/import-payloads/<source>/<date>/` and a completed workflow: daily and hourly jobs (incl. `MorningChain`'s EEX and contract import, `SDailyForecast`) since 2026-11-20, `weather-fetch-ec46` on 2026-11-23, `nve-fetch-reservoirs` on 2026-11-25. Do it by 2026-12-04: the 14-day cleanup removes the 2026-11-20 payloads at 03:20 on 2026-12-05. SEAS5 is already accepted by its manual `--fetch-only` of 2026-11-19; its first scheduled run (2026-12-08) is only noted. Record the result in `tasks/staged-api-imports/decisions.md`. Close the last item of its `tasks.json` and remove this entry only when every check passed; for a failed job, record it, keep the item open and replace this entry with the follow-up for that job.
+Since 2026-11-20, `https://rajapinnat.ymparisto.fi/api/Hydrologiarajapinta/1.2/odata` answers HTTP 404 even at its base URL, so the daily `syke-fetch` fails with `fetch_incomplete`; `…/1.1/odata` answers with the same entities. Decide the base URL (`laravel/config/syke.php`, `SYKE_HYDROLOGY_BASE_URL`) and check that the 1.1 data matches. After the fix is deployed, one scheduled `syke-fetch` that ends `stored` closes D7: record it in `tasks/staged-api-imports/decisions.md`, set the last item of its `tasks.json` to done and remove this entry. Fix within 90 days of 2026-11-20, or the fetch window no longer covers the missed days. See `tasks/staged-api-imports/decisions.md` (2026-11-20).
 
 ### After 2026-11-30 — delete the Voltikka Railway project
 
