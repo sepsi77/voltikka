@@ -59,7 +59,7 @@ Request lines stream into a compressed `<run-id>.body.ndjson.gz.tmp` while the f
 ## Converted commands
 
 - `spot:fetch-forecast` (reference conversion; `../SpotForecasts/AGENTS.md`).
-- `spot:fetch`, `spot:fetch-neighbours` (source `entsoe-day-ahead`; `../SpotPriceImport/AGENTS.md`).
+- `spot:fetch`, `spot:fetch-neighbours` (source `entsoe-day-ahead`; `spot:fetch-neighbours` also records one Energy-Charts unit for the DE-LU fill; `../SpotPriceImport/AGENTS.md`).
 - `contracts:fetch` (source `azure-consumer-api`; `../ContractImport/AGENTS.md`).
 - `futures:fetch-eex` (source `eex`), `futures:fetch-eex-europe` (source `eex-europe`) (`../ElectricityFutures/AGENTS.md`).
 - `entsoe:fetch` (source `entsoe-transparency`; `../EntsoeTransparency/AGENTS.md`).
