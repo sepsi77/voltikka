@@ -96,7 +96,7 @@
   options, and a retry gets schedule-to-close = the time left to the deadline. Measured from
   `workflow_start_time`, as `MorningChain` does. A 30-minute catch-up start shifts the window by that
   much.
-- **Deadline computation:** min(120, shortest gap between the job's starts − 5 − store timeout)
+- **Deadline computation (superseded by PLT-003, see "Spec review 2026-11-20T21-20 fixes"):** min(120, shortest gap between the job's starts − 5 − store timeout)
   minutes. The store timeout is min(step timeout, 60). The cap keeps the worst-case last store ending
   5 minutes before the next start, because overlap policy SKIP would drop that start. With this
   rule the spec's hourly `fingrid-forecast-vintages` gets deadline 45, so its last retry starts at
@@ -173,3 +173,81 @@ about 2 h 25 min still costs the day. D4 will show whether that happens.
   a short database break would otherwise end the run. Activity options are not part of the replay
   check, so no patch is needed. `uv run pytest`: 118 passed.
 - `laravel/config/orchestration.php`: the `weather_ecmwf_00z` comment now names its gate (comment only).
+
+## Spec review 2026-11-20T21-20 fixes (commit 2d0645ff)
+
+Reports: `reviews/2026-11-20T21-20/platform-reviewer.md`, `test-reviewer.md`. The manager decided the
+fixes; the executor implemented them.
+
+- **PLT-001 (acquisition failures looked like store failures).** Confirmed in
+  `laravel/app/Console/Concerns/StagedImport.php`: a fetch with failed units finishes its payload and
+  prints `status=fetched` (exit 0). The store commits the good units' rows and exits 1 with
+  `{"status":"failed","step":"fetch","error":"fetch_incomplete"}` (`ImportStoreResult.errorStep`).
+  `run_command` raises `ApplicationError(…, <error>, type="CommandFailed")`, so `error_key()` reads
+  `fetch_incomplete` from the activity failure details. `staged.failure_step()` maps a store that
+  failed `fetch_incomplete` to step `fetch`, in both loops:
+  - `staged_fetch()` then reports step `fetch` (with the payload reference), and the S gate keeps
+    fetching.
+  - `jobs.run_step()` repeats fetch and store within the collector retry window.
+  - Any other failed store keeps the no-retry rule.
+  - The Issue names the last attempt as the store reported it.
+  - Tests: `test_a_partial_acquisition_is_fetched_again`,
+    `test_a_partial_acquisition_that_never_completes_names_the_fetch_step`,
+    `test_a_partial_acquisition_repeats_fetch_and_store_and_recovers_without_an_issue`,
+    `test_a_partial_acquisition_that_never_completes_sends_one_issue_naming_the_fetch`.
+  - Existing tests keep a failed `test_error` store final.
+  - spec.md "Unchanged" and requirement 10 name the exception.
+- **PLT-002 (readiness could open a gate after its cut).**
+  - The last check starts `LAST_CHECK_BEFORE_DEADLINE` (2 min) before the deadline.
+  - Each readiness call of a gate gets schedule-to-close = min(30 min, deadline − now).
+  - A check the deadline cut that still fails misses the gate. Its failure facts are
+    `{"command": "orchestration:readiness", "error": …}`. A result that arrives after the deadline
+    is not used.
+  - Temporal stops retrying once the next attempt could not start before schedule-to-close, so such a
+    check fails a few minutes before the cut, not at it. The rule therefore keys on "the budget was
+    cut by the deadline", not on the clock.
+  - A check that failed for its full 30 minutes well before the deadline, or that has no JSON, still
+    fails the run.
+  - A manual start after a deadline keeps its one check, with the normal 30-minute budget.
+  - A gate still closed after its last check is missed at its deadline.
+  - A missed run ends at its collection time (11:30, 14:00, 14:30, 18:00). The Issue and the close
+    therefore fall on the cut, also for a 10:00 Previous Runs miss.
+  - Added `MIN_FETCH_BUDGET` (1 min): a gate starts a fetch only with at least 1 minute left. The
+    time-skipping server fired a deadline timer 1 ms early, and the pass then started a fetch with a
+    1 ms budget.
+  - Tests: `test_a_readiness_check_failing_across_the_cut_misses_the_gate`,
+    `test_a_row_that_appears_after_the_cut_never_opens_the_gate`.
+  - No new patch: the gate code has never run in production (not deployed), so no history from
+    `ed1db1e1` exists outside the tests.
+- **PLT-003 (collector cap).** Manager decision: only collector jobs whose shortest gap between
+  starts is at least 6 hours retry, until 120 minutes after the start. Hourly collectors get no
+  retry: their next run is the retry, and a retrying run must not overlap its next start. The
+  twice-daily `weather-fetch-ecmwf-prev-day1` (09:40/13:40, 4 h apart) falls under the same rule and
+  gets no retry. The S gate covers its 10:00/14:00 vintages.
+  - The window is measured from `workflow_start_time` (as in `MorningChain`). A Schedule catch-up
+    start (at most 30 minutes) shifts it by that much.
+
+  | Job | Shortest gap | Retry window |
+  |---|---|---|
+  | `fingrid-fetch`, `gas-storage-fetch`, `weather-fetch`, `entsoe-fetch`, `fmi-fetch`, `fmi-fetch-forecast`, `syke-fetch`, `eex-europe-fetch`, `jao-fetch` | 24 h (daily) | 120 min |
+  | `weather-fetch-solar-ghi` (11:05, 23:05) | 12 h | 120 min |
+  | `weather-fetch-ec46` (Mon), `nve-fetch-reservoirs` (Wed), `weather-fetch-seas5` (day 8) | ≥ 24 h by time of day | 120 min |
+  | `weather-fetch-ecmwf-prev-day1` (09:40, 13:40) | 4 h | none |
+  | `weather-fetch-ecmwf-00z` (hourly 09:15–14:15), `fingrid-forecast-vintages` (hourly :45) | 1 h | none |
+
+  `test_only_staged_collector_steps_retry_a_failed_fetch_and_none_self_reports` holds this table.
+- **TST-001.** `test_each_gate_obeys_its_fetch_command_and_deadline` runs `SDailyForecast.run` with
+  an independent table: each key gate is kept closed in turn. It checks the exact fetch command and
+  options (none for `eex_futures`), every fetch and store time, the budget end against the deadline,
+  the last check 2 min before it, the reason, the report and close time, and that no predict runs.
+  `test_each_outage_gate_obeys_its_window` covers both outage gates.
+- **TST-002.** `test_all_missed_gates_report_their_latest_failures_once` has two afternoon gates
+  closed, with errors that change on every attempt. Jao ends with a failed store. The test expects
+  one Issue with both gates and each last error and step.
+  `test_an_exhausted_collector_fetch_retry_sends_one_issue_with_the_last_error` expects 12 attempts,
+  the Issue with `down_12`, and no store.
+- **TST-003.** The early-exit test asserts the report activity time and the workflow close time are
+  11:30 Helsinki. The tolerance is 1 s before (timer jitter) to 5 s after.
+
+Verification: `cd orchestration && uv run pytest`: 136 passed, in three runs in a row (118 before
+these fixes). `git diff --check` is clean.
