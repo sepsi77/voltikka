@@ -11,8 +11,8 @@ Task context: `../../../../tasks/own-forecast-model-data/`.
 - Version: 1.1 since 2026-11-20 (branch `fix/syke-api-1-1`); 1.2 (2026-05-11) was used before.
   Version 1.2 answers HTTP 404 since 2026-11-20, even at its base URL and `$metadata`, so
   `syke:fetch` failed. On 2026-11-20, 1.1 returned all 789 stored rows dated 2026 with the same
-  value, except three snow values dated 2026-11-16 that Syke revised after the last 1.2 fetch (the
-  next run upserts them). Version 1.0 also answers. When 1.1 stops answering, look for a newer
+  value, except three snow values dated 2026-11-16 that Syke revised after the last 1.2 fetch (place
+  183: 17.63 → 17.75, 185: 20.75 → 21.93, 200: 12.05 → 12.36 mm; the next run upserts them). Version 1.0 also answers. When 1.1 stops answering, look for a newer
   version first.
 - Licence: Creative Commons Attribution 4.0 International. The credit must name the licensor and the
   data: "Source: Finnish Environment Institute (Syke), Hydrologiarajapinta" (Finnish:
