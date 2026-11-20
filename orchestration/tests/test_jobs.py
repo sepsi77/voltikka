@@ -75,10 +75,12 @@ class FakeArtisan:
 
     def __init__(self, *, failing=(), retail=("ready_after", 2), forecast=("ready_after", 1),
                  completion_ticks=2, consumer_seconds=0.0, import_state="pending_completion", readiness_failures=0,
-                 fetch_result=None, lost_once=(), fail_first=None):
+                 fetch_result=None, lost_once=(), fail_first=None, errors=None):
         self.calls: list[tuple[str, str]] = []
         # Command line -> number of its first runs that fail (CommandFailed).
         self.fail_first = dict(fail_first or {})
+        # (command line, its attempt number) -> closed error key of a failure (CommandFailed), or None.
+        self.errors = errors or (lambda name, attempt: None)
         self.requests: list[CommandRequest] = []
         self.schedule_to_close: dict[str, timedelta | None] = {}
         # The `--fetch-only` result line (default: a valid reference); a fetch writes `running` (S11).
@@ -120,6 +122,8 @@ class FakeArtisan:
         self.requests.append(request)
         self.schedule_to_close[name] = activity.info().schedule_to_close_timeout
         self.attempts[name] = self.attempts.get(name, 0) + 1
+        if key := self.errors(name, self.attempts[name]):
+            raise ApplicationError(f"{name} exited 1 ({key})", key, type="CommandFailed")
         if self.fail_first.get(name):
             self.fail_first[name] -= 1
             raise ApplicationError(f"{name} exited 1 (boom)", "boom", type="CommandFailed")
@@ -523,17 +527,45 @@ async def test_a_failed_collector_fetch_is_retried_and_recovers_without_an_issue
     assert timedelta(minutes=99) < left <= timedelta(minutes=100)
 
 
-@pytest.mark.parametrize("retry_minutes, offsets", [(120, list(range(0, 120, 10))), (45, [0, 10, 20, 30, 40])])
-async def test_an_exhausted_collector_fetch_retry_sends_one_issue(env, retry_minutes, offsets):
-    fake = FakeArtisan(failing={fetch("fingrid:fetch-forecast-vintages")})
-    step = Step(["fingrid:fetch-forecast-vintages"], 10, staged=True, fetch_retry_minutes=retry_minutes)
+async def test_an_exhausted_collector_fetch_retry_sends_one_issue_with_the_last_error(env):
+    """TST-002: the error changes on every attempt; the one Issue names the last one, and no store runs."""
+    fake = FakeArtisan(errors=lambda name, n: f"down_{n}" if name == fetch("jao:fetch") else None)
+    step = Step(["jao:fetch"], staged=True, fetch_retry_minutes=120)
 
     with pytest.raises(WorkflowFailureError):
-        await execute(env, fake, ArtisanJob.run, ArtisanJobInput("fingrid-forecast-vintages", [step]))
+        await execute(env, fake, ArtisanJob.run, ArtisanJobInput("jao-fetch", [step]))
 
-    assert minutes_after_start(fake, fetch("fingrid:fetch-forecast-vintages")) == offsets
+    assert minutes_after_start(fake, fetch("jao:fetch")) == list(range(0, 120, 10))
+    assert store("jao:fetch") not in fake.names()
     assert [(r.reason, r.facts) for r in fake.reports] == [
-        ("command_failed", {"command": "fingrid:fetch-forecast-vintages", "error": "boom", "step": "fetch"})]
+        ("command_failed", {"command": "jao:fetch", "error": "down_12", "step": "fetch"})]
+
+
+async def test_a_partial_acquisition_repeats_fetch_and_store_and_recovers_without_an_issue(env):
+    """PLT-001: the fetch exits 0 with failed units; its store keeps the good rows and fails
+    `fetch_incomplete` (step `fetch`). That is an acquisition failure: fetch and store run again."""
+    fake = FakeArtisan(errors=lambda name, n: "fetch_incomplete" if name == store("fingrid:fetch") and n == 1 else None)
+    step = Step(["fingrid:fetch"], 60, staged=True, fetch_retry_minutes=120)
+
+    result = await execute(env, fake, ArtisanJob.run, ArtisanJobInput("fingrid-fetch", [step]))
+
+    assert fake.names() == [fetch("fingrid:fetch"), store("fingrid:fetch"), fetch("fingrid:fetch"),
+                            store("fingrid:fetch")]
+    assert minutes_after_start(fake, fetch("fingrid:fetch")) == [0, 10]
+    assert result.outcomes[0].status == "succeeded" and fake.reports == []
+
+
+async def test_a_partial_acquisition_that_never_completes_sends_one_issue_naming_the_fetch(env):
+    fake = FakeArtisan(errors=lambda name, n: "fetch_incomplete" if name == store("fingrid:fetch") else None)
+    step = Step(["fingrid:fetch"], 60, staged=True, fetch_retry_minutes=120)
+
+    with pytest.raises(WorkflowFailureError):
+        await execute(env, fake, ArtisanJob.run, ArtisanJobInput("fingrid-fetch", [step]))
+
+    assert fake.attempts[store("fingrid:fetch")] == 12
+    assert [(r.reason, r.facts) for r in fake.reports] == [("command_failed", {
+        "command": "fingrid:fetch", "error": "fetch_incomplete", "step": "fetch",
+        "payload_path": PAYLOAD_PATH, "payload_sha256": SHA256})]
 
 
 async def test_a_failed_store_is_not_retried_by_the_collector_fetch_retry(env):
@@ -558,12 +590,14 @@ async def test_a_self_reporting_step_is_never_retried(env):
     assert fake.names() == [fetch("spot:fetch")] and fake.reports == []
 
 
-# Retry deadline per collector job, in minutes after its start (decisions.md, 2026-11-21).
+# Retry window per collector job, in minutes after its start (manager decision 2026-11-20 after PLT-003):
+# 120 for a job that starts at most every 6 hours, none for the hourly ones (their next run is the retry)
+# and for the 09:40/13:40 Previous Runs job (4 hours apart).
 EXPECTED_FETCH_RETRY_MINUTES = {
     "fingrid-fetch": 120, "gas-storage-fetch": 120, "weather-fetch": 120, "weather-fetch-ec46": 120,
     "weather-fetch-seas5": 120, "entsoe-fetch": 120, "fmi-fetch": 120, "fmi-fetch-forecast": 120,
-    "weather-fetch-solar-ghi": 120, "weather-fetch-ecmwf-00z": 25, "weather-fetch-ecmwf-prev-day1": 120,
-    "fingrid-forecast-vintages": 45, "syke-fetch": 120, "eex-europe-fetch": 120, "jao-fetch": 120,
+    "weather-fetch-solar-ghi": 120, "weather-fetch-ecmwf-00z": 0, "weather-fetch-ecmwf-prev-day1": 0,
+    "fingrid-forecast-vintages": 0, "syke-fetch": 120, "eex-europe-fetch": 120, "jao-fetch": 120,
     "nve-fetch-reservoirs": 120,
 }
 

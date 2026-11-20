@@ -27,7 +27,9 @@ from the workflow histories (`tasks/staged-api-imports/decisions.md`, 2026-11-20
 - The PHP readiness facts (`laravel/app/Services/Orchestration/SForecastReadiness.php`,
   `config/orchestration.php`): a gate opens only on its existing readiness key. No new fallback.
 - `SWeeklyRefit`, `MorningChain`, `ImportReplay`, the spot, maintenance and morning groups.
-- The store retry rule: a failed store is never retried automatically (it points to a bug).
+- The store retry rule: a failed store is never retried automatically (it points to a bug). The one
+  exception is a store that fails `fetch_incomplete`: an acquisition failure, so fetch and store
+  repeat (manager decision 2026-11-20 after spec review PLT-001; requirements 2 and 10).
 
 ## Requirements
 
@@ -85,11 +87,15 @@ from the workflow histories (`tasks/staged-api-imports/decisions.md`, 2026-11-20
 
 ### B. Collector fetch retries (`jobs.py`)
 
-10. For staged steps of the `collectors` group, a failed **fetch** activity (`CommandFailed`) is
-    retried every 10 minutes until the step's retry deadline; the store still runs once. Default
-    retry deadline: 2 hours after the scheduled start, capped at 5 minutes before the job's next
-    scheduled start (the hourly `fingrid-forecast-vintages`: 40 minutes). A recovered fetch sends
-    no Issue; the Issue of a step that still fails names the last attempt's facts, once.
+10. For staged steps of the `collectors` group, an acquisition failure is retried every 10 minutes
+    until the step's retry deadline: a failed **fetch** activity (`CommandFailed`), or a store that
+    fails `fetch_incomplete` (a partial acquisition; its good rows are stored), repeats fetch and
+    store. Any other failed store runs once. Retry scope and deadline (manager decision 2026-11-20
+    after spec review PLT-003; it replaces the earlier next-start cap): only collector jobs whose
+    shortest gap between starts is at least 6 hours (daily, weekly, monthly) retry, until 2 hours
+    after the scheduled start. Hourly collectors (`fingrid-forecast-vintages`,
+    `weather-fetch-ecmwf-00z`) get no retry: their next hourly run is the retry. A recovered fetch
+    sends no Issue; the Issue of a step that still fails names the last attempt's facts, once.
 11. Self-reporting steps (`Step.self_reports`, the PHP command sends its own Issue per run) and the
     other groups keep the current rule (no retry of a failed command), so no attempt sends a second
     Issue. None of the collector steps self-reports today; a test keeps it so.

@@ -16,6 +16,7 @@ from voltikka_orchestration.activities import CommandRequest, CommandResult, Iss
 from voltikka_orchestration.staged import RETENTION_DAYS, STORE_SCHEDULE_TO_CLOSE
 from voltikka_orchestration.s_forecast import (
     GATES,
+    LAST_CHECK_BEFORE_DEADLINE,
     OUTAGE_FETCH,
     SDailyForecast,
     helsinki_offset,
@@ -61,7 +62,8 @@ class FakeCommands:
     """Records every command. Readiness: every input of laravel/config/orchestration.php, ready unless
     `ready` holds a rule (fake, "HH:MM" Helsinki) -> bool for its key."""
 
-    def __init__(self, *, ready=None, failing=(), fail_first=None, fail_from=None, fetch_result=None, lost_once=()):
+    def __init__(self, *, ready=None, failing=(), fail_first=None, fail_from=None, fetch_result=None, lost_once=(),
+                 errors=None):
         self.calls: list[tuple[str, list[str], str]] = []
         self.scheduled: list[datetime] = []
         self.requests: list[CommandRequest] = []
@@ -77,6 +79,9 @@ class FakeCommands:
         self.fail_first = dict(fail_first or {})
         # Command line -> Helsinki time from which it fails.
         self.fail_from = dict(fail_from or {})
+        # (command line, "HH:MM") -> closed error key of a failure (CommandFailed), or None.
+        self.errors = errors or (lambda line, now: None)
+        self.report_times: list[datetime] = []
 
     @activity.defn(name="run_command")
     async def run_command(self, request: CommandRequest) -> CommandResult:
@@ -84,8 +89,11 @@ class FakeCommands:
         self.calls.append((request.kind, request.args, now))
         self.requests.append(request)
         self.schedule_to_close.append(activity.info().schedule_to_close_timeout)
-        self.scheduled.append(activity.info().current_attempt_scheduled_time)
+        # The first attempt's schedule time: an activity's schedule-to-close counts from it.
+        self.scheduled.append(activity.info().scheduled_time)
         name, line = request.args[0], " ".join(request.args)
+        if key := self.errors(line, now):
+            raise ApplicationError(f"{name} exited 1 ({key})", key, type="CommandFailed")
         if self.fail_first.get(line) or now >= self.fail_from.get(line, "99:99"):
             if self.fail_first.get(line):
                 self.fail_first[line] -= 1
@@ -112,12 +120,17 @@ class FakeCommands:
     @activity.defn(name="report_issue")
     async def report_issue(self, report: IssueReport) -> None:
         self.reports.append(report)
+        self.report_times.append(activity.info().current_attempt_scheduled_time)
 
     def names(self) -> list[str]:
         return [" ".join(args) for _, args, _ in self.calls]
 
     def times(self, line: str) -> list[str]:
         return [at for _, args, at in self.calls if " ".join(args) == line]
+
+    def stored_ok(self, command: str) -> bool:
+        """A store of `command` that did not fail (the fake records every call, also failed ones)."""
+        return any(at >= "10:15" for at in self.times(store(command)))
 
     def stored(self, command: str, since: str) -> bool:
         return any(at >= since for at in self.times(store(command)))
@@ -244,10 +257,10 @@ async def test_a_missed_afternoon_deadline_names_the_gate_and_its_last_failure(e
     result = await run_daily(env, fake, SForecastInput(issue))
 
     assert result.status == "no_forecast" and result.missing == ["fingrid_afternoon"]
-    # Every 10 minutes from 14:00; no fetch at the 18:00 deadline, only the last check.
+    # Every 10 minutes from 14:00; the last check starts 2 minutes before the 18:00 deadline.
     times = fake.times(fetch("fingrid:fetch"))
     assert times[0] == "14:00" and times[-1] == "17:50" and len(times) == 24
-    assert max(fake.times(readiness(issue, "afternoon"))) == "18:00"
+    assert max(fake.times(readiness(issue, "afternoon"))) == "17:58"
     assert [(r.reason, r.facts) for r in fake.reports] == [("deadline_missed", {
         "issue_date": issue, "missing": ["fingrid_afternoon"],
         "failures": {"fingrid_afternoon": {"command": "fingrid:fetch", "error": "test_error", "step": "fetch"}}})]
@@ -265,18 +278,35 @@ async def test_an_input_that_never_arrives_misses_the_deadline_without_failure_f
     assert times[0] == "13:00" and times[-1] == "17:50" and len(times) == 30
 
 
+async def run_daily_handle(env, fake: FakeCommands, params: SForecastInput):
+    async with Worker(env.client, task_queue=QUEUE, workflows=[SDailyForecast],
+                      activities=[fake.run_command, fake.report_issue], workflow_failure_exception_types=[Exception]):
+        handle = await env.client.start_workflow(SDailyForecast.run, params, id=f"s-test-{uuid.uuid4()}",
+                                                 task_queue=QUEUE)
+        return await handle.result(), handle
+
+
+def near(instant: datetime, expected: datetime) -> bool:
+    """Within the test server's timer jitter (a timer can fire a millisecond early)."""
+    return expected - timedelta(seconds=1) <= instant <= expected + timedelta(seconds=5)
+
+
 async def test_a_missed_morning_gate_ends_the_run_at_the_cut_with_one_issue(env):
+    issue = await tomorrow(env)
     fake = FakeCommands(ready={"fingrid_morning": never})
 
-    result = await run_daily(env, fake, SForecastInput(await tomorrow(env)))
+    result, handle = await run_daily_handle(env, fake, SForecastInput(issue))
 
     assert result.status == "no_forecast"
     assert result.missing == ["fingrid_morning"]
     assert [r.reason for r in fake.reports] == ["inputs_missing"]
     assert fake.times(fetch("fingrid:fetch")) == ["10:05", "10:15", "10:25", "10:35", "10:45", "10:55", "11:05",
                                                    "11:15", "11:25"]
-    # The day cannot get a forecast, so the run does not wait for the afternoon gates.
-    assert max(at for _, _, at in fake.calls) == "11:30"
+    # The day cannot get a forecast, so the run does not wait for the afternoon gates: its Issue and
+    # its close are at the 11:30 cut.
+    assert max(at for _, _, at in fake.calls) == "11:28"
+    assert near(fake.report_times[0], helsinki(issue, "11:30"))
+    assert near((await handle.describe()).close_time, helsinki(issue, "11:30"))
     assert not any(args[0] in ("predict", "jao:fetch") for _, args, _ in fake.calls)
 
 
@@ -449,6 +479,156 @@ async def test_a_failed_readiness_check_fails_the_run_at_once(env):
     # The failed 09:15 check (not recorded) ends the run: nothing runs after the 09:00 checks.
     assert max(at for _, _, at in fake.calls) == "09:00"
     assert fake.reports == []
+
+
+# TST-001: each gate kept closed in turn, against this table (independent of s_forecast.GATES): its
+# fetch command line (None: re-check only), its fetch times, its last check, the reason and when the
+# run ends (the collection time of its deadline).
+def every_10(first: str, last: str) -> list[str]:
+    start, end = datetime.strptime(first, "%H:%M"), datetime.strptime(last, "%H:%M")
+    return [(start + timedelta(minutes=10 * n)).strftime("%H:%M") for n in range((end - start).seconds // 600 + 1)]
+
+
+CLOSED_GATES = {
+    "fingrid_morning": ("fingrid:fetch", every_10("10:05", "11:25"), "11:28", "11:30", "inputs_missing"),
+    "fingrid_afternoon": ("fingrid:fetch", every_10("14:00", "17:50"), "17:58", "18:00", "deadline_missed"),
+    "day_ahead_d": ("spot:fetch-neighbours", every_10("09:00", "11:20"), "11:28", "11:30", "inputs_missing"),
+    "day_ahead_d1": ("spot:fetch-neighbours", every_10("13:00", "17:50"), "17:58", "18:00", "deadline_missed"),
+    "jao_capacity_d": ("jao:fetch", every_10("09:00", "11:20"), "11:28", "11:30", "inputs_missing"),
+    "jao_capacity_d1": ("jao:fetch", every_10("12:00", "17:50"), "17:58", "18:00", "deadline_missed"),
+    "weather_ecmwf_00z": ("weather:fetch --only=ecmwf_00z", every_10("09:15", "17:55"), "17:58", "18:00",
+                          "deadline_missed"),
+    "weather_prev_day1_morning": ("weather:fetch --only=ecmwf_prev_day1", ["09:30", "09:40", "09:50"], "09:58",
+                                  "11:30", "inputs_missing"),
+    "weather_prev_day1_afternoon": ("weather:fetch --only=ecmwf_prev_day1", ["13:30", "13:40", "13:50"], "13:58",
+                                    "14:00", "inputs_missing"),
+    "eex_futures": (None, [], "11:28", "11:30", "inputs_missing"),
+}
+
+
+@pytest.mark.parametrize("key", sorted(CLOSED_GATES))
+async def test_each_gate_obeys_its_fetch_command_and_deadline(env, key):
+    line, fetch_times, last_check, ends, reason = CLOSED_GATES[key]
+    issue = await tomorrow(env)
+    fake = FakeCommands(ready={key: never})
+
+    result, handle = await run_daily_handle(env, fake, SForecastInput(issue))
+
+    assert result.status == "no_forecast" and result.missing == [key]
+    assert [r.reason for r in fake.reports] == [reason]
+    # Only this gate fetches (besides the outage proofs), with its exact command and options.
+    assert sorted(set(fetches(fake)) - {fetch(OUTAGES)}) == ([fetch(line)] if line else [])
+    # The last check starts 2 minutes before the gate deadline; no fetch or store runs past it.
+    deadline = helsinki(issue, last_check) + LAST_CHECK_BEFORE_DEADLINE
+    if line:
+        assert fake.times(fetch(line)) == fake.times(store(line)) == fetch_times
+        budgets = [at + timeout for at, timeout, name in zip(fake.scheduled, fake.schedule_to_close, fake.names())
+                   if name.startswith(line)]
+        assert all(end <= deadline + timedelta(seconds=1) for end in budgets)
+    view = "morning" if key in MORNING_KEYS else "afternoon"
+    assert last_check in fake.times(readiness(issue, view))
+    assert max(at for _, _, at in fake.calls) <= ends
+    assert near(fake.report_times[0], helsinki(issue, ends))
+    assert near((await handle.describe()).close_time, helsinki(issue, ends))
+    assert not any(args[0] == "predict" for _, args, _ in fake.calls)
+
+
+@pytest.mark.parametrize("key, rule, fetch_times, ends", [
+    ("entsoe_outages_morning", {}, ["11:00", "11:05", "11:10", "11:15", "11:20", "11:25"], "11:30"),
+    ("entsoe_outages_afternoon", {fetch(OUTAGES): "13:00"}, ["14:00", "14:05", "14:10", "14:15", "14:20", "14:25"],
+     "14:30"),
+])
+async def test_each_outage_gate_obeys_its_window(env, key, rule, fetch_times, ends):
+    issue = await tomorrow(env)
+    fake = FakeCommands(fail_from=rule) if rule else FakeCommands(failing={fetch(OUTAGES)})
+
+    result, handle = await run_daily_handle(env, fake, SForecastInput(issue))
+
+    assert result.missing == [key] and [r.reason for r in fake.reports] == ["inputs_missing"]
+    assert fake.times(fetch(OUTAGES))[-len(fetch_times):] == fetch_times
+    assert near((await handle.describe()).close_time, helsinki(issue, ends))
+    assert not any(args[0] == "predict" for _, args, _ in fake.calls)
+
+
+async def test_all_missed_gates_report_their_latest_failures_once(env):
+    """TST-002: two afternoon gates closed, errors that change on every attempt."""
+
+    def errors(line: str, now: str) -> str | None:
+        if line == fetch("fingrid:fetch"):
+            return f"fingrid_down_{now.replace(':', '')}"
+        if line == fetch("jao:fetch") and now < "15:00":
+            return f"jao_down_{now.replace(':', '')}"
+        if line == store("jao:fetch") and now >= "15:00":
+            return "store_failed"  # a store bug: the gate stops fetching
+        return None
+
+    issue = await tomorrow(env)
+    fake = FakeCommands(ready={"fingrid_afternoon": never, "jao_capacity_d1": never}, errors=errors)
+
+    result = await run_daily(env, fake, SForecastInput(issue))
+
+    assert result.missing == ["fingrid_afternoon", "jao_capacity_d1"]
+    assert fake.times(fetch("jao:fetch"))[-1] == "15:00"
+    assert [(r.reason, r.facts) for r in fake.reports] == [("deadline_missed", {
+        "issue_date": issue, "missing": ["fingrid_afternoon", "jao_capacity_d1"], "failures": {
+            "fingrid_afternoon": {"command": "fingrid:fetch", "error": "fingrid_down_1750", "step": "fetch"},
+            "jao_capacity_d1": {"command": "jao:fetch", "error": "store_failed", "step": "store",
+                                "payload_path": PAYLOAD_PATH, "payload_sha256": SHA256}}})]
+
+
+async def test_a_partial_acquisition_is_fetched_again(env):
+    """PLT-001: a fetch with failed units exits 0; its store keeps the good rows and fails
+    `fetch_incomplete` (step `fetch`). The gate fetches again; a later complete fetch opens it."""
+    fake = FakeCommands(ready={"fingrid_morning": lambda f, now: f.stored_ok("fingrid:fetch")},
+                        errors=lambda line, now: "fetch_incomplete" if line == store("fingrid:fetch") and now < "10:15"
+                        else None)
+
+    result = await run_daily(env, fake, SForecastInput(await tomorrow(env)))
+
+    assert result.status == "forecast_stored" and fake.reports == []
+    assert fake.times(fetch("fingrid:fetch")) == ["10:05", "10:15"]
+
+
+async def test_a_partial_acquisition_that_never_completes_names_the_fetch_step(env):
+    fake = FakeCommands(ready={"fingrid_afternoon": never},
+                        errors=lambda line, now: "fetch_incomplete" if line == store("fingrid:fetch") else None)
+    issue = await tomorrow(env)
+
+    result = await run_daily(env, fake, SForecastInput(issue))
+
+    assert result.missing == ["fingrid_afternoon"]
+    assert len(fake.times(fetch("fingrid:fetch"))) == 24  # every pass fetches again
+    assert [r.facts["failures"] for r in fake.reports] == [{"fingrid_afternoon": {
+        "command": "fingrid:fetch", "error": "fetch_incomplete", "step": "fetch",
+        "payload_path": PAYLOAD_PATH, "payload_sha256": SHA256}}]
+
+
+async def test_a_readiness_check_failing_across_the_cut_misses_the_gate(env):
+    """PLT-002: every check of a gate ends by its deadline. A check that still fails at the cut
+    misses the gate (no run error); no result can open it after the cut."""
+    issue = await tomorrow(env)
+    fake = FakeCommands(ready={"fingrid_morning": never}, fail_from={readiness(issue, "morning"): "11:20"})
+
+    result, handle = await run_daily_handle(env, fake, SForecastInput(issue))
+
+    assert result.missing == ["fingrid_morning"]
+    assert [(r.reason, r.facts["failures"]) for r in fake.reports] == [("inputs_missing", {
+        "fingrid_morning": {"command": "orchestration:readiness", "error": "test_error"}})]
+    # The retries of the 11:25 check stop at the cut (schedule-to-close = the time left).
+    budgets = [at + timeout for at, timeout, name in zip(fake.scheduled, fake.schedule_to_close, fake.names())
+               if name == readiness(issue, "morning")]
+    assert all(end <= helsinki(issue, "11:30") + timedelta(seconds=1) for end in budgets)
+    assert near((await handle.describe()).close_time, helsinki(issue, "11:30"))
+    assert not any(args[0] == "predict" for _, args, _ in fake.calls)
+
+
+async def test_a_row_that_appears_after_the_cut_never_opens_the_gate(env):
+    fake = FakeCommands(ready={"fingrid_morning": from_time("11:29")})
+
+    result = await run_daily(env, fake, SForecastInput(await tomorrow(env)))
+
+    assert result.missing == ["fingrid_morning"]
+    assert [r.reason for r in fake.reports] == ["inputs_missing"]
 
 
 async def test_model_failure_is_one_issue_with_its_error_key(env):

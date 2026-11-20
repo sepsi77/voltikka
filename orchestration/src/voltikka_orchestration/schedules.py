@@ -28,7 +28,6 @@ from temporalio.client import (
 from .jobs import ArtisanJob, ArtisanJobInput, MorningChain, MorningInput, Step
 from .s_forecast import SDailyForecast, SForecastInput, SRefitInput, SWeeklyRefit
 from .settings import Settings
-from .staged import STORE_TIMEOUT_MINUTES
 from .worker import connect
 
 TIMEZONE = "Europe/Helsinki"
@@ -109,11 +108,11 @@ JOBS: dict[str, tuple[str, list[ScheduleCalendarSpec], list[Step]]] = {
 }
 
 
-# Collector fetch retries (tasks/s-forecast-gates/ requirement 10): until 2 hours after the start, but a
-# retried fetch must end early enough that its store (at most the step's store timeout) ends 5 minutes
-# before the job's next start: with overlap policy SKIP, a run that still runs would drop that start.
-FETCH_RETRY_LIMIT_MINUTES = 120
-NEXT_START_MARGIN_MINUTES = 5
+# Collector fetch retries (tasks/s-forecast-gates/ requirement 10; manager decision 2026-11-20 after
+# PLT-003): a collector that starts at most every 6 hours (daily, weekly, monthly) retries an acquisition
+# failure until 2 hours after its start. An hourly collector gets no retry: its next run is the retry.
+FETCH_RETRY_MINUTES = 120
+FETCH_RETRY_MIN_GAP_MINUTES = 6 * 60
 
 
 def start_gap_minutes(calendars: list[ScheduleCalendarSpec]) -> int:
@@ -128,15 +127,9 @@ def expand(ranges: list[ScheduleRange]) -> list[int]:
     return [value for r in ranges for value in range(r.start, max(r.end, r.start) + 1, r.step or 1)]
 
 
-def fetch_retry_minutes(calendars: list[ScheduleCalendarSpec], step: Step) -> int:
-    store = min(step.timeout_minutes, STORE_TIMEOUT_MINUTES)
-    cap = start_gap_minutes(calendars) - NEXT_START_MARGIN_MINUTES - store
-    return max(0, min(FETCH_RETRY_LIMIT_MINUTES, cap))
-
-
 for _name, (_group, _calendars, _steps) in JOBS.items():
-    if _group == "collectors":
-        _steps[:] = [replace(step, fetch_retry_minutes=fetch_retry_minutes(_calendars, step))
+    if _group == "collectors" and start_gap_minutes(_calendars) >= FETCH_RETRY_MIN_GAP_MINUTES:
+        _steps[:] = [replace(step, fetch_retry_minutes=FETCH_RETRY_MINUTES)
                      if step.staged and not step.self_reports else step for step in _steps]
 
 

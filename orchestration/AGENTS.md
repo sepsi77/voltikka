@@ -86,14 +86,24 @@ scheduler would run its `contracts:complete-import`).
   run (no workflows, no signals: the collector Schedules also serve the market review and keep
   running unchanged). From its start, every `GATE_INTERVAL` (10 min, measured from the pass start)
   a gate checks its key with one `orchestration:readiness` call of its view; when the key is not
-  ready and the deadline has not passed, it runs its fetch (staged, `staged_fetch()`). A failed
-  fetch is not final: the next pass fetches again. A failed store never starts a new fetch (S13):
-  the gate then only re-checks, so a collector's newer store (a concurrent gate store fails with
-  `superseded`) can still open it. The last check is at the deadline. An outage gate has no key: one
+  ready, it runs its fetch (staged, `staged_fetch()`). A failed fetch is not final: the next pass
+  fetches again. A store that fails `fetch_incomplete` is a partial acquisition, not a store bug
+  (the fetch exited 0 with failed units; the store kept the good units' rows and reports step
+  `fetch`, `staged.failure_step()`), so the next pass fetches again too. Any other failed store
+  never starts a new fetch (S13): the gate then only re-checks, so a collector's newer store (a
+  concurrent gate store fails with `superseded`) can still open it.
+  **Deadline rules (spec review PLT-002):** the last check starts `LAST_CHECK_BEFORE_DEADLINE`
+  (2 min) before the deadline, and every check of a gate has schedule-to-close = min(30 min, time
+  left to the deadline), so no readiness result can open a gate after its cut (upserted facts
+  check only that a row exists, not when it arrived). A check whose budget the deadline cut and that
+  still fails (Temporal stops retrying once the next attempt could not start in time) misses the
+  gate, with `{"command": "orchestration:readiness", "error": …}` as its failure facts; a check that
+  fails for its full 30 minutes well before the deadline, or returns no JSON, fails the run. A gate
+  still closed after its last check is missed at its deadline. An outage gate has no key: one
   successful fetch inside its 30-minute window opens it, a failure repeats every 5 minutes. Every
-  fetch has the `_fetch` budget: schedule-to-close = the time left to the gate deadline, so a fetch
-  never starts at or after the deadline and neither it nor its store runs past it (the Previous Runs
-  vintages stay fetched before 10:00/14:00).
+  fetch has the `_fetch` budget: schedule-to-close = the time left to the gate deadline, and a fetch
+  starts only with at least `MIN_FETCH_BUDGET` (1 min) left, so neither it nor its store runs past
+  the deadline (the Previous Runs vintages stay fetched before 10:00/14:00).
 
   | Gate | Fetch | Start | Deadline |
   |---|---|---|---|
@@ -113,10 +123,12 @@ scheduler would run its `contracts:complete-import`).
   Why: from 2026-11-09 to 2026-11-20 no forecast was stored. One failed 10:20 Fingrid fetch cost
   the day (a failed command was never retried), and the single 14:00 Fingrid fetch missed capacity
   rows that publish 1–2 h late. The run collects the gates by deadline (morning ones at the 11:30
-  cut, then 14:00, 14:30, 18:00) and ends at the first deadline that a gate missed, with one Issue:
+  cut, then 14:00, 14:30, 18:00) and ends at the first collection time at which a gate has missed
+  (a 10:00 Previous Runs miss is reported at 11:30), with one Issue:
   `inputs_missing` (a morning, Previous Runs or outage gate) or `deadline_missed` (only 18:00
   gates). It names every missed gate (`missing`) and, under `failures`, the facts of each one's
-  last failed fetch (`failure_facts()`). A fetch that a later pass recovers sends nothing. On an
+  last failed attempt (`failure_facts()`, or the readiness failure). A fetch that a later pass
+  recovers sends nothing. On an
   early end the other gates start no new activity; the run waits for those inside an activity
   (`_busy`, so a store is never cut off) and leaves the sleeping ones behind. Do not cancel their
   timers: when the stop cancelled two gate start timers that came due in the same workflow task, the
@@ -153,23 +165,26 @@ scheduler would run its `contracts:complete-import`).
   non-retryable (as with the Laravel scheduler), also the S forecast input fetches and stores
   (`s_forecast.FETCH_OPTIONS`; the gate loop fetches again, see above). Only a lost attempt is
   retried.
-- **Collector fetch retry** (`../tasks/s-forecast-gates/`, requirements 10–12). A staged step of the
-  `collectors` group carries `Step.fetch_retry_minutes` (`schedules.py` sets it). A fetch activity
-  that fails with `CommandFailed` runs again every `FETCH_RETRY_INTERVAL` (10 min) while the retry
-  can start before that many minutes after the job's start (`workflow_start_time`); a retry's
-  schedule-to-close ends at that deadline. The store still runs once, and a failed store is never
-  retried. A recovered fetch sends no Issue; a step that still fails sends one, with its last
-  attempt's facts. Deadline = min(120, shortest gap between the job's starts − 5 − the step's store
-  timeout) minutes, so the last store ends 5 minutes before the next start (overlap policy SKIP
-  would drop it): 120 for the daily, weekly and monthly collectors, 25 for the hourly
-  `weather-fetch-ecmwf-00z` (retries at +10, +20), 45 for the hourly `fingrid-forecast-vintages`
-  (last retry at +40). Why: since the staged imports a fetch only writes a payload file, so a repeat
-  is safe, and a short API outage at 10:20 cost the S forecast a day. A self-reporting step (its
-  command sends an Issue per failed run) is never retried; no collector step self-reports (test).
-  Other groups keep the no-retry rule. The retry wait is a workflow timer, so a deploy does not lose
-  it; an interrupted fetch repeats as before. No patch: the field comes from the Schedule input, a
-  run that started before `schedules.py --apply --group collectors` has no field (default 0) and
-  takes no retry path (`tests/histories/artisan_job_failed_collector_fetch.json`). Read-only readiness calls retry for up to 30 minutes (`READINESS_OPTIONS`), so a
+- **Collector fetch retry** (`../tasks/s-forecast-gates/`, requirements 10–12; scope: manager
+  decision 2026-11-20 after spec review PLT-003). A staged step of a `collectors` job that starts at
+  most every 6 hours (daily, weekly, monthly) carries `Step.fetch_retry_minutes = 120`
+  (`schedules.py`). After an acquisition failure (a fetch that fails with `CommandFailed`, or a
+  store that fails `fetch_incomplete`: its good units' rows are stored, so a repeat is safe;
+  PLT-001), `run_step()` runs fetch and store again every `FETCH_RETRY_INTERVAL` (10 min) while
+  the retry can start before 120 minutes after the job's start (`workflow_start_time`); a retried
+  fetch's schedule-to-close ends then, a store is never cut off. Any other failed store is final. A
+  recovered step sends no Issue; a step that still fails sends one, with its last attempt's facts.
+  The hourly collectors (`fingrid-forecast-vintages`, `weather-fetch-ecmwf-00z`) and the twice-daily
+  `weather-fetch-ecmwf-prev-day1` (4 h apart) get no retry: their next run is the retry, and a
+  retrying run must not overlap its next start (overlap policy SKIP would drop it). Why: since the
+  staged imports a fetch only writes a payload file, and a short API outage at 10:20 cost the S
+  forecast a day. A self-reporting step (its command sends an Issue per failed run) is never
+  retried; no collector step self-reports (test). Other groups keep the no-retry rule. The retry
+  wait is a workflow timer, so a deploy does not lose it; an interrupted fetch repeats as before. No
+  patch: the field comes from the Schedule input, a run that started before `schedules.py --apply
+  --group collectors` has no field (default 0) and takes no retry path
+  (`tests/histories/artisan_job_failed_collector_fetch.json`).
+- Read-only readiness calls retry for up to 30 minutes (`READINESS_OPTIONS`), so a
   short database break does not end a morning; a longer one fails the run with one Issue. Social posting and the morning
   consumers use `max_attempts=1`.
 - **Deploy drain.** Kamal sends SIGTERM to the old worker after the new one is running. The worker

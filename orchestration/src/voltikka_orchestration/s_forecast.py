@@ -24,6 +24,7 @@ with workflow.unsafe.imports_passed_through():
     from .staged import PATCH as STAGED_PATCH
     from .staged import (
         failure_facts,
+        failure_step,
         fetch_args,
         fetch_skipped,
         payload_expired,
@@ -52,6 +53,12 @@ GATES_PATCH = "s-forecast-gates"
 GATE_INTERVAL = timedelta(minutes=10)
 # The outage proofs have a 30-minute window, so a failed fetch repeats every 5 minutes.
 OUTAGE_GATE_INTERVAL = timedelta(minutes=5)
+# A gate's last readiness check starts this long before its deadline, and every check of a gate must
+# end by the deadline (schedule-to-close), so no result can open a gate after its cut.
+LAST_CHECK_BEFORE_DEADLINE = timedelta(minutes=2)
+# A gate starts a fetch only with at least this much time left before its deadline (a fetch with
+# seconds left cannot finish, and a timer can fire a moment before the deadline).
+MIN_FETCH_BUDGET = timedelta(minutes=1)
 
 
 @dataclass(frozen=True)
@@ -216,7 +223,8 @@ async def staged_fetch(args: list[str], options: Callable[[], dict]) -> dict | N
         key = str(error.details[0]) if error.details else error.type or "ApplicationError"
     else:
         return None
-    return {"command": args[0], "error": key} | (failure_facts(step, reference) if step else {})
+    # A partial acquisition fails at the store with step `fetch`: the caller may fetch again.
+    return {"command": args[0], "error": key} | (failure_facts(failure_step(step, key), reference) if step else {})
 
 
 async def report(issue: IssueReport) -> None:
@@ -282,7 +290,9 @@ class SDailyForecast:
                 raise error
             missed = [gate for gate in gates if self._gates[gate.key] == "missed"]
             if missed:
+                # The run ends at the collection time (a 10:00 miss is reported with the 11:30 cut).
                 self._stopped = True
+                await sleep_until(end)
                 await workflow.wait_condition(lambda: self._busy == 0)
                 # Only afternoon gates end at 18:00; a morning, vintage or outage gate is an input missing for good.
                 reason = "deadline_missed" if all(gate.deadline == DEADLINE for gate in missed) else "inputs_missing"
@@ -297,22 +307,33 @@ class SDailyForecast:
     async def _gate(self, gate: Gate, day: date, issue: str) -> None:
         """One gate loop: from `start`, every `interval` (measured from the pass start): check the key;
         when it is not ready, run the fetch (fetch, then store). A failed fetch is not final: the next
-        pass fetches again; a failed store never starts a new fetch (S13), so after one the gate only
-        re-checks (a collector's store can still make the key ready). A fetch never starts at or after
-        the deadline and never runs past it (`_fetch` budget). The last check is at the deadline. A
-        manual start after the deadline checks once and never fetches. Ends with the gate's state in
-        `_gates`."""
+        pass fetches again, also after a store that failed `fetch_incomplete` (a partial acquisition).
+        Any other failed store never starts a new fetch (S13), so after one the gate only re-checks (a
+        collector's store can still make the key ready). A fetch never starts at or after the deadline
+        and never runs past it (`_fetch` budget). The last check starts LAST_CHECK_BEFORE_DEADLINE
+        before the deadline and, like every check, must end by it (`_key_ready`); a gate still closed then
+        is missed at the deadline. A manual start after the deadline checks once and never fetches.
+        Ends with the gate's state in `_gates`."""
         deadline = local_instant(day, gate.deadline)
+        last_check = deadline - LAST_CHECK_BEFORE_DEADLINE
         fetch = list(gate.fetch) if gate.fetch else None
         self._gates[gate.key] = "waiting"
         await sleep_until(local_instant(day, gate.start))
         while not self._stopped:
             self._gates[gate.key] = "checking"
             started = workflow.now()
-            if gate.view and await self._key_ready(issue, gate):
-                self._gates[gate.key] = "open"
-                return
-            if workflow.now() >= deadline:
+            if gate.view:
+                ready = await self._key_ready(issue, gate, deadline)
+                if ready:
+                    self._gates[gate.key] = "open"
+                    return
+                if ready is None or workflow.now() >= last_check:
+                    # A gate misses at its deadline, so the Issue and an early end fall on the cut.
+                    await sleep_until(deadline)
+                    self._gates[gate.key] = "missed"
+                    return
+            elif workflow.now() >= deadline - MIN_FETCH_BUDGET:
+                await sleep_until(deadline)
                 self._gates[gate.key] = "missed"
                 return
             if fetch and not self._stopped:
@@ -328,15 +349,34 @@ class SDailyForecast:
                 elif gate.view is None:
                     self._gates[gate.key] = "open"
                     return
-            await sleep_until(min(started + gate.interval, deadline))
+            await sleep_until(min(started + gate.interval, last_check if gate.view else deadline))
         self._gates[gate.key] = "stopped"
 
-    async def _key_ready(self, issue: str, gate: Gate) -> bool:
+    async def _key_ready(self, issue: str, gate: Gate, deadline: datetime) -> bool | None:
+        """The gate's key in one readiness check of its view. Before the deadline the check (with its
+        retries) must end by the deadline: a check whose budget the deadline cut and that still fails
+        (Temporal stops retrying once the next attempt could not start in time), or whose result comes
+        after the deadline, is None (the gate missed; its failure facts are recorded). A check that
+        failed for its full 30 minutes well before the deadline fails the run, as before. A manual start
+        after the deadline gets the normal 30-minute check. A result without JSON fails the run."""
+        started = workflow.now()
+        budget = READINESS_OPTIONS["schedule_to_close_timeout"]
+        options = READINESS_OPTIONS
+        cut_by_deadline = started < deadline and deadline - started < budget
+        if cut_by_deadline:
+            options = dict(READINESS_OPTIONS, schedule_to_close_timeout=deadline - started)
         self._busy += 1
         try:
-            readiness = await self._readiness(issue, gate.view)
+            readiness = await self._readiness(issue, gate.view, options)
+        except ActivityError as error:
+            if not cut_by_deadline:
+                raise
+            self._failures[gate.key] = {"command": "orchestration:readiness", "error": error_key(error)}
+            return None
         finally:
             self._busy -= 1
+        if started < deadline < workflow.now():
+            return None  # never open a gate on a result from after its cut
         for item in readiness.get("inputs", []):
             if item.get("key") == gate.key:
                 return bool(item.get("ready"))
@@ -428,10 +468,10 @@ class SDailyForecast:
 
         return await staged_fetch(args, options)
 
-    async def _readiness(self, issue: str, view: str) -> dict:
+    async def _readiness(self, issue: str, view: str, options: dict = READINESS_OPTIONS) -> dict:
         result = await run(
             "artisan", ["orchestration:readiness", "s-forecast", f"--issue-date={issue}", f"--view={view}"],
-            READINESS_OPTIONS,
+            options,
         )
         if result.result is None or "ready" not in result.result:
             raise ApplicationError("orchestration:readiness returned no JSON result", non_retryable=True)
