@@ -51,6 +51,14 @@ return [
         'timeout' => env('ENTSOE_TIMEOUT', 30),
     ],
 
+    // SMARD DE-LU day-ahead prices via Energy-Charts (CC BY 4.0, Bundesnetzagentur | SMARD.de).
+    // spot:fetch-neighbours fills only DE-LU quarter-hours that ENTSO-E sequence 1 does not cover.
+    'energy_charts' => [
+        'price_url' => 'https://api.energy-charts.info/price',
+        'connect_timeout' => 5,
+        'timeout' => 30,
+    ],
+
     'spot_forecasts' => [
         'nordpool_predict_fi' => [
             'url' => env('NORDPOOL_PREDICT_FI_URL', 'https://raw.githubusercontent.com/vividfog/nordpool-predict-fi/main/deploy/prediction.json'),

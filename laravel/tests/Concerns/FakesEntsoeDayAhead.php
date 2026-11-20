@@ -14,7 +14,7 @@ trait FakesEntsoeDayAhead
      * One A01 TimeSeries per point, so any set of timestamps and resolutions can be expressed.
      * An empty list gives the acknowledgement document ENTSO-E sends when it has no data.
      *
-     * @param  list<array{0: int, 1: float, 2?: int}>  $points  [UTC timestamp, c/kWh VAT0, resolution minutes (60)]
+     * @param  list<array{0: int, 1: float, 2?: int, 3?: int}>  $points  [UTC timestamp, c/kWh VAT0, resolution minutes (60), classificationSequence position (none)]
      */
     private function dayAheadXml(array $points): string
     {
@@ -25,8 +25,11 @@ trait FakesEntsoeDayAhead
         $series = '';
         foreach ($points as $point) {
             $minutes = $point[2] ?? 60;
+            $sequence = $point[3] ?? null;
             $start = Carbon::createFromTimestampUTC($point[0]);
-            $series .= '<TimeSeries><curveType>A01</curveType><Period><timeInterval>'
+            $series .= '<TimeSeries>'
+                .($sequence !== null ? "<classificationSequence_AttributeInstanceComponent.position>{$sequence}</classificationSequence_AttributeInstanceComponent.position>" : '')
+                .'<curveType>A01</curveType><Period><timeInterval>'
                 .'<start>'.$start->format('Y-m-d\TH:i\Z').'</start>'
                 .'<end>'.$start->copy()->addMinutes($minutes)->format('Y-m-d\TH:i\Z').'</end>'
                 ."</timeInterval><resolution>PT{$minutes}M</resolution>"

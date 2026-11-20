@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Sleep;
 use Mockery;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\FakesEntsoeDayAhead;
 use Tests\TestCase;
 
@@ -27,6 +28,8 @@ class FetchNeighbourSpotCommandTest extends TestCase
     use RefreshDatabase;
 
     private const API_KEY = 'entsoe-neighbour-secret-4410';
+
+    private const ENERGY_CHARTS_URL = 'https://api.energy-charts.info/price';
 
     protected function setUp(): void
     {
@@ -61,16 +64,34 @@ class FetchNeighbourSpotCommandTest extends TestCase
 
     /**
      * Answer each zone by its EIC code: a price gives four quarters of 2026-10-31 00:00 UTC, an
-     * int status an error answer, a ConnectionException a connection failure.
+     * int status an error answer, a ConnectionException a connection failure, a string that A44
+     * body. Energy-Charts answers $energyCharts the same way (a string is its body); by default it
+     * repeats the DE-LU quarters, so it fills nothing.
      *
-     * @param  array<string, float|int|ConnectionException>  $answers  region => answer
+     * @param  array<string, float|int|string|ConnectionException>  $answers  region => answer
      */
-    private function fakeZones(array $answers): void
+    private function fakeZones(array $answers, float|int|string|ConnectionException|null $energyCharts = null): void
     {
         $regionByEic = array_flip((array) config('services.entsoe.bidding_zones'));
+        $energyCharts ??= is_float($answers['DE-LU']) ? $answers['DE-LU'] : $this->energyChartsJson([]);
         Http::swap(new Factory);
-        Http::fake(function (Request $request) use ($answers, $regionByEic) {
+        Http::fake(function (Request $request) use ($answers, $regionByEic, $energyCharts) {
+            if (str_starts_with($request->url(), self::ENERGY_CHARTS_URL)) {
+                $answer = $energyCharts;
+                if ($answer instanceof ConnectionException) {
+                    throw $answer;
+                }
+
+                return match (true) {
+                    is_int($answer) => Http::response('Too Many Requests', $answer),
+                    is_string($answer) => Http::response($answer),
+                    default => Http::response($this->energyChartsJson($this->quarterPoints('2026-10-31 00:00', $answer))),
+                };
+            }
             $answer = $answers[$regionByEic[$request['in_Domain']]];
+            if (is_string($answer)) {
+                return Http::response($answer);
+            }
             if ($answer instanceof ConnectionException) {
                 throw $answer;
             }
@@ -81,20 +102,58 @@ class FetchNeighbourSpotCommandTest extends TestCase
         });
     }
 
+    /**
+     * An Energy-Charts price answer; null prices stay null.
+     *
+     * @param  list<array{0: int, 1: float|null}>  $points  [UTC timestamp, c/kWh VAT0 or null]
+     */
+    private function energyChartsJson(array $points): string
+    {
+        return json_encode([
+            'license_info' => 'CC BY 4.0 (creativecommons.org/licenses/by/4.0) from Bundesnetzagentur | SMARD.de',
+            'unix_seconds' => array_map(fn (array $point) => $point[0], $points),
+            'price' => array_map(fn (array $point) => $point[1] === null ? null : round($point[1] * 10, 2), $points),
+            'unit' => 'EUR / MWh',
+            'deprecated' => false,
+        ], JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * Quarter-hour points with a distinct price each, from $utcStart.
+     *
+     * @return list<array{0: int, 1: float, 2: int}>
+     */
+    private function quarterSeries(string $utcStart, int $count, float $base): array
+    {
+        $start = Carbon::parse($utcStart, 'UTC');
+
+        return array_map(fn (int $i) => [$start->copy()->addMinutes(15 * $i)->timestamp, $base + $i / 100, 15], range(0, $count - 1));
+    }
+
+    /** @return array<int, float> UTC timestamp => c/kWh VAT0 */
+    private function storedPrices(string $table, string $region): array
+    {
+        return DB::table($table)->where('region', $region)->orderBy('timestamp')
+            ->pluck('price_without_tax', 'timestamp')->map(fn ($price) => (float) $price)->all();
+    }
+
     public function test_imports_each_configured_zone_without_finnish_vat(): void
     {
         $this->fakeZones(['SE1' => 2.0, 'SE3' => 8.0, 'EE' => 12.0, 'DE-LU' => 20.0]);
 
         $this->assertSame(0, Artisan::call('spot:fetch-neighbours'));
 
-        Http::assertSentCount(4);
+        Http::assertSentCount(5);
         $this->assertSame(16, SpotPriceQuarter::count());
         $se3 = SpotPriceHour::query()->forRegion('SE3')->firstOrFail();
         $this->assertEqualsWithDelta(9.5, $se3->price_without_tax, 0.0001); // mean of 8, 9, 10, 11
         $this->assertEqualsWithDelta(0.0, $se3->vat_rate, 0.0001);
         $this->assertSame(0, SpotPriceHour::query()->forRegion('FI')->count());
         $line = $this->lastJsonLine(Artisan::output());
-        $this->assertSame(['stored', true, ['records' => 16, 'regions' => 4, 'failed_regions' => 0]], [$line['status'], $line['complete'], $line['counts']]);
+        $this->assertSame(
+            ['stored', true, ['records' => 16, 'regions' => 4, 'failed_regions' => 0, 'de_lu_filled' => 0, 'failed_fill' => 0]],
+            [$line['status'], $line['complete'], $line['counts']],
+        );
     }
 
     public function test_one_failed_zone_does_not_stop_the_others_and_fails_the_run(): void
@@ -112,7 +171,7 @@ class FetchNeighbourSpotCommandTest extends TestCase
         $this->assertSame(1, SpotPriceHour::query()->forRegion('EE')->count());
         $line = $this->lastJsonLine($output);
         $this->assertSame(
-            ['failed', 'fetch', 'fetch_incomplete', false, ['records' => 12, 'regions' => 3, 'failed_regions' => 1]],
+            ['failed', 'fetch', 'fetch_incomplete', false, ['records' => 12, 'regions' => 3, 'failed_regions' => 1, 'de_lu_filled' => 0, 'failed_fill' => 0]],
             [$line['status'], $line['step'], $line['error'], $line['complete'], $line['counts']],
         );
         $this->assertStringNotContainsString(self::API_KEY, $output);
@@ -134,7 +193,7 @@ class FetchNeighbourSpotCommandTest extends TestCase
         SpotPriceHour::query()->delete();
         $this->assertSame(0, Artisan::call('spot:fetch-neighbours', ['--fetch-only' => true]), 'A partial fetch saves its payload.');
         $payload = $this->lastJsonLine(Artisan::output())['payload'];
-        $this->assertSame([false, 1, 4], [$payload['complete'], $payload['failed_units'], $payload['requests']]);
+        $this->assertSame([false, 1, 5], [$payload['complete'], $payload['failed_units'], $payload['requests']]);
         $this->assertSame([], $this->spotRows(), 'Fetch only writes no rows.');
 
         Http::preventStrayRequests();
@@ -201,7 +260,7 @@ class FetchNeighbourSpotCommandTest extends TestCase
 
         $this->assertSame(0, Artisan::call('spot:fetch-neighbours', ['--fetch-only' => true]));
 
-        Http::assertSent(fn (Request $request) => $request['securityToken'] === self::API_KEY);
+        Http::assertSent(fn (Request $request) => ($request->data()['securityToken'] ?? null) === self::API_KEY);
         $payload = $this->decompressedPayload($this->lastJsonLine(Artisan::output())['payload']['path']);
         $this->assertSame(1, substr_count($payload, '"connection_failed":true'));
         $this->assertSame(1, substr_count($payload, '"status":401'));
@@ -252,7 +311,7 @@ class FetchNeighbourSpotCommandTest extends TestCase
 
         $line = $this->lastJsonLine(Artisan::output());
         $this->assertSame(
-            ['failed', 'fetch', 'fetch_incomplete', false, ['records' => 12, 'regions' => 3, 'failed_regions' => 1]],
+            ['failed', 'fetch', 'fetch_incomplete', false, ['records' => 12, 'regions' => 3, 'failed_regions' => 1, 'de_lu_filled' => 0, 'failed_fill' => 0]],
             [$line['status'], $line['step'], $line['error'], $line['complete'], $line['counts']],
         );
         $se3 = array_values(array_filter(
@@ -263,6 +322,227 @@ class FetchNeighbourSpotCommandTest extends TestCase
         Log::shouldHaveReceived('error')->once()->with('Neighbour spot import failed', [
             'region' => 'SE3', 'exception_class' => RequestException::class,
         ]);
+    }
+
+    /**
+     * @param  list<array{0: int, 1: float, 2: int}>  $points
+     * @return list<array{0: int, 1: float, 2: int, 3: int}>
+     */
+    private function withSequence(array $points, int $sequence): array
+    {
+        return array_map(fn (array $point) => [...$point, $sequence], $points);
+    }
+
+    /**
+     * Fake a DE-LU day like 2026-11-20: ENTSO-E has sequence 1 for 2026-10-31 00:00 UTC only and
+     * Helsinki 2026-11-01 only as sequence 2; Energy-Charts (SMARD) has both.
+     *
+     * @return array<int, float> the Energy-Charts c/kWh of Helsinki 2026-11-01 by UTC timestamp
+     */
+    private function fakeSequenceTwoDay(): array
+    {
+        $sequenceOne = $this->withSequence($this->quarterSeries('2026-10-31 00:00', 4, 20.0), 1);
+        $sequenceTwo = $this->withSequence($this->quarterSeries('2026-10-31 22:00', 96, 90.0), 2);
+        $smard = $this->energyChartsJson([
+            ...$this->quarterSeries('2026-10-31 00:00', 4, 70.0),
+            ...$this->quarterSeries('2026-10-31 22:00', 96, 40.0),
+        ]);
+        $this->fakeZones(['SE1' => 2.0, 'SE3' => 8.0, 'EE' => 12.0, 'DE-LU' => $this->dayAheadXml([...$sequenceOne, ...$sequenceTwo])], $smard);
+
+        $answer = json_decode($smard, true);
+        $expected = [];
+        foreach ($answer['unix_seconds'] as $index => $timestamp) {
+            if ($timestamp >= Carbon::parse('2026-10-31 22:00', 'UTC')->timestamp) {
+                $expected[$timestamp] = $answer['price'][$index] / 10;
+            }
+        }
+
+        return $expected;
+    }
+
+    /** (a) ENTSO-E sequence 1 covers every DE-LU slot: nothing is taken from Energy-Charts. */
+    public function test_entsoe_sequence_one_wins_over_energy_charts(): void
+    {
+        $sequenceOne = $this->withSequence($this->quarterSeries('2026-10-31 00:00', 4, 20.0), 1);
+        $sequenceTwo = $this->withSequence($this->quarterSeries('2026-10-31 00:00', 4, 90.0), 2);
+        $this->fakeZones(
+            ['SE1' => 2.0, 'SE3' => 8.0, 'EE' => 12.0, 'DE-LU' => $this->dayAheadXml([...$sequenceOne, ...$sequenceTwo])],
+            $this->energyChartsJson($this->quarterSeries('2026-10-31 00:00', 4, 50.0)),
+        );
+
+        $this->assertSame(0, Artisan::call('spot:fetch-neighbours'));
+
+        $start = Carbon::parse('2026-10-31 00:00', 'UTC')->timestamp;
+        $this->assertEqualsWithDelta(
+            [$start => 20.0, $start + 900 => 20.01, $start + 1800 => 20.02, $start + 2700 => 20.03],
+            $this->storedPrices('spot_prices_quarter', 'DE-LU'),
+            1e-9,
+        );
+        $this->assertEqualsWithDelta([$start => 20.015], $this->storedPrices('spot_prices_hour', 'DE-LU'), 1e-9);
+        $line = $this->lastJsonLine(Artisan::output());
+        $this->assertSame(['stored', 16, 0, 0], [$line['status'], $line['counts']['records'], $line['counts']['de_lu_filled'], $line['counts']['failed_fill']]);
+    }
+
+    /** (b) A day that ENTSO-E has only as sequence 2 is filled from Energy-Charts with its exact values. */
+    public function test_a_sequence_two_only_day_is_filled_from_energy_charts(): void
+    {
+        $expected = $this->fakeSequenceTwoDay();
+
+        $this->assertSame(0, Artisan::call('spot:fetch-neighbours'));
+        $output = Artisan::output();
+
+        $quarters = $this->storedPrices('spot_prices_quarter', 'DE-LU');
+        $this->assertCount(100, $quarters, 'Four sequence-1 quarters and the 96 filled quarters.');
+        $this->assertEqualsWithDelta($expected, array_slice($quarters, 4, null, true), 1e-9);
+        $this->assertEqualsWithDelta(20.0, $quarters[Carbon::parse('2026-10-31 00:00', 'UTC')->timestamp], 1e-9, 'Sequence 1 stays primary.');
+
+        $hours = DB::table('spot_prices_hour')->where('region', 'DE-LU')
+            ->where('timestamp', '>=', Carbon::parse('2026-10-31 22:00', 'UTC')->timestamp)
+            ->orderBy('timestamp')->get();
+        $this->assertCount(24, $hours, 'Helsinki 2026-11-01 has all 24 hours.');
+        foreach ($hours as $hour) {
+            $quarterPrices = array_map(fn (int $i) => $expected[$hour->timestamp + 900 * $i], range(0, 3));
+            $this->assertEqualsWithDelta(array_sum($quarterPrices) / 4, (float) $hour->price_without_tax, 1e-6);
+            $this->assertEqualsWithDelta(0.0, (float) $hour->vat_rate, 1e-9);
+        }
+
+        $line = $this->lastJsonLine($output);
+        $this->assertSame(
+            ['stored', true, ['records' => 112, 'regions' => 4, 'failed_regions' => 0, 'de_lu_filled' => 96, 'failed_fill' => 0]],
+            [$line['status'], $line['complete'], $line['counts']],
+        );
+        $this->assertStringContainsString('DE-LU: 96 quarter-hours filled from Energy-Charts (SMARD).', $output);
+    }
+
+    /**
+     * (c) Partial coverage: only the slots ENTSO-E sequence 1 does not cover are filled, the hour
+     * is the mean of all four, null prices and the inclusive end point are skipped.
+     */
+    public function test_only_uncovered_slots_are_filled(): void
+    {
+        $hour = Carbon::parse('2026-10-31 00:00', 'UTC')->timestamp;
+        $windowEnd = Carbon::parse('2026-11-01 22:00', 'UTC')->timestamp;
+        $this->fakeZones(
+            ['SE1' => 2.0, 'SE3' => 8.0, 'EE' => 12.0, 'DE-LU' => $this->dayAheadXml($this->withSequence($this->quarterSeries('2026-10-31 00:00', 2, 20.0), 1))],
+            $this->energyChartsJson([...$this->quarterSeries('2026-10-31 00:00', 4, 50.0), [$hour + 3600, null], [$windowEnd, 60.0]]),
+        );
+
+        $this->assertSame(0, Artisan::call('spot:fetch-neighbours'));
+
+        $this->assertEqualsWithDelta(
+            [$hour => 20.0, $hour + 900 => 20.01, $hour + 1800 => 50.02, $hour + 2700 => 50.03],
+            $this->storedPrices('spot_prices_quarter', 'DE-LU'),
+            1e-9,
+        );
+        $this->assertEqualsWithDelta([$hour => (20.0 + 20.01 + 50.02 + 50.03) / 4], $this->storedPrices('spot_prices_hour', 'DE-LU'), 1e-6);
+        $this->assertSame(2, $this->lastJsonLine(Artisan::output())['counts']['de_lu_filled']);
+    }
+
+    /**
+     * An hour that ENTSO-E and Energy-Charts together cannot complete is not filled: the importer
+     * would store the mean of the partial quarters as the hourly price, and insert-only rows could
+     * never be corrected. The readiness check then still sees the hour as missing.
+     */
+    public function test_an_hour_with_a_null_fill_quarter_is_not_filled(): void
+    {
+        $hour = Carbon::parse('2026-10-31 00:00', 'UTC')->timestamp;
+        $this->fakeZones(
+            ['SE1' => 2.0, 'SE3' => 8.0, 'EE' => 12.0, 'DE-LU' => $this->dayAheadXml($this->withSequence($this->quarterSeries('2026-10-31 00:00', 4, 90.0), 2))],
+            $this->energyChartsJson([
+                [$hour, 50.0], [$hour + 900, 50.01], [$hour + 1800, null], [$hour + 2700, 50.03],
+                ...$this->quarterSeries('2026-10-31 01:00', 4, 60.0),
+            ]),
+        );
+
+        $this->assertSame(0, Artisan::call('spot:fetch-neighbours'));
+
+        $next = $hour + 3600;
+        $this->assertEqualsWithDelta(
+            [$next => 60.0, $next + 900 => 60.01, $next + 1800 => 60.02, $next + 2700 => 60.03],
+            $this->storedPrices('spot_prices_quarter', 'DE-LU'),
+            1e-9,
+        );
+        $this->assertEqualsWithDelta([$next => (60.0 + 60.01 + 60.02 + 60.03) / 4], $this->storedPrices('spot_prices_hour', 'DE-LU'), 1e-6);
+        $this->assertSame(4, $this->lastJsonLine(Artisan::output())['counts']['de_lu_filled']);
+    }
+
+    /** (d) The window runs from Helsinki yesterday through the day after tomorrow, for every request. */
+    public function test_the_window_starts_at_helsinki_yesterday(): void
+    {
+        $regionByEic = array_flip((array) config('services.entsoe.bidding_zones'));
+        $yesterday = $this->quarterPoints('2026-10-30 10:00', 3.0);
+        Http::swap(new Factory);
+        Http::fake(function (Request $request) use ($regionByEic, $yesterday) {
+            if (str_starts_with($request->url(), self::ENERGY_CHARTS_URL)) {
+                return Http::response($this->energyChartsJson([]));
+            }
+
+            return Http::response($this->dayAheadXml($regionByEic[$request['in_Domain']] === 'SE1' ? $yesterday : []));
+        });
+
+        $this->assertSame(0, Artisan::call('spot:fetch-neighbours'));
+
+        // 2026-10-31 14:00 Helsinki (UTC+2): 2026-10-30 00:00 through 2026-11-02 00:00 Helsinki.
+        Http::assertSentCount(5);
+        Http::assertSent(fn (Request $request) => str_starts_with($request->url(), self::ENERGY_CHARTS_URL)
+            && [$request['bzn'], $request['start'], $request['end']] === ['DE-LU', '2026-10-29T22:00Z', '2026-11-01T22:00Z']);
+        $this->assertSame(4, count(Http::recorded(fn (Request $request) => ($request->data()['periodStart'] ?? null) === '202610292200' && ($request->data()['periodEnd'] ?? null) === '202611012200')));
+        $line = $this->lastJsonLine(Artisan::output());
+        $header = json_decode(strtok($this->decompressedPayload($line['payload']['path']), "\n"), true);
+        $this->assertSame(['2026-10-29T22:00:00Z', '2026-11-01T22:00:00Z'], [$header['facts']['period_start'], $header['facts']['period_end']]);
+        $this->assertSame(1, SpotPriceHour::query()->forRegion('SE1')->where('timestamp', Carbon::parse('2026-10-30 10:00', 'UTC')->timestamp)->count(), 'A late row for yesterday is stored.');
+    }
+
+    /** @return array<string, array{0: int|string|ConnectionException}> */
+    public static function failedEnergyChartsAnswers(): array
+    {
+        return [
+            'HTTP 429' => [429],
+            'connection failure' => [new ConnectionException('timeout')],
+            'not JSON' => ['<html>Service unavailable</html>'],
+            'wrong unit' => ['{"unix_seconds":[1793404800],"price":[1.0],"unit":"EUR / kWh"}'],
+            'unaligned point' => ['{"unix_seconds":[1793404801],"price":[1.0],"unit":"EUR / MWh"}'],
+        ];
+    }
+
+    /** (e) A failed or malformed Energy-Charts answer is a failed unit; the ENTSO-E rows are still stored. */
+    #[DataProvider('failedEnergyChartsAnswers')]
+    public function test_a_failed_energy_charts_answer_fails_the_run_and_keeps_the_entsoe_rows(int|string|ConnectionException $answer): void
+    {
+        Log::spy();
+        $this->fakeZones(['SE1' => 2.0, 'SE3' => 8.0, 'EE' => 12.0, 'DE-LU' => 20.0], $answer);
+
+        $this->assertSame(1, Artisan::call('spot:fetch-neighbours'));
+
+        $line = $this->lastJsonLine(Artisan::output());
+        $this->assertSame(
+            ['failed', 'fetch', 'fetch_incomplete', false, ['records' => 16, 'regions' => 4, 'failed_regions' => 0, 'de_lu_filled' => 0, 'failed_fill' => 1]],
+            [$line['status'], $line['step'], $line['error'], $line['complete'], $line['counts']],
+        );
+        $this->assertSame(16, SpotPriceQuarter::count());
+        $this->assertSame(4, SpotPriceHour::count());
+        Log::shouldHaveReceived('error')->once()->withArgs(fn (string $message, array $context) => $message === 'Neighbour spot import failed'
+            && $context['region'] === 'DE-LU' && $context['source'] === 'energy-charts');
+    }
+
+    /** (f) A replay of a filled payload writes the same rows without HTTP. */
+    public function test_a_replay_of_a_filled_payload_writes_the_same_rows(): void
+    {
+        $this->fakeSequenceTwoDay();
+        $this->assertSame(0, Artisan::call('spot:fetch-neighbours'));
+        $line = $this->lastJsonLine(Artisan::output());
+        $rows = $this->spotRows();
+
+        SpotPriceQuarter::query()->delete();
+        SpotPriceHour::query()->delete();
+        Http::preventStrayRequests();
+        Http::swap(new Factory);
+        Http::fake();
+        $this->assertSame(0, Artisan::call('spot:fetch-neighbours', ['--from-payload' => $line['payload']['path']]));
+
+        Http::assertNothingSent();
+        $this->assertSame($rows, $this->spotRows());
+        $this->assertSame($line['counts'], $this->lastJsonLine(Artisan::output())['counts']);
     }
 
     public function test_backfill_accepts_a_neighbour_region_and_skips_finnish_averages(): void

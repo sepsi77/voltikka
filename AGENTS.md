@@ -244,7 +244,7 @@ php artisan spot:check-freshness     # Read-only check that FI data covers the c
 php artisan spot:fetch-forecast      # Fetch third-party spot-price forecasts from nordpool-predict-fi
 php artisan spot:backfill            # Backfill historical spot prices; retries transient server/connection timeouts per chunk
 php artisan spot:averages            # Calculate spot price averages
-php artisan spot:fetch-neighbours    # Fetch SE1/SE3/EE/DE-LU day-ahead prices (market reviews; region-coded, VAT 0)
+php artisan spot:fetch-neighbours    # Fetch SE1/SE3/EE/DE-LU day-ahead prices, Helsinki yesterday onward (market reviews; region-coded, VAT 0; DE-LU gaps from SMARD via Energy-Charts)
 php artisan spot:backfill --region=SE1  # Backfill one neighbour zone
 
 # Market review system data
