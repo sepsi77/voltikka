@@ -251,3 +251,40 @@ fixes; the executor implemented them.
 
 Verification: `cd orchestration && uv run pytest`: 136 passed, in three runs in a row (118 before
 these fixes). `git diff --check` is clean.
+
+### Verification pass fixes (commit 2aa704bf)
+
+Reports: `reviews/2026-11-20T21-20/verification-platform-reviewer.md`,
+`verification-test-reviewer.md`.
+
+- **PLT-002 remainder (blocking).** A scheduled gate whose pass began at or after its deadline got a
+  normal 30-minute readiness check and could open on post-cut data. That happens when the last fetch
+  runs to the cut or a worker resumes the gate late.
+  - The gate now decides `retrospective = workflow.now() >= deadline` once, when it wakes at its
+    start. That is true only for a manual start after the deadline.
+  - A non-retrospective pass that begins at or after the deadline is missed, with no new check or
+    fetch.
+  - `_key_ready()` gets the flag. For a scheduled gate it never starts a check at or after the
+    deadline, and it never accepts a result that arrives after it, whenever the check started.
+  - The retrospective manual path keeps its one unrestricted check.
+- **TST-V-002 (blocking).**
+  `test_a_scheduled_gate_cannot_open_after_its_last_fetch_runs_to_the_cut`: the 11:25
+  `fingrid:fetch` ends at 11:31, and the row is ready from 11:31. The test expects `no_forecast`,
+  missed `fingrid_morning`, one `inputs_missing` Issue, no predict, and no morning readiness call
+  after 11:30.
+  - Mechanism: the time-skipping server does not advance its clock while any activity is
+    outstanding. Tried and confirmed by hangs: an attempt that blocks without heartbeats,
+    `env.sleep()` during that attempt, an async-completing attempt, and a worker gap (a pending
+    workflow task holds the clock too).
+  - The test therefore runs on an unsandboxed worker and replaces only that one
+    `SDailyForecast._fetch` call with a workflow timer of the same length. The gates, checks and
+    collection run as real workflow code.
+  - On the code before this fix it fails with `forecast_stored` (verified by temporarily restoring
+    the old `s_forecast.py`).
+- **TST-V-001 (normal).** `test_each_outage_gate_obeys_its_window` and
+  `test_each_gate_obeys_its_fetch_command_and_deadline` compare full scheduled instants with
+  `near()` (1 s early to 5 s late) instead of minute strings. A timer firing 1 ms early turned 14:25
+  into "14:24". Counts, order, commands and deadlines stay exact.
+
+Verification: `cd orchestration && uv run pytest`, five runs in a row: 137, 137, 137, 137, 137
+passed. `git diff --check` is clean.
