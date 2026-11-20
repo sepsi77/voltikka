@@ -288,3 +288,17 @@ Reports: `reviews/2026-11-20T21-20/verification-platform-reviewer.md`,
 
 Verification: `cd orchestration && uv run pytest`, five runs in a row: 137, 137, 137, 137, 137
 passed. `git diff --check` is clean.
+
+## 2026-11-20 – PR #36 external review (CodeRabbit, Greptile)
+
+- **Late gate timer (both reviewers).** `retrospective` came from the time the gate's start timer
+  fired, so a scheduled run whose worker resumed after a gate deadline skipped that deadline. It now
+  comes from `workflow.info().start_time` (the Schedule's start, 08:55). Test
+  `test_a_scheduled_gate_whose_start_timer_fires_after_its_deadline_misses` fails on the code before.
+- **Late collector retry wake (both reviewers).** A retry timer that fired after the retry deadline
+  started an attempt with a negative schedule-to-close. The step now reports its last failure once.
+  Test `test_a_retry_that_wakes_after_its_deadline_reports_the_last_failure`; on the code before, the
+  run hangs (the attempt is never scheduled).
+- **Retry-interval helper across midnight (CodeRabbit).** `minutes_after_start` now subtracts full
+  scheduled instants.
+- `uv run pytest`: 139 passed, three runs in a row.

@@ -313,15 +313,18 @@ class SDailyForecast:
         and never runs past it (`_fetch` budget). The last check starts LAST_CHECK_BEFORE_DEADLINE
         before the deadline and, like every check, must end by it (`_key_ready`); a gate still closed then
         is missed at the deadline. A pass that begins at or after the deadline (a fetch that ran to the
-        cut, a worker that resumed late) is a miss, with no new check or fetch. Only a gate that wakes
-        after its deadline (a manual start after the cut: `retrospective`, decided once) checks once,
-        without the deadline limits, and never fetches. Ends with the gate's state in `_gates`."""
+        cut, a worker that resumed late) is a miss, with no new check or fetch. Only a gate of a run that
+        started after the gate's deadline (a manual start after the cut: `retrospective`, from the
+        workflow start time) checks once, without the deadline limits, and never fetches. Ends with the gate's state in `_gates`."""
         deadline = local_instant(day, gate.deadline)
         last_check = deadline - LAST_CHECK_BEFORE_DEADLINE
         fetch = list(gate.fetch) if gate.fetch else None
         self._gates[gate.key] = "waiting"
+        # Retrospective = the run itself started after this gate's deadline (a manual check after the
+        # cut). It is decided from the workflow's start time, not from when this timer fired: a
+        # scheduled run whose worker resumed late is not retrospective (PR #36 review).
+        retrospective = workflow.info().start_time >= deadline
         await sleep_until(local_instant(day, gate.start))
-        retrospective = workflow.now() >= deadline
         while not self._stopped:
             self._gates[gate.key] = "checking"
             started = workflow.now()

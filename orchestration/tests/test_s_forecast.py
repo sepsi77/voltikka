@@ -15,6 +15,7 @@ from temporalio.worker import Replayer, UnsandboxedWorkflowRunner, Worker
 
 from voltikka_orchestration.activities import CommandRequest, CommandResult, IssueReport
 from voltikka_orchestration.staged import RETENTION_DAYS, STORE_SCHEDULE_TO_CLOSE
+from voltikka_orchestration import s_forecast
 from voltikka_orchestration.s_forecast import (
     GATES,
     LAST_CHECK_BEFORE_DEADLINE,
@@ -669,6 +670,32 @@ async def test_a_scheduled_gate_cannot_open_after_its_last_fetch_runs_to_the_cut
     checks = [at for at, name in zip(fake.attempt_times, fake.names()) if name == readiness(issue, "morning")]
     assert checks and max(checks) < cut  # no readiness call after the cut
     assert near((await handle.describe()).close_time, helsinki(issue, "11:31"))
+
+
+async def test_a_scheduled_gate_whose_start_timer_fires_after_its_deadline_misses(env, monkeypatch):
+    """PR #36 review: the run started at 08:55, but the 09:30 Previous Runs gate wakes only at 10:05
+    (worker down). It is not a retrospective manual check: it misses without a readiness check, so
+    the row that is already there cannot open it after its 10:00 cut. Unsandboxed worker, so the
+    patched timer is used; the gates are the real workflow code."""
+    issue = await tomorrow(env)
+    fake = FakeCommands()
+    original = s_forecast.sleep_until
+
+    async def late_prev_day1_start(instant):
+        if instant == helsinki(issue, "09:30"):
+            instant = helsinki(issue, "10:05")
+        await original(instant)
+
+    monkeypatch.setattr(s_forecast, "sleep_until", late_prev_day1_start)
+    async with Worker(env.client, task_queue=QUEUE, workflows=[SDailyForecast],
+                      activities=[fake.run_command, fake.report_issue], workflow_failure_exception_types=[Exception],
+                      workflow_runner=UnsandboxedWorkflowRunner()):
+        result = await env.client.execute_workflow(SDailyForecast.run, SForecastInput(issue),
+                                                   id=f"s-test-{uuid.uuid4()}", task_queue=QUEUE)
+
+    assert result.status == "no_forecast" and result.missing == ["weather_prev_day1_morning"]
+    assert [r.reason for r in fake.reports] == ["inputs_missing"]
+    assert not any(args[0] == "predict" for _, args, _ in fake.calls)
 
 
 async def test_a_row_that_appears_after_the_cut_never_opens_the_gate(env):

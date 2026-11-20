@@ -77,6 +77,8 @@ class FakeArtisan:
                  completion_ticks=2, consumer_seconds=0.0, import_state="pending_completion", readiness_failures=0,
                  fetch_result=None, lost_once=(), fail_first=None, errors=None):
         self.calls: list[tuple[str, str]] = []
+        # (command line, full scheduled instant): intervals that cross midnight stay correct.
+        self.instants: list[tuple[str, datetime]] = []
         # Command line -> number of its first runs that fail (CommandFailed).
         self.fail_first = dict(fail_first or {})
         # (command line, its attempt number) -> closed error key of a failure (CommandFailed), or None.
@@ -119,6 +121,7 @@ class FakeArtisan:
                                      "deadline_alerted": dict(self.alerted)}, 0.1)
         at = activity.info().current_attempt_scheduled_time.astimezone(HELSINKI).strftime("%H:%M")
         self.calls.append((name, at))
+        self.instants.append((name, activity.info().current_attempt_scheduled_time))
         self.requests.append(request)
         self.schedule_to_close[name] = activity.info().schedule_to_close_timeout
         self.attempts[name] = self.attempts.get(name, 0) + 1
@@ -509,8 +512,8 @@ async def test_a_skipped_fetch_has_nothing_to_store(env):
 
 
 def minutes_after_start(fake: FakeArtisan, name: str) -> list[int]:
-    times = [datetime.strptime(at, "%H:%M") for at in fake.times(name)]
-    return [int((at - times[0]).total_seconds() // 60) for at in times]
+    times = [at for line, at in fake.instants if line == name]
+    return [round((at - times[0]).total_seconds() / 60) for at in times]
 
 
 async def test_a_failed_collector_fetch_is_retried_and_recovers_without_an_issue(env):
@@ -525,6 +528,27 @@ async def test_a_failed_collector_fetch_is_retried_and_recovers_without_an_issue
     # A retry ends by the retry deadline: the last one, 20 minutes after the start, has 100 minutes left.
     left = fake.schedule_to_close[fetch("jao:fetch")]
     assert timedelta(minutes=99) < left <= timedelta(minutes=100)
+
+
+async def test_a_retry_that_wakes_after_its_deadline_reports_the_last_failure(env, monkeypatch):
+    """PR #36 review: a retry timer that fires after the retry deadline (worker restart, backlog)
+    starts no attempt with a negative budget; the step reports its last failure once. Unsandboxed
+    worker, so the patched timer (it wakes 2 hours late) is used."""
+    fake = FakeArtisan(errors=lambda name, n: f"down_{n}" if name == fetch("jao:fetch") else None)
+    step = Step(["jao:fetch"], staged=True, fetch_retry_minutes=120)
+    original = jobs.sleep_until
+
+    async def late(instant):
+        await original(instant + timedelta(hours=2))
+
+    monkeypatch.setattr(jobs, "sleep_until", late)
+    with pytest.raises(WorkflowFailureError):
+        await execute(env, fake, ArtisanJob.run, ArtisanJobInput("jao-fetch", [step]),
+                      workflow_runner=UnsandboxedWorkflowRunner())
+
+    assert fake.names() == [fetch("jao:fetch")]  # no attempt after the late wake
+    assert [(r.reason, r.facts) for r in fake.reports] == [
+        ("command_failed", {"command": "jao:fetch", "error": "down_1", "step": "fetch"})]
 
 
 async def test_an_exhausted_collector_fetch_retry_sends_one_issue_with_the_last_error(env):

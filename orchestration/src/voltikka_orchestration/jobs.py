@@ -231,8 +231,10 @@ async def run_step(name: str, step: Step, day: str | None, reference: dict[str, 
             retry_at = workflow.now() + FETCH_RETRY_INTERVAL
             if deadline is not None and failed == "fetch" and command_failed(error) and retry_at < deadline:
                 await sleep_until(retry_at)
-                until = deadline
-                continue
+                # A late wake (worker restart, backlog) past the deadline reports the last failure.
+                if workflow.now() < deadline:
+                    until = deadline
+                    continue
             facts = failure_facts(failed, stored) if staged else {}
             if reported_by_command(step, error):
                 return StepOutcome(command, "failed", key, result={"payload": stored} if stored else None)
