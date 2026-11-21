@@ -298,6 +298,16 @@ It should **not** blindly collapse materially different product variants when va
 - `/sahkosopimus/tilastot` is a canonical statistics page and must remain in `getMainPageUrls()`.
 - If production shows stale sitemap XML after adding/removing pages, clear or bump `SitemapService::CACHE_KEY`; `sitemap:generate` also forgets this cache key before writing `public/sitemap.xml`.
 
+## Time zone
+
+`APP_TIMEZONE` is `UTC` in production, in local development (`.env.example`) and in tests
+(`phpunit.xml` forces it), so `now()` and every datetime column hold the same UTC wall-clock time
+everywhere (user decision 2026-11-21). Helsinki dates and times are computed explicitly with
+`'Europe/Helsinki'`. Never pass a Helsinki Carbon value to a datetime column: Eloquent stores its
+wall-clock time without converting it (the `recorded_at` defect fixed on 2026-11-21, see
+`app/Services/MorningFreshness/AGENTS.md`). Before 2026-11-21 the local `.env.example` used
+`Europe/Helsinki`, so a local database written by local runs before that date holds Helsinki times.
+
 ## Test isolation
 
 `phpunit.xml` forces `CONTRACT_STATISTICS_ANNUAL_METHOD_VERSION=annual_cost_legacy_v1`, matching
