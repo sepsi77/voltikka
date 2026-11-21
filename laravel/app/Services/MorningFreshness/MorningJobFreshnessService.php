@@ -61,7 +61,7 @@ class MorningJobFreshnessService
         $checkpoint->fill([
             'status' => $status,
             'metadata' => $metadata,
-            'recorded_at' => CarbonImmutable::now('Europe/Helsinki'),
+            'recorded_at' => now(),
         ])->save();
 
         return $checkpoint;

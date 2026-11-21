@@ -31,8 +31,9 @@ prints one JSON line. Exit 0 = the check ran (ready or not); exit 1 = invalid ar
   facts check only that the rows exist.
 - The ENTSO-E outage fetches before each cut are not database facts: the workflow runs them and
   treats a failed fetch as a missing input.
-- `checkpoint_ready` compares `updated_at` with the cut in the app time zone. Do not use
-  `recorded_at`: producers pass a Helsinki Carbon value, and Eloquent stores its wall-clock time.
+- `checkpoint_ready` compares `updated_at` with the cut in the app time zone (UTC). Keep it on
+  `updated_at`: `eex_futures` rows written before the 2026-11-21 fix hold Helsinki wall-clock time in
+  `recorded_at` (see `../MorningFreshness/AGENTS.md`).
 - The weather points come from the collector's own configuration (`points_from`), so the check and
   the collector cannot drift apart.
 - `forecast_window` (Previous Runs `ecmwf_prev_day1`, `issued_at` null): every point needs a row

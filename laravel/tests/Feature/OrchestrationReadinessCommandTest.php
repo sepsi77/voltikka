@@ -115,7 +115,7 @@ class OrchestrationReadinessCommandTest extends TestCase
         CarbonImmutable::setTestNow($at('2026-11-05 02:00:00'));
         $checkpoint = DataFreshnessCheckpoint::query()->create([
             'key' => 'eex_futures', 'effective_date' => '2026-11-05', 'status' => 'running',
-            'metadata' => [], 'recorded_at' => CarbonImmutable::now('Europe/Helsinki'),
+            'metadata' => [], 'recorded_at' => now(),
         ]);
         $this->assertSame('checkpoint status running', $this->input('2026-11-05', 'morning', 'eex_futures')['detail']);
 
