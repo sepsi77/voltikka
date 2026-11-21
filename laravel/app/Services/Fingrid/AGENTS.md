@@ -32,7 +32,7 @@ Nothing public reads these rows yet. Task context: `../../../../market-review/`
 - Rows are upserted on (dataset_id, series_key, timestamp), because Fingrid corrects data.
   A frozen monthly figure must therefore be copied to the review snapshot when it is published;
   do not cite a live row as a frozen value.
-- `utc_datetime` is UTC text without a cast (the app timezone can be Europe/Helsinki), the same
+- `utc_datetime` is UTC text without a cast (it stays UTC whatever the app timezone is), the same
   rule as `spot_prices_hour`. `timestamp` is the UTC hour start in unix seconds.
 - `series_key` is '' for a plain series. Datahub rows use their breakdown attributes from
   `additionalJson`, sorted, e.g. `UserGroup=BE02` or `CustomerType=AB02`. `point_count` keeps the
