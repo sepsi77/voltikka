@@ -41,21 +41,14 @@ class MorningJobFreshnessGateTest extends TestCase
 
     public function test_record_stores_recorded_at_in_utc(): void
     {
-        // Production runs with APP_TIMEZONE=UTC; the local .env uses Europe/Helsinki.
-        $previous = date_default_timezone_get();
-        config(['app.timezone' => 'UTC']);
-        date_default_timezone_set('UTC');
+        // phpunit.xml forces APP_TIMEZONE=UTC, as in production. 07:41:35 Helsinki is 05:41:35 UTC;
+        // a Helsinki Carbon value would store "07:41:35".
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-11-21 07:41:35', 'Europe/Helsinki'));
 
-        try {
-            // 07:41:35 Helsinki is 05:41:35 UTC. A Helsinki Carbon value would store "07:41:35".
-            CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-11-21 07:41:35', 'Europe/Helsinki'));
+        app(MorningJobFreshnessService::class)->record(DataFreshnessCheckpoint::KEY_EEX_FUTURES, '2026-11-21', 'ready');
 
-            app(MorningJobFreshnessService::class)->record(DataFreshnessCheckpoint::KEY_EEX_FUTURES, '2026-11-21', 'ready');
-
-            $this->assertSame('2026-11-21 05:41:35', DB::table('data_freshness_checkpoints')->value('recorded_at'));
-        } finally {
-            date_default_timezone_set($previous);
-        }
+        $this->assertSame('UTC', config('app.timezone'));
+        $this->assertSame('2026-11-21 05:41:35', DB::table('data_freshness_checkpoints')->value('recorded_at'));
     }
 
     public function test_incomplete_contract_checkpoint_blocks_retail_collection_without_writes(): void
@@ -733,7 +726,7 @@ class MorningJobFreshnessGateTest extends TestCase
             'prompt_version' => 'test-prompt',
             'provider' => 'test',
             'model' => 'test',
-            'published_at' => '2026-08-01 06:10:00',
+            'published_at' => $this->helsinki('2026-08-01 06:10:00'),
         ]);
         $contract->update(['published_interpretation_id' => $interpretation->id]);
 
@@ -772,11 +765,17 @@ class MorningJobFreshnessGateTest extends TestCase
             'prompt_version' => 'test-prompt',
             'provider' => 'test',
             'model' => 'test',
-            'published_at' => $publishedAt,
+            'published_at' => $this->helsinki($publishedAt),
         ]);
         $contract->update(['published_interpretation_id' => $interpretation->id]);
 
         return [$contract->fresh(), $snapshot];
+    }
+
+    /** A Helsinki wall-clock time as the application stores it (UTC, like now()). */
+    private function helsinki(string $wallClock): string
+    {
+        return CarbonImmutable::parse($wallClock, 'Europe/Helsinki')->setTimezone((string) config('app.timezone'))->format('Y-m-d H:i:s');
     }
 
     private function snapshot(ElectricityContract $contract, string $version): ContractSourceSnapshot
@@ -785,14 +784,14 @@ class MorningJobFreshnessGateTest extends TestCase
             'contract_id' => $contract->id,
             'source_fingerprint' => hash('sha256', $version),
             'source_payload' => ['version' => $version],
-            'first_observed_at' => '2026-08-01 06:00:00',
-            'last_observed_at' => '2026-08-01 06:00:00',
+            'first_observed_at' => $this->helsinki('2026-08-01 06:00:00'),
+            'last_observed_at' => $this->helsinki('2026-08-01 06:00:00'),
         ]);
         $observation = ContractSourceObservation::create([
             'contract_id' => $contract->id,
             'source_snapshot_id' => $snapshot->id,
-            'first_observed_at' => '2026-08-01 06:00:00',
-            'last_observed_at' => '2026-08-01 06:00:00',
+            'first_observed_at' => $this->helsinki('2026-08-01 06:00:00'),
+            'last_observed_at' => $this->helsinki('2026-08-01 06:00:00'),
         ]);
         $contract->update(['current_source_observation_id' => $observation->id]);
 
@@ -836,7 +835,7 @@ class MorningJobFreshnessGateTest extends TestCase
             'effective_date' => self::DATE,
             'status' => $status,
             'metadata' => $metadata,
-            'recorded_at' => '2026-08-01 06:30:00',
+            'recorded_at' => $this->helsinki('2026-08-01 06:30:00'),
         ]);
     }
 

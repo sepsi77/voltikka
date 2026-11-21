@@ -63,8 +63,8 @@ G23). Day-ahead prices are not here: they stay in `../EntsoeService.php` and `..
   copied when the review is published. Generation stores the mean of the slots in each UTC hour and
   `sample_count` (4 for a full PT15M hour). When two TimeSeries of one type and direction give the
   same slot, the later one wins; they are not summed.
-- `utc_datetime`, `week_start_utc`, `start_utc` etc. are UTC text without casts (the app timezone can
-  be Europe/Helsinki); `timestamp` columns are unix seconds.
+- `utc_datetime`, `week_start_utc`, `start_utc` etc. are UTC text without casts (they stay UTC whatever
+  the app timezone is); `timestamp` columns are unix seconds.
 - Retries: three attempts on every failed response and connection error (ENTSO-E sometimes answers
   a stalled request with a non-5xx error). The client waits `request_delay_seconds` (0.5 s) between
   requests; ENTSO-E allows 400 per minute.

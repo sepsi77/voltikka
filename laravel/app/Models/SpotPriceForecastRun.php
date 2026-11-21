@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Model;
  * outcome. Rows are never updated; an identical feed (same hash) is not stored twice.
  *
  * first/last_utc_datetime are UTC text (like spot_prices_*.utc_datetime) and have no datetime
- * cast, because the app timezone can be Europe/Helsinki. Parse them with Carbon::parse($v, 'UTC').
+ * cast, so they stay UTC whatever the app timezone is. Parse them with Carbon::parse($v, 'UTC').
  * The authoritative times are the unix seconds in `points`.
  */
 class SpotPriceForecastRun extends Model
