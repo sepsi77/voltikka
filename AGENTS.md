@@ -155,10 +155,6 @@ Reviewer agents: `refactor-reviewer`, `laravel-reviewer`, `pricing-reviewer`, `t
 
 Time-triggered work that is not yet possible. Check this list when the date has passed. Each item says what unblocks it and where the detail lives. **Remove an item once it is done**, and do not add anything here that a scheduled command already surfaces on its own.
 
-### Now — deploy the Syke API 1.1 fix (last D7 item of the staged imports)
-
-Since 2026-11-20, Syke's API 1.2 answers HTTP 404, so the daily `syke-fetch` failed with `fetch_incomplete`. PR `fix/syke-api-1-1` moves the default base URL to 1.1 (`laravel/config/syke.php`); 1.1 returned every stored 2026 row with the same value, except three snow values dated 2026-11-16 that Syke revised after the last 1.2 fetch (the next run upserts them). After that commit is deployed, D7 closes when a scheduled `syke-fetch` ends `stored` and `syke_hydrology_values` has kept its cadence: every configured place of both series has the rows Syke has published since the last stored run (precipitation every 5 days, snow on the 1st and 16th; stored on 2026-11-20: precipitation through 2026-11-11, snow through 2026-11-16). A later run or `syke:fetch --from=2026-11-09` fills a gap. Then record it in `tasks/staged-api-imports/decisions.md`, set the last item of its `tasks.json` to done and remove this entry. Deploy before 2027-02-07 (90 days after 2026-11-09), or the default fetch window no longer covers a missed row and only `--from` restores it. See `laravel/app/Services/Syke/AGENTS.md`.
-
 ### After 2026-11-30 — delete the Voltikka Railway project
 
 Production runs on the VPS since 2026-11-15 19:35 Helsinki. The Railway services `voltikka`, `voltikka-worker` and `MySQL` have no deployment since 2026-11-16 08:31 (volumes and buckets kept), so a rollback is still possible (`tasks/vps-migration/cutover-plan.md`, "Rollback"). Decision 8 keeps the project for at least two weeks. After 2026-11-30, and only with the user's approval, delete the project (it holds the MySQL volume and the old buckets `voltikka-backups` and `voltikka-forecast`). See `tasks/vps-migration/decisions.md`.

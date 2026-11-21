@@ -182,3 +182,12 @@ Production since 2026-11-19 18:11: `deploy-000031-38c19132fc24` on both roles, h
 - **Decision (user approved 2026-11-20).** `syke.base_url` defaults to `Hydrologiarajapinta/1.1/odata`. Version 1.2 still answers 404 (base URL and `$metadata`); 1.1 and 1.0 answer 200; no 1.3 or 2.x exists.
 - **Data check (read-only).** 1.1 returned all 789 stored `syke_hydrology_values` rows dated 2026 with the same value, except three snow values dated 2026-11-16 (places 183, 185, 200) that Syke revised after the last 1.2 fetch on 2026-11-19; the next run upserts them. Stored rows reach 2026-11-11 (precipitation) and 2026-11-16 (snow), and 1.1 has no later row yet, so nothing has been missed. A local `syke:fetch --fetch-only` against 1.1 fetched 2 requests, complete.
 - **Open.** Deploy, then one scheduled `syke-fetch` that ends `stored` closes D7 (root `AGENTS.md` follow-up).
+
+## 2026-11-21 – Syke on API 1.1: D7 closed (read-only check, 11:40 Helsinki)
+
+Production: `deploy-000035-3cf33c7cc638` on both roles (the Syke 1.1 default arrived with `deploy-000032-58772cfac89d` on 2026-11-20 20:27 Helsinki).
+
+- **Workflow.** `syke-fetch-2026-11-21T09:10:00Z` completed in 4 s: `syke:fetch` `stored`, `complete: true`, 200 rows, 0 failed series, payload `syke/2026-11-21/67a74ab1-….ndjson.gz` with its SHA-256.
+- **Cadence.** Every configured place of both series has every row Syke 1.1 publishes: precipitation (5-day) for all 10 places through 2026-11-11, snow (1st and 16th) for all 10 places through 2026-11-16. Syke 1.1 has no later date. All 50 stored rows dated from 2026-11-01 equal Syke 1.1 values exactly.
+- **Revised snow values.** Places 183 and 185 on 2026-11-16 read 17.75 and 21.93, as recorded on 2026-11-20. Place 200 reads 12.65, not the 12.36 that 1.1 returned on 2026-11-20 evening: Syke revised it again before this run, and 1.1 serves 12.65 now. The import stored the current source value, so the check passes; recent snow values can still change after publication, and the 90-day daily window picks the change up (`laravel/app/Services/Syke/AGENTS.md`).
+- **Result.** D7 closes. The last `tasks.json` item is done, and the root `AGENTS.md` follow-up "Now — deploy the Syke API 1.1 fix" is removed.
