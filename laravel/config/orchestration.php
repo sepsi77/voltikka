@@ -60,7 +60,7 @@ return [
 
             // ECMWF IFS HRES 00 UTC run of D (Open-Meteo Single Runs, `weather:fetch --only=ecmwf_00z`):
             // a row with issued_at = D 00:00 UTC for every point that the collector fetches. Both
-            // views use the same run; it is checked in the afternoon poll, without a fetch cut.
+            // views use the same run; its gate checks it from 09:15 until 18:00, without a fetch cut.
             ['key' => 'weather_ecmwf_00z', 'view' => 'afternoon', 'type' => 'forecast_run',
                 'source' => 'open_meteo', 'product' => 'ecmwf_00z', 'run_hour_utc' => 0,
                 'points_from' => ['fmi.weather_stations', 'open_meteo.neighbour_wind_points']],

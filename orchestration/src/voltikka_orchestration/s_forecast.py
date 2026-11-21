@@ -2,12 +2,15 @@
 
 `SDailyForecast` runs once per Helsinki issue date D. The model runs only when every input of both
 views is ready (user decision 2026-11-06); otherwise the issue gets no forecast and one Sentry
-Issue names the missing inputs. `SWeeklyRefit` trains and activates a new model
+Issue names the missing inputs. Each input is a gate (`GATES`, tasks/s-forecast-gates/): a loop
+that checks its readiness key, runs its fetch when the key is not ready, and repeats until the key
+is ready or the gate's deadline passes. `SWeeklyRefit` trains and activates a new model
 version; a failed refit keeps the active version.
 """
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta, timezone
@@ -21,6 +24,7 @@ with workflow.unsafe.imports_passed_through():
     from .staged import PATCH as STAGED_PATCH
     from .staged import (
         failure_facts,
+        failure_step,
         fetch_args,
         fetch_skipped,
         payload_expired,
@@ -44,12 +48,64 @@ POLL_INTERVAL = timedelta(minutes=5)
 # a failure of a zone that the model does not use cannot stop the run.
 OUTAGE_FETCH = ["entsoe:fetch", "--dataset=outages", "--zone=FI", "--zone=SE3", "--zone=SE1_FI", "--zone=SE3_FI", "--zone=EE_FI"]
 
+# workflow.patched() ID: a run that started before the gates replays the clock-timed path.
+GATES_PATCH = "s-forecast-gates"
+GATE_INTERVAL = timedelta(minutes=10)
+# The outage proofs have a 30-minute window, so a failed fetch repeats every 5 minutes.
+OUTAGE_GATE_INTERVAL = timedelta(minutes=5)
+# A gate's last readiness check starts this long before its deadline, and every check of a gate must
+# end by the deadline (schedule-to-close), so no result can open a gate after its cut.
+LAST_CHECK_BEFORE_DEADLINE = timedelta(minutes=2)
+# A gate starts a fetch only with at least this much time left before its deadline (a fetch with
+# seconds left cannot finish, and a timer can fire a moment before the deadline).
+MIN_FETCH_BUDGET = timedelta(minutes=1)
+
+
+@dataclass(frozen=True)
+class Gate:
+    """One input of the run (tasks/s-forecast-gates/spec.md, requirement 3). `key` is the readiness
+    key of `view` (laravel/config/orchestration.php); a gate without a view (the outage fetches) is a
+    fetch-only proof that opens on one successful fetch. `start` and `deadline` are Helsinki times
+    on D. A gate without `fetch` only re-checks."""
+
+    key: str
+    view: str | None
+    fetch: tuple[str, ...] | None
+    start: time
+    deadline: time
+    interval: timedelta = GATE_INTERVAL
+
+
+# Morning-view deadlines are the 11:30 cut and the Previous Runs gates end at their fetch cuts
+# (10:00 and 14:00), because the freeze defines those inputs as of those times. FI day-ahead prices
+# come from the hourly `spot-hourly` job; the day-ahead gates fetch only the neighbour zones. EEX
+# futures belong to the MorningChain, so their gate only re-checks.
+GATES: list[Gate] = [
+    Gate("fingrid_morning", "morning", ("fingrid:fetch",), time(10, 5), MORNING_CUT),
+    Gate("fingrid_afternoon", "afternoon", ("fingrid:fetch",), AFTERNOON_FETCH, DEADLINE),
+    Gate("day_ahead_d", "morning", ("spot:fetch-neighbours",), time(9, 0), MORNING_CUT),
+    Gate("day_ahead_d1", "afternoon", ("spot:fetch-neighbours",), time(13, 0), DEADLINE),
+    Gate("jao_capacity_d", "morning", ("jao:fetch",), time(9, 0), MORNING_CUT),
+    Gate("jao_capacity_d1", "afternoon", ("jao:fetch",), time(12, 0), DEADLINE),
+    Gate("weather_ecmwf_00z", "afternoon", ("weather:fetch", "--only=ecmwf_00z"), time(9, 15), DEADLINE),
+    Gate("weather_prev_day1_morning", "morning", ("weather:fetch", "--only=ecmwf_prev_day1"), time(9, 30), time(10, 0)),
+    Gate("weather_prev_day1_afternoon", "afternoon", ("weather:fetch", "--only=ecmwf_prev_day1"), time(13, 30),
+         AFTERNOON_FETCH),
+    Gate("eex_futures", "morning", None, time(9, 0), MORNING_CUT),
+    Gate("entsoe_outages_morning", None, tuple(OUTAGE_FETCH), MORNING_OUTAGE_FETCH, MORNING_CUT, OUTAGE_GATE_INTERVAL),
+    Gate("entsoe_outages_afternoon", None, tuple(OUTAGE_FETCH), AFTERNOON_FETCH, AFTERNOON_CUT, OUTAGE_GATE_INTERVAL),
+]
+
+# Read-only readiness checks retry for up to 30 minutes, as in jobs.py: the gates check many times a
+# day, and a short database break must not end the run.
 READINESS_OPTIONS = dict(
     start_to_close_timeout=timedelta(minutes=2),
-    retry_policy=RetryPolicy(maximum_attempts=3, initial_interval=timedelta(seconds=20)),
+    schedule_to_close_timeout=timedelta(minutes=30),
+    retry_policy=RetryPolicy(maximum_attempts=0, initial_interval=timedelta(seconds=20),
+                             maximum_interval=timedelta(minutes=2)),
 )
-# Input fetches and stores. A failed command is never retried (spec S13; jobs.py retry rule); only a
-# lost attempt is.
+# Input fetches and stores. Temporal never retries a failed command (spec S13; jobs.py retry rule), only
+# a lost attempt; a gate runs a failed fetch again in its next pass.
 FETCH_OPTIONS = dict(
     start_to_close_timeout=timedelta(minutes=15),
     heartbeat_timeout=timedelta(minutes=1),
@@ -167,7 +223,8 @@ async def staged_fetch(args: list[str], options: Callable[[], dict]) -> dict | N
         key = str(error.details[0]) if error.details else error.type or "ApplicationError"
     else:
         return None
-    return {"command": args[0], "error": key} | (failure_facts(step, reference) if step else {})
+    # A partial acquisition fails at the store with step `fetch`: the caller may fetch again.
+    return {"command": args[0], "error": key} | (failure_facts(failure_step(step, key), reference) if step else {})
 
 
 async def report(issue: IssueReport) -> None:
@@ -187,10 +244,17 @@ class SDailyForecast:
     def __init__(self) -> None:
         self._stage = "starting"
         self._last_readiness: dict | None = None
+        # Gate key -> waiting | checking | open | missed | stopped.
+        self._gates: dict[str, str] = {}
+        # Gate key -> facts of its last failed fetch (staged_fetch).
+        self._failures: dict[str, dict] = {}
+        self._stopped = False
+        # Gates inside an activity (readiness check or fetch); a stopped run waits for them.
+        self._busy = 0
 
     @workflow.query
     def stage(self) -> dict:
-        return {"stage": self._stage, "last_readiness": self._last_readiness}
+        return {"stage": self._stage, "gates": dict(self._gates), "last_readiness": self._last_readiness}
 
     @workflow.run
     async def run(self, params: SForecastInput) -> SForecastResult:
@@ -199,6 +263,140 @@ class SDailyForecast:
         issue = day.isoformat()
         morning_cut = local_instant(day, MORNING_CUT)
         afternoon_cut = local_instant(day, AFTERNOON_CUT)
+        if not workflow.patched(GATES_PATCH):
+            return await self._run_before_gates(params, day, issue, morning_cut, afternoon_cut)
+        if params.require_cut_fetches and workflow.now() >= morning_cut:
+            return await self._no_forecast(issue, ["entsoe_outages_morning"], "started_after_morning_cut")
+
+        # 1. Every gate runs as its own loop. The run collects them by deadline (the morning ones at
+        # the 11:30 cut) and ends at the first deadline that a gate missed: the day can no longer get a
+        # forecast. The other gates start no new activity; the run waits for the ones that run (a store
+        # is never cut off) and leaves the sleeping ones behind (no timer is cancelled).
+        self._stage = "gates"
+        gates = [gate for gate in GATES if gate.view or params.require_cut_fetches]
+        tasks = {gate.key: asyncio.ensure_future(self._gate(gate, day, issue)) for gate in gates}
+
+        def collected_at(gate: Gate) -> datetime:
+            return max(local_instant(day, gate.deadline), morning_cut)
+
+        def failed() -> BaseException | None:
+            # A gate that raised (a readiness check that failed after its retries) fails the run at once.
+            return next((task.exception() for task in tasks.values() if task.done() and task.exception()), None)
+
+        for end in sorted({collected_at(gate) for gate in gates}):
+            group = [tasks[gate.key] for gate in gates if collected_at(gate) == end]
+            await workflow.wait_condition(lambda group=group: failed() is not None or all(task.done() for task in group))
+            if error := failed():
+                raise error
+            missed = [gate for gate in gates if self._gates[gate.key] == "missed"]
+            if missed:
+                # The run ends at the collection time (a 10:00 miss is reported with the 11:30 cut).
+                self._stopped = True
+                await sleep_until(end)
+                await workflow.wait_condition(lambda: self._busy == 0)
+                # Only afternoon gates end at 18:00; a morning, vintage or outage gate is an input missing for good.
+                reason = "deadline_missed" if all(gate.deadline == DEADLINE for gate in missed) else "inputs_missing"
+                failures = {gate.key: self._failures[gate.key] for gate in missed if gate.key in self._failures}
+                return await self._no_forecast(issue, [gate.key for gate in missed], reason,
+                                               {"failures": failures} if failures else None)
+
+        # 2. Every gate is open; the afternoon view is as of its cut.
+        await sleep_until(afternoon_cut)
+        return await self._predict(day, issue, morning_cut, afternoon_cut)
+
+    async def _gate(self, gate: Gate, day: date, issue: str) -> None:
+        """One gate loop: from `start`, every `interval` (measured from the pass start): check the key;
+        when it is not ready, run the fetch (fetch, then store). A failed fetch is not final: the next
+        pass fetches again, also after a store that failed `fetch_incomplete` (a partial acquisition).
+        Any other failed store never starts a new fetch (S13), so after one the gate only re-checks (a
+        collector's store can still make the key ready). A fetch never starts at or after the deadline
+        and never runs past it (`_fetch` budget). The last check starts LAST_CHECK_BEFORE_DEADLINE
+        before the deadline and, like every check, must end by it (`_key_ready`); a gate still closed then
+        is missed at the deadline. A pass that begins at or after the deadline (a fetch that ran to the
+        cut, a worker that resumed late) is a miss, with no new check or fetch. Only a gate of a run that
+        started after the gate's deadline (a manual start after the cut: `retrospective`, from the
+        workflow start time) checks once, without the deadline limits, and never fetches. Ends with the gate's state in `_gates`."""
+        deadline = local_instant(day, gate.deadline)
+        last_check = deadline - LAST_CHECK_BEFORE_DEADLINE
+        fetch = list(gate.fetch) if gate.fetch else None
+        self._gates[gate.key] = "waiting"
+        # Retrospective = the run itself started after this gate's deadline (a manual check after the
+        # cut). It is decided from the workflow's start time, not from when this timer fired: a
+        # scheduled run whose worker resumed late is not retrospective (PR #36 review).
+        retrospective = workflow.info().workflow_start_time >= deadline
+        await sleep_until(local_instant(day, gate.start))
+        while not self._stopped:
+            self._gates[gate.key] = "checking"
+            started = workflow.now()
+            if not retrospective and started >= deadline:
+                self._gates[gate.key] = "missed"
+                return
+            if gate.view:
+                ready = await self._key_ready(issue, gate, deadline, retrospective)
+                if ready:
+                    self._gates[gate.key] = "open"
+                    return
+                if ready is None or workflow.now() >= last_check:
+                    # A gate misses at its deadline, so the Issue and an early end fall on the cut.
+                    await sleep_until(deadline)
+                    self._gates[gate.key] = "missed"
+                    return
+            elif workflow.now() >= deadline - MIN_FETCH_BUDGET:
+                await sleep_until(deadline)
+                self._gates[gate.key] = "missed"
+                return
+            if fetch and not self._stopped:
+                self._busy += 1
+                try:
+                    failure = await self._fetch(fetch, until=deadline)
+                finally:
+                    self._busy -= 1
+                if failure:
+                    self._failures[gate.key] = failure
+                    if failure.get("step") == "store":
+                        fetch = None
+                elif gate.view is None:
+                    self._gates[gate.key] = "open"
+                    return
+            await sleep_until(min(started + gate.interval, last_check if gate.view else deadline))
+        self._gates[gate.key] = "stopped"
+
+    async def _key_ready(self, issue: str, gate: Gate, deadline: datetime, retrospective: bool) -> bool | None:
+        """The gate's key in one readiness check of its view. A scheduled (not retrospective) gate never
+        starts a check at or after its deadline and never accepts a result that arrives after it: both
+        are None (missed). Its check (with its retries) must end by the deadline: a check whose budget
+        the deadline cut and that still fails (Temporal stops retrying once the next attempt could not
+        start in time) is None too, with its failure facts recorded. A check that failed for its full
+        30 minutes well before the deadline fails the run, as before. A retrospective gate (a manual
+        start after the deadline) gets one normal 30-minute check. A result without JSON fails the run."""
+        started = workflow.now()
+        if not retrospective and started >= deadline:
+            return None
+        budget = READINESS_OPTIONS["schedule_to_close_timeout"]
+        options = READINESS_OPTIONS
+        cut_by_deadline = not retrospective and deadline - started < budget
+        if cut_by_deadline:
+            options = dict(READINESS_OPTIONS, schedule_to_close_timeout=deadline - started)
+        self._busy += 1
+        try:
+            readiness = await self._readiness(issue, gate.view, options)
+        except ActivityError as error:
+            if not cut_by_deadline:
+                raise
+            self._failures[gate.key] = {"command": "orchestration:readiness", "error": error_key(error)}
+            return None
+        finally:
+            self._busy -= 1
+        if not retrospective and workflow.now() > deadline:
+            return None  # never open a scheduled gate on a result from after its cut
+        for item in readiness.get("inputs", []):
+            if item.get("key") == gate.key:
+                return bool(item.get("ready"))
+        raise ApplicationError(f"orchestration:readiness has no input {gate.key}", non_retryable=True)
+
+    async def _run_before_gates(self, params: SForecastInput, day: date, issue: str, morning_cut: datetime,
+                                afternoon_cut: datetime) -> SForecastResult:
+        """The clock-timed path of a run that started before the gates (replay only)."""
         deadline = local_instant(day, DEADLINE)
 
         # 1. Morning outage fetch, finished before the morning cut (the proof for the morning view).
@@ -237,8 +435,11 @@ class SDailyForecast:
                 return await self._no_forecast(issue, missing, "deadline_missed", fingrid_failure)
             await workflow.sleep(POLL_INTERVAL)
 
-        # 5. Model run with explicit cuts, then scoring of D+1 (its prices are now complete).
-        # A model failure (for example artifact_mismatch after a deploy) is one Issue with its closed key.
+        return await self._predict(day, issue, morning_cut, afternoon_cut)
+
+    async def _predict(self, day: date, issue: str, morning_cut: datetime, afternoon_cut: datetime) -> SForecastResult:
+        """Model run with explicit cuts, then scoring of D+1 (its prices are now complete). A model
+        failure (for example artifact_mismatch after a deploy) is one Issue with its closed key."""
         self._stage = "predict"
         try:
             forecast = await run(
@@ -279,10 +480,10 @@ class SDailyForecast:
 
         return await staged_fetch(args, options)
 
-    async def _readiness(self, issue: str, view: str) -> dict:
+    async def _readiness(self, issue: str, view: str, options: dict = READINESS_OPTIONS) -> dict:
         result = await run(
             "artisan", ["orchestration:readiness", "s-forecast", f"--issue-date={issue}", f"--view={view}"],
-            READINESS_OPTIONS,
+            options,
         )
         if result.result is None or "ready" not in result.result:
             raise ApplicationError("orchestration:readiness returned no JSON result", non_retryable=True)

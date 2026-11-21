@@ -79,13 +79,81 @@ scheduler would run its `contracts:complete-import`).
   `local_instant` and `local_date` in `s_forecast.py` (EU summer-time rule; tests compare them with
   zoneinfo for every hour of 2024–2030).
 - Use `workflow.now()` and `workflow.sleep()`, never the system clock.
-- A failed input fetch inside `SDailyForecast` is a missing input, not a workflow error: the run
-  ends with "no forecast" and one Sentry Issue. The model runs only when every input of both views
-  is ready (user decision 2026-11-06). Input fetches and stores (`FETCH_OPTIONS`) follow the job
-  retry rule: `CommandFailed` is non-retryable, a lost attempt repeats. The model commands
-  (`MODEL_OPTIONS`, `TRAIN_OPTIONS`) still retry a failed command.
-- `SForecastInput.require_cut_fetches=False` skips the two ENTSO-E outage-fetch proofs. Only for a
-  manual check after the cuts; the Schedule never sets it.
+- **Gates in `SDailyForecast`** (user decision 2026-11-20, `../tasks/s-forecast-gates/`). The model
+  runs only when every input of both views is ready (user decision 2026-11-06). Each input is a gate
+  (`s_forecast.GATES`): one readiness key of `laravel/config/orchestration.php` (a test keeps the
+  two equal) or one of the two ENTSO-E outage proofs. Every gate is its own `asyncio` task in the
+  run (no workflows, no signals: the collector Schedules also serve the market review and keep
+  running unchanged). From its start, every `GATE_INTERVAL` (10 min, measured from the pass start)
+  a gate checks its key with one `orchestration:readiness` call of its view; when the key is not
+  ready, it runs its fetch (staged, `staged_fetch()`). A failed fetch is not final: the next pass
+  fetches again. A store that fails `fetch_incomplete` is a partial acquisition, not a store bug
+  (the fetch exited 0 with failed units; the store kept the good units' rows and reports step
+  `fetch`, `staged.failure_step()`), so the next pass fetches again too. Any other failed store
+  never starts a new fetch (S13): the gate then only re-checks, so a collector's newer store (a
+  concurrent gate store fails with `superseded`) can still open it.
+  **Deadline rules (spec review PLT-002):** the last check starts `LAST_CHECK_BEFORE_DEADLINE`
+  (2 min) before the deadline, and every check of a gate has schedule-to-close = min(30 min, time
+  left to the deadline), so no readiness result can open a gate after its cut (upserted facts
+  check only that a row exists, not when it arrived). A check whose budget the deadline cut and that
+  still fails (Temporal stops retrying once the next attempt could not start in time) misses the
+  gate, with `{"command": "orchestration:readiness", "error": …}` as its failure facts; a check that
+  fails for its full 30 minutes well before the deadline, or returns no JSON, fails the run. A gate
+  still closed after its last check is missed at its deadline. A scheduled gate whose pass begins at
+  or after its deadline (a fetch that ran to the cut, a worker that resumed late) is missed with no
+  new check or fetch, and a result that arrives after the deadline never opens it, whenever its check
+  started. Only a gate of a run that started after the gate's deadline (`retrospective`, from
+  `workflow.info().workflow_start_time`: a manual start after the cut) gets one check without these limits.
+  A scheduled run whose gate timer fires late (worker down) is not retrospective, so that gate
+  misses (PR #36 review). An outage gate has no key: one
+  successful fetch inside its 30-minute window opens it, a failure repeats every 5 minutes. Every
+  fetch has the `_fetch` budget: schedule-to-close = the time left to the gate deadline, and a fetch
+  starts only with at least `MIN_FETCH_BUDGET` (1 min) left, so neither it nor its store runs past
+  the deadline (the Previous Runs vintages stay fetched before 10:00/14:00).
+
+  | Gate | Fetch | Start | Deadline |
+  |---|---|---|---|
+  | `fingrid_morning` | `fingrid:fetch` | 10:05 | 11:30 |
+  | `fingrid_afternoon` | `fingrid:fetch` | 14:00 | 18:00 |
+  | `day_ahead_d` | `spot:fetch-neighbours` (FI: the hourly `spot-hourly`) | 09:00 | 11:30 |
+  | `day_ahead_d1` | `spot:fetch-neighbours` | 13:00 | 18:00 |
+  | `jao_capacity_d` | `jao:fetch` | 09:00 | 11:30 |
+  | `jao_capacity_d1` | `jao:fetch` | 12:00 | 18:00 |
+  | `weather_ecmwf_00z` | `weather:fetch --only=ecmwf_00z` | 09:15 | 18:00 |
+  | `weather_prev_day1_morning` | `weather:fetch --only=ecmwf_prev_day1` | 09:30 | 10:00 |
+  | `weather_prev_day1_afternoon` | `weather:fetch --only=ecmwf_prev_day1` | 13:30 | 14:00 |
+  | `eex_futures` | none (the `MorningChain` owns EEX) | 09:00 | 11:30 |
+  | `entsoe_outages_morning` | `OUTAGE_FETCH` | 11:00 | 11:30 |
+  | `entsoe_outages_afternoon` | `OUTAGE_FETCH` | 14:00 | 14:30 |
+
+  Why: from 2026-11-09 to 2026-11-20 no forecast was stored. One failed 10:20 Fingrid fetch cost
+  the day (a failed command was never retried), and the single 14:00 Fingrid fetch missed capacity
+  rows that publish 1–2 h late. The run collects the gates by deadline (morning ones at the 11:30
+  cut, then 14:00, 14:30, 18:00) and ends at the first collection time at which a gate has missed
+  (a 10:00 Previous Runs miss is reported at 11:30), with one Issue:
+  `inputs_missing` (a morning, Previous Runs or outage gate) or `deadline_missed` (only 18:00
+  gates). It names every missed gate (`missing`) and, under `failures`, the facts of each one's
+  last failed attempt (`failure_facts()`, or the readiness failure). A fetch that a later pass
+  recovers sends nothing. On an
+  early end the other gates start no new activity; the run waits for those inside an activity
+  (`_busy`, so a store is never cut off) and leaves the sleeping ones behind. Do not cancel their
+  timers: when the stop cancelled two gate start timers that came due in the same workflow task, the
+  time-skipping test server never completed that task (about 1 run in 5; root cause unconfirmed). A gate that raises (a readiness check that still failed after 30 minutes of retries, `READINESS_OPTIONS` as in `jobs.py`) fails the run
+  at once. The model runs when every gate is open, never before the 14:30 cut, with the same
+  `--morning-cut`/`--afternoon-cut`. The `stage` query reports every gate's state. The Schedule
+  starts the run at 08:55, before the first gate.
+- Input fetches and stores (`FETCH_OPTIONS`) keep the job retry policy: Temporal never repeats a
+  `CommandFailed` activity, only a lost attempt; the gate loop is what fetches again. The model
+  commands (`MODEL_OPTIONS`, `TRAIN_OPTIONS`) still retry a failed command.
+- **Patching** (`GATES_PATCH`, `workflow.patched("s-forecast-gates")`, checked first in `run`): a
+  run that started before the gates replays the clock-timed path (`_run_before_gates`: outage fetch
+  at 11:00, morning check at 11:30, one `fingrid:fetch` at 14:00, afternoon polls every 5 min until
+  18:00). Replay tests: `tests/histories/s_daily_forecast*.json`; without the patch both fail.
+- `SForecastInput.require_cut_fetches=False` skips the two outage gates. Only for a manual check
+  after the cuts; the Schedule never sets it. A manual start after a gate's deadline (the run's start
+  time is after it: retrospective) checks that gate once, with the normal 30-minute check, and never fetches: not
+  ready = missed at once. With `require_cut_fetches=True`, a start
+  after 11:30 ends at once (`started_after_morning_cut`).
 - `SWeeklyRefit` starts on Monday at 10:45 (`SRefitInput.run_date`, default today), runs
   `fingrid:fetch` itself, then train → activate. Sunday's Fingrid hours are training targets, so a
   refit before the 10:20 Fingrid fetch is not the backtest's refit (model session, 2026-11-07).
@@ -99,10 +167,31 @@ scheduler would run its `contracts:complete-import`).
 
 ## Rules for phase 2 jobs (`jobs.py`)
 
-- **No automatic retry of a failed command.** `run_command` raises `CommandFailed` for a non-zero
-  exit, and every job retry policy lists it as non-retryable (as with the Laravel scheduler), also
-  the S forecast input fetches and stores (`s_forecast.FETCH_OPTIONS`). Only a
-  lost attempt is retried. Read-only readiness calls retry for up to 30 minutes (`READINESS_OPTIONS`), so a
+- **No automatic retry of a failed command**, except the collector fetch retry below.
+  `run_command` raises `CommandFailed` for a non-zero exit, and every job retry policy lists it as
+  non-retryable (as with the Laravel scheduler), also the S forecast input fetches and stores
+  (`s_forecast.FETCH_OPTIONS`; the gate loop fetches again, see above). Only a lost attempt is
+  retried.
+- **Collector fetch retry** (`../tasks/s-forecast-gates/`, requirements 10–12; scope: manager
+  decision 2026-11-20 after spec review PLT-003). A staged step of a `collectors` job that starts at
+  most every 6 hours (daily, weekly, monthly) carries `Step.fetch_retry_minutes = 120`
+  (`schedules.py`). After an acquisition failure (a fetch that fails with `CommandFailed`, or a
+  store that fails `fetch_incomplete`: its good units' rows are stored, so a repeat is safe;
+  PLT-001), `run_step()` runs fetch and store again every `FETCH_RETRY_INTERVAL` (10 min) while
+  the retry can start before 120 minutes after the job's start (`workflow_start_time`); a retried
+  fetch's schedule-to-close ends then, a store is never cut off. Any other failed store is final. A
+  recovered step sends no Issue; a step that still fails sends one, with its last attempt's facts.
+  The hourly collectors (`fingrid-forecast-vintages`, `weather-fetch-ecmwf-00z`) and the twice-daily
+  `weather-fetch-ecmwf-prev-day1` (4 h apart) get no retry: their next run is the retry, and a
+  retrying run must not overlap its next start (overlap policy SKIP would drop it). Why: since the
+  staged imports a fetch only writes a payload file, and a short API outage at 10:20 cost the S
+  forecast a day. A self-reporting step (its command sends an Issue per failed run) is never
+  retried; no collector step self-reports (test). Other groups keep the no-retry rule. The retry
+  wait is a workflow timer, so a deploy does not lose it; an interrupted fetch repeats as before. No
+  patch: the field comes from the Schedule input, a run that started before `schedules.py --apply
+  --group collectors` has no field (default 0) and takes no retry path
+  (`tests/histories/artisan_job_failed_collector_fetch.json`).
+- Read-only readiness calls retry for up to 30 minutes (`READINESS_OPTIONS`), so a
   short database break does not end a morning; a longer one fails the run with one Issue. Social posting and the morning
   consumers use `max_attempts=1`.
 - **Deploy drain.** Kamal sends SIGTERM to the old worker after the new one is running. The worker
@@ -174,7 +263,8 @@ The PHP side (`StagedImport`, payload format, retention) is in
   fetch's last JSON line reach the store; the payload never passes through Temporal.
 - **Retry rules stay** (S13): a failed fetch skips the store; a failed store never starts a new
   fetch. A failed command runs once (`CommandFailed` is non-retryable in `step_options()` and
-  `s_forecast.FETCH_OPTIONS`). A lost attempt repeats the same activity (a lost store repeats the
+  `s_forecast.FETCH_OPTIONS`), except a collector fetch (`Step.fetch_retry_minutes`) and the next
+  pass of an S forecast gate (both above). A lost attempt repeats the same activity (a lost store repeats the
   store). Test fakes raise `CommandFailed` retryable, as `run_command` does, so only the workflow
   policy stops a retry. A fetch result
   without a valid reference (`status` `fetched`, `payload.path`, 64-hex `payload.sha256`) fails the
@@ -194,7 +284,7 @@ The PHP side (`StagedImport`, payload format, retention) is in
   fetch and store failures). A workflow Issue for a staged step names `command`, `error`, `step`
   (`fetch` or `store`) and, for a store, `payload_path`/`payload_sha256` for a replay
   (`staged.failure_facts()`). The same facts go into the one existing Issue of `SDailyForecast`
-  (`inputs_missing`, or `deadline_missed` after a failed `fingrid:fetch`), `SWeeklyRefit`
+  (`inputs_missing` or `deadline_missed`, per missed gate under `failures`), `SWeeklyRefit`
   (`refit_failed`) and `ImportReplay`; no extra Issue. One `StepOutcome` per step: its
   `result` is the store's JSON line; a failed store keeps `{"payload": {path, sha256}}`.
 - **Retention** (S6; manager decision 2026-11-19, no reference registry): `ImportPayloadCleanup`

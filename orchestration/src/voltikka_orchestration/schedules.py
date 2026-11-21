@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from dataclasses import replace
 from datetime import timedelta
 
 from temporalio.client import (
@@ -107,6 +108,31 @@ JOBS: dict[str, tuple[str, list[ScheduleCalendarSpec], list[Step]]] = {
 }
 
 
+# Collector fetch retries (tasks/s-forecast-gates/ requirement 10; manager decision 2026-11-20 after
+# PLT-003): a collector that starts at most every 6 hours (daily, weekly, monthly) retries an acquisition
+# failure until 2 hours after its start. An hourly collector gets no retry: its next run is the retry.
+FETCH_RETRY_MINUTES = 120
+FETCH_RETRY_MIN_GAP_MINUTES = 6 * 60
+
+
+def start_gap_minutes(calendars: list[ScheduleCalendarSpec]) -> int:
+    """The shortest time between two starts of a job, from its wall-clock times of day (a job that
+    starts once a day, week or month: one day)."""
+    starts = sorted({hour * 60 + minute for calendar in calendars
+                     for hour in expand(calendar.hour) for minute in expand(calendar.minute)})
+    return min(later - earlier for earlier, later in zip(starts, starts[1:] + [starts[0] + 24 * 60]))
+
+
+def expand(ranges: list[ScheduleRange]) -> list[int]:
+    return [value for r in ranges for value in range(r.start, max(r.end, r.start) + 1, r.step or 1)]
+
+
+for _name, (_group, _calendars, _steps) in JOBS.items():
+    if _group == "collectors" and start_gap_minutes(_calendars) >= FETCH_RETRY_MIN_GAP_MINUTES:
+        _steps[:] = [replace(step, fetch_retry_minutes=FETCH_RETRY_MINUTES)
+                     if step.staged and not step.self_reports else step for step in _steps]
+
+
 def schedules(settings: Settings) -> dict[str, Schedule]:
     policy = SchedulePolicy(overlap=ScheduleOverlapPolicy.SKIP, catchup_window=timedelta(minutes=30))
     wanted = {
@@ -133,7 +159,8 @@ def schedules(settings: Settings) -> dict[str, Schedule]:
                 SDailyForecast.run, SForecastInput(), id="s-forecast", task_queue=settings.task_queue
             ),
             spec=ScheduleSpec(
-                calendars=[ScheduleCalendarSpec(hour=[ScheduleRange(10)], minute=[ScheduleRange(55)])],
+                # Before the first gate (09:00; s_forecast.GATES).
+                calendars=[ScheduleCalendarSpec(hour=[ScheduleRange(8)], minute=[ScheduleRange(55)])],
                 time_zone_name=TIMEZONE,
             ),
             policy=policy,

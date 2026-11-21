@@ -81,6 +81,17 @@ def payload_expired(path: str, today: date) -> bool:
     return day is not None and day < today - timedelta(days=RETENTION_DAYS) + STORE_SCHEDULE_TO_CLOSE
 
 
+# The closed store error of a partial acquisition (StagedImport, `ImportStoreResult.errorStep='fetch'`):
+# the fetch exited 0 with failed units, the store kept the rows of the good units and exited 1 with
+# step `fetch`. It is an API failure, not a store bug, so a repeat (fetch, then store) is safe.
+FETCH_INCOMPLETE = "fetch_incomplete"
+
+
+def failure_step(step: str, error: str) -> str:
+    """The step that a failed staged activity names: a store failing `fetch_incomplete` reports `fetch`."""
+    return "fetch" if step == "store" and error == FETCH_INCOMPLETE else step
+
+
 def failure_facts(step: str, reference: dict[str, str] | None) -> dict[str, str]:
     """The closed facts that name a failed staged step in its one Issue: `step` (`fetch` or `store`)
     and, once the fetch has given a reference, `payload_path`/`payload_sha256` for an ImportReplay."""
