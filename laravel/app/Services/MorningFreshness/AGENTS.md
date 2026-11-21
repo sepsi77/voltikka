@@ -12,6 +12,7 @@ This directory owns the small fail-closed freshness gate for scheduled retail-pr
 
 ## Rules
 
+- `recorded_at` is in the app time zone (UTC in production) for every writer: pass `now()`, never a Helsinki Carbon value. Eloquent stores a Carbon value's wall-clock time without converting it, so `CarbonImmutable::now('Europe/Helsinki')` stored Helsinki time in a UTC column. Until the fix of 2026-11-21, `record()` did that, so older `eex_futures` rows hold Helsinki wall-clock time; they are not rewritten (user decision 2026-11-21) and no code reads `recorded_at`.
 - A checkpoint is the latest fact for one key and effective date, not a run-history table. Contract-import version 1 also stores bounded pending completion proof in its JSON; `ContractImport/ContractImportCompletion` owns that local protocol.
 - The effective date is the command `asOf` date in Europe/Helsinki.
 - Both gated jobs require same-date ready `contract_import` and `eex_futures` checkpoints, current-run prior-date FI Base proof, and prior-date FI EEX Base database data within the configured age. The futures-adjusted forecast restores these EEX checks; retail-premium behavior is unchanged. Contract, unit-statistic, source-episode and publication recovery checks remain unchanged. A missing EEX requirement blocks publication-only recovery.

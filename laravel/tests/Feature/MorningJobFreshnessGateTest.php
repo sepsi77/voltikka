@@ -21,6 +21,7 @@ use App\Services\PriceForecasting\FixedTermPriceForecastService;
 use App\Services\RetailPremium\RetailPremiumObservationService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
@@ -36,6 +37,25 @@ class MorningJobFreshnessGateTest extends TestCase
         CarbonImmutable::setTestNow();
 
         parent::tearDown();
+    }
+
+    public function test_record_stores_recorded_at_in_utc(): void
+    {
+        // Production runs with APP_TIMEZONE=UTC; the local .env uses Europe/Helsinki.
+        $previous = date_default_timezone_get();
+        config(['app.timezone' => 'UTC']);
+        date_default_timezone_set('UTC');
+
+        try {
+            // 07:41:35 Helsinki is 05:41:35 UTC. A Helsinki Carbon value would store "07:41:35".
+            CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-11-21 07:41:35', 'Europe/Helsinki'));
+
+            app(MorningJobFreshnessService::class)->record(DataFreshnessCheckpoint::KEY_EEX_FUTURES, '2026-11-21', 'ready');
+
+            $this->assertSame('2026-11-21 05:41:35', DB::table('data_freshness_checkpoints')->value('recorded_at'));
+        } finally {
+            date_default_timezone_set($previous);
+        }
     }
 
     public function test_incomplete_contract_checkpoint_blocks_retail_collection_without_writes(): void
