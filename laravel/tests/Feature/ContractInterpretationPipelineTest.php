@@ -719,7 +719,8 @@ class ContractInterpretationPipelineTest extends TestCase
     {
         $source = '<p>Vihreä Älyenergian Verraton -sähkösopimus on Nordpoolin sähköpörssin varttipohjaiseen sähkön hintaan pohjautuva sopimus.</p>'
             ."\r\n<p>Tarjouskauden jälkeen marginaali on 0,59 snt/kWh.</p>\r\n<p>Sopimuksella ei ole perusmaksua kesällä.</p>"
-            .'<p>The price is (not always) fixed. Monthly fee will be announced later.</p>';
+            .'<p>The price is (not always) fixed. Monthly fee will be announced later.</p>'
+            .'<p>The rate is fixed except for business customers. Hinta on kiinteä vain kotitalouksille.</p>';
         $error = '$.source_consistency.evidence[0].quote is not present in the cited source text.';
         $errors = fn (string $quote): array => app(ContractInterpretationValidator::class)->validate(
             array_replace_recursive($this->validOutput('contract-1'), [
@@ -746,6 +747,8 @@ class ContractInterpretationPipelineTest extends TestCase
         $this->assertContains($error, $errors('Sopimuksella ole perusmaksua kesällä.'));
         $this->assertContains($error, $errors('pohjautuva Verraton'));
         $this->assertContains($error, $errors('The price is fixed.'));
+        $this->assertContains($error, $errors('The rate is fixed for business customers.'));
+        $this->assertContains($error, $errors('Hinta on kiinteä kotitalouksille.'));
         $this->assertContains($error, $errors('Tarjouskauden jälkeen on 0,59 snt/kWh.'));
         $this->assertContains($error, $errors('Monthly fee <span data-fee="0">will</span> be announced later.'));
     }

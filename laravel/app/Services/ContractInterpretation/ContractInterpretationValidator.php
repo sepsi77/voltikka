@@ -778,7 +778,8 @@ class ContractInterpretationValidator
      */
     private function evidenceText(array $evidence): string
     {
-        return implode(' ', array_map(
+        // A separator the numeric patterns do not span, so "+" ending one quote and "-1,5" starting the next is no "+/-".
+        return implode(' | ', array_map(
             fn (array $item): string => (string) ($item['quote'] ?? ''),
             $evidence,
         ));
@@ -1410,7 +1411,8 @@ class ContractInterpretationValidator
     /**
      * True when the quote is the source text with at most two words left out. Every quoted word
      * must appear in the source in the same order, so an invented or changed word still fails.
-     * A left-out word must not hold a digit or a negation, because dropping one changes the meaning.
+     * A left-out word must not hold a digit, a negation or a qualifier (except, only, if, at least,
+     * and their Finnish and Swedish forms), because dropping one changes the meaning.
      * Case, and HTML tags and entities in the source, do not count. A quote with markup or a digit
      * gets no fallback: numeric evidence checks read the quote as written, so a shortened quote
      * could support a number the source does not ("+ marginaali -1,5" read as "+ -1,5"). The model dropped "sähkön" from one sentence in nine
@@ -1455,7 +1457,7 @@ class ContractInterpretationValidator
         $bare = preg_replace('/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/u', '', $word) ?? $word;
 
         return preg_match('/\d/u', $word) !== 1
-            && preg_match('/^(?:ei|eikä|en|et|emme|ette|eivät|ilman|älä|ej|inte|utan|no|not|without|never)$/u', $bare) !== 1;
+            && preg_match('/^(?:ei|eikä|en|et|emme|ette|eivät|ilman|älä|paitsi|lukuun|vain|ainoastaan|pelkästään|mutta|kuitenkin|jos|mikäli|kun|vähintään|enintään|yli|alle|ej|inte|utan|utom|endast|bara|men|om|minst|högst|no|not|without|never|except|excluding|unless|only|but|however|if|when|at|least|most|over|under|max|min)$/u', $bare) !== 1;
     }
 
     private function quoteContainsValue(string $quote, mixed $sourceValue): bool
