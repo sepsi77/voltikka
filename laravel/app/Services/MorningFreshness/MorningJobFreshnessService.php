@@ -412,7 +412,11 @@ class MorningJobFreshnessService
         }
 
         $skippedIds = $skipFailedValidation
-            ? $this->failedValidationContractIds($delayedIds, $requiredObservations)
+            ? $this->failedValidationContractIds(
+                // A moved pointer waits for the interpretation of its new episode.
+                array_values(array_filter($delayedIds, fn (string $contractId): bool => $contracts->get($contractId)?->current_source_observation_id === $requiredObservations->get($contractId)->id)),
+                $requiredObservations,
+            )
             : [];
         $delayedIds = array_values(array_diff($delayedIds, $skippedIds));
         sort($delayedIds, SORT_STRING);

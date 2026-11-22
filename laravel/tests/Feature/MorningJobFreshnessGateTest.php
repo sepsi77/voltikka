@@ -136,6 +136,17 @@ class MorningJobFreshnessGateTest extends TestCase
         $this->interpretation($contract, $snapshot, ContractInterpretation::STATUS_FAILED, ['$.x.quote is not present in the cited source text.']);
         $this->assertSame([$contract->id], app(MorningJobFreshnessService::class)->checkRetailPremium($date)->skippedContractIds);
 
+        // A pointer that moved past the checkpoint episode waits for its new interpretation.
+        $moved = ContractSourceObservation::create([
+            'contract_id' => $contract->id, 'source_snapshot_id' => $snapshot->id,
+            'first_observed_at' => $this->helsinki('2026-08-01 07:00:00'), 'last_observed_at' => $this->helsinki('2026-08-01 07:00:00'),
+        ]);
+        $checkpointObservation = $contract->fresh()->current_source_observation_id;
+        $contract->update(['current_source_observation_id' => $moved->id]);
+        $this->assertFalse(app(MorningJobFreshnessService::class)->checkRetailPremium($date)->ready());
+        $contract->update(['current_source_observation_id' => $checkpointObservation]);
+        $moved->delete();
+
         $this->interpretation($contract, $snapshot, ContractInterpretation::STATUS_PENDING, null);
         $result = app(MorningJobFreshnessService::class)->checkRetailPremium($date);
         $this->assertFalse($result->ready());

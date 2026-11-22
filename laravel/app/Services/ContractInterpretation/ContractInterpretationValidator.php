@@ -1411,21 +1411,17 @@ class ContractInterpretationValidator
      * True when the quote is the source text with at most two words left out. Every quoted word
      * must appear in the source in the same order, so an invented or changed word still fails.
      * A left-out word must not hold a digit or a negation, because dropping one changes the meaning.
-     * Case, HTML tags and entities do not count. The model dropped "sähkön" from one sentence in nine
+     * Case, and HTML tags and entities in the source, do not count. A quote with markup gets no
+     * fallback, because numeric evidence checks read the quote as written. The model dropped "sähkön" from one sentence in nine
      * attempts in a row on 2026-11-22, and the strict check failed the whole interpretation.
      */
     private function quoteOmitsOnlyMinorWords(string $quote, string $source): bool
     {
-        $words = fn (string $text): array => preg_split(
-            '/\s+/u',
-            mb_strtolower(trim(html_entity_decode(preg_replace('/<[^>]*>/u', ' ', $text) ?? $text, ENT_QUOTES | ENT_HTML5, 'UTF-8')), 'UTF-8'),
-            -1,
-            PREG_SPLIT_NO_EMPTY,
-        ) ?: [];
+        $words = fn (string $text): array => preg_split('/\s+/u', mb_strtolower(trim($text), 'UTF-8'), -1, PREG_SPLIT_NO_EMPTY) ?: [];
         $quoteWords = $words($quote);
-        $sourceWords = $words($source);
+        $sourceWords = $words(html_entity_decode(preg_replace('/<[^>]*>/u', ' ', $source) ?? $source, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
 
-        if (count($quoteWords) < 2) {
+        if (count($quoteWords) < 2 || preg_match('/[<>&]/u', $quote) === 1) {
             return false;
         }
 
@@ -1455,8 +1451,10 @@ class ContractInterpretationValidator
 
     private function isMinorWord(string $word): bool
     {
+        $bare = preg_replace('/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/u', '', $word) ?? $word;
+
         return preg_match('/\d/u', $word) !== 1
-            && preg_match('/^(?:ei|eikä|en|et|emme|ette|eivät|ilman|älä|ej|inte|utan|no|not|without|never)\W*$/u', $word) !== 1;
+            && preg_match('/^(?:ei|eikä|en|et|emme|ette|eivät|ilman|älä|ej|inte|utan|no|not|without|never)$/u', $bare) !== 1;
     }
 
     private function quoteContainsValue(string $quote, mixed $sourceValue): bool

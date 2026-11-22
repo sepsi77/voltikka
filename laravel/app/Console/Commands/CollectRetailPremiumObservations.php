@@ -83,7 +83,8 @@ class CollectRetailPremiumObservations extends Command
                 }
                 $this->skippedContractIds = $result->skippedContractIds;
 
-                return $result->skippedContractIds === [] ? true : ['skipped_failed_interpretation_contract_ids' => $result->skippedContractIds];
+                // Always written, so the checkpoint describes this run and not an earlier skip.
+                return ['skipped_failed_interpretation_contract_ids' => $result->skippedContractIds];
             },
             function (\Closure $fence) use ($service, $historyService, $freshness, $asOf, $history): int {
                 $this->writerFence = $fence;

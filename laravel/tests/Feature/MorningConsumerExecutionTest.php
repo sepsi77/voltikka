@@ -49,12 +49,17 @@ class MorningConsumerExecutionTest extends TestCase
         CarbonImmutable::setTestNow('2026-09-20 08:00 Europe/Helsinki');
         $date = CarbonImmutable::today('Europe/Helsinki');
 
-        $this->assertSame(0, app(MorningConsumerExecution::class)->run('retail', $date, true,
+        $this->assertSame(0, app(MorningConsumerExecution::class)->run('retail', $date, false,
             fn () => ['skipped_failed_interpretation_contract_ids' => ['contract-a']], fn () => 0));
 
         $checkpoint = DataFreshnessCheckpoint::sole();
         $this->assertSame('ready', $checkpoint->status);
         $this->assertSame(['contract-a'], $checkpoint->metadata['skipped_failed_interpretation_contract_ids']);
+
+        // A later manual run replaces the earlier list.
+        $this->assertSame(0, app(MorningConsumerExecution::class)->run('retail', $date, false,
+            fn () => ['skipped_failed_interpretation_contract_ids' => []], fn () => 0));
+        $this->assertSame([], DataFreshnessCheckpoint::sole()->metadata['skipped_failed_interpretation_contract_ids']);
     }
 
     public function test_running_manual_writer_blocks_both_modes_but_not_other_consumer(): void
