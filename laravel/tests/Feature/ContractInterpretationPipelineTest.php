@@ -746,6 +746,7 @@ class ContractInterpretationPipelineTest extends TestCase
         $this->assertContains($error, $errors('Sopimuksella ole perusmaksua kesällä.'));
         $this->assertContains($error, $errors('pohjautuva Verraton'));
         $this->assertContains($error, $errors('The price is fixed.'));
+        $this->assertContains($error, $errors('Tarjouskauden jälkeen on 0,59 snt/kWh.'));
         $this->assertContains($error, $errors('Monthly fee <span data-fee="0">will</span> be announced later.'));
     }
 

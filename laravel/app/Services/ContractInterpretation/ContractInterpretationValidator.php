@@ -1411,8 +1411,9 @@ class ContractInterpretationValidator
      * True when the quote is the source text with at most two words left out. Every quoted word
      * must appear in the source in the same order, so an invented or changed word still fails.
      * A left-out word must not hold a digit or a negation, because dropping one changes the meaning.
-     * Case, and HTML tags and entities in the source, do not count. A quote with markup gets no
-     * fallback, because numeric evidence checks read the quote as written. The model dropped "sähkön" from one sentence in nine
+     * Case, and HTML tags and entities in the source, do not count. A quote with markup or a digit
+     * gets no fallback: numeric evidence checks read the quote as written, so a shortened quote
+     * could support a number the source does not ("+ marginaali -1,5" read as "+ -1,5"). The model dropped "sähkön" from one sentence in nine
      * attempts in a row on 2026-11-22, and the strict check failed the whole interpretation.
      */
     private function quoteOmitsOnlyMinorWords(string $quote, string $source): bool
@@ -1421,7 +1422,7 @@ class ContractInterpretationValidator
         $quoteWords = $words($quote);
         $sourceWords = $words(html_entity_decode(preg_replace('/<[^>]*>/u', ' ', $source) ?? $source, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
 
-        if (count($quoteWords) < 2 || preg_match('/[<>&]/u', $quote) === 1) {
+        if (count($quoteWords) < 2 || preg_match('/[<>&\d]/u', $quote) === 1) {
             return false;
         }
 
