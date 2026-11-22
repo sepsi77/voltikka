@@ -4,8 +4,14 @@ namespace App\Services\MorningFreshness;
 
 final readonly class MorningFreshnessResult
 {
-    /** @param array<string, string> $failures */
-    public function __construct(public array $failures) {}
+    /**
+     * @param  array<string, string>  $failures
+     * @param  list<string>  $skippedContractIds  Active contracts left out of a ready retail run because their current interpretation failed validation
+     */
+    public function __construct(
+        public array $failures,
+        public array $skippedContractIds = [],
+    ) {}
 
     public function ready(): bool
     {

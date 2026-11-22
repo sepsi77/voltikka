@@ -91,6 +91,68 @@ class MorningJobFreshnessGateTest extends TestCase
         $this->assertDatabaseCount('retail_premium_observations', 0);
     }
 
+    public function test_retail_gate_skips_a_contract_whose_current_interpretation_failed_validation(): void
+    {
+        config()->set('contract_interpretation.enabled', true);
+        [$failed, $failedSnapshot] = $this->contractWithChangedUnpublishedSnapshot();
+        $this->interpretation($failed, $failedSnapshot, ContractInterpretation::STATUS_FAILED, ['$.x.quote is not present in the cited source text.']);
+        [$published, $publishedSnapshot] = $this->contractWithPublishedSnapshot('published-contract');
+        $this->readyContractCheckpoint([$failedSnapshot->id, $publishedSnapshot->id], [$failed->id, $published->id]);
+        ActiveContract::create(['id' => $failed->id]);
+        ActiveContract::create(['id' => $published->id]);
+        $this->readyEexInputs();
+
+        $retail = app(MorningJobFreshnessService::class)->checkRetailPremium(CarbonImmutable::parse(self::DATE, 'Europe/Helsinki'));
+        $this->assertTrue($retail->ready(), $retail->summary());
+        $this->assertSame([$failed->id], $retail->skippedContractIds);
+
+        $builder = $this->createMock(RetailPremiumObservationService::class);
+        $builder->expects($this->once())->method('buildObservations')
+            ->with($this->callback(fn (ElectricityContract $contract) => $contract->id === $published->id))
+            ->willReturn(collect());
+        $this->app->instance(RetailPremiumObservationService::class, $builder);
+
+        $this->artisan('retail-premiums:collect', ['--as-of' => self::DATE, '--require-freshness' => true])
+            ->expectsOutput("Skipped {$failed->id}: its current interpretation failed validation.")
+            ->expectsOutput('Morning job deferred: No current retail premium observations were built.')
+            ->assertExitCode(1);
+        $this->assertSame(
+            [$failed->id],
+            DataFreshnessCheckpoint::query()->where('key', 'morning_retail')->sole()->metadata['skipped_failed_interpretation_contract_ids'],
+        );
+    }
+
+    public function test_retail_gate_keeps_waiting_for_a_retry_or_a_failure_without_validation_errors(): void
+    {
+        config()->set('contract_interpretation.enabled', true);
+        [$contract, $snapshot] = $this->contractWithChangedUnpublishedSnapshot();
+        $this->readyContractCheckpoint([$snapshot->id], [$contract->id]);
+        $this->readyEexInputs();
+        $date = CarbonImmutable::parse(self::DATE, 'Europe/Helsinki');
+
+        $this->interpretation($contract, $snapshot, ContractInterpretation::STATUS_FAILED, []);
+        $this->assertFalse(app(MorningJobFreshnessService::class)->checkRetailPremium($date)->ready());
+
+        $this->interpretation($contract, $snapshot, ContractInterpretation::STATUS_FAILED, ['$.x.quote is not present in the cited source text.']);
+        $this->assertSame([$contract->id], app(MorningJobFreshnessService::class)->checkRetailPremium($date)->skippedContractIds);
+
+        // A pointer that moved past the checkpoint episode waits for its new interpretation.
+        $moved = ContractSourceObservation::create([
+            'contract_id' => $contract->id, 'source_snapshot_id' => $snapshot->id,
+            'first_observed_at' => $this->helsinki('2026-08-01 07:00:00'), 'last_observed_at' => $this->helsinki('2026-08-01 07:00:00'),
+        ]);
+        $checkpointObservation = $contract->fresh()->current_source_observation_id;
+        $contract->update(['current_source_observation_id' => $moved->id]);
+        $this->assertFalse(app(MorningJobFreshnessService::class)->checkRetailPremium($date)->ready());
+        $contract->update(['current_source_observation_id' => $checkpointObservation]);
+        $moved->delete();
+
+        $this->interpretation($contract, $snapshot, ContractInterpretation::STATUS_PENDING, null);
+        $result = app(MorningJobFreshnessService::class)->checkRetailPremium($date);
+        $this->assertFalse($result->ready());
+        $this->assertSame([], $result->skippedContractIds);
+    }
+
     public function test_interpretation_published_during_statistics_calculation_fails_initial_forecast_check(): void
     {
         config()->set('contract_interpretation.enabled', true);
@@ -770,6 +832,22 @@ class MorningJobFreshnessGateTest extends TestCase
         $contract->update(['published_interpretation_id' => $interpretation->id]);
 
         return [$contract->fresh(), $snapshot];
+    }
+
+    /** @param list<string>|null $validationErrors */
+    private function interpretation(ElectricityContract $contract, ContractSourceSnapshot $snapshot, string $status, ?array $validationErrors): void
+    {
+        ContractInterpretation::create([
+            'contract_id' => $contract->id,
+            'source_snapshot_id' => $snapshot->id,
+            'analysis_fingerprint' => hash('sha256', $contract->id.$status.ContractInterpretation::query()->count()),
+            'status' => $status,
+            'schema_version' => 'test-schema',
+            'prompt_version' => 'test-prompt',
+            'provider' => 'test',
+            'model' => 'test',
+            'validation_errors' => $validationErrors,
+        ]);
     }
 
     /** A Helsinki wall-clock time as the application stores it (UTC, like now()). */

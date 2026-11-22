@@ -15,6 +15,9 @@ class ContractInterpretationValidator
      */
     private const SPOT_MARGIN_CEILING_CENTS = 2.0;
 
+    /** Most source words a quote may leave out and still count as a quote of that source text. */
+    private const MAX_OMITTED_QUOTE_WORDS = 2;
+
     /**
      * @param  array<string, mixed>  $output
      * @param  array<string, mixed>  $input
@@ -775,7 +778,8 @@ class ContractInterpretationValidator
      */
     private function evidenceText(array $evidence): string
     {
-        return implode(' ', array_map(
+        // A separator the numeric patterns do not span, so "+" ending one quote and "-1,5" starting the next is no "+/-".
+        return implode(' | ', array_map(
             fn (array $item): string => (string) ($item['quote'] ?? ''),
             $evidence,
         ));
@@ -1387,7 +1391,8 @@ class ContractInterpretationValidator
                 $normalizedSource = is_string($sourceValue)
                     ? (preg_replace('/\s+/u', ' ', trim($sourceValue)) ?? trim($sourceValue))
                     : null;
-                if ($quote === '' || $normalizedSource === null || ! str_contains($normalizedSource, $quote)) {
+                if ($quote === '' || $normalizedSource === null
+                    || (! str_contains($normalizedSource, $quote) && ! $this->quoteOmitsOnlyMinorWords($quote, $normalizedSource))) {
                     $errors[] = "{$path}.quote is not present in the cited source text.";
                 }
             } elseif ($sourceValue instanceof \stdClass || is_array($sourceValue) || $sourceValue === null) {
@@ -1401,6 +1406,58 @@ class ContractInterpretationValidator
             $childPath = is_int($key) ? "{$path}[{$key}]" : "{$path}.{$key}";
             $this->validateEvidence($child, $input, $childPath, $errors);
         }
+    }
+
+    /**
+     * True when the quote is the source text with at most two words left out. Every quoted word
+     * must appear in the source in the same order, so an invented or changed word still fails.
+     * A left-out word must not hold a digit, a negation or a qualifier (except, only, if, at least,
+     * and their Finnish and Swedish forms), because dropping one changes the meaning.
+     * Case, and HTML tags and entities in the source, do not count. A quote with markup or a digit
+     * gets no fallback: numeric evidence checks read the quote as written, so a shortened quote
+     * could support a number the source does not ("+ marginaali -1,5" read as "+ -1,5"). The model dropped "sähkön" from one sentence in nine
+     * attempts in a row on 2026-11-22, and the strict check failed the whole interpretation.
+     */
+    private function quoteOmitsOnlyMinorWords(string $quote, string $source): bool
+    {
+        $words = fn (string $text): array => preg_split('/\s+/u', mb_strtolower(trim($text), 'UTF-8'), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $quoteWords = $words($quote);
+        $sourceWords = $words(html_entity_decode(preg_replace('/<[^>]*>/u', ' ', $source) ?? $source, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+
+        if (count($quoteWords) < 2 || preg_match('/[<>&\d]/u', $quote) === 1) {
+            return false;
+        }
+
+        foreach (array_keys($sourceWords, $quoteWords[0], true) as $start) {
+            $omitted = 0;
+            $position = $start + 1;
+
+            foreach (array_slice($quoteWords, 1) as $word) {
+                while ($position < count($sourceWords) && $sourceWords[$position] !== $word) {
+                    if (++$omitted > self::MAX_OMITTED_QUOTE_WORDS || ! $this->isMinorWord($sourceWords[$position])) {
+                        continue 3;
+                    }
+                    $position++;
+                }
+
+                if ($position >= count($sourceWords)) {
+                    continue 2;
+                }
+                $position++;
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private function isMinorWord(string $word): bool
+    {
+        $bare = preg_replace('/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/u', '', $word) ?? $word;
+
+        return preg_match('/\d/u', $word) !== 1
+            && preg_match('/^(?:ei|eikä|en|et|emme|ette|eivät|ilman|älä|paitsi|lukuun|vain|ainoastaan|pelkästään|mutta|kuitenkin|jos|mikäli|kun|vähintään|enintään|yli|alle|ej|inte|utan|utom|endast|bara|men|om|minst|högst|no|not|without|never|except|excluding|unless|only|but|however|if|when|at|least|most|over|under|max|min)$/u', $bare) !== 1;
     }
 
     private function quoteContainsValue(string $quote, mixed $sourceValue): bool

@@ -3,6 +3,7 @@
 namespace App\Services\MorningFreshness;
 
 use App\Enums\TargetGroup;
+use App\Models\ContractInterpretation;
 use App\Models\ContractPriceDailyStatistic;
 use App\Models\ContractSourceObservation;
 use App\Models\DataFreshnessCheckpoint;
@@ -14,6 +15,7 @@ use App\Services\ContractStatistics\ContractStatisticsSegmentClassifier;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
+use Illuminate\Support\Collection;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
@@ -97,6 +99,7 @@ class MorningJobFreshnessService
         $failures = [];
         $statisticsStartedAt = null;
         $latestRequiredPublication = null;
+        $skippedContractIds = [];
         $contractCheckpoint = DataFreshnessCheckpoint::query()
             ->where('key', DataFreshnessCheckpoint::KEY_CONTRACT_IMPORT)
             ->whereDate('effective_date', $date)
@@ -136,7 +139,9 @@ class MorningJobFreshnessService
                             $facts['observed_source_observation_ids'],
                             $requiredContractIds,
                             $scopeObservations,
+                            skipFailedValidation: ! $forecast,
                         );
+                        $skippedContractIds = $publication['skipped_contract_ids'];
 
                         if ($publication['failure'] !== null) {
                             $failures['contract_interpretations'] = $publication['failure'];
@@ -204,7 +209,7 @@ class MorningJobFreshnessService
             }
         }
 
-        return new MorningFreshnessResult($failures);
+        return new MorningFreshnessResult($failures, $failures === [] ? $skippedContractIds : []);
     }
 
     /**
@@ -321,14 +326,19 @@ class MorningJobFreshnessService
     }
 
     /**
+     * With $skipFailedValidation (the retail gate), a contract whose newest interpretation of its
+     * current source failed validation is skipped instead of delayed: an LLM retry repeats the same
+     * failure, so waiting would cost the whole market that day's collection (2026-11-22).
+     *
      * @param  list<int>  $observationIds
      * @param  list<string>  $activeContractIds
-     * @return array{failure:string|null, latest_published_at:CarbonImmutable|null}
+     * @return array{failure:string|null, latest_published_at:CarbonImmutable|null, skipped_contract_ids:list<string>}
      */
     private function checkInterpretations(
         array $observationIds,
         array $activeContractIds,
         bool $scopeObservations = false,
+        bool $skipFailedValidation = false,
     ): array {
         $observationsQuery = ContractSourceObservation::query()->whereIn('id', $observationIds);
 
@@ -342,6 +352,7 @@ class MorningJobFreshnessService
             return [
                 'failure' => 'The current contract import facts reference unknown source observations.',
                 'latest_published_at' => null,
+                'skipped_contract_ids' => [],
             ];
         }
 
@@ -359,6 +370,7 @@ class MorningJobFreshnessService
             return [
                 'failure' => 'Active contracts do not have exactly one observed source episode: '.implode(', ', $coverageFailureIds).'.',
                 'latest_published_at' => null,
+                'skipped_contract_ids' => [],
             ];
         }
 
@@ -367,7 +379,7 @@ class MorningJobFreshnessService
             ->keyBy('contract_id');
 
         if ($requiredObservations->isEmpty()) {
-            return ['failure' => null, 'latest_published_at' => null];
+            return ['failure' => null, 'latest_published_at' => null, 'skipped_contract_ids' => []];
         }
 
         $contracts = ElectricityContract::query()
@@ -399,13 +411,53 @@ class MorningJobFreshnessService
             }
         }
 
+        $skippedIds = $skipFailedValidation
+            ? $this->failedValidationContractIds(
+                // A moved pointer waits for the interpretation of its new episode.
+                array_values(array_filter($delayedIds, fn (string $contractId): bool => $contracts->get($contractId)?->current_source_observation_id === $requiredObservations->get($contractId)->id)),
+                $requiredObservations,
+            )
+            : [];
+        $delayedIds = array_values(array_diff($delayedIds, $skippedIds));
         sort($delayedIds, SORT_STRING);
+        sort($skippedIds, SORT_STRING);
 
         return [
             'failure' => $delayedIds === []
                 ? null
                 : 'Current interpretations are not published for active contracts: '.implode(', ', $delayedIds).'.',
             'latest_published_at' => $latestPublishedAt,
+            'skipped_contract_ids' => $skippedIds,
         ];
+    }
+
+    /**
+     * Delayed contracts whose newest interpretation of the current source snapshot is a terminal
+     * validation failure. A pending or processing retry, or a transport failure without
+     * validation errors, keeps the contract delayed.
+     *
+     * @param  list<string>  $contractIds
+     * @param  Collection<string, ContractSourceObservation>  $observations
+     * @return list<string>
+     */
+    private function failedValidationContractIds(array $contractIds, Collection $observations): array
+    {
+        $failed = [];
+
+        foreach ($contractIds as $contractId) {
+            $latest = ContractInterpretation::query()
+                ->where('contract_id', $contractId)
+                ->where('source_snapshot_id', $observations->get($contractId)->source_snapshot_id)
+                ->orderByDesc('id')
+                ->first(['id', 'status', 'validation_errors']);
+
+            if ($latest?->status === ContractInterpretation::STATUS_FAILED
+                && is_array($latest->validation_errors)
+                && $latest->validation_errors !== []) {
+                $failed[] = $contractId;
+            }
+        }
+
+        return $failed;
     }
 }

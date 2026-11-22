@@ -13,6 +13,9 @@ use Throwable;
 /** Durable exclusion for the two morning consumers, not an expiring execution lease. */
 class MorningConsumerExecution
 {
+    /**
+     * @param  callable(): (bool|array<string, mixed>)  $ready  false waits; true or an array of facts to keep on the checkpoint runs
+     */
     public function run(string $consumer, CarbonImmutable $date, bool $scheduled, callable $ready, callable $execute): int
     {
         $owner = null;
@@ -49,7 +52,9 @@ class MorningConsumerExecution
                 return $scheduled ? 0 : 1;
             }
 
-            if (! $ready() || ($scheduled && CarbonImmutable::now('Europe/Helsinki')->gte($date->setTime(12, 0)))) {
+            $readiness = $ready();
+            $readyFacts = is_array($readiness) ? $readiness : [];
+            if ($readiness === false || ($scheduled && CarbonImmutable::now('Europe/Helsinki')->gte($date->setTime(12, 0)))) {
                 $deadline = DB::transaction(function () use ($consumer, $date, $owner, $scheduled) {
                     $row = $this->row($consumer, $date)->lockForUpdate()->firstOrFail();
                     if (($row->metadata['owner'] ?? null) !== $owner) {
@@ -74,7 +79,7 @@ class MorningConsumerExecution
                 }
             };
             $exit = $execute($fence);
-            $this->finish($consumer, $date, $owner, $exit === 0, $scheduled);
+            $this->finish($consumer, $date, $owner, $exit === 0, $scheduled, readyFacts: $readyFacts);
 
             // A durable terminal outcome owns its alert, not each scheduler tick.
             return $scheduled ? 0 : $exit;
@@ -94,9 +99,10 @@ class MorningConsumerExecution
         }
     }
 
-    private function finish(string $consumer, CarbonImmutable $date, string $owner, bool $success, bool $scheduled, ?string $exceptionClass = null): void
+    /** @param array<string, mixed> $readyFacts */
+    private function finish(string $consumer, CarbonImmutable $date, string $owner, bool $success, bool $scheduled, ?string $exceptionClass = null, array $readyFacts = []): void
     {
-        $deadline = DB::transaction(function () use ($consumer, $date, $owner, $success, $scheduled, $exceptionClass) {
+        $deadline = DB::transaction(function () use ($consumer, $date, $owner, $success, $scheduled, $exceptionClass, $readyFacts) {
             $row = $this->row($consumer, $date)->lockForUpdate()->firstOrFail();
             $facts = $row->metadata ?? [];
             if (($facts['owner'] ?? null) !== $owner || $row->status !== DataFreshnessCheckpoint::STATUS_RUNNING) {
@@ -108,7 +114,7 @@ class MorningConsumerExecution
                 $facts = $row->metadata;
             }
             $row->update(['status' => $success ? DataFreshnessCheckpoint::STATUS_READY : DataFreshnessCheckpoint::STATUS_FAILED,
-                'recorded_at' => now(), 'metadata' => [...$facts, 'scheduled_complete' => $success && $scheduled,
+                'recorded_at' => now(), 'metadata' => [...$facts, ...$readyFacts, 'scheduled_complete' => $success && $scheduled,
                     'finished_at' => CarbonImmutable::now('Europe/Helsinki')->toIso8601String(),
                     'reason' => $success ? 'completed' : 'execution_failed', 'exception_class' => $exceptionClass]]);
 
