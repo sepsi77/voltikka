@@ -2,7 +2,7 @@
 
 ## Import failure reporting
 
-`DataFetchFailureReporter` belongs to one command invocation. Contracts, EEX, and Spot collect failures and send one aggregate message Issue and one Laravel log at the outcome boundary. Optional stages and recovered retries do not alert. The fingerprint stays `data-fetch-failure` plus the import name. The Sentry scope is cleared before capture, then restored.
+`DataFetchFailureReporter` belongs to one command invocation. Contracts, EEX, and Spot collect failures and send one aggregate message Issue and one Laravel log at the outcome boundary. Optional stages and recovered retries do not alert. `report($terminal, issue: false)` writes only the log line; `spot:fetch --no-failure-issue` uses it for a failed exit, because its Temporal caller retries and reports once. The fingerprint stays `data-fetch-failure` plus the import name. The Sentry scope is cleared before capture, then restored.
 
 Only controlled stage/count names, numeric counts, exception classes, and closed reason codes may enter context. Never send exception messages, traces, URLs, query strings, SQL, response bodies, headers, seller text, tokens, or raw Throwable objects to Log or Sentry. Never call captureException for an aggregate import failure.
 

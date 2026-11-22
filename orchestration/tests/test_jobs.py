@@ -603,15 +603,49 @@ async def test_a_failed_store_is_not_retried_by_the_collector_fetch_retry(env):
     assert len(fake.reports) == 1
 
 
-async def test_a_self_reporting_step_is_never_retried(env):
-    """Its command sends an Issue per failed run, so a retry would send a second one."""
-    fake = FakeArtisan(failing={fetch("spot:fetch")})
+SPOT = "spot:fetch --no-failure-issue"
+
+
+def spot_hourly() -> ArtisanJobInput:
+    return ArtisanJobInput("spot-hourly", [Step(["spot:fetch"], 55, self_reports=True, staged=True,
+                                                fetch_retry_minutes=45)])
+
+
+async def test_a_self_reporting_step_with_a_retry_window_recovers_without_an_issue(env):
+    """spot-hourly: its command runs with --no-failure-issue (a failed run sends no Issue), and the
+    fetch repeats every 10 minutes."""
+    fake = FakeArtisan(fail_first={fetch(SPOT): 2})
+
+    result = await execute(env, fake, ArtisanJob.run, spot_hourly())
+
+    assert fake.names() == [fetch(SPOT), fetch(SPOT), fetch(SPOT), store(SPOT)]
+    assert minutes_after_start(fake, fetch(SPOT)) == [0, 10, 20]
+    assert result.outcomes[0].status == "succeeded" and fake.reports == []
+    # The retried fetch ends by minute 45, before the next hourly start.
+    assert timedelta(minutes=24) < fake.schedule_to_close[fetch(SPOT)] <= timedelta(minutes=25)
+
+
+async def test_an_exhausted_self_reporting_retry_sends_one_workflow_issue(env):
+    fake = FakeArtisan(errors=lambda name, n: "fetch_failed" if name == fetch(SPOT) else None)
 
     with pytest.raises(WorkflowFailureError):
-        await execute(env, fake, ArtisanJob.run, ArtisanJobInput(
-            "spot-hourly", [Step(["spot:fetch"], self_reports=True, staged=True, fetch_retry_minutes=120)]))
+        await execute(env, fake, ArtisanJob.run, spot_hourly())
 
-    assert fake.names() == [fetch("spot:fetch")] and fake.reports == []
+    # The last retry can start before minute 45.
+    assert minutes_after_start(fake, fetch(SPOT)) == [0, 10, 20, 30, 40]
+    assert [(r.reason, r.facts) for r in fake.reports] == [
+        ("command_failed", {"command": "spot:fetch", "error": "fetch_failed", "step": "fetch"})]
+
+
+async def test_a_failed_store_of_a_retried_self_reporting_step_sends_one_workflow_issue(env):
+    """The store also runs with --no-failure-issue, so the workflow reports it (no retry: S13)."""
+    fake = FakeArtisan(failing={store(SPOT)})
+
+    with pytest.raises(WorkflowFailureError):
+        await execute(env, fake, ArtisanJob.run, spot_hourly())
+
+    assert fake.names() == [fetch(SPOT), store(SPOT)]
+    assert [(r.reason, r.facts["step"]) for r in fake.reports] == [("command_failed", "store")]
 
 
 # Retry window per collector job, in minutes after its start (manager decision 2026-11-20 after PLT-003):
@@ -626,7 +660,7 @@ EXPECTED_FETCH_RETRY_MINUTES = {
 }
 
 
-def test_only_staged_collector_steps_retry_a_failed_fetch_and_none_self_reports():
+def test_only_staged_collector_steps_and_spot_hourly_retry_a_failed_fetch():
     wanted = schedules(Settings.from_env())
     for name, schedule in wanted.items():
         if schedule.action.workflow != "ArtisanJob":
@@ -636,6 +670,9 @@ def test_only_staged_collector_steps_retry_a_failed_fetch_and_none_self_reports(
                 # requirement 11: a self-reporting collector step would get no retry; keep none.
                 assert step.staged and not step.self_reports, name
                 assert step.fetch_retry_minutes == EXPECTED_FETCH_RETRY_MINUTES[name], name
+            elif name == "spot-hourly" and step.args == ["spot:fetch"]:
+                # FI day-ahead prices: retried within the hour (schedules.SPOT_FETCH_RETRY_MINUTES).
+                assert step.self_reports and step.fetch_retry_minutes == 45, name
             else:
                 assert step.fetch_retry_minutes == 0, name
     assert set(EXPECTED_FETCH_RETRY_MINUTES) == GROUPS["collectors"]

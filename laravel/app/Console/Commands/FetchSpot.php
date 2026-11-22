@@ -23,14 +23,17 @@ use UnexpectedValueException;
 
 class FetchSpot extends Command
 {
-    use StagedImport;
+    use StagedImport {
+        stagedDataOptions as private allDataOptions;
+    }
 
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'spot:fetch';
+    protected $signature = 'spot:fetch
+                            {--no-failure-issue : A run that exits with a failure writes its log line but sends no Sentry Issue; the caller reports it once (the Temporal spot-hourly job, which retries a failed fetch)}';
 
     /**
      * The console command description.
@@ -80,7 +83,10 @@ class FetchSpot extends Command
                 transactional: false,
             );
         } finally {
-            $this->reporter->report($exit === self::FAILURE);
+            $failed = $exit === self::FAILURE;
+            // A warning outcome (exit 0, for example a wholly empty response) keeps its Issue: the
+            // caller sees a success and reports nothing.
+            $this->reporter->report($failed, issue: ! ($failed && $this->option('no-failure-issue')));
         }
 
         return $exit;
@@ -89,6 +95,12 @@ class FetchSpot extends Command
     protected function stagedImportSource(): string
     {
         return 'entsoe-day-ahead';
+    }
+
+    /** --no-failure-issue changes no row, so a replay without it stores the same payload. */
+    protected function stagedDataOptions(): array
+    {
+        return array_diff_key($this->allDataOptions(), ['no-failure-issue' => true]);
     }
 
     /** The Issue keeps today's stage names; the step (fetch or store) is added to its context. */

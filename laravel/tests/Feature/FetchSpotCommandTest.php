@@ -243,6 +243,39 @@ class FetchSpotCommandTest extends TestCase
     }
 
     /**
+     * --no-failure-issue (the Temporal spot-hourly job, which retries a failed fetch and sends the
+     * one Issue itself): a failed run writes its aggregate log line but sends no Issue.
+     */
+    public function test_a_failed_run_with_no_failure_issue_logs_but_sends_no_issue(): void
+    {
+        Sleep::fake();
+        $this->captureSentryIssues();
+        Log::spy();
+        Http::fake([self::ENTSOE_URL => Http::response('Gateway timeout', 599)]);
+
+        $this->assertSame(1, Artisan::call('spot:fetch', ['--fetch-only' => true, '--no-failure-issue' => true]));
+
+        $this->assertSame(['status' => 'failed', 'step' => 'fetch', 'error' => 'fetch_failed'], $this->lastJsonLine(Artisan::output()));
+        $this->assertSame([], $this->sentryIssues);
+        Log::shouldHaveReceived('log')->once()->with('error', 'Data fetch failed: spot', Mockery::on(
+            fn (array $context): bool => $context['failures'] === ['acquisition' => 1]
+                && $context['reasons'] === ['acquisition' => ['http_599' => 1]],
+        ));
+    }
+
+    /** A warning outcome exits 0, so the caller reports nothing: the command keeps its Issue. */
+    public function test_an_empty_response_with_no_failure_issue_still_sends_its_warning_issue(): void
+    {
+        $this->captureSentryIssues();
+        $this->averageService->shouldNotReceive('calculateAllAverages');
+        $this->fakeEntsoe([]);
+
+        $this->assertSame(0, Artisan::call('spot:fetch', ['--no-failure-issue' => true]));
+
+        $this->assertImportIssue('spot', 'warning', ['empty_response' => 1]);
+    }
+
+    /**
      * Test command handles empty API response.
      */
     public function test_command_handles_empty_response(): void

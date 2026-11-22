@@ -218,6 +218,20 @@ class FetchSpotStagedImportTest extends TestCase
      * A store waits for the FI store lock; while another store holds it past the wait, it writes
      * neither prices nor averages and fails with the closed error store_busy. The payload stays.
      */
+    /** --no-failure-issue changes no row: a replay without it stores a payload fetched with it. */
+    public function test_a_payload_fetched_with_no_failure_issue_is_stored_by_a_replay_without_it(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-11-19 06:00:00', 'UTC'));
+        $this->fakeEntsoe($this->quarterPoints('2026-11-19 10:00', 4.0));
+        $this->assertSame(0, Artisan::call('spot:fetch', ['--fetch-only' => true, '--no-failure-issue' => true]));
+        $payload = $this->lastJsonLine(Artisan::output())['payload'];
+
+        $this->preventHttp();
+        $this->assertSame(0, Artisan::call('spot:fetch', ['--from-payload' => $payload['path']]));
+
+        $this->assertSame($this->expectedAverages(5.5, 1), $this->averages());
+    }
+
     public function test_a_store_that_cannot_get_the_store_lock_writes_nothing_and_is_busy(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-11-19 06:00:00', 'UTC'));

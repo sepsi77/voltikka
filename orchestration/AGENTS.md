@@ -185,12 +185,26 @@ scheduler would run its `contracts:complete-import`).
   `weather-fetch-ecmwf-prev-day1` (4 h apart) get no retry: their next run is the retry, and a
   retrying run must not overlap its next start (overlap policy SKIP would drop it). Why: since the
   staged imports a fetch only writes a payload file, and a short API outage at 10:20 cost the S
-  forecast a day. A self-reporting step (its command sends an Issue per failed run) is never
-  retried; no collector step self-reports (test). Other groups keep the no-retry rule. The retry
+  forecast a day. No collector step self-reports (test). Other groups keep the no-retry rule,
+  except `spot-hourly` below. The retry
   wait is a workflow timer, so a deploy does not lose it; an interrupted fetch repeats as before. No
   patch: the field comes from the Schedule input, a run that started before `schedules.py --apply
   --group collectors` has no field (default 0) and takes no retry path
   (`tests/histories/artisan_job_failed_collector_fetch.json`).
+- **`spot-hourly` fetch retry** (2026-11-22). FI day-ahead prices come only from this job; the
+  `day_ahead_d1` gate, `/spot-price` and the daily social post wait for D+1 (published about 13:45
+  Helsinki). ENTSO-E answers HTTP 599 for hours at a time (2026-11-21: 9 of 14 runs from 02:00 to
+  15:00 failed, so FI D+1 arrived at 16:00 and the gate opened at 16:10). Its `spot:fetch` step
+  carries `fetch_retry_minutes = 45` (`schedules.SPOT_FETCH_RETRY_MINUTES`): same loop as the
+  collectors, attempts at about :00, :10, :20, :30 and :40, and the retried fetch ends by :45, so the
+  store and `social:publish-daily-spot` end before the next start. `spot:fetch` is self-reporting,
+  so for a step with a retry window `run_step()` adds `--no-failure-issue` (`jobs.NO_FAILURE_ISSUE`)
+  to fetch and store and treats the step as not self-reporting: a failed run only writes its log
+  line (Sentry Logs, with the `http_<status>` reason), a recovered failure sends nothing, and the
+  workflow sends one `command_failed` Issue after the last attempt or for a failed store. A warning
+  outcome (exit 0, a wholly empty response) keeps the command's own Issue. `ImportReplay` and the
+  web scheduler run `spot:fetch` without the option, so they report as before. The gate does not
+  fetch FI itself: one fetcher per dataset, and the gate re-checks every 10 minutes.
 - Read-only readiness calls retry for up to 30 minutes (`READINESS_OPTIONS`), so a
   short database break does not end a morning; a longer one fails the run with one Issue. Social posting and the morning
   consumers use `max_attempts=1`.
@@ -216,7 +230,8 @@ scheduler would run its `contracts:complete-import`).
   Laravel scheduler failure listener does not run here. `spot:fetch`, `futures:fetch-eex`,
   `contracts:fetch` and `contracts:complete-import` report a non-zero exit themselves
   (`self_reports=True`); the workflow still reports a lost or timed-out attempt of these, because
-  it never reached the command's reporter (`reported_by_command`). A failed job, `EexFutures` or
+  it never reached the command's reporter (`reported_by_command`). Exception: `spot:fetch` in
+  `spot-hourly` runs with `--no-failure-issue`, and the workflow reports it (see above). A failed job, `EexFutures` or
   `ContractImport` then fails with `ReportedFailure` (red in the Temporal UI); the Sentry
   interceptor does not report that type again.
 - A failed step skips the later steps of the job, except `always` steps (backup clean/monitor after
