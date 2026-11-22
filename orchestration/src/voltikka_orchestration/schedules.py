@@ -52,6 +52,13 @@ def job(*steps: Step) -> list[Step]:
     return list(steps)
 
 
+# FI day-ahead prices come only from spot-hourly, and the S forecast gate day_ahead_d1, /spot-price and
+# the daily social post wait for D+1 (published about 13:45 Helsinki). ENTSO-E answers HTTP 599 for hours
+# at a time (2026-11-21: 9 of 14 runs failed from 02:00 to 15:00), so a failed fetch retries every 10
+# minutes. The window ends at minute 45, so the store and the social step end before the next start
+# (overlap policy SKIP would drop it).
+SPOT_FETCH_RETRY_MINUTES = 45
+
 # Phase 2 jobs (phase2-plan.md), moved from laravel/routes/console.php with the same Helsinki times
 # unless a chain replaced the time. Groups are cut over one at a time (`--group`).
 JOBS: dict[str, tuple[str, list[ScheduleCalendarSpec], list[Step]]] = {
@@ -98,7 +105,7 @@ JOBS: dict[str, tuple[str, list[ScheduleCalendarSpec], list[Step]]] = {
     )),
     # C. Spot. Publication follows the hourly import (it checks complete data itself).
     "spot-hourly": ("spot", [at(None, 0)], job(
-        Step(["spot:fetch"], 55, self_reports=True, staged=True),
+        Step(["spot:fetch"], 55, self_reports=True, staged=True, fetch_retry_minutes=SPOT_FETCH_RETRY_MINUTES),
         Step(["social:publish-daily-spot"], 15, always=True, max_attempts=1, interruptible=False),
     )),
     # Independent watchdog: it must run even when spot:fetch hangs.

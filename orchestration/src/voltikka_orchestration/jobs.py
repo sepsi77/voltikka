@@ -9,9 +9,10 @@ only the store of a saved payload, by hand, after a fix.
 
 Retry rule: a command that exits non-zero (`CommandFailed`) is never run again automatically, as
 with the Laravel scheduler. Only a lost attempt (worker shutdown, heartbeat timeout) is retried. The
-one exception is an acquisition failure of a staged daily collector step (`Step.fetch_retry_minutes`,
-set by schedules.py): a failed fetch, or a store that failed `fetch_incomplete`, runs fetch and store
-again every 10 minutes until the step's retry deadline (tasks/s-forecast-gates/).
+one exception is an acquisition failure of a staged step with `Step.fetch_retry_minutes` (set by
+schedules.py: the daily collectors and `spot-hourly`): a failed fetch, or a store that failed
+`fetch_incomplete`, runs fetch and store again every 10 minutes until the step's retry deadline
+(tasks/s-forecast-gates/).
 """
 
 from __future__ import annotations
@@ -47,6 +48,10 @@ REPORTED_FAILURE = "ReportedFailure"
 
 HEARTBEAT_TIMEOUT = timedelta(minutes=2)
 FETCH_RETRY_INTERVAL = timedelta(minutes=10)
+# A self-reporting command with a fetch retry (spot:fetch in spot-hourly) gets this option: a failed
+# run logs but sends no Issue, so a recovered failure sends nothing and the workflow sends one Issue
+# after the last attempt.
+NO_FAILURE_ISSUE = "--no-failure-issue"
 # The one exception to "a failed command is never retried": `orchestration:readiness` only reads
 # checkpoints, so a failed read repeats for up to 30 minutes (orchestration/AGENTS.md). A short
 # database break must not end a morning; a longer one fails the run with one Issue.
@@ -94,11 +99,12 @@ class Step:
     # STORE_TIMEOUT_MINUTES, ending within STORE_SCHEDULE_TO_CLOSE of being scheduled. A failed fetch
     # skips the store; a failed store never starts a new fetch.
     staged: bool = False
-    # Staged daily collector steps only (schedules.py sets it): after an acquisition failure (a failed
-    # fetch, or a store that failed `fetch_incomplete`) fetch and store run again every
-    # FETCH_RETRY_INTERVAL while the retry can start before this many minutes after the job's start; a
-    # retried fetch ends by then (schedule-to-close). 0 = never. Ignored for a self-reporting step,
-    # whose command sends an Issue per failed run. Any other failed store is final (run_step).
+    # Staged steps only (schedules.py sets it: daily collectors, spot-hourly): after an acquisition
+    # failure (a failed fetch, or a store that failed `fetch_incomplete`) fetch and store run again
+    # every FETCH_RETRY_INTERVAL while the retry can start before this many minutes after the job's
+    # start; a retried fetch ends by then (schedule-to-close). 0 = never. A self-reporting step then
+    # runs its commands with NO_FAILURE_ISSUE and the workflow sends its one Issue (run_step). Any
+    # other failed store is final.
     fetch_retry_minutes: int = 0
 
 
@@ -160,9 +166,8 @@ def reported_by_command(step: Step, error: ActivityError) -> bool:
 
 
 def retry_deadline(step: Step) -> datetime | None:
-    """End of the collector fetch retry window (`Step.fetch_retry_minutes` after the job's start), or
-    None: no retry. A self-reporting command sends an Issue per failed run, so it is never retried."""
-    if not step.fetch_retry_minutes or step.self_reports:
+    """End of the fetch retry window (`Step.fetch_retry_minutes` after the job's start), or None: no retry."""
+    if not step.fetch_retry_minutes:
         return None
     return workflow.info().workflow_start_time + timedelta(minutes=step.fetch_retry_minutes)
 
@@ -192,7 +197,7 @@ async def run_steps(name: str, steps: list[Step], day: str | None = None) -> lis
 
 async def run_step(name: str, step: Step, day: str | None, reference: dict[str, str] | None = None) -> StepOutcome:
     """One step. With `reference` (ImportReplay), only the store of that saved payload runs. A staged
-    collector step (`retry_deadline`) runs fetch and store again every FETCH_RETRY_INTERVAL after an
+    step with a retry window (`retry_deadline`) runs fetch and store again every FETCH_RETRY_INTERVAL after an
     acquisition failure: a fetch that failed (`CommandFailed`) or a store that failed
     `fetch_incomplete` (the good units' rows are stored, so a repeat is safe). A retried fetch ends by
     the retry deadline; a store is never cut off. Any other failed store is final. The workflow timer
@@ -202,6 +207,9 @@ async def run_step(name: str, step: Step, day: str | None, reference: dict[str, 
     # patched(): a workflow that started before staged imports keeps its one-process command.
     staged = reference is not None or (step.staged and workflow.patched(STAGED_PATCH))
     deadline = retry_deadline(step) if staged and reference is None else None
+    if deadline is not None and step.self_reports:
+        # Its command would send an Issue per failed attempt: the workflow reports instead, once.
+        step = replace(step, args=[*step.args, NO_FAILURE_ISSUE], self_reports=False)
     until = None  # the first attempt keeps the step's own options
     while True:
         stored = reference

@@ -72,7 +72,11 @@ class DataFetchFailureReporter
         $this->counts[$name] = $count;
     }
 
-    public function report(bool $terminal): void
+    /**
+     * One Issue and one aggregate log line for this invocation's failures. With $issue false only
+     * the log line is written: the caller sends the one Issue itself (spot:fetch --no-failure-issue).
+     */
+    public function report(bool $terminal, bool $issue = true): void
     {
         if ($this->failures === []) {
             return;
@@ -94,14 +98,16 @@ class DataFetchFailureReporter
         $message = "Data fetch failed: {$this->import}";
         $level = $terminal ? Severity::error() : Severity::warning();
 
-        withScope(function (Scope $scope) use ($context, $message, $level): void {
-            // HTTP breadcrumbs can contain query tokens. Keep this Issue aggregate-only.
-            $scope->clear();
-            $scope->setFingerprint(['data-fetch-failure', $this->import]);
-            $scope->setTag('data_import', $this->import);
-            $scope->setContext('data_fetch', $context);
-            captureMessage($message, $level);
-        });
+        if ($issue) {
+            withScope(function (Scope $scope) use ($context, $message, $level): void {
+                // HTTP breadcrumbs can contain query tokens. Keep this Issue aggregate-only.
+                $scope->clear();
+                $scope->setFingerprint(['data-fetch-failure', $this->import]);
+                $scope->setTag('data_import', $this->import);
+                $scope->setContext('data_fetch', $context);
+                captureMessage($message, $level);
+            });
+        }
 
         Log::log((string) $level, $message, $context);
     }
