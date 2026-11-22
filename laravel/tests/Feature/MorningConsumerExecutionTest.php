@@ -44,6 +44,19 @@ class MorningConsumerExecutionTest extends TestCase
         Log::shouldNotHaveReceived('error');
     }
 
+    public function test_facts_from_a_ready_check_are_kept_on_the_finished_checkpoint(): void
+    {
+        CarbonImmutable::setTestNow('2026-09-20 08:00 Europe/Helsinki');
+        $date = CarbonImmutable::today('Europe/Helsinki');
+
+        $this->assertSame(0, app(MorningConsumerExecution::class)->run('retail', $date, true,
+            fn () => ['skipped_failed_interpretation_contract_ids' => ['contract-a']], fn () => 0));
+
+        $checkpoint = DataFreshnessCheckpoint::sole();
+        $this->assertSame('ready', $checkpoint->status);
+        $this->assertSame(['contract-a'], $checkpoint->metadata['skipped_failed_interpretation_contract_ids']);
+    }
+
     public function test_running_manual_writer_blocks_both_modes_but_not_other_consumer(): void
     {
         CarbonImmutable::setTestNow('2026-09-20 08:00 Europe/Helsinki');

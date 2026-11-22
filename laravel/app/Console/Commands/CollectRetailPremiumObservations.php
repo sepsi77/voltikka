@@ -34,6 +34,9 @@ class CollectRetailPremiumObservations extends Command
 
     private ?\Closure $writerFence = null;
 
+    /** @var list<string> Active contracts the gate left out because their current interpretation failed validation */
+    private array $skippedContractIds = [];
+
     public function handle(
         RetailPremiumObservationService $service,
         RetailPremiumHistoryBackfillService $historyService,
@@ -41,6 +44,7 @@ class CollectRetailPremiumObservations extends Command
         MorningConsumerExecution $execution,
     ): int {
         $this->writerFence = null;
+        $this->skippedContractIds = [];
         $scheduled = (bool) $this->option('scheduled');
         if ($scheduled) {
             foreach (['as-of', 'contract', 'include-inactive', 'from', 'to', 'include-open', 'only', 'overwrite', 'dry-run'] as $option) {
@@ -65,16 +69,21 @@ class CollectRetailPremiumObservations extends Command
         }
 
         return $execution->run('retail', $asOf, $scheduled,
-            function () use ($scheduled, $freshness, $asOf): bool {
+            function () use ($scheduled, $freshness, $asOf): bool|array {
                 if ($this->option('include-inactive') || ! $this->option('require-freshness')) {
                     return true;
                 }
                 $result = $freshness->checkRetailPremium($asOf);
-                if (! $result->ready() && ! $scheduled) {
-                    $this->defer($freshness, $asOf, $result);
-                }
+                if (! $result->ready()) {
+                    if (! $scheduled) {
+                        $this->defer($freshness, $asOf, $result);
+                    }
 
-                return $result->ready();
+                    return false;
+                }
+                $this->skippedContractIds = $result->skippedContractIds;
+
+                return $result->skippedContractIds === [] ? true : ['skipped_failed_interpretation_contract_ids' => $result->skippedContractIds];
             },
             function (\Closure $fence) use ($service, $historyService, $freshness, $asOf, $history): int {
                 $this->writerFence = $fence;
@@ -99,9 +108,15 @@ class CollectRetailPremiumObservations extends Command
             if (! $result->ready()) {
                 return $this->defer($freshness, $asOf, $result);
             }
+            $this->skippedContractIds = $result->skippedContractIds;
         }
 
-        $contracts = $this->activeLineageTips($contractIds, $history['only'] ?? null);
+        $contracts = $this->activeLineageTips($contractIds, $history['only'] ?? null)
+            ->reject(fn (ElectricityContract $contract): bool => in_array($contract->id, $this->skippedContractIds, true))
+            ->values();
+        foreach ($this->skippedContractIds as $contractId) {
+            $this->warn("Skipped {$contractId}: its current interpretation failed validation.");
+        }
 
         if ($historicalMode) {
             return $this->backfillHistory($contracts, $historyService, $history);

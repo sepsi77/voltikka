@@ -336,8 +336,10 @@ class DeferredContractImportCompletionTest extends TestCase
         }
         $this->readyEexInputs();
         $this->assertSame($business ? [] : ['contract_interpretations'], array_keys($this->forecastFreshness()->failures));
-        $this->assertArrayHasKey('contract_interpretations', app(MorningJobFreshnessService::class)
-            ->checkRetailPremium(CarbonImmutable::parse(self::DATE))->failures);
+        // Retail collection skips the rejected contract instead of waiting on it (2026-11-22).
+        $retail = app(MorningJobFreshnessService::class)->checkRetailPremium(CarbonImmutable::parse(self::DATE));
+        $this->assertArrayNotHasKey('contract_interpretations', $retail->failures);
+        $this->assertSame($retail->ready() ? [$rejected[0]->id] : [], $retail->skippedContractIds);
     }
 
     public function test_active_unsettled_targets_wait_to_the_bound_and_unknown_or_missing_targets_fail_closed(): void
