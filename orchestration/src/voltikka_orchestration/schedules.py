@@ -99,14 +99,11 @@ JOBS: dict[str, tuple[str, list[ScheduleCalendarSpec], list[Step]]] = {
         Step(["contracts:cleanup-price-cache"], 10, always=True),
     )),
     "retail-premiums-calibrate": ("maintenance", [at([8], 0, day=2)], job(Step(["retail-premiums:calibrate"]))),
-    # Social posting: never repeated automatically.
-    "social-weekly-offers-video": ("maintenance", [at([13], 0, weekday=0)], job(
-        Step(["social:weekly-offers-video"], 60, max_attempts=1, interruptible=False),
-    )),
-    # C. Spot. Publication follows the hourly import (it checks complete data itself).
+    # The Remotion videos (social:weekly-offers-video, social:publish-daily-spot) have no schedule
+    # since 2026-11-26: the videos are no longer used (user decision). The commands stay for manual runs.
+    # C. Spot.
     "spot-hourly": ("spot", [at(None, 0)], job(
         Step(["spot:fetch"], 55, self_reports=True, staged=True, fetch_retry_minutes=SPOT_FETCH_RETRY_MINUTES),
-        Step(["social:publish-daily-spot"], 15, always=True, max_attempts=1, interruptible=False),
     )),
     # Independent watchdog: it must run even when spot:fetch hangs.
     "spot-check-freshness": ("spot", [at(None, 10)], job(Step(["spot:check-freshness"], 5))),

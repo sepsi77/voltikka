@@ -45,14 +45,12 @@ class WebSchedulerTest extends TestCase
             'feedback:purge-text',
             'import-payloads:cleanup --apply',
             'retail-premiums:calibrate',
-            'social:weekly-offers-video',
         ],
         'spot' => [
             'spot:fetch',
             'spot:fetch-neighbours',
             'spot:check-freshness',
             'spot:fetch-forecast',
-            'social:publish-daily-spot',
         ],
         'morning' => [
             'contracts:fetch',

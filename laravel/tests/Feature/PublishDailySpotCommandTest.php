@@ -260,17 +260,11 @@ class PublishDailySpotCommandTest extends TestCase
         $this->assertSame(0, SpotSocialPublication::count());
     }
 
-    public function test_schedule_runs_independently_each_hour_at_minute_15(): void
+    public function test_command_has_no_schedule(): void
     {
-        $event = collect(app(Schedule::class)->events())
-            ->first(fn ($event) => str_contains($event->command, 'social:publish-daily-spot'));
-
-        $this->assertNotNull($event);
-        $this->assertSame('15 * * * *', $event->expression);
-        $this->assertSame('Europe/Helsinki', $event->timezone);
-        $this->assertTrue($event->withoutOverlapping);
-        $this->assertTrue($event->onOneServer);
-        $this->assertStringEndsWith('storage/logs/daily-spot-social.log', $event->output);
+        // The videos are no longer used (2026-11-26); the command stays for manual runs.
+        $this->assertNull(collect(app(Schedule::class)->events())
+            ->first(fn ($event) => str_contains((string) $event->command, 'social:')));
     }
 
     private function mockPipeline(int $videoCalls = 1, ?Carbon $expectedAsOf = null): PostFastService
