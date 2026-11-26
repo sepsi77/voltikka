@@ -13,7 +13,7 @@ php artisan config:cache
 if [ "${1:-temporal}" = "queue" ]; then
     # Same options as the former supervisord program in the web container. --max-time lets the
     # current job finish before the process exits; Railway (restart ALWAYS) starts it again.
-    exec php artisan queue:work --queue=default,historical-interpretation --timeout=1020 --tries=3 --max-time=3600
+    exec php -d memory_limit=512M artisan queue:work --queue=default,historical-interpretation --timeout=1020 --tries=3 --max-time=3600 --memory=256
 fi
 
 exec /opt/orchestration/.venv/bin/python -m voltikka_orchestration.worker

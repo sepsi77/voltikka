@@ -192,12 +192,12 @@ scheduler would run its `contracts:complete-import`).
   --group collectors` has no field (default 0) and takes no retry path
   (`tests/histories/artisan_job_failed_collector_fetch.json`).
 - **`spot-hourly` fetch retry** (2026-11-22). FI day-ahead prices come only from this job; the
-  `day_ahead_d1` gate, `/spot-price` and the daily social post wait for D+1 (published about 13:45
+  `day_ahead_d1` gate, and `/spot-price` wait for D+1 (published about 13:45
   Helsinki). ENTSO-E answers HTTP 599 for hours at a time (2026-11-21: 9 of 14 runs from 02:00 to
   15:00 failed, so FI D+1 arrived at 16:00 and the gate opened at 16:10). Its `spot:fetch` step
   carries `fetch_retry_minutes = 45` (`schedules.SPOT_FETCH_RETRY_MINUTES`): same loop as the
   collectors, attempts at about :00, :10, :20, :30 and :40, and the retried fetch ends by :45, so the
-  store and `social:publish-daily-spot` end before the next start. `spot:fetch` is self-reporting,
+  store ends before the next start. `spot:fetch` is self-reporting,
   so for a step with a retry window `run_step()` adds `--no-failure-issue` (`jobs.NO_FAILURE_ISSUE`)
   to fetch and store and treats the step as not self-reporting: a failed run only writes its log
   line (Sentry Logs, with the `http_<status>` reason), a recovered failure sends nothing, and the

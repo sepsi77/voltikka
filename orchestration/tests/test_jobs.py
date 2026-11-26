@@ -941,8 +941,7 @@ EXPECTED_SCHEDULES = {
     "backup-nightly": ("maintenance", [["backup:run", "--only-db"], ["backup:clean"], ["backup:monitor"]], [([3], 0, None, None)]),
     "price-cache-maintenance": ("maintenance", [["contracts:warm-cache", "--pending"], ["contracts:cleanup-price-cache"]], "every-5-minutes"),
     "retail-premiums-calibrate": ("maintenance", [["retail-premiums:calibrate"]], [([8], 0, None, 2)]),
-    "social-weekly-offers-video": ("maintenance", [["social:weekly-offers-video"]], [([13], 0, 0, None)]),
-    "spot-hourly": ("spot", [["spot:fetch"], ["social:publish-daily-spot"]], [(list(range(24)), 0, None, None)]),
+    "spot-hourly": ("spot", [["spot:fetch"]], [(list(range(24)), 0, None, None)]),
     "spot-check-freshness": ("spot", [["spot:check-freshness"]], [(list(range(24)), 10, None, None)]),
     "spot-fetch-neighbours": ("spot", [["spot:fetch-neighbours"]], [(list(range(24)), 25, None, None)]),
     "spot-fetch-forecast": ("spot", [["spot:fetch-forecast"]], [([0, 6, 12, 18], 0, None, None)]),
@@ -1022,7 +1021,7 @@ def test_claim_based_steps_finish_during_a_deploy_drain():
     wanted = schedules(Settings.from_env())
     steps = {tuple(step.args): step for schedule in wanted.values() if schedule.action.workflow == "ArtisanJob"
              for step in schedule.action.args[0].steps}
-    for argv in (("contracts:warm-cache", "--pending"), ("social:publish-daily-spot",), ("social:weekly-offers-video",)):
+    for argv in (("contracts:warm-cache", "--pending"),):
         assert steps[argv].interruptible is False, argv
     assert jobs.COMPLETION_STEP.interruptible is False and jobs.COMPLETION_STEP.self_reports is True
     assert jobs.CONTRACTS_STEP.interruptible is False  # holds the import execution lock

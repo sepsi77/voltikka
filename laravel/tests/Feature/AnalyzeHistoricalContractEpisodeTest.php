@@ -88,7 +88,7 @@ class AnalyzeHistoricalContractEpisodeTest extends TestCase
         $this->assertSame(1, preg_match('/\[program:queue-worker\]\Rcommand=(?<command>[^\r\n]+)/', $supervisorConfig, $matches));
         $workerCommand = $matches['command'];
         $this->assertSame(
-            'php /app/artisan queue:work --queue=default,historical-interpretation --timeout=1020 --tries=3 --max-time=3600',
+            'php -d memory_limit=512M /app/artisan queue:work --queue=default,historical-interpretation --timeout=1020 --tries=3 --max-time=3600 --memory=256',
             $workerCommand,
         );
         $this->assertSame(1, preg_match('/--timeout=(\d+)\b/', $workerCommand, $timeoutMatches));

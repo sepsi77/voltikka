@@ -59,6 +59,9 @@ stale or unsafe result acceptable: report the result and cite the decision.
    purpose (a fetch-only mode never stores) is checked against the spec, not flagged. Examples from the staged imports (PR #31):
    ENTSO-E stopped isolating a failed unit, a scoped `contracts:fetch` lost its exit code 1, and
    repeated `--dataset` options were no longer deduplicated.
+   When a change makes one option soften an outcome (a quiet exit 0 for a wait), check every
+   combination with the options that force or override it. Example (PR #42): `--pending` turned an
+   exhausted cache conflict into exit 0, also for `contracts:warm-cache --refresh --pending`.
 3. **Transactions and idempotency.** `DB::transaction` covers every write that must be atomic. No
    network I/O (`Http::`, external APIs) inside a transaction. A retried or repeated run gives the
    same result (`upsert`, unique keys, `updateOrCreate` with the full identity). A claim or

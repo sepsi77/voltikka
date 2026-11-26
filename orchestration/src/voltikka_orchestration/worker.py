@@ -18,8 +18,8 @@ from .jobs import ArtisanJob, ContractImport, EexFutures, ImportReplay, MorningC
 from .s_forecast import SDailyForecast, SWeeklyRefit
 from .settings import Settings
 
-# Longer than every claim-based step (interruptible=False): the morning consumers and the weekly
-# social video have 60-minute timeouts (tests/test_jobs.py checks this). The Kamal stop_timeout of
+# Longer than every claim-based step (interruptible=False): the morning consumers have 60-minute
+# timeouts (tests/test_jobs.py checks this). The Kamal stop_timeout of
 # the worker role (config/deploy.yml, 3960 s) must be longer still.
 GRACEFUL_SHUTDOWN = timedelta(minutes=65)
 

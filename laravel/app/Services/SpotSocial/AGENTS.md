@@ -1,6 +1,6 @@
 # Daily spot social publication
 
-This directory owns readiness and the durable publication claim for `social:publish-daily-spot`.
+This directory owns readiness and the durable publication claim for `social:publish-daily-spot`. The command has no schedule since 2026-11-26 (user decision: the Remotion videos are no longer used); the command stays for manual runs.
 
 ## Rules
 

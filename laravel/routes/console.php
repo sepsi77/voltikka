@@ -405,22 +405,5 @@ if ($inWebScheduler('morning')) {
         ->appendOutputTo(storage_path('logs/fixed-contract-forecast-evaluation.log'));
 }
 
-// Check each hour and publish only after complete hourly data exists for today and tomorrow.
-if ($inWebScheduler('spot')) {
-    Schedule::command('social:publish-daily-spot')
-        ->hourlyAt(15)
-        ->timezone('Europe/Helsinki')
-        ->withoutOverlapping()
-        ->onOneServer()
-        ->appendOutputTo(storage_path('logs/daily-spot-social.log'));
-}
-
-// Schedule weekly offers video for Sunday at 13:00
-if ($inWebScheduler('maintenance')) {
-    Schedule::command('social:weekly-offers-video')
-        ->weeklyOn(0, '13:00')  // 0 = Sunday
-        ->timezone('Europe/Helsinki')
-        ->withoutOverlapping()
-        ->onOneServer()
-        ->appendOutputTo(storage_path('logs/weekly-offers-video.log'));
-}
+// The Remotion videos (social:publish-daily-spot, social:weekly-offers-video) have no schedule since
+// 2026-11-26: the videos are no longer used (user decision). The commands stay for manual runs.
