@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Services\Caching\ContractPriceCacheConflict;
 use App\Services\Caching\ContractPriceCacheLifecycle;
+use App\Services\Caching\ContractPriceCacheProducerBusy;
 use App\Services\Caching\ContractPriceCacheStorageException;
 use App\Services\Caching\ContractPriceCacheUnavailable;
 use App\Services\CompanyListCacheService;
@@ -13,6 +14,7 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Mockery;
 use RuntimeException;
 use Tests\TestCase;
@@ -482,8 +484,45 @@ class ContractPriceCacheLifecycleTest extends TestCase
         $this->app->instance(ContractListCacheService::class, $list);
         $active = app(ContractPriceCacheLifecycle::class)->active();
         $list->shouldReceive('buildCachedMetrics')->with(20000)->andThrow(new RuntimeException('failure'));
-        $this->artisan('contracts:warm-cache --pending')->assertFailed();
+        $this->artisan('contracts:warm-cache --pending')
+            ->expectsOutput('Contract price cache refresh failed (RuntimeException); demand remains pending.')
+            ->assertFailed();
         $this->assertSame($active, app(ContractPriceCacheLifecycle::class)->active());
+        $this->assertTrue(app(ContractPriceCacheLifecycle::class)->pending());
+    }
+
+    public function test_pending_warmer_defers_an_exhausted_conflict_quietly_and_keeps_demand(): void
+    {
+        $list = $this->builder();
+        $this->app->instance(ContractListCacheService::class, $list);
+        $active = app(ContractPriceCacheLifecycle::class)->active();
+        $list->shouldReceive('buildCachedMetrics')->twice()->andThrow(ContractPriceCacheConflict::evidenceChanged());
+        Log::spy();
+        $this->artisan('contracts:warm-cache --pending')->doesntExpectOutput()->assertSuccessful();
+        $this->assertSame($active, app(ContractPriceCacheLifecycle::class)->active());
+        $this->assertTrue(app(ContractPriceCacheLifecycle::class)->pending());
+        Log::shouldHaveReceived('info')->with('Contract price cache refresh deferred; demand remains pending.', ['reason' => 'evidence_changed'])->once();
+    }
+
+    public function test_pending_warmer_defers_a_busy_producer_quietly(): void
+    {
+        $list = Mockery::mock(ContractListCacheService::class);
+        $list->shouldReceive('needsRefresh')->andReturnTrue();
+        $list->shouldReceive('refresh')->andThrow(new ContractPriceCacheProducerBusy);
+        $this->app->instance(ContractListCacheService::class, $list);
+        Log::spy();
+        $this->artisan('contracts:warm-cache --pending')->doesntExpectOutput()->assertSuccessful();
+        Log::shouldHaveReceived('info')->with('Contract price cache refresh deferred; demand remains pending.', ['reason' => 'producer_busy'])->once();
+    }
+
+    public function test_forced_refresh_still_fails_on_an_exhausted_conflict(): void
+    {
+        $list = $this->builder();
+        $this->app->instance(ContractListCacheService::class, $list);
+        $list->shouldReceive('buildCachedMetrics')->twice()->andThrow(ContractPriceCacheConflict::evidenceChanged());
+        $this->artisan('contracts:warm-cache --refresh')
+            ->expectsOutput('Contract price cache refresh failed ('.ContractPriceCacheConflict::class.'); demand remains pending.')
+            ->assertFailed();
         $this->assertTrue(app(ContractPriceCacheLifecycle::class)->pending());
     }
 
