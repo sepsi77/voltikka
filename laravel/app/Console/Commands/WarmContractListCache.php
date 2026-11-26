@@ -23,7 +23,7 @@ class WarmContractListCache extends Command
         try {
             $version = $contractListCache->refresh($companyListCache, onlyIfNeeded: ! $this->option('refresh'));
         } catch (ContractPriceCacheConflict|ContractPriceCacheProducerBusy $exception) {
-            if (! $this->option('pending')) {
+            if ($this->option('refresh') || ! $this->option('pending')) {
                 return $this->failed($exception);
             }
             // A wait, not a failure: during the morning import each published interpretation

@@ -526,6 +526,16 @@ class ContractPriceCacheLifecycleTest extends TestCase
         $this->assertTrue(app(ContractPriceCacheLifecycle::class)->pending());
     }
 
+    public function test_forced_refresh_with_pending_still_fails_on_a_busy_producer(): void
+    {
+        $list = Mockery::mock(ContractListCacheService::class);
+        $list->shouldReceive('refresh')->andThrow(new ContractPriceCacheProducerBusy);
+        $this->app->instance(ContractListCacheService::class, $list);
+        $this->artisan('contracts:warm-cache --refresh --pending')
+            ->expectsOutput('Contract price cache refresh failed ('.ContractPriceCacheProducerBusy::class.'); demand remains pending.')
+            ->assertFailed();
+    }
+
     public function test_comparison_domain_is_checked_before_pricing_or_cache_writes(): void
     {
         Cache::flush();
