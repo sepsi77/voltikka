@@ -6,7 +6,6 @@ LABEL service="voltikka"
 
 # Install system dependencies and PHP extensions
 # Note: libjpeg62-turbo-dev for JPEG, libwebp-dev for WebP support in GD
-# Note: chromium for Remotion video rendering
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -23,7 +22,6 @@ RUN apt-get update && apt-get install -y \
     supervisor \
     nodejs \
     npm \
-    chromium \
     default-mysql-client \
     $PHPIZE_DEPS \
     && docker-php-ext-configure gd --with-jpeg --with-webp \
@@ -32,11 +30,9 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-enable excimer redis \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Set Chromium path for Remotion/Puppeteer
 # Contract list warming must happen at container start (not image build),
 # because it requires a live database connection.
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
-    WARM_CONTRACT_CACHE_ON_START=1
+ENV WARM_CONTRACT_CACHE_ON_START=1
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -52,12 +48,6 @@ RUN composer install --no-dev --optimize-autoloader
 
 # Install Node.js dependencies and build assets
 RUN npm ci && npm run build && rm -rf node_modules
-
-# Copy and install Remotion project for video rendering
-COPY remotion/ /app/remotion/
-WORKDIR /app/remotion
-RUN npm ci
-WORKDIR /app
 
 # Temporal worker (tasks/temporal-orchestration/, service voltikka-worker). uv installs the pinned
 # Python and the locked dependencies of orchestration/uv.lock; the web service never starts it.

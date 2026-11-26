@@ -439,7 +439,7 @@ Every scheduled command that reads an external API and writes the database runs 
 
 ### Daily spot social publication
 - `spot:fetch` has no social side effects. It only persists Spot data, calculates averages, and warms caches.
-- `social:publish-daily-spot` has no schedule since 2026-11-26 (user decision: the Remotion videos are no longer used); the command stays for manual runs, and `social:weekly-offers-video` likewise. A manual publication waits for complete hourly data for the Helsinki content date and next date.
+- `social:publish-daily-spot` has no schedule since 2026-11-26 (user decision: the Remotion videos are no longer used); since the same day the production image has no Remotion project and no Chromium, so the command renders only from a local checkout, and `social:weekly-offers-video` likewise. A manual publication waits for complete hourly data for the Helsinki content date and next date.
 - External posting defaults off through `SPOT_SOCIAL_PUBLISHING_ENABLED=false`. A unique Helsinki `content_date` ledger prevents repeated normal publication.
 - Failed or active processing attempts never retry automatically. An operator can use `--retry --date=YYYY-MM-DD` only after inspecting PostFast; provider timeouts can be uncertain because external posts can exist even when Voltikka records failure.
 - See `laravel/app/Services/SpotSocial/AGENTS.md` for claim, retry, and partial-success rules.

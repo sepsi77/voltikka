@@ -262,7 +262,7 @@ class PublishDailySpotCommandTest extends TestCase
 
     public function test_command_has_no_schedule(): void
     {
-        // The videos are no longer used (2026-11-26); the command stays for manual runs.
+        // The videos are no longer used (2026-11-26); the image has no Remotion.
         $this->assertNull(collect(app(Schedule::class)->events())
             ->first(fn ($event) => str_contains((string) $event->command, 'social:')));
     }
