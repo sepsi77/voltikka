@@ -406,4 +406,4 @@ if ($inWebScheduler('morning')) {
 }
 
 // The Remotion videos (social:publish-daily-spot, social:weekly-offers-video) have no schedule since
-// 2026-11-26: the videos are no longer used (user decision). The commands stay for manual runs.
+// 2026-11-26: the videos are no longer used (user decision). The image has no Remotion either.

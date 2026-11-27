@@ -100,7 +100,7 @@ JOBS: dict[str, tuple[str, list[ScheduleCalendarSpec], list[Step]]] = {
     )),
     "retail-premiums-calibrate": ("maintenance", [at([8], 0, day=2)], job(Step(["retail-premiums:calibrate"]))),
     # The Remotion videos (social:weekly-offers-video, social:publish-daily-spot) have no schedule
-    # since 2026-11-26: the videos are no longer used (user decision). The commands stay for manual runs.
+    # since 2026-11-26: the videos are no longer used (user decision). The image has no Remotion either.
     # C. Spot.
     "spot-hourly": ("spot", [at(None, 0)], job(
         Step(["spot:fetch"], 55, self_reports=True, staged=True, fetch_retry_minutes=SPOT_FETCH_RETRY_MINUTES),

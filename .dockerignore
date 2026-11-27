@@ -14,7 +14,6 @@
 !docker-entrypoint.sh
 !supervisord.conf
 !laravel
-!remotion
 # Temporal worker and the own S model package (tasks/temporal-orchestration/).
 !docker-worker-entrypoint.sh
 !orchestration
